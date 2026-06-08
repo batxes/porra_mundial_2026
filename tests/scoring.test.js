@@ -33,15 +33,15 @@ const engine = window.PORRA_SCORING.createEngine({ data: window.PORRA_DATA, sche
 }
 
 {
-  const prediction = { groups: {}, bracket: { winners: {} }, extras: {}, xi: ["yamal"], matchPredictions: {} };
+  const prediction = { groups: {}, bracket: { winners: {} }, extras: {}, xi: ["esp-19"], matchPredictions: {} };
   const card = engine.calculateScorecard(prediction, {
     1: {
       homeScore: 1,
       awayScore: 0,
       events: [
-        { id: "goal", playerId: "yamal", type: "gol", minute: 12 },
-        { id: "red", playerId: "yamal", type: "roja", minute: 88 },
-        { id: "other", playerId: "mbappe", type: "gol", minute: 90 },
+        { id: "goal", playerId: "esp-19", type: "gol", minute: 12 },
+        { id: "red", playerId: "esp-19", type: "roja", minute: 88 },
+        { id: "other", playerId: "fra-10", type: "gol", minute: 90 },
       ],
     },
   });

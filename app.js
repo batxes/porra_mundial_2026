@@ -103,6 +103,10 @@
       .replaceAll("'", "&#039;");
   }
 
+  function escapeAttr(value) {
+    return escapeHtml(value).replaceAll("`", "&#096;");
+  }
+
   function flagUrl(team) {
     return `https://flagcdn.com/w40/${team.code}.png`;
   }
@@ -449,7 +453,7 @@
               <button class="button button-secondary" data-go="clasificacion" type="button">Ver clasificación</button>
             </div>
           </div>
-          <div class="hero-art" aria-hidden="true">${renderTrophyArt()}</div>
+          <div class="hero-art" aria-hidden="true">${renderHeroArt()}</div>
         </section>
 
         <section class="stats-strip" aria-label="Datos del torneo">
@@ -485,23 +489,67 @@
     `;
   }
 
-  function renderTrophyArt() {
+  function renderHeroArt() {
     return `
-      <svg class="trophy-art" viewBox="0 0 320 320" role="img" aria-label="Copa del Mundial estilizada">
+      <svg class="hero-scene" viewBox="0 0 560 420" role="img" aria-label="Escena de fútbol con jugadores y copa estilizada">
         <defs>
+          <linearGradient id="sky-glow" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stop-color="#fff8c7" />
+            <stop offset="0.48" stop-color="#6ac76c" />
+            <stop offset="1" stop-color="#236f37" />
+          </linearGradient>
+          <linearGradient id="field-glow" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0" stop-color="#1f6b35" />
+            <stop offset="0.5" stop-color="#4caf50" />
+            <stop offset="1" stop-color="#19562d" />
+          </linearGradient>
           <linearGradient id="trophy-gold" x1="0" x2="1" y1="0" y2="1">
             <stop offset="0" stop-color="#fff3a4" />
             <stop offset="0.48" stop-color="#ffdd44" />
             <stop offset="1" stop-color="#d9a51f" />
           </linearGradient>
         </defs>
-        <circle cx="160" cy="160" r="132" fill="rgba(255,255,255,.12)" />
-        <path d="M92 64h136c-5 62-31 101-65 115-36-16-61-54-71-115Z" fill="url(#trophy-gold)" />
-        <path d="M100 78c-31 7-48 28-43 54 5 25 28 42 62 44" fill="none" stroke="#ffdd44" stroke-width="17" stroke-linecap="round" />
-        <path d="M220 78c31 7 48 28 43 54-5 25-28 42-62 44" fill="none" stroke="#ffdd44" stroke-width="17" stroke-linecap="round" />
-        <path d="M142 178h36l10 58h-56l10-58Z" fill="#ffdd44" />
-        <path d="M104 244h112l18 34H86l18-34Z" fill="#ffdd44" />
-        <text x="160" y="128" text-anchor="middle" fill="#2f7d32" font-size="48" font-weight="950">26</text>
+        <rect width="560" height="420" rx="38" fill="url(#sky-glow)" />
+        <circle cx="444" cy="70" r="62" fill="rgba(255,221,68,.42)" />
+        <path d="M0 294c116-50 233-60 352-31 84 20 148 19 208-2v159H0Z" fill="url(#field-glow)" />
+        <path d="M30 353c126-30 258-35 398-10" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="4" />
+        <path d="M272 263c-34 24-57 59-69 104" fill="none" stroke="rgba(255,255,255,.32)" stroke-width="3" />
+        <ellipse cx="280" cy="364" rx="106" ry="34" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="4" />
+
+        <g class="scene-player scene-player-left">
+          <circle cx="146" cy="166" r="23" fill="#f3c28b" />
+          <path d="M119 204c26-23 62-24 88 1l-16 72h-55Z" fill="#ffffff" />
+          <path d="M135 230l-60 33" stroke="#fff" stroke-width="16" stroke-linecap="round" />
+          <path d="M192 226l47 39" stroke="#fff" stroke-width="16" stroke-linecap="round" />
+          <path d="M143 275l-27 72" stroke="#172a20" stroke-width="18" stroke-linecap="round" />
+          <path d="M181 276l47 64" stroke="#172a20" stroke-width="18" stroke-linecap="round" />
+          <path d="M132 201c18 14 42 15 62 0" fill="none" stroke="#4caf50" stroke-width="9" />
+        </g>
+
+        <g class="scene-player scene-player-right">
+          <circle cx="334" cy="150" r="22" fill="#8f5a38" />
+          <path d="M303 192c25-24 63-24 88 1l-18 78h-54Z" fill="#ffdd44" />
+          <path d="M319 219l-58 44" stroke="#ffdd44" stroke-width="16" stroke-linecap="round" />
+          <path d="M374 216l48 31" stroke="#ffdd44" stroke-width="16" stroke-linecap="round" />
+          <path d="M323 270l-58 58" stroke="#1f3327" stroke-width="18" stroke-linecap="round" />
+          <path d="M362 270l25 76" stroke="#1f3327" stroke-width="18" stroke-linecap="round" />
+          <path d="M320 190c18 12 39 12 57 0" fill="none" stroke="#2f7d32" stroke-width="9" />
+        </g>
+
+        <g class="scene-ball">
+          <circle cx="258" cy="286" r="24" fill="#fff" />
+          <path d="M258 264l14 10-5 17h-18l-6-17Z" fill="#1f3327" />
+          <path d="M237 286h20m22-3-14 11m-14 13 6-16" stroke="#1f3327" stroke-width="3" />
+        </g>
+
+        <g class="scene-trophy">
+          <path d="M414 79h75c-3 37-18 61-37 70-21-9-35-33-38-70Z" fill="url(#trophy-gold)" />
+          <path d="M418 91c-24 2-38 18-34 36 4 17 20 28 44 27" fill="none" stroke="#ffdd44" stroke-width="10" stroke-linecap="round" />
+          <path d="M485 91c24 2 38 18 34 36-4 17-20 28-44 27" fill="none" stroke="#ffdd44" stroke-width="10" stroke-linecap="round" />
+          <path d="M440 150h24l7 44h-38Z" fill="#ffdd44" />
+          <path d="M413 198h78l13 24H400Z" fill="#ffdd44" />
+          <path d="M397 72c17-21 42-31 70-27 18 3 34 11 48 26" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="5" stroke-linecap="round" />
+        </g>
       </svg>
     `;
   }
@@ -1221,9 +1269,9 @@
                       <div class="admin-user-row">
                         <span><strong>${escapeHtml(user.name)}</strong><small>${escapeHtml(user.email)} · ${user.points} pts</small></span>
                         <span class="button-row">
-                          <button class="button button-mini" data-toggle-admin-user="${escapeHtml(user.id)}" type="button">${user.isAdmin ? "Quitar admin" : "Hacer admin"}</button>
-                          ${supabase ? "" : `<button class="button button-mini" data-reset-user-password="${escapeHtml(user.id)}" type="button">Reset password</button>`}
-                          <button class="button button-mini" data-delete-user="${escapeHtml(user.id)}" ${user.id === state.user?.id ? "disabled" : ""} type="button">Eliminar</button>
+                          <button class="button button-mini" data-toggle-admin-user="${escapeHtml(user.id)}" ${user.email === defaultAdminEmail ? "disabled" : ""} type="button">${user.isAdmin ? "Quitar admin" : "Hacer admin"}</button>
+                          ${supabase || user.email === defaultAdminEmail ? "" : `<button class="button button-mini" data-reset-user-password="${escapeHtml(user.id)}" type="button">Reset password</button>`}
+                          <button class="button button-mini" data-delete-user="${escapeHtml(user.id)}" ${user.id === state.user?.id || user.email === defaultAdminEmail ? "disabled" : ""} type="button">Eliminar</button>
                         </span>
                       </div>`,
                   )
@@ -1348,13 +1396,17 @@
     if (!state.user?.isAdmin || userId === state.user.id) return;
     if (!window.confirm("¿Seguro que quieres eliminar este usuario y su porra?")) return;
     if (supabase) {
+      const player = state.communityPlayers.find((candidate) => candidate.id === userId);
+      if (player?.email === defaultAdminEmail) return;
       const { error } = await supabase.rpc("admin_delete_user", { target_user_id: userId });
       if (error) alert(`No se ha podido borrar el usuario: ${error.message}`);
       await loadSupabasePublicData();
       render();
       return;
     }
-    const users = getLocalJson(localKeys.users, []).filter((user) => user.id !== userId);
+    const existingUsers = getLocalJson(localKeys.users, []);
+    if (existingUsers.find((user) => user.id === userId)?.email === defaultAdminEmail) return;
+    const users = existingUsers.filter((user) => user.id !== userId);
     const predictions = getLocalJson(localKeys.predictions, {});
     delete predictions[userId];
     setLocalJson(localKeys.users, users);
@@ -1366,6 +1418,7 @@
     if (!state.user?.isAdmin) return;
     if (supabase) {
       const player = state.communityPlayers.find((candidate) => candidate.id === userId);
+      if (player?.email === defaultAdminEmail) return;
       const { error } = await supabase.rpc("admin_set_user_admin", { target_user_id: userId, next_is_admin: !player?.isAdmin });
       if (error) alert(`No se ha podido cambiar el rol: ${error.message}`);
       await loadSupabasePublicData();
@@ -1374,6 +1427,7 @@
     }
     const users = getLocalJson(localKeys.users, []);
     const user = users.find((candidate) => candidate.id === userId);
+    if (user?.email === defaultAdminEmail) return;
     if (user) user.isAdmin = !user.isAdmin;
     setLocalJson(localKeys.users, users);
     if (state.user.id === userId) state.user.isAdmin = Boolean(user?.isAdmin);
@@ -1382,14 +1436,15 @@
 
   async function resetLocalUserPassword(userId) {
     if (!state.user?.isAdmin || supabase) return;
+    const users = getLocalJson(localKeys.users, []);
+    const user = users.find((candidate) => candidate.id === userId);
+    if (user?.email === defaultAdminEmail) return;
     const password = window.prompt("Nueva contraseña para este usuario (mínimo 5 caracteres):");
     if (!password) return;
     if (password.length < 5) {
       alert("La contraseña debe tener al menos 5 caracteres.");
       return;
     }
-    const users = getLocalJson(localKeys.users, []);
-    const user = users.find((candidate) => candidate.id === userId);
     if (!user) return;
     user.passwordHash = await digest(password);
     setLocalJson(localKeys.users, users);
@@ -1417,6 +1472,7 @@
         return {
           id: user.id,
           name: user.name,
+          avatarUrl: user.avatarUrl || "",
           initials: initials(user.name),
           points: scorecard.total,
           complete: user.id === state.user?.id ? calculateCompletion() : calculateCompletionForPrediction(prediction),
@@ -1450,7 +1506,7 @@
               (player, index) => `
               <div class="leader-row">
                 <span class="rank">${index + 1}</span>
-                <span class="leader-person"><span class="avatar">${escapeHtml(player.initials)}</span><strong>${escapeHtml(player.name)}${player.isCurrent ? " · tú" : ""}</strong></span>
+                <span class="leader-person">${renderAvatar(player)}<strong>${escapeHtml(player.name)}${player.isCurrent ? " · tú" : ""}</strong></span>
                 <span class="team-name">${player.champion ? teamLabel(player.champion) : "<span>Pendiente</span>"}</span>
                 <span class="leader-points">${player.points}</span>
                 <button class="button" data-public-profile="${escapeHtml(player.id)}" type="button">Ver porra</button>
@@ -1551,6 +1607,7 @@
     }
 
     const scorecard = currentUserScorecard();
+    const lockedAdmin = state.user.email === defaultAdminEmail;
     return `
       <div class="page-shell page-narrow">
         <div class="section-heading">
@@ -1560,7 +1617,7 @@
           </div>
         </div>
         <article class="profile-card">
-          <span class="avatar">${initials(state.user.name)}</span>
+          ${renderAvatar(state.user)}
           <div>
             <h3>${escapeHtml(state.user.name)}</h3>
             <p class="muted">${escapeHtml(state.user.email)}</p>
@@ -1570,6 +1627,39 @@
             </div>
           </div>
         </article>
+        <form class="card profile-edit-form" id="profile-form">
+          <p class="eyebrow">Perfil</p>
+          <h3>Editar usuario y avatar</h3>
+          ${lockedAdmin ? '<div class="notice">El usuario administrador principal tiene el nombre y el rol bloqueados.</div>' : ""}
+          <label class="field">
+            <span>Nombre visible</span>
+            <input name="displayName" type="text" value="${escapeAttr(state.user.name)}" minlength="2" maxlength="40" ${lockedAdmin ? "disabled" : ""} required />
+          </label>
+          <div class="field">
+            <span>Avatar</span>
+            <div class="avatar-options">
+              ${avatarPresets
+                .map(
+                  (preset) => `
+                    <label class="avatar-choice">
+                      <input name="avatarPreset" type="radio" value="${escapeAttr(preset.id)}" ${state.user.avatarUrl === `preset:${preset.id}` ? "checked" : ""} />
+                      ${renderAvatar({ name: state.user.name, avatarUrl: `preset:${preset.id}` })}
+                    </label>`,
+                )
+                .join("")}
+              <label class="avatar-choice">
+                <input name="avatarPreset" type="radio" value="" ${!state.user.avatarUrl || !state.user.avatarUrl.startsWith("preset:") ? "checked" : ""} />
+                ${renderAvatar(state.user)}
+              </label>
+            </div>
+          </div>
+          <label class="field">
+            <span>Subir foto de avatar</span>
+            <input name="avatarFile" type="file" accept="image/png,image/jpeg,image/webp" />
+          </label>
+          <button class="button button-dark" type="submit">Guardar perfil</button>
+          <p class="form-message" id="profile-message" role="status"></p>
+        </form>
         <section class="stats-strip">
           <article class="stat-card"><span>Puntos</span><strong>${scorecard.total}</strong><small>Actualizados</small></article>
           <article class="stat-card"><span>Porra</span><strong>${calculateCompletion()}%</strong><small>Completada</small></article>
@@ -1580,6 +1670,64 @@
         ${renderScoreBreakdown(scorecard, "Detalle de tus puntos")}
       </div>
     `;
+  }
+
+  function readFileDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => resolve(reader.result));
+      reader.addEventListener("error", () => reject(reader.error));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function saveProfile(form) {
+    if (!state.user) return;
+    const values = new FormData(form);
+    const lockedAdmin = state.user.email === defaultAdminEmail;
+    const message = document.querySelector("#profile-message");
+    const nextName = lockedAdmin ? state.user.name : String(values.get("displayName") || "").trim();
+    if (!nextName || nextName.length < 2) {
+      message.textContent = "El nombre debe tener al menos 2 caracteres.";
+      return;
+    }
+    let avatarUrl = state.user.avatarUrl || "";
+    const file = values.get("avatarFile");
+    const preset = String(values.get("avatarPreset") || "");
+    if (file && file.size) {
+      if (file.size > 350 * 1024) {
+        message.textContent = "La imagen debe pesar menos de 350 KB.";
+        return;
+      }
+      avatarUrl = await readFileDataUrl(file);
+    } else if (preset) {
+      avatarUrl = `preset:${preset}`;
+    }
+
+    if (supabase) {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ display_name: nextName, avatar_url: avatarUrl, updated_at: new Date().toISOString() })
+        .eq("id", state.user.id);
+      if (error) {
+        message.textContent = `No se ha podido guardar: ${error.message}`;
+        return;
+      }
+      await loadSupabasePublicData();
+    } else {
+      const users = getLocalJson(localKeys.users, []);
+      const user = users.find((candidate) => candidate.id === state.user.id);
+      if (user) {
+        user.name = nextName;
+        user.avatarUrl = avatarUrl;
+        setLocalJson(localKeys.users, users);
+      }
+    }
+    state.user.name = nextName;
+    state.user.avatarUrl = avatarUrl;
+    render();
+    const nextMessage = document.querySelector("#profile-message");
+    if (nextMessage) nextMessage.textContent = "Perfil actualizado.";
   }
 
   function renderPredictionSummary(prediction) {
@@ -1651,6 +1799,127 @@
         }
       </article>
     `;
+  }
+
+  function renderReadonlyGroups(prediction) {
+    const groups = Object.keys(prediction.groups || {}).sort();
+    return `
+      <article class="card">
+        <p class="eyebrow">Grupos</p>
+        <h3>Clasificación elegida</h3>
+        <div class="readonly-grid">
+          ${groups
+            .map((group) => {
+              const rows = Object.entries(prediction.groups[group] || {})
+                .filter(([, position]) => position)
+                .sort((a, b) => Number(a[1]) - Number(b[1]));
+              return `
+                <section class="readonly-box">
+                  <h4>Grupo ${escapeHtml(group)}</h4>
+                  ${rows.length ? rows.map(([teamId, position]) => `<div class="summary-item"><span>${position}º</span><strong class="team-name">${teamLabel(teamId)}</strong></div>`).join("") : '<p class="muted">Sin completar.</p>'}
+                </section>`;
+            })
+            .join("")}
+        </div>
+      </article>`;
+  }
+
+  function renderReadonlyBracket(prediction) {
+    return `
+      <article class="card">
+        <p class="eyebrow">Eliminatorias</p>
+        <h3>Cuadro elegido</h3>
+        <div class="readonly-grid">
+          ${knockoutStages
+            .map((stage) => {
+              const matches = knockoutMatches.filter((match) => match.stage === stage);
+              return `
+                <section class="readonly-box">
+                  <h4>${escapeHtml(stage)}</h4>
+                  ${matches
+                    .map((match) => {
+                      const home = resolveSlot(match.home, match.number, prediction);
+                      const away = resolveSlot(match.away, match.number, prediction);
+                      const winner = prediction.bracket?.winners?.[String(match.number)] || "";
+                      return `<div class="readonly-match">
+                        <span>Partido ${match.number}</span>
+                        <div class="team-name ${winner === home ? "picked" : ""}">${home ? teamLabel(home) : `<span>${escapeHtml(translateSlot(match.home))}</span>`}</div>
+                        <div class="team-name ${winner === away ? "picked" : ""}">${away ? teamLabel(away) : `<span>${escapeHtml(translateSlot(match.away))}</span>`}</div>
+                      </div>`;
+                    })
+                    .join("")}
+                </section>`;
+            })
+            .join("")}
+        </div>
+      </article>`;
+  }
+
+  function renderReadonlyExtras(prediction) {
+    const extras = prediction.extras || {};
+    const playerName = (id) => players.get(id)?.name || "Pendiente";
+    return `
+      <article class="card">
+        <p class="eyebrow">Extras</p>
+        <h3>Apuestas especiales</h3>
+        <div class="summary-list">
+          <div class="summary-item"><span>Equipo más goleador</span><strong class="team-name">${extras.highestScoringTeam ? teamLabel(extras.highestScoringTeam) : "Pendiente"}</strong></div>
+          <div class="summary-item"><span>Equipo más goleado</span><strong class="team-name">${extras.mostConcededTeam ? teamLabel(extras.mostConcededTeam) : "Pendiente"}</strong></div>
+          <div class="summary-item"><span>Más rojas</span><strong class="team-name">${extras.mostRedsTeam ? teamLabel(extras.mostRedsTeam) : "Pendiente"}</strong></div>
+          <div class="summary-item"><span>Menos rojas</span><strong class="team-name">${extras.fewestRedsTeam ? teamLabel(extras.fewestRedsTeam) : "Pendiente"}</strong></div>
+          <div class="summary-item"><span>Máximo goleador</span><strong>${escapeHtml(playerName(extras.topScorer))}</strong></div>
+          <div class="summary-item"><span>MVP Mundial</span><strong>${escapeHtml(playerName(extras.mvp))}</strong></div>
+        </div>
+      </article>`;
+  }
+
+  function renderReadonlyXi(prediction) {
+    const selected = prediction.xi || [];
+    return `
+      <article class="card">
+        <p class="eyebrow">Once ideal</p>
+        <h3>Jugadores elegidos</h3>
+        <div class="readonly-player-grid">
+          ${selected.length ? selected.map((playerId) => {
+            const player = players.get(playerId);
+            return `<div class="player-chip selected">${flag(player?.team)}<span>${escapeHtml(player?.name || "Jugador")}</span><small>${escapeHtml(player?.position || "")}</small></div>`;
+          }).join("") : '<p class="muted">Sin once elegido.</p>'}
+        </div>
+      </article>`;
+  }
+
+  function renderReadonlyPlayedMatches(prediction) {
+    const results = currentAdminResults();
+    const played = schedule.filter((match) => results[String(match.number)]?.homeScore !== undefined && results[String(match.number)]?.awayScore !== undefined);
+    return `
+      <article class="card">
+        <p class="eyebrow">Partidos disputados</p>
+        <h3>Resultados y pronóstico</h3>
+        <div class="readonly-match-list">
+          ${played.length ? played.map((match) => {
+            const result = results[String(match.number)];
+            const forecast = prediction.matchPredictions?.[String(match.number)] || {};
+            const home = result.homeTeamId || (teams.has(match.home) ? match.home : "");
+            const away = result.awayTeamId || (teams.has(match.away) ? match.away : "");
+            return `<div class="readonly-played-match">
+              <span>Partido ${match.number}</span>
+              <strong>${home ? teams.get(home)?.name : translateSlot(match.home)} ${result.homeScore}-${result.awayScore} ${away ? teams.get(away)?.name : translateSlot(match.away)}</strong>
+              <small>Pronóstico: ${forecast.homeScore ?? "-"}-${forecast.awayScore ?? "-"}</small>
+            </div>`;
+          }).join("") : '<p class="muted">Todavía no hay partidos publicados por el administrador.</p>'}
+        </div>
+      </article>`;
+  }
+
+  function renderFullPredictionReadOnly(prediction) {
+    return `
+      <section class="public-prediction-grid">
+        ${renderReadonlyGroups(prediction)}
+        ${renderReadonlyBracket(prediction)}
+        ${renderReadonlyExtras(prediction)}
+        ${renderReadonlyXi(prediction)}
+        ${renderReadonlyPlayedMatches(prediction)}
+      </section>`;
   }
 
   function calculateCompletion() {
@@ -1756,10 +2025,13 @@
     const register = state.authMode === "register";
     const passwordInput = document.querySelector("[name='password']");
     const confirmPasswordInput = document.querySelector("[name='confirmPassword']");
+    const confirmPasswordField = document.querySelector("#confirm-password-field");
     document.querySelector("#auth-title").textContent = register ? "Crea tu cuenta" : "Bienvenido de nuevo";
     document.querySelector("#name-field").hidden = !register;
-    document.querySelector("#confirm-password-field").hidden = !register;
+    confirmPasswordField.hidden = !register;
+    confirmPasswordField.setAttribute("aria-hidden", String(!register));
     confirmPasswordInput.disabled = !register;
+    confirmPasswordInput.required = register;
     if (!register) confirmPasswordInput.value = "";
     passwordInput.autocomplete = register ? "new-password" : "current-password";
     document.querySelector("[data-action='forgot-password']").hidden = register;
@@ -1885,8 +2157,7 @@
     document.querySelector("#public-profile-content").innerHTML = `
       <button class="modal-close" data-action="close-public-profile" type="button" aria-label="Cerrar">×</button>
       <p class="eyebrow">Porra pública</p>
-      <h2>${escapeHtml(profile.name)}</h2>
-      <p class="muted">${scorecard.total} puntos · ${profile.complete}% completada</p>
+      <div class="public-profile-head">${renderAvatar(profile)}<div><h2>${escapeHtml(profile.name)}</h2><p class="muted">${scorecard.total} puntos · ${profile.complete}% completada</p></div></div>
       <div class="summary-list">
         <div class="summary-item"><span>Campeón</span><strong class="team-name">${champion}</strong></div>
         <div class="summary-item"><span>Subcampeón</span><strong class="team-name">${runnerUp}</strong></div>
@@ -1894,6 +2165,7 @@
         <div class="summary-item"><span>MVP</span><strong>${escapeHtml(players.get(mvpId)?.name || "Pendiente")}</strong></div>
         <div class="summary-item"><span>Once ideal</span><strong>${prediction?.xi?.length || (profile.isCurrent ? 0 : 11)} / 11</strong></div>
       </div>
+      ${renderFullPredictionReadOnly(prediction || emptyPrediction())}
       ${renderScoreBreakdown(scorecard, `Puntos de ${profile.name}`)}
       <p class="tiny muted">El detalle completo se recalcula cada vez que el administrador valida o corrige datos.</p>
     `;
@@ -1996,6 +2268,10 @@
     if (event.target.id === "admin-event-form") {
       event.preventDefault();
       saveAdminEvent(new FormData(event.target));
+    }
+    if (event.target.id === "profile-form") {
+      event.preventDefault();
+      saveProfile(event.target);
     }
   });
 

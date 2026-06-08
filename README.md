@@ -15,10 +15,9 @@ python3 -m http.server 4173
 Visita `http://localhost:4173`. Sin configuración adicional, el registro y la porra se guardan
 en `localStorage` para poder probar el flujo completo.
 
-La demo local crea automáticamente este usuario administrador:
+La demo local crea automáticamente un usuario administrador:
 
 - Email: `admin@admin.admin`
-- Contraseña: `admin`
 
 Ese usuario aparece en la pestaña `Admin` y puede publicar/corregir resultados, añadir eventos,
 resetear contraseñas locales, borrar usuarios locales y cambiar roles. En la demo, la contraseña
@@ -32,11 +31,14 @@ node --check scoring.js
 node --check data.js
 node --check schedule.js
 node tests/scoring.test.js
+node tests/full-tournament-simulation.test.js
 curl -sS -o /dev/null -w "index=%{http_code}\n" http://localhost:4173/
 ```
 
 El test de puntuación comprueba, entre otras cosas, que un pronóstico `2-2` recibe 4 puntos
 cuando el admin valida `2-2`, y que baja a 0 si el admin corrige el resultado a `2-1`.
+El test de simulación crea dos porras de prueba, valida los 104 partidos, añade eventos, calcula
+campeón y comprueba que la clasificación se ordena por puntos.
 
 ## Base de datos real
 
@@ -64,7 +66,7 @@ publiques nunca la clave `service_role`.
 Para activar el administrador en producción:
 
 1. En Supabase, ve a `Authentication > Users`.
-2. Crea el usuario `admin@admin.admin` con contraseña `admin`.
+2. Crea el usuario `admin@admin.admin` con la contraseña privada que vayas a usar.
 3. Ejecuta `supabase/migration-005-default-admin.sql` para marcar ese perfil como administrador.
 4. Entra en la web con ese usuario y cambia la contraseña desde Supabase si vas a compartir la
    web públicamente.
@@ -74,8 +76,10 @@ Supabase Auth guarda las contraseñas hasheadas; esta app nunca muestra ni lee c
 Si ya habías ejecutado una versión anterior de `schema.sql`, ejecuta también
 `supabase/migration-002-admin-and-definitive.sql`, después
 `supabase/migration-003-automatic-scoring.sql`, después
-`supabase/migration-004-admin-user-management.sql` y después
-`supabase/migration-005-default-admin.sql`.
+`supabase/migration-004-admin-user-management.sql`, después
+`supabase/migration-005-default-admin.sql`, después
+`supabase/migration-006-official-squads.sql` y después
+`supabase/migration-007-protect-default-admin.sql`.
 
 ## GitHub y Vercel
 
@@ -132,8 +136,9 @@ lo permite.
 
 - El modo demo funciona enteramente en el navegador.
 - La autenticación y el guardado de `predictions` ya tienen adaptador para Supabase.
-- El usuario local `admin@admin.admin` / `admin` se crea automáticamente como administrador de
-  demo.
+- El usuario local `admin@admin.admin` se crea automáticamente como administrador de demo.
+- El catálogo de jugadores contiene 1.248 jugadores, importados de las plantillas publicadas en
+  `https://worldcupranking.com/world-cup-2026/squads/` el 8 de junio de 2026.
 - Una porra puede guardarse como borrador o confirmarse como definitiva. Supabase impide
   modificarla después de esa confirmación.
 - Los participantes pueden pronosticar marcadores de los partidos visibles. Cada marcador se
@@ -147,8 +152,8 @@ lo permite.
 - La semilla SQL incorpora las 48 selecciones de los grupos publicados por FIFA.
 - `schedule.js` incorpora los 104 partidos y fechas publicados. Los cruces eliminatorios aún
   no decididos conservan la plaza oficial correspondiente.
-- El catálogo corto de jugadores es demostrativo. Debe reemplazarse por convocatorias FIFA
-  validadas antes de abrir la porra.
+- El catálogo de jugadores debe revisarse contra la fuente oficial final antes de cobrar o
+  cerrar una porra pública.
 
 La estrategia de datos está documentada en `docs/data-sources.md`. Las reglas que conviene
 cerrar antes de automatizar el cálculo están recopiladas en `docs/open-decisions.md`.
