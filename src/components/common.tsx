@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { data, teamsById } from "@/lib/data";
-import { flagUrl, formatScheduleDate, initials, translateSlot } from "@/lib/format";
+import { flagUrl, formatScheduleDate, initials, playerPhotoUrl, translateSlot } from "@/lib/format";
 import { emptyPrediction, loserForMatch, resolveSlot } from "@/lib/prediction";
-import type { Match, Prediction, Scorecard, UserProfile } from "@/lib/types";
+import type { Match, Player, Prediction, Scorecard, UserProfile } from "@/lib/types";
 
 export function Card({
   children,
@@ -62,9 +62,32 @@ export function TeamBadge({
   }
 
   return (
-    <span className={`inline-flex items-center gap-2 text-sm font-medium text-white ${className}`}>
-      <Image className="h-5 w-7 rounded-sm object-cover" src={flagUrl(team)} alt={team.name} width={28} height={20} unoptimized />
-      <span>{team.name}</span>
+    <span className={`inline-flex min-w-0 items-center gap-2 text-sm font-medium text-white ${className}`}>
+      <Image className="h-5 w-7 shrink-0 rounded-sm object-cover" src={flagUrl(team)} alt="" width={28} height={20} unoptimized />
+      <span className="truncate">{team.name}</span>
+    </span>
+  );
+}
+
+export function TeamFlag({ teamId, className = "" }: { teamId?: string; className?: string }) {
+  const team = teamId ? teamsById.get(teamId) : null;
+  if (!team) return null;
+
+  return <Image className={`object-cover ${className}`} src={flagUrl(team)} alt="" width={28} height={20} unoptimized />;
+}
+
+export function PlayerAvatar({ player, className = "" }: { player: Player; className?: string }) {
+  const photo = playerPhotoUrl(player);
+
+  return (
+    <span
+      className={`inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-slate-950/70 text-sm font-bold text-cyan-100 ${className}`}
+    >
+      {photo ? (
+        <Image className="h-full w-full object-cover" src={photo} alt="" width={48} height={48} unoptimized />
+      ) : (
+        initials(player.name)
+      )}
     </span>
   );
 }
@@ -337,7 +360,7 @@ export function PredictionSnapshot({
           <SummaryStat title="Subcampeón" value={runnerUp ? <TeamBadge teamId={runnerUp} /> : "Pendiente"} />
           <SummaryStat title="Máximo goleador" value={safePrediction.extras.topScorer ? playerName(safePrediction.extras.topScorer) : "Pendiente"} />
           <SummaryStat title="MVP" value={safePrediction.extras.mvp ? playerName(safePrediction.extras.mvp) : "Pendiente"} />
-          <SummaryStat title="Once ideal" value={`${safePrediction.xi.length}/11`} />
+          <SummaryStat title="Once ideal" value={`${safePrediction.xi.filter(Boolean).length}/11`} />
         </div>
       ) : null}
 

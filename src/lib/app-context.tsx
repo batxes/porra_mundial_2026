@@ -34,6 +34,8 @@ import {
   setGroupOrder,
   setPredictionExtra,
   setPredictionMatchScore,
+  setXiFormation,
+  setXiSelection,
   toggleThirdQualifier,
   toggleXi,
 } from "@/lib/prediction";
@@ -76,6 +78,8 @@ type AppContextValue = {
   setPredictionScore: (matchNumber: number, side: "homeScore" | "awayScore", value: string) => void;
   setPredictionExtra: (key: keyof Prediction["extras"], value: string) => void;
   toggleXiPlayer: (playerId: string) => void;
+  setXiFormation: (formation: string) => void;
+  setXiSelection: (playerIds: string[]) => void;
   saveAdminResult: (matchNumber: string, payload: AdminResults[string]) => Promise<void>;
   addAdminEvent: (matchNumber: string, event: AdminResults[string]["events"][number]) => Promise<void>;
   deleteAdminEvent: (matchNumber: string, eventId: string) => Promise<void>;
@@ -598,6 +602,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       },
       setPredictionExtra: (key, value) => replacePrediction(setPredictionExtra(prediction, key, value)),
       toggleXiPlayer: (playerId) => replacePrediction(toggleXi(prediction, playerId)),
+      setXiFormation: (formation) => replacePrediction(setXiFormation(prediction, formation)),
+      setXiSelection: (playerIds) => replacePrediction(setXiSelection(prediction, playerIds)),
       saveAdminResult,
       addAdminEvent,
       deleteAdminEvent,

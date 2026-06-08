@@ -46,3 +46,29 @@ debe consumir únicamente APIs contratadas o documentos oficiales públicos perm
 El archivo `data.js` incluye un catálogo corto de jugadores para demostrar la interfaz. Antes
 de abrir la porra, hay que sustituirlo por las convocatorias definitivas verificadas por FIFA y
 marcar esos registros como `validated` en `players`.
+
+## Fotos de jugadores y banderas
+
+Las banderas pueden mantenerse con [FlagCDN](https://flagcdn.com/). Es gratuito, sirve PNG,
+WebP, SVG y JPEG, y sus ficheros parten de vectores de Wikimedia Commons.
+
+Para fotos de jugadores hay tres caminos razonables:
+
+- Para esta porra privada se ha anadido un importador de FotMob. Ejecuta
+  `npm run import:fotmob-photos` para descargar las fotos a
+  `public/player-photos/fotmob/` y regenerar `src/lib/generated/player-photos.ts`.
+  El importador empareja por seleccion y dorsal, y usa nombre como desempate.
+- [API-Football](https://www.api-football.com/documentation-v3) si ya se usa como proveedor:
+  cada jugador con `apiPlayerId` puede resolver su imagen en
+  `https://media.api-sports.io/football/players/{player_id}.png`. Su plan gratuito declara
+  100 peticiones al dia, pero conviene confirmar derechos de republicacion antes de usarlo en
+  publico.
+- [TheSportsDB](https://www.thesportsdb.com/documentation) para desarrollo sin coste: expone
+  busqueda y lookup de jugadores, y sus respuestas incluyen artwork/fotos cuando la comunidad
+  las ha cargado. La cobertura es irregular y crowd-sourced, asi que hay que validar cada match.
+- [Wikidata/Wikimedia Commons](https://www.wikidata.org/wiki/Wikidata:REST_API) para imagenes
+  con licencias revisables: Wikidata ayuda a encontrar el fichero y Wikimedia Commons permite
+  consultar licencia/autoria. Hay que guardar atribucion y licencia por foto, no solo la URL.
+
+La app ya admite `photo` y `apiPlayerId` en cada `Player`. Si no hay foto, el selector muestra
+un avatar con iniciales y la bandera del equipo.

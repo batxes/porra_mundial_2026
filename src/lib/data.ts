@@ -24,6 +24,9 @@ export const xiLimits = {
   DEL: 2,
 } as const;
 
+export const xiDefaultFormation = "4-4-2";
+export const xiFormations = ["4-4-2", "4-3-3", "4-2-3-1", "4-1-4-1", "4-3-2-1", "3-4-3", "3-5-2", "5-3-2", "5-4-1"] as const;
+
 export const xiLabels = {
   POR: "Porteros",
   DEF: "Defensas",

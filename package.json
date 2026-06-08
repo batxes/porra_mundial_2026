@@ -5,6 +5,7 @@
   "description": "TRILIPORRA, porra del Mundial 2026 migrada a Next.js y Tailwind.",
   "scripts": {
     "generate:data": "node scripts/generate-legacy-data.mjs",
+    "import:fotmob-photos": "node scripts/import-fotmob-player-photos.mjs",
     "dev": "npm run generate:data && next dev",
     "build": "npm run generate:data && next build",
     "start": "next start",

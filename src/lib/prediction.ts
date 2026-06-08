@@ -1,4 +1,4 @@
-import { data, knockoutMatches, playersById, schedule, teamsById, xiLimits } from "@/lib/data";
+import { data, knockoutMatches, playersById, schedule, teamsById, xiDefaultFormation, xiFormations } from "@/lib/data";
 import type { Match, Position, Prediction } from "@/lib/types";
 
 export function emptyPrediction(): Prediction {
@@ -22,6 +22,7 @@ export function emptyPrediction(): Prediction {
       mvp: "",
     },
     xi: [],
+    xiFormation: xiDefaultFormation,
     isDefinitive: false,
     updatedAt: null,
   };
@@ -29,6 +30,7 @@ export function emptyPrediction(): Prediction {
 
 export function normalizePrediction(prediction?: Partial<Prediction> | null): Prediction {
   const initial = emptyPrediction();
+  const xiFormation = normalizeXiFormation(prediction?.xiFormation);
   return {
     ...initial,
     ...prediction,
@@ -40,7 +42,8 @@ export function normalizePrediction(prediction?: Partial<Prediction> | null): Pr
     },
     matchPredictions: { ...(prediction?.matchPredictions || {}) },
     extras: { ...initial.extras, ...(prediction?.extras || {}) },
-    xi: Array.isArray(prediction?.xi) ? prediction.xi : [],
+    xi: sanitizeXiForFormation(Array.isArray(prediction?.xi) ? prediction.xi : [], xiFormation),
+    xiFormation,
   };
 }
 
@@ -273,6 +276,98 @@ export function setPredictionExtra(prediction: Prediction, key: keyof Prediction
   return next;
 }
 
+export function normalizeXiFormation(formation?: string | null) {
+  return xiFormations.includes(formation as (typeof xiFormations)[number]) ? String(formation) : xiDefaultFormation;
+}
+
+export function xiRequirements(formation = xiDefaultFormation) {
+  const lines = normalizeXiFormation(formation).split("-").map(Number);
+  const midfielders = lines.slice(1, -1).reduce((total, count) => total + count, 0);
+
+  return {
+    POR: 1,
+    DEF: lines[0] || 4,
+    MED: midfielders || 4,
+    DEL: lines[lines.length - 1] || 2,
+  } satisfies Record<Position, number>;
+}
+
+function xiSlotPositions(formation = xiDefaultFormation): Position[] {
+  const lines = normalizeXiFormation(formation).split("-").map(Number);
+  const defense = lines[0] || 4;
+  const attack = lines[lines.length - 1] || 2;
+  const midfield = lines.slice(1, -1).reverse();
+
+  return [
+    ...Array<Position>(attack).fill("DEL"),
+    ...midfield.flatMap((count) => Array<Position>(count).fill("MED")),
+    ...Array<Position>(defense).fill("DEF"),
+    "POR",
+  ];
+}
+
+export function sanitizeXiForFormation(playerIds: string[], formation = xiDefaultFormation) {
+  const slotPositions = xiSlotPositions(formation);
+  const isPositionalSelection = playerIds.length >= slotPositions.length || playerIds.some((playerId) => !playerId);
+  const seen = new Set<string>();
+  const clean = Array(slotPositions.length).fill("");
+  const deferred: string[] = [];
+
+  if (isPositionalSelection) {
+    playerIds.forEach((playerId, index) => {
+      const player = playersById.get(playerId);
+      if (!player || seen.has(playerId)) return;
+
+      if (index < slotPositions.length && player.position === slotPositions[index]) {
+        clean[index] = playerId;
+        seen.add(playerId);
+        return;
+      }
+
+      deferred.push(playerId);
+    });
+
+    deferred.forEach((playerId) => {
+      const player = playersById.get(playerId);
+      const openSlotIndex = player
+        ? slotPositions.findIndex((position, index) => !clean[index] && position === player.position)
+        : -1;
+
+      if (openSlotIndex === -1 || seen.has(playerId)) return;
+      clean[openSlotIndex] = playerId;
+      seen.add(playerId);
+    });
+
+    return clean;
+  }
+
+  playerIds.forEach((playerId) => {
+    const player = playersById.get(playerId);
+    const openSlotIndex = player
+      ? slotPositions.findIndex((position, index) => !clean[index] && position === player.position)
+      : -1;
+
+    if (openSlotIndex === -1 || seen.has(playerId)) return;
+    clean[openSlotIndex] = playerId;
+    seen.add(playerId);
+  });
+
+  return clean.filter(Boolean);
+}
+
+export function setXiFormation(prediction: Prediction, formation: string) {
+  const next = structuredClone(prediction);
+  next.xiFormation = normalizeXiFormation(formation);
+  next.xi = sanitizeXiForFormation(next.xi, next.xiFormation);
+  return next;
+}
+
+export function setXiSelection(prediction: Prediction, playerIds: string[]) {
+  const next = structuredClone(prediction);
+  next.xi = sanitizeXiForFormation(playerIds, next.xiFormation);
+  return next;
+}
+
 export function xiCounts(prediction: Prediction) {
   return prediction.xi.reduce<Record<Position, number>>(
     (counts, playerId) => {
@@ -294,7 +389,7 @@ export function toggleXi(prediction: Prediction, playerId: string) {
   }
 
   const player = playersById.get(playerId);
-  if (player && xiCounts(next)[player.position] < xiLimits[player.position]) {
+  if (player && xiCounts(next)[player.position] < xiRequirements(next.xiFormation)[player.position]) {
     selected.push(playerId);
   }
 
@@ -312,7 +407,8 @@ export function calculateCompletion(prediction: Prediction) {
   const resultsDone = visibleMatches.filter((match) => isMatchPredictionComplete(match, prediction)).length;
   const extrasDone = Object.values(prediction.extras).filter(Boolean).length;
   const counts = xiCounts(prediction);
-  const xiDone = Object.entries(xiLimits).every(([position, limit]) => counts[position as Position] === limit) ? 1 : 0;
+  const requirements = xiRequirements(prediction.xiFormation);
+  const xiDone = Object.entries(requirements).every(([position, limit]) => counts[position as Position] === limit) ? 1 : 0;
   const completedUnits = groupDone + thirdsDone + bracketDone + resultsDone + extrasDone + xiDone;
   const totalUnits = 12 + 1 + knockoutMatches.length + visibleMatches.length + Object.keys(prediction.extras).length + 1;
 

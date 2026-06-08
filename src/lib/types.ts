@@ -69,6 +69,7 @@ export type Prediction = {
   matchPredictions: Record<string, PredictionMatch>;
   extras: PredictionExtras;
   xi: string[];
+  xiFormation: string;
   isDefinitive: boolean;
   updatedAt: string | null;
 };
