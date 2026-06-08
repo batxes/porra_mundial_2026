@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="TRILIPORRA: crea tu pronóstico, elige tu once y sigue la clasificación."
+    />
+    <title>TRILIPORRA</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#inicio" data-route="inicio" aria-label="TRILIPORRA, inicio">
+        <span class="brand-mark">26</span>
+        <span>
+          <strong>TRILI</strong>
+          <small>PORRA</small>
+        </span>
+      </a>
+
+      <nav class="main-nav" aria-label="Navegación principal">
+        <a href="#inicio" data-route="inicio">Inicio</a>
+        <a href="#como-funciona" data-route="como-funciona">Cómo funciona</a>
+        <a href="#porra" data-route="porra">Mi porra</a>
+        <a href="#partidos" data-route="partidos">Partidos</a>
+        <a href="#clasificacion" data-route="clasificacion">Clasificación</a>
+        <a href="#admin" data-route="admin" id="admin-link" hidden>Admin</a>
+      </nav>
+
+      <button class="profile-pill" id="profile-button" type="button" aria-label="Abrir perfil">
+        <span class="avatar" id="header-avatar">?</span>
+        <span class="profile-pill-copy">
+          <strong id="header-name">Entrar</strong>
+          <small id="header-points">Crea tu cuenta</small>
+        </span>
+      </button>
+    </header>
+
+    <main id="app" tabindex="-1"></main>
+
+    <footer class="site-footer">
+      <span>TRILIPORRA</span>
+      <span>Datos oficiales pendientes de cada cierre de jornada</span>
+    </footer>
+
+    <dialog class="modal" id="auth-dialog">
+      <div class="modal-shell">
+        <button class="modal-close" id="auth-close" type="button" aria-label="Cerrar">×</button>
+        <p class="eyebrow">Tu porra empieza aquí</p>
+        <h2 id="auth-title">Crea tu cuenta</h2>
+        <p class="muted">Guarda tus pronósticos y compite con tus amigos.</p>
+
+        <div class="auth-tabs">
+          <button class="auth-tab active" type="button" data-auth-mode="register">Registrarme</button>
+          <button class="auth-tab" type="button" data-auth-mode="login">Ya tengo cuenta</button>
+        </div>
+
+        <form id="auth-form">
+          <label class="field" id="name-field">
+            <span>Nombre visible</span>
+            <input name="name" type="text" autocomplete="name" placeholder="Tu nombre" />
+          </label>
+          <label class="field">
+            <span>Email</span>
+            <input
+              name="email"
+              type="text"
+              inputmode="email"
+              autocomplete="email"
+              placeholder="tu@email.com"
+              pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
+              required
+            />
+          </label>
+          <label class="field">
+            <span>Contraseña</span>
+            <input
+              name="password"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Mínimo 5 caracteres"
+              required
+            />
+          </label>
+          <label class="field" id="confirm-password-field">
+            <span>Repite la contraseña</span>
+            <input
+              name="confirmPassword"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Tiene que coincidir"
+            />
+          </label>
+          <button class="button button-primary button-block" type="submit" id="auth-submit">
+            Crear cuenta
+          </button>
+        </form>
+        <button class="button button-quiet button-block" type="button" data-action="forgot-password">
+          He olvidado mi contraseña
+        </button>
+        <p class="form-message" id="auth-message" role="status"></p>
+        <p class="tiny muted">
+          La demo local guarda los datos en este navegador. El despliegue público usa Supabase Auth.
+        </p>
+      </div>
+    </dialog>
+
+    <dialog class="modal" id="public-profile-dialog">
+      <div class="modal-shell modal-wide" id="public-profile-content"></div>
+    </dialog>
+
+    <dialog class="modal" id="score-chart-dialog">
+      <div class="modal-shell modal-wide" id="score-chart-content"></div>
+    </dialog>
+
+    <script src="./config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./data.js"></script>
+    <script src="./schedule.js"></script>
+    <script src="./scoring.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

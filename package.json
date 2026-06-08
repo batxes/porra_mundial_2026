@@ -1,0 +1,10 @@
+{
+  "name": "triliporra",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TRILIPORRA, porra web del Mundial 2026.",
+  "scripts": {
+    "dev": "python3 -m http.server 4173",
+    "check": "node --check app.js && node --check scoring.js && node --check data.js && node --check schedule.js && node tests/scoring.test.js"
+  }
+}
