@@ -441,10 +441,9 @@
     return `
       <div class="page-shell">
         <section class="hero">
-          <div>
-            <p class="eyebrow">Canadá · México · Estados Unidos</p>
-            <h1>TRILIPORRA</h1>
-            <p>Tu Mundial empieza antes del primer silbato: pronostica, compite con tus amigos y sigue cada punto con transparencia.</p>
+          <img class="hero-banner-image" src="./assets/triliporra-banner.png" alt="TRILIPORRA, banner del Mundial con jugadores disputando un balón y un capitán levantando la Copa del Mundo" />
+          <div class="hero-content">
+            <p class="sr-only">Canadá, México y Estados Unidos. TRILIPORRA. Tu Mundial empieza antes del primer silbato.</p>
             <div class="hero-actions">
               <button class="button button-primary" data-go="porra" type="button">
                 ${state.user ? "Continuar mi porra" : "Crear mi porra"}
@@ -453,7 +452,6 @@
               <button class="button button-secondary" data-go="clasificacion" type="button">Ver clasificación</button>
             </div>
           </div>
-          <div class="hero-art" aria-hidden="true">${renderHeroArt()}</div>
         </section>
 
         <section class="stats-strip" aria-label="Datos del torneo">
