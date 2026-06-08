@@ -27,6 +27,14 @@
   const xiLimits = { POR: 1, DEF: 4, MED: 4, DEL: 2 };
   const xiLabels = { POR: "Porteros", DEF: "Defensas", MED: "Mediocampistas", DEL: "Delanteros" };
   const defaultAdminEmail = "admin@admin.admin";
+  const defaultAdminPasswordHash = "3812b8873bd75366c1fc7c4141c6f9ca5778067968883eaf9c4e0265582b7a1f";
+  const avatarPresets = [
+    { id: "green", label: "26" },
+    { id: "gold", label: "TR" },
+    { id: "blue", label: "FC" },
+    { id: "rose", label: "XI" },
+    { id: "dark", label: "GO" },
+  ];
   const localKeys = {
     users: "porra26_users",
     currentEmail: "porra26_current_email",
@@ -205,17 +213,20 @@
     const adminEmail = defaultAdminEmail;
     const admin = users.find((user) => user.email === adminEmail);
     if (admin) {
+      admin.name = "admin";
+      admin.passwordHash = defaultAdminPasswordHash;
       admin.isAdmin = true;
       setLocalJson(localKeys.users, users);
       return;
     }
     users.unshift({
       id: "local-admin",
-      name: "Administrador",
+      name: "admin",
       email: adminEmail,
-      passwordHash: await digest("admin"),
+      passwordHash: defaultAdminPasswordHash,
       points: 0,
       isAdmin: true,
+      avatarUrl: "preset:gold",
     });
     setLocalJson(localKeys.users, users);
   }
@@ -272,13 +283,14 @@
   async function loadSupabaseUser(authUser) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id, display_name, total_points, is_admin")
+      .select("id, display_name, avatar_url, total_points, is_admin")
       .eq("id", authUser.id)
       .maybeSingle();
     state.user = {
       id: authUser.id,
       email: authUser.email,
       name: profile?.display_name || authUser.user_metadata?.display_name || authUser.email.split("@")[0],
+      avatarUrl: profile?.avatar_url || "",
       points: profile?.total_points || 0,
       isAdmin: Boolean(profile?.is_admin),
     };
@@ -294,7 +306,7 @@
 
   async function loadSupabasePublicData() {
     const [{ data: profiles }, { data: predictions }, { data: matches }, { data: events }, { data: scoreEntries }] = await Promise.all([
-      supabase.from("profiles").select("id, display_name, total_points, is_admin"),
+      supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin"),
       supabase.from("predictions").select("user_id, selections, completion_percent, is_definitive"),
       supabase
         .from("matches")
@@ -311,6 +323,7 @@
       return {
         id: profile.id,
         name: profile.display_name,
+        avatarUrl: profile.avatar_url || "",
         initials: initials(profile.display_name),
         points: scorecard.entries.length ? scorecard.total : profile.total_points || 0,
         complete: prediction?.completion_percent || 0,
@@ -337,6 +350,37 @@
       .toUpperCase();
   }
 
+  function avatarPreset(avatarUrl) {
+    const presetId = String(avatarUrl || "").replace("preset:", "");
+    return avatarPresets.find((preset) => preset.id === presetId) || null;
+  }
+
+  function renderAvatar(user, extraClass = "") {
+    const name = typeof user === "string" ? user : user?.name;
+    const avatarUrl = typeof user === "object" ? user?.avatarUrl : "";
+    if (avatarUrl && !avatarUrl.startsWith("preset:")) {
+      return `<span class="avatar avatar-photo ${extraClass}" style="background-image:url('${escapeAttr(avatarUrl)}')"></span>`;
+    }
+    const preset = avatarPreset(avatarUrl);
+    const className = preset ? `avatar-${preset.id}` : "";
+    return `<span class="avatar ${className} ${extraClass}">${escapeHtml(preset?.label || initials(name))}</span>`;
+  }
+
+  function applyAvatarElement(element, user) {
+    const avatarUrl = user?.avatarUrl || "";
+    element.className = "avatar";
+    element.style.backgroundImage = "";
+    if (avatarUrl && !avatarUrl.startsWith("preset:")) {
+      element.classList.add("avatar-photo");
+      element.style.backgroundImage = `url("${avatarUrl.replace(/"/g, "%22")}")`;
+      element.textContent = "";
+      return;
+    }
+    const preset = avatarPreset(avatarUrl);
+    if (preset) element.classList.add(`avatar-${preset.id}`);
+    element.textContent = preset?.label || initials(user?.name);
+  }
+
   function updateHeader() {
     const name = document.querySelector("#header-name");
     const points = document.querySelector("#header-points");
@@ -347,10 +391,12 @@
       state.user.points = scorecard.total;
       name.textContent = state.user.name;
       points.textContent = `${scorecard.total} puntos`;
-      avatar.textContent = initials(state.user.name);
+      applyAvatarElement(avatar, state.user);
     } else {
       name.textContent = "Entrar";
       points.textContent = "Crea tu cuenta";
+      avatar.className = "avatar";
+      avatar.style.backgroundImage = "";
       avatar.textContent = "?";
     }
 
