@@ -79,7 +79,8 @@ Si ya habías ejecutado una versión anterior de `schema.sql`, ejecuta también
 `supabase/migration-004-admin-user-management.sql`, después
 `supabase/migration-005-default-admin.sql`, después
 `supabase/migration-006-official-squads.sql` y después
-`supabase/migration-007-protect-default-admin.sql`.
+`supabase/migration-007-protect-default-admin.sql`. Si el usuario admin ya existía pero
+`is_admin` sigue a `false`, ejecuta también `supabase/migration-008-force-default-admin.sql`.
 
 ## GitHub y Vercel
 
