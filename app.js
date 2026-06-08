@@ -662,42 +662,71 @@
         <div>
           <p class="eyebrow">Fase de grupos</p>
           <h2>Ordena cada grupo</h2>
-          <p class="muted">Asigna una posición del 1 al 4 a cada selección.</p>
+          <p class="muted">Arrastra cada selección para colocarla 1ª, 2ª, 3ª y 4ª. En móvil también puedes usar los botones de subir/bajar.</p>
         </div>
       </div>
       <div class="groups-grid">
         ${Object.entries(byGroup)
           .map(
-            ([group, groupTeams]) => `
+            ([group, groupTeams]) => {
+              const orderedTeams = orderedGroupTeams(group, groupTeams);
+              return `
               <article class="group-card">
                 <h3>Grupo ${group}</h3>
-                ${groupTeams
+                <ol class="group-sort-list" data-group-list="${group}" aria-label="Orden del grupo ${group}">
+                ${orderedTeams
                   .map(
-                    (team) => `
-                    <label class="group-team">
+                    (team, index) => `
+                    <li class="group-sort-item" data-group="${group}" data-team="${team.id}" draggable="${state.prediction.isDefinitive ? "false" : "true"}">
+                      <span class="group-position">${index + 1}º</span>
                       <span class="team-name">${teamLabel(team.id)}</span>
-                      <select data-group="${group}" data-group-team="${team.id}" aria-label="Posición de ${escapeHtml(team.name)}" ${state.prediction.isDefinitive ? "disabled" : ""}>
-                        <option value="">-</option>
-                        ${[1, 2, 3, 4]
-                          .map(
-                            (position) => {
-                              const current = String(state.prediction.groups[group]?.[team.id]);
-                              const used = Object.entries(state.prediction.groups[group] || {}).some(
-                                ([otherTeam, value]) => otherTeam !== team.id && String(value) === String(position),
-                              );
-                              return `<option value="${position}" ${current === String(position) ? "selected" : ""} ${used ? "disabled" : ""}>${position}º</option>`;
-                            },
-                          )
-                          .join("")}
-                      </select>
-                    </label>`,
+                      <span class="group-drag-handle" aria-hidden="true">⋮⋮</span>
+                      <span class="group-sort-actions">
+                        <button class="button button-mini" data-move-group-team="${group}" data-team="${team.id}" data-direction="-1" ${state.prediction.isDefinitive || index === 0 ? "disabled" : ""} type="button" aria-label="Subir ${escapeHtml(team.name)}">↑</button>
+                        <button class="button button-mini" data-move-group-team="${group}" data-team="${team.id}" data-direction="1" ${state.prediction.isDefinitive || index === orderedTeams.length - 1 ? "disabled" : ""} type="button" aria-label="Bajar ${escapeHtml(team.name)}">↓</button>
+                      </span>
+                    </li>`,
                   )
                   .join("")}
-              </article>`,
+                </ol>
+              </article>`;
+            },
           )
           .join("")}
       </div>
     `;
+  }
+
+  function orderedGroupTeams(group, fallbackTeams) {
+    const positions = state.prediction.groups[group] || {};
+    const rows = fallbackTeams.map((team, fallbackIndex) => ({
+      team,
+      fallbackIndex,
+      position: Number(positions[team.id]) || fallbackIndex + 1,
+    }));
+    rows.sort((a, b) => a.position - b.position || a.fallbackIndex - b.fallbackIndex);
+    return rows.map((row) => row.team);
+  }
+
+  function setGroupOrder(group, teamIds) {
+    if (state.prediction.isDefinitive) return;
+    state.prediction.groups[group] ||= {};
+    teamIds.forEach((teamId, index) => {
+      state.prediction.groups[group][teamId] = String(index + 1);
+    });
+    sanitizeBracket();
+  }
+
+  function moveGroupTeam(group, teamId, direction) {
+    if (state.prediction.isDefinitive) return;
+    const groupTeams = data.teams.filter((team) => team.group === group);
+    const ordered = orderedGroupTeams(group, groupTeams).map((team) => team.id);
+    const index = ordered.indexOf(teamId);
+    const nextIndex = index + Number(direction);
+    if (index < 0 || nextIndex < 0 || nextIndex >= ordered.length) return;
+    const [moved] = ordered.splice(index, 1);
+    ordered.splice(nextIndex, 0, moved);
+    setGroupOrder(group, ordered);
   }
 
   function renderKnockout() {
@@ -2195,6 +2224,10 @@
       toggleXi(target.dataset.xiPlayer);
       render();
     }
+    if (target.dataset.moveGroupTeam) {
+      moveGroupTeam(target.dataset.moveGroupTeam, target.dataset.team, target.dataset.direction);
+      render();
+    }
     if (target.dataset.publicProfile) showPublicProfile(target.dataset.publicProfile);
     if (target.dataset.authMode) {
       state.authMode = target.dataset.authMode;
@@ -2230,6 +2263,59 @@
       state.prediction.extras[target.dataset.extra] = target.value;
       render();
     }
+  });
+
+  document.addEventListener("dragstart", (event) => {
+    const item = event.target.closest(".group-sort-item");
+    if (!item || state.prediction.isDefinitive) return;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", JSON.stringify({ group: item.dataset.group, team: item.dataset.team }));
+    item.classList.add("dragging");
+  });
+
+  document.addEventListener("dragend", (event) => {
+    const item = event.target.closest(".group-sort-item");
+    if (item) item.classList.remove("dragging");
+    document.querySelectorAll(".group-sort-item.drag-over").forEach((node) => node.classList.remove("drag-over"));
+  });
+
+  document.addEventListener("dragover", (event) => {
+    const item = event.target.closest(".group-sort-item");
+    if (!item || state.prediction.isDefinitive) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    document.querySelectorAll(".group-sort-item.drag-over").forEach((node) => {
+      if (node !== item) node.classList.remove("drag-over");
+    });
+    item.classList.add("drag-over");
+  });
+
+  document.addEventListener("dragleave", (event) => {
+    const item = event.target.closest(".group-sort-item");
+    if (item) item.classList.remove("drag-over");
+  });
+
+  document.addEventListener("drop", (event) => {
+    const targetItem = event.target.closest(".group-sort-item");
+    if (!targetItem || state.prediction.isDefinitive) return;
+    event.preventDefault();
+    targetItem.classList.remove("drag-over");
+    let payload;
+    try {
+      payload = JSON.parse(event.dataTransfer.getData("text/plain"));
+    } catch {
+      return;
+    }
+    if (!payload || payload.group !== targetItem.dataset.group || payload.team === targetItem.dataset.team) return;
+    const groupTeams = data.teams.filter((team) => team.group === payload.group);
+    const ordered = orderedGroupTeams(payload.group, groupTeams).map((team) => team.id);
+    const from = ordered.indexOf(payload.team);
+    const to = ordered.indexOf(targetItem.dataset.team);
+    if (from < 0 || to < 0) return;
+    const [moved] = ordered.splice(from, 1);
+    ordered.splice(to, 0, moved);
+    setGroupOrder(payload.group, ordered);
+    render();
   });
 
   document.addEventListener("input", (event) => {
