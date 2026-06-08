@@ -3,7 +3,7 @@
 
 import { FormEvent, useState } from "react";
 
-import { Card, EmptyState, Notice, SectionHeading } from "@/components/common";
+import { Card, EmptyState, Notice, SectionHeading, TeamBadge, TeamPicker } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { data, schedule, teamsById } from "@/lib/data";
 import type { ProviderSummary } from "@/lib/types";
@@ -25,6 +25,8 @@ export function AdminView() {
   const [providerError, setProviderError] = useState("");
   const [providerSummary, setProviderSummary] = useState<ProviderSummary | null>(null);
   const [adminMessage, setAdminMessage] = useState("");
+  const [homeTeamId, setHomeTeamId] = useState("");
+  const [awayTeamId, setAwayTeamId] = useState("");
 
   if (!user?.isAdmin) {
     return (
@@ -59,8 +61,8 @@ export function AdminView() {
     await saveAdminResult(matchNumber, {
       homeScore: String(form.get("homeScore") || ""),
       awayScore: String(form.get("awayScore") || ""),
-      homeTeamId: String(form.get("homeTeamId") || ""),
-      awayTeamId: String(form.get("awayTeamId") || ""),
+      homeTeamId,
+      awayTeamId,
       events: adminResults[matchNumber]?.events || [],
       source: "manual",
     });
@@ -172,8 +174,8 @@ export function AdminView() {
               </select>
             </label>
             <div className="grid gap-4 md:grid-cols-2">
-              <FieldSelect name="homeTeamId" label="Equipo local real, opcional" options={data.teams.map((team) => ({ value: team.id, label: team.name }))} />
-              <FieldSelect name="awayTeamId" label="Equipo visitante real, opcional" options={data.teams.map((team) => ({ value: team.id, label: team.name }))} />
+              <TeamPicker label="Equipo local real, opcional" value={homeTeamId} onChange={setHomeTeamId} placeholder="Según calendario" />
+              <TeamPicker label="Equipo visitante real, opcional" value={awayTeamId} onChange={setAwayTeamId} placeholder="Según calendario" />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <FieldInput name="homeScore" label="Goles local" />
@@ -263,9 +265,11 @@ export function AdminView() {
                     <p className="font-semibold text-white">
                       Partido {matchNumber} · {result.homeScore} - {result.awayScore}
                     </p>
-                    <p className="text-sm text-slate-400">
-                      {result.homeTeamId ? teamName(result.homeTeamId) : "Local"} vs {result.awayTeamId ? teamName(result.awayTeamId) : "Visitante"}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
+                      {result.homeTeamId ? <TeamBadge teamId={result.homeTeamId} /> : <span>Local</span>}
+                      <span>vs</span>
+                      {result.awayTeamId ? <TeamBadge teamId={result.awayTeamId} /> : <span>Visitante</span>}
+                    </div>
                   </div>
                 </div>
                 {result.events?.length ? (

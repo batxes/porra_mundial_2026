@@ -4,8 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
-import { teamsById } from "@/lib/data";
-import { flagUrl, formatScheduleDate, initials, teamLabel, translateSlot } from "@/lib/format";
+import { data, teamsById } from "@/lib/data";
+import { flagUrl, formatScheduleDate, initials, translateSlot } from "@/lib/format";
 import { emptyPrediction, loserForMatch, resolveSlot } from "@/lib/prediction";
 import type { Match, Prediction, Scorecard, UserProfile } from "@/lib/types";
 
@@ -46,18 +46,88 @@ export function SectionHeading({
   );
 }
 
-export function TeamBadge({ teamId, fallback }: { teamId?: string; fallback?: string }) {
+export function TeamBadge({
+  teamId,
+  fallback,
+  className = "",
+}: {
+  teamId?: string;
+  fallback?: string;
+  className?: string;
+}) {
   const team = teamId ? teamsById.get(teamId) : null;
 
   if (!team) {
-    return <span className="text-sm text-slate-300">{fallback || "Por confirmar"}</span>;
+    return <span className={`text-sm text-slate-300 ${className}`}>{fallback || "Por confirmar"}</span>;
   }
 
   return (
-    <span className="inline-flex items-center gap-2 text-sm font-medium text-white">
+    <span className={`inline-flex items-center gap-2 text-sm font-medium text-white ${className}`}>
       <Image className="h-5 w-7 rounded-sm object-cover" src={flagUrl(team)} alt={team.name} width={28} height={20} unoptimized />
       <span>{team.name}</span>
     </span>
+  );
+}
+
+export function TeamPicker({
+  label,
+  value,
+  disabled,
+  placeholder = "Elige un equipo",
+  onChange,
+}: {
+  label: string;
+  value: string;
+  disabled?: boolean;
+  placeholder?: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = value ? teamsById.get(value) : null;
+
+  return (
+    <div className="space-y-2">
+      <span className="text-sm text-slate-300">{label}</span>
+      <div className="relative">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen((current) => !current)}
+          className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-left text-white disabled:opacity-40"
+        >
+          {selected ? <TeamBadge teamId={selected.id} /> : <span className="text-sm text-slate-400">{placeholder}</span>}
+          <span className="text-xs text-slate-500">{open ? "▲" : "▼"}</span>
+        </button>
+
+        {open && !disabled ? (
+          <div className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl shadow-black/30 backdrop-blur">
+            <button
+              type="button"
+              onClick={() => {
+                onChange("");
+                setOpen(false);
+              }}
+              className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-300 hover:bg-white/5"
+            >
+              {placeholder}
+            </button>
+            {data.teams.map((team) => (
+              <button
+                key={team.id}
+                type="button"
+                onClick={() => {
+                  onChange(team.id);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center rounded-xl px-3 py-2 text-left hover:bg-white/5"
+              >
+                <TeamBadge teamId={team.id} />
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -263,8 +333,8 @@ export function PredictionSnapshot({
 
       {section === "summary" ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <SummaryStat title="Campeón" value={champion ? teamLabel(champion) : "Pendiente"} />
-          <SummaryStat title="Subcampeón" value={runnerUp ? teamLabel(runnerUp) : "Pendiente"} />
+          <SummaryStat title="Campeón" value={champion ? <TeamBadge teamId={champion} /> : "Pendiente"} />
+          <SummaryStat title="Subcampeón" value={runnerUp ? <TeamBadge teamId={runnerUp} /> : "Pendiente"} />
           <SummaryStat title="Máximo goleador" value={safePrediction.extras.topScorer ? playerName(safePrediction.extras.topScorer) : "Pendiente"} />
           <SummaryStat title="MVP" value={safePrediction.extras.mvp ? playerName(safePrediction.extras.mvp) : "Pendiente"} />
           <SummaryStat title="Once ideal" value={`${safePrediction.xi.length}/11`} />
@@ -277,11 +347,11 @@ export function PredictionSnapshot({
   );
 }
 
-function SummaryStat({ title, value }: { title: string; value: string }) {
+function SummaryStat({ title, value }: { title: string; value: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
       <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{title}</p>
-      <p className="mt-2 text-base font-semibold text-white">{value}</p>
+      <div className="mt-2 text-base font-semibold text-white">{value}</div>
     </div>
   );
 }

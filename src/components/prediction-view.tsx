@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { Card, Notice, ScoreBreakdown, SectionHeading, TeamBadge } from "@/components/common";
+import { Card, Notice, ScoreBreakdown, SectionHeading, TeamBadge, TeamPicker } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { data, knockoutMatches, knockoutStages, schedule, sections, teamsById, xiLabels, xiLimits } from "@/lib/data";
 import { formatScheduleDate, translateSlot } from "@/lib/format";
@@ -222,13 +222,15 @@ export function PredictionView() {
                         </div>
                         <div className="space-y-3">
                           <ScoreInputRow
-                            label={home ? teamsById.get(home)?.name || "Local" : translateSlot(match.home)}
+                            teamId={home}
+                            fallback={translateSlot(match.home)}
                             value={current.homeScore}
                             disabled={locked}
                             onChange={(value) => setPredictionScore(match.number, "homeScore", value)}
                           />
                           <ScoreInputRow
-                            label={away ? teamsById.get(away)?.name || "Visitante" : translateSlot(match.away)}
+                            teamId={away}
+                            fallback={translateSlot(match.away)}
                             value={current.awayScore}
                             disabled={locked}
                             onChange={(value) => setPredictionScore(match.number, "awayScore", value)}
@@ -247,33 +249,29 @@ export function PredictionView() {
           <div className="grid gap-6 xl:grid-cols-2">
             <Card className="space-y-4 bg-slate-950/50">
               <h3 className="text-xl font-semibold text-white">Selecciones</h3>
-              <SelectField
+              <TeamPicker
                 label="Equipo más goleador"
                 value={prediction.extras.highestScoringTeam}
                 disabled={prediction.isDefinitive}
                 onChange={(value) => setPredictionExtra("highestScoringTeam", value)}
-                options={data.teams.map((team) => ({ value: team.id, label: team.name }))}
               />
-              <SelectField
+              <TeamPicker
                 label="Equipo más goleado"
                 value={prediction.extras.mostConcededTeam}
                 disabled={prediction.isDefinitive}
                 onChange={(value) => setPredictionExtra("mostConcededTeam", value)}
-                options={data.teams.map((team) => ({ value: team.id, label: team.name }))}
               />
-              <SelectField
+              <TeamPicker
                 label="Equipo con más rojas"
                 value={prediction.extras.mostRedsTeam}
                 disabled={prediction.isDefinitive}
                 onChange={(value) => setPredictionExtra("mostRedsTeam", value)}
-                options={data.teams.map((team) => ({ value: team.id, label: team.name }))}
               />
-              <SelectField
+              <TeamPicker
                 label="Equipo con menos rojas"
                 value={prediction.extras.fewestRedsTeam}
                 disabled={prediction.isDefinitive}
                 onChange={(value) => setPredictionExtra("fewestRedsTeam", value)}
-                options={data.teams.map((team) => ({ value: team.id, label: team.name }))}
               />
             </Card>
 
@@ -378,19 +376,21 @@ export function PredictionView() {
 }
 
 function ScoreInputRow({
-  label,
+  teamId,
+  fallback,
   value,
   disabled,
   onChange,
 }: {
-  label: string;
+  teamId?: string;
+  fallback: string;
   value: string;
   disabled: boolean;
   onChange: (value: string) => void;
 }) {
   return (
     <label className="flex items-center justify-between gap-4 rounded-2xl bg-white/5 px-4 py-3">
-      <span className="text-sm text-slate-200">{label}</span>
+      <TeamBadge teamId={teamId} fallback={fallback} />
       <input
         type="text"
         inputMode="numeric"

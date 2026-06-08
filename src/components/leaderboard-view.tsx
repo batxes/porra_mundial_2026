@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 
-import { Avatar, Card, EmptyState, PredictionSnapshot, SectionHeading } from "@/components/common";
+import { Avatar, Card, EmptyState, PredictionSnapshot, SectionHeading, TeamBadge } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
-import { teamLabel } from "@/lib/format";
 
 export function LeaderboardView() {
   const { leaderboard, playerName } = useAppContext();
@@ -55,7 +54,9 @@ export function LeaderboardView() {
                       <small className="text-slate-400">{profile.complete}% completa</small>
                     </span>
                   </span>
-                  <span className="self-center text-sm text-slate-200">{profile.champion ? teamLabel(profile.champion) : "Pendiente"}</span>
+                  <span className="self-center">
+                    {profile.champion ? <TeamBadge teamId={profile.champion} /> : <span className="text-sm text-slate-400">Pendiente</span>}
+                  </span>
                   <span className="self-center text-lg font-bold text-white">{profile.points}</span>
                   <span className="self-center text-sm font-semibold text-cyan-300">Ver detalle</span>
                 </button>
