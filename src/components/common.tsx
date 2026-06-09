@@ -244,11 +244,15 @@ export function Avatar({
   const preset = avatarUrl?.startsWith("preset:")
     ? avatarUrl.replace("preset:", "")
     : "";
+  const hasCustomSize = /\b(size|h|w)-/.test(className);
+  const hasCustomRadius = /\brounded(?:-[^\s]+)?\b/.test(className);
+  const sizeClass = hasCustomSize ? "" : "size-10";
+  const radiusClass = hasCustomRadius ? "" : "rounded-lg";
 
   if (avatarUrl && !avatarUrl.startsWith("preset:")) {
     return (
       <span
-        className={`inline-flex h-12 w-12 rounded-lg border border-white/20 bg-cover bg-center ${className}`}
+        className={`inline-flex aspect-square shrink-0 ${sizeClass} ${radiusClass} border border-white/20 bg-cover bg-center ${className}`}
         style={{ backgroundImage: `url("${avatarUrl}")` }}
       />
     );
@@ -264,7 +268,7 @@ export function Avatar({
 
   return (
     <span
-      className={`inline-flex size-10 items-center justify-center rounded-lg border border-white/15 bg-gradient-to-br ${
+      className={`inline-flex aspect-square shrink-0 ${sizeClass} items-center justify-center ${radiusClass} border border-white/15 bg-gradient-to-br ${
         tones[preset] || "from-cyan-500 to-blue-500"
       } text-sm font-bold text-slate-950 ${className}`}
     >

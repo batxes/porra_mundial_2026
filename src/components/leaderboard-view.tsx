@@ -43,7 +43,7 @@ export function LeaderboardView() {
                   <Avatar
                     name={profile.name}
                     avatarUrl={profile.avatarUrl}
-                    className="aspect-square h-12 w-12 shrink-0"
+                    className="size-10"
                   />
                   <span className="min-w-0">
                     <strong className="block truncate text-white">{profile.name}</strong>

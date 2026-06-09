@@ -97,7 +97,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                     <Avatar
                       name={user.name}
                       avatarUrl={user.avatarUrl}
-                      className="aspect-square h-7 w-7 shrink-0 rounded-md"
+                      className="size-8 rounded-md"
                     />
                     <span className="hidden max-w-24 truncate text-sm font-semibold text-white sm:block">
                       {user.name}
