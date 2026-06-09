@@ -87,12 +87,17 @@ Then, from the repo root:
 npm run db:setup     # init config, start the stack, apply schema + seed
 ```
 
-`db:setup` prints a local API URL and `anon` key. Put them in `.env.local`:
+From the `db:setup` output, copy two values into `.env.local`:
+
+- **Project URL** (under `APIs`) → `NEXT_PUBLIC_SUPABASE_URL`
+- **Publishable** key (under `Authentication Keys`, starts with `sb_publishable_`; this is the public/anon key) → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key from the output>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
 ```
+
+Never put the **Secret** key (`sb_secret_…`) in a `NEXT_PUBLIC_*` variable. Re-print these anytime with `npm run db:status`.
 
 Other commands:
 
