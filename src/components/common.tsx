@@ -795,6 +795,15 @@ function MobileKnockoutBracket({
           disabled={disabled}
           isMatchLocked={isMatchLocked}
           matchByNumber={matchByNumber}
+          matchNumbers={leftBracketRounds[0]}
+          onWinnerSelect={onWinnerSelect}
+          prediction={prediction}
+        />
+        <MobileBracketJoin />
+        <MobileBracketRound
+          disabled={disabled}
+          isMatchLocked={isMatchLocked}
+          matchByNumber={matchByNumber}
           matchNumbers={[89, 90, 93, 94]}
           onWinnerSelect={onWinnerSelect}
           prediction={prediction}
@@ -884,6 +893,15 @@ function MobileKnockoutBracket({
           onWinnerSelect={onWinnerSelect}
           prediction={prediction}
         />
+        <MobileBracketJoin />
+        <MobileBracketRound
+          disabled={disabled}
+          isMatchLocked={isMatchLocked}
+          matchByNumber={matchByNumber}
+          matchNumbers={rightBracketRounds[0]}
+          onWinnerSelect={onWinnerSelect}
+          prediction={prediction}
+        />
       </div>
     </div>
   );
@@ -900,7 +918,7 @@ function MobileBracketRound({
   disabled?: boolean;
   isMatchLocked?: (match: Match) => boolean;
   matchByNumber: Map<number, Match>;
-  matchNumbers: number[];
+  matchNumbers: readonly number[];
   onWinnerSelect?: (matchNumber: number, teamId: string) => void;
   prediction: Prediction;
 }) {

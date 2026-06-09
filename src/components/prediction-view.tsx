@@ -103,6 +103,32 @@ const positionTabs: Array<{ id: Position; label: string }> = [
   { id: "MED", label: "Centro" },
   { id: "DEL", label: "Delantero" },
 ];
+
+const sortedPlayersByPosition = positionTabs.reduce(
+  (acc, position) => {
+    acc[position.id] = data.players
+      .filter((player) => player.position === position.id)
+      .sort((a, b) => {
+        const teamCompare = (teamsById.get(a.team)?.name || "").localeCompare(
+          teamsById.get(b.team)?.name || "",
+        );
+        return teamCompare || a.name.localeCompare(b.name);
+      });
+    return acc;
+  },
+  {} as Record<Position, Player[]>,
+);
+
+const playerSearchTextById = new Map(
+  data.players.map((player) => {
+    const team = teamsById.get(player.team)?.name || "";
+    return [player.id, `${player.name} ${team}`.toLowerCase()];
+  }),
+);
+
+const initialPlayerRenderLimit = 80;
+const playerRenderBatchSize = 80;
+
 const groupsIntroStorageKey = "porra26_groups_intro_seen";
 const knockoutIntroStorageKey = "porra26_knockout_intro_seen";
 const resultsIntroStorageKey = "porra26_results_intro_seen";
@@ -1934,25 +1960,6 @@ function LineupBuilder({
     window.setTimeout(() => setIsFormationAnimating(false), 260);
   };
 
-  const visiblePlayers = useMemo(() => {
-    if (!activeSlot) return [];
-    const normalized = query.trim().toLowerCase();
-
-    return data.players
-      .filter((player) => player.position === activeSlot.position)
-      .filter((player) => {
-        if (!normalized) return true;
-        const team = teamsById.get(player.team)?.name || "";
-        return `${player.name} ${team}`.toLowerCase().includes(normalized);
-      })
-      .sort((a, b) => {
-        const teamCompare = (teamsById.get(a.team)?.name || "").localeCompare(
-          teamsById.get(b.team)?.name || "",
-        );
-        return teamCompare || a.name.localeCompare(b.name);
-      });
-  }, [activeSlot, query]);
-
   return (
     <div className="mx-auto w-full max-w-[620px] space-y-5">
       <div className="space-y-2">
@@ -2044,9 +2051,9 @@ function LineupBuilder({
 
       {activeSlot ? (
         <PlayerPickerModal
+          key={activeSlot.id}
           slot={activeSlot}
           query={query}
-          players={visiblePlayers}
           currentPlayer={
             activeSlot.playerId
               ? playersById.get(activeSlot.playerId)
@@ -2139,7 +2146,6 @@ function LineupPlayerButton({
 function PlayerPickerModal({
   slot,
   query,
-  players,
   currentPlayer,
   selectedPlayerIds,
   onQueryChange,
@@ -2149,7 +2155,6 @@ function PlayerPickerModal({
 }: {
   slot: LineupSlot;
   query: string;
-  players: Player[];
   currentPlayer?: Player;
   selectedPlayerIds: string[];
   onQueryChange: (value: string) => void;
@@ -2157,19 +2162,67 @@ function PlayerPickerModal({
   onRemove: () => void;
   onSelect: (playerId: string) => void;
 }) {
+  const [listReady, setListReady] = useState(false);
+  const [renderLimit, setRenderLimit] = useState(initialPlayerRenderLimit);
+  const selectedPlayerSet = useMemo(
+    () => new Set(selectedPlayerIds),
+    [selectedPlayerIds],
+  );
+  const players = useMemo(() => {
+    if (!listReady) return [];
+
+    const normalized = query.trim().toLowerCase();
+    const positionPlayers = sortedPlayersByPosition[slot.position];
+
+    if (!normalized) return positionPlayers;
+
+    return positionPlayers.filter((player) =>
+      playerSearchTextById.get(player.id)?.includes(normalized),
+    );
+  }, [listReady, query, slot.position]);
+  const renderedPlayers = useMemo(
+    () => players.slice(0, renderLimit),
+    [players, renderLimit],
+  );
   const groupedPlayers = useMemo(() => {
     const groups = new Map<string, Player[]>();
 
-    players.forEach((player) => {
+    renderedPlayers.forEach((player) => {
       const country = teamsById.get(player.team)?.name || "Sin pais";
-      groups.set(country, [...(groups.get(country) || []), player]);
+      const countryPlayers = groups.get(country);
+
+      if (countryPlayers) {
+        countryPlayers.push(player);
+      } else {
+        groups.set(country, [player]);
+      }
     });
 
     return Array.from(groups.entries()).map(([country, countryPlayers]) => ({
       country,
-      players: countryPlayers.sort((a, b) => a.name.localeCompare(b.name)),
+      players: countryPlayers,
     }));
-  }, [players]);
+  }, [renderedPlayers]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setListReady(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    if (!listReady || renderLimit >= players.length) return;
+
+    const timer = window.setTimeout(() => {
+      setRenderLimit((current) =>
+        Math.min(current + playerRenderBatchSize, players.length),
+      );
+    }, 45);
+
+    return () => window.clearTimeout(timer);
+  }, [listReady, players.length, renderLimit]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-3 py-5 backdrop-blur-sm">
@@ -2178,7 +2231,10 @@ function PlayerPickerModal({
           <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-slate-100 px-3 py-2">
             <input
               value={query}
-              onChange={(event) => onQueryChange(event.target.value)}
+              onChange={(event) => {
+                setRenderLimit(initialPlayerRenderLimit);
+                onQueryChange(event.target.value);
+              }}
               placeholder={`Buscar ${positionLabels[slot.position].toLowerCase()}`}
               className="min-w-0 flex-1 bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
             />
@@ -2204,6 +2260,12 @@ function PlayerPickerModal({
           ) : null}
 
           <div className="space-y-2">
+            {!listReady ? (
+              <p className="rounded-xl bg-slate-100 px-3 py-4 text-sm text-slate-500">
+                Cargando jugadores...
+              </p>
+            ) : null}
+
             {groupedPlayers.map((group) => (
               <div key={group.country} className="space-y-1">
                 <div className="flex items-center gap-2 py-1 text-xs font-bold uppercase text-slate-500">
@@ -2214,7 +2276,7 @@ function PlayerPickerModal({
                   <span>{group.country}</span>
                 </div>
                 {group.players.map((player) => {
-                  const alreadySelected = selectedPlayerIds.includes(player.id);
+                  const alreadySelected = selectedPlayerSet.has(player.id);
                   const current = player.id === currentPlayer?.id;
                   return (
                     <button
@@ -2251,7 +2313,13 @@ function PlayerPickerModal({
               </div>
             ))}
 
-            {!players.length ? (
+            {listReady && players.length > renderedPlayers.length ? (
+              <p className="rounded-xl bg-slate-100 px-3 py-3 text-center text-xs font-semibold text-slate-500">
+                Cargando mas jugadores...
+              </p>
+            ) : null}
+
+            {listReady && !players.length ? (
               <p className="rounded-xl bg-slate-100 px-3 py-4 text-sm text-slate-500">
                 No hay jugadores para esa busqueda.
               </p>
