@@ -16,10 +16,15 @@ const links = [
 
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { ready, user, completion, currentScorecard } = useAppContext();
+  const { ready, usingSupabase, user, completion, currentScorecard } = useAppContext();
 
   return (
     <div className="min-h-screen bg-[#050505] text-white">
+      {!usingSupabase ? (
+        <div className="bg-amber-400 px-4 py-1.5 text-center text-xs font-bold text-black">
+          Modo demo · los datos se guardan solo en este navegador (localStorage)
+        </div>
+      ) : null}
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-24 sm:px-6">
         <header className="sticky top-0 z-40 bg-[#050505]/88 py-3 backdrop-blur">
           <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
