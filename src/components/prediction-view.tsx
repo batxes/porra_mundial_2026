@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {
   type CSSProperties,
-  type DragEvent,
   type ReactNode,
   useEffect,
   useMemo,
@@ -12,6 +11,27 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  type DragEndEvent,
+  type DragStartEvent,
+  type DragOverEvent,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  rectSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import {
   Card,
@@ -46,7 +66,7 @@ import {
   xiCounts,
   xiRequirements,
 } from "@/lib/prediction";
-import type { Match, Player, Position, Prediction } from "@/lib/types";
+import type { Match, Player, Position, Prediction, Team } from "@/lib/types";
 
 type LineupRow = {
   count: number;
@@ -424,9 +444,8 @@ function StepTabs({
   onSectionChange: (section: SectionId) => void;
 }) {
   return (
-    <div className="sticky top-[112px] z-30 -mx-1 overflow-x-auto py-2 backdrop-blur md:top-[73px] md:overflow-visible">
-      <div className="relative left-1/2 w-[calc(100vw-2rem)] max-w-5xl -translate-x-1/2 sm:w-[calc(100vw-3rem)]">
-        <div className="flex min-w-max gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:grid md:min-w-0 md:grid-cols-5">
+    <div className="-mx-4 overflow-x-auto px-4 py-2 sm:-mx-6 sm:px-6 md:mx-0 md:overflow-visible md:px-0">
+      <div className="flex w-max max-w-none gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:relative md:left-1/2 md:grid md:w-[calc(100vw-3rem)] md:max-w-5xl md:-translate-x-1/2 md:grid-cols-5">
           {sections.map((tab) => {
             const active = section === tab.id;
             const complete = progresses[tab.id].status === "complete";
@@ -463,7 +482,6 @@ function StepTabs({
               </button>
             );
           })}
-        </div>
       </div>
     </div>
   );
@@ -486,8 +504,8 @@ function StepActionBar({
   const progress = progresses[section];
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-2 z-50 px-2 sm:bottom-4 sm:px-4">
-      <div className="pointer-events-auto mx-auto flex max-w-5xl flex-col gap-2 rounded-2xl border border-white/10 bg-[#101010]/94 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.42)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+    <div className="fixed bottom-2 left-2 right-2 z-40 sm:bottom-4 sm:left-4 sm:right-4">
+      <div className="mx-auto flex max-w-5xl flex-col gap-2 rounded-2xl border border-white/10 bg-[#101010]/94 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.42)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           {autoSaveState ? <AutoSaveStatus state={autoSaveState} /> : null}
           <SectionProgressStatus progress={progress} />
@@ -879,9 +897,8 @@ function ExtraPlayerPickerModal({
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                autoFocus
                 placeholder={`Buscar ${positionLabels[activePosition].toLowerCase()}`}
-                className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
+                className="min-w-0 flex-1 bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
               />
             </label>
             <button
@@ -962,30 +979,6 @@ function ExtraPlayerPickerModal({
   );
 }
 
-function setDragPreview(event: DragEvent<HTMLElement>) {
-  const element = event.currentTarget;
-  const preview = element.cloneNode(true) as HTMLElement;
-  const rect = element.getBoundingClientRect();
-
-  preview.style.width = `${rect.width}px`;
-  preview.style.position = "fixed";
-  preview.style.top = "-1000px";
-  preview.style.left = "-1000px";
-  preview.style.pointerEvents = "none";
-  preview.style.opacity = "1";
-  preview.style.transform = "none";
-  preview.style.boxShadow = "0 16px 40px rgba(0, 0, 0, 0.35)";
-  preview.style.border = "1px solid rgba(167, 246, 0, 0.75)";
-  preview.style.background = "#202020";
-  preview.style.zIndex = "9999";
-
-  document.body.appendChild(preview);
-  event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData("text/plain", "");
-  event.dataTransfer.setDragImage(preview, rect.width / 2, rect.height / 2);
-  window.setTimeout(() => preview.remove(), 0);
-}
-
 function GroupStage({
   prediction,
   disabled,
@@ -999,57 +992,89 @@ function GroupStage({
   onToggleThirdQualifier: (group: string) => void;
   onReplaceThirdQualifierOrder: (groups: string[]) => void;
 }) {
-  const [draggedGroupTeam, setDraggedGroupTeam] = useState<{
-    group: string;
-    teamId: string;
-  } | null>(null);
-  const [dropGroupTeam, setDropGroupTeam] = useState<{
-    group: string;
-    teamId: string;
-  } | null>(null);
-  const [draggedThirdGroup, setDraggedThirdGroup] = useState<string | null>(
-    null,
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 160, tolerance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
-  const [dropThirdGroup, setDropThirdGroup] = useState<string | null>(null);
+  const [activeGroupTeam, setActiveGroupTeam] = useState<{
+    group: string;
+    teamId: string;
+  } | null>(null);
+  const [overGroupTeam, setOverGroupTeam] = useState<{
+    group: string;
+    teamId: string;
+  } | null>(null);
+  const [activeThirdGroup, setActiveThirdGroup] = useState<string | null>(null);
+  const [overThirdGroup, setOverThirdGroup] = useState<string | null>(null);
   const groups = Object.keys(prediction.groups);
-  const thirdRows = groups.map((group) => ({
+  const selectedThirdGroups = prediction.bracket.thirdQualifiers.filter(
+    (group, index, list) =>
+      groups.includes(group) && list.indexOf(group) === index,
+  );
+  const thirdRows = [
+    ...selectedThirdGroups,
+    ...groups.filter((group) => !selectedThirdGroups.includes(group)),
+  ].map((group) => ({
     group,
     teamId: groupTeamAt(group, 3, prediction),
-    selected: prediction.bracket.thirdQualifiers.includes(group),
+    selected: selectedThirdGroups.includes(group),
   }));
 
-  const reorderGroupTeam = (group: string, targetTeamId: string) => {
-    if (
-      !draggedGroupTeam ||
-      draggedGroupTeam.group !== group ||
-      draggedGroupTeam.teamId === targetTeamId
-    )
-      return;
-    const ordered = orderedGroupTeams(group, prediction).map((team) => team.id);
-    const from = ordered.indexOf(draggedGroupTeam.teamId);
-    const to = ordered.indexOf(targetTeamId);
-    if (from < 0 || to < 0) return;
-    const [moved] = ordered.splice(from, 1);
-    ordered.splice(to, 0, moved);
-    onReplaceGroupOrder(group, ordered);
+  const handleGroupDragStart = (group: string, event: DragStartEvent) => {
+    setActiveGroupTeam({ group, teamId: String(event.active.id) });
   };
 
-  const reorderThirdQualifier = (targetGroup: string) => {
-    if (!draggedThirdGroup || draggedThirdGroup === targetGroup) return;
-    const selected = prediction.bracket.thirdQualifiers;
-    if (
-      !selected.includes(draggedThirdGroup) ||
-      !selected.includes(targetGroup)
-    )
-      return;
+  const handleGroupDragOver = (group: string, event: DragOverEvent) => {
+    setOverGroupTeam(
+      event.over ? { group, teamId: String(event.over.id) } : null,
+    );
+  };
 
-    const next = [...selected];
-    const from = next.indexOf(draggedThirdGroup);
-    const to = next.indexOf(targetGroup);
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
+  const handleGroupDragEnd = (group: string, event: DragEndEvent) => {
+    const activeTeamId = String(event.active.id);
+    const overTeamId = event.over ? String(event.over.id) : "";
+    setActiveGroupTeam(null);
+    setOverGroupTeam(null);
 
-    onReplaceThirdQualifierOrder(next);
+    if (!overTeamId || activeTeamId === overTeamId) return;
+
+    const ordered = orderedGroupTeams(group, prediction).map((team) => team.id);
+    const from = ordered.indexOf(activeTeamId);
+    const to = ordered.indexOf(overTeamId);
+
+    if (from >= 0 && to >= 0) {
+      onReplaceGroupOrder(group, arrayMove(ordered, from, to));
+    }
+  };
+
+  const handleThirdDragStart = (event: DragStartEvent) => {
+    setActiveThirdGroup(String(event.active.id));
+  };
+
+  const handleThirdDragOver = (event: DragOverEvent) => {
+    setOverThirdGroup(event.over ? String(event.over.id) : null);
+  };
+
+  const handleThirdDragEnd = (event: DragEndEvent) => {
+    const activeGroup = String(event.active.id);
+    const overGroup = event.over ? String(event.over.id) : "";
+    setActiveThirdGroup(null);
+    setOverThirdGroup(null);
+
+    if (!overGroup || activeGroup === overGroup) return;
+
+    const from = selectedThirdGroups.indexOf(activeGroup);
+    const to = selectedThirdGroups.indexOf(overGroup);
+    if (from >= 0 && to >= 0) {
+      onReplaceThirdQualifierOrder(arrayMove(selectedThirdGroups, from, to));
+    }
   };
 
   return (
@@ -1080,6 +1105,7 @@ function GroupStage({
       <div className="grid gap-3 lg:grid-cols-2">
         {groups.map((group) => {
           const ordered = orderedGroupTeams(group, prediction);
+          const orderedIds = ordered.map((team) => team.id);
           return (
             <Card key={group} className="space-y-3">
               <div className="flex items-center justify-between">
@@ -1092,67 +1118,38 @@ function GroupStage({
                   /4
                 </span>
               </div>
-              <div className="space-y-2">
-                {ordered.map((team, index) => {
-                  const isDragged =
-                    draggedGroupTeam?.group === group &&
-                    draggedGroupTeam.teamId === team.id;
-                  const isDropTarget =
-                    dropGroupTeam?.group === group &&
-                    dropGroupTeam.teamId === team.id &&
-                    !isDragged;
-
-                  return (
-                    <div
-                      key={team.id}
-                      draggable={!disabled}
-                      onDragStart={(event) => {
-                        setDraggedGroupTeam({ group, teamId: team.id });
-                        setDragPreview(event);
-                      }}
-                      onDragEnter={() => {
-                        if (!disabled && draggedGroupTeam?.group === group)
-                          setDropGroupTeam({ group, teamId: team.id });
-                      }}
-                      onDragOver={(event) => {
-                        if (!disabled && draggedGroupTeam?.group === group) {
-                          event.preventDefault();
-                          setDropGroupTeam({ group, teamId: team.id });
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={(event) => handleGroupDragStart(group, event)}
+                onDragOver={(event) => handleGroupDragOver(group, event)}
+                onDragEnd={(event) => handleGroupDragEnd(group, event)}
+                onDragCancel={() => {
+                  setActiveGroupTeam(null);
+                  setOverGroupTeam(null);
+                }}
+              >
+                <SortableContext
+                  items={orderedIds}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {ordered.map((team, index) => (
+                      <SortableGroupTeamRow
+                        key={team.id}
+                        team={team}
+                        index={index}
+                        disabled={disabled}
+                        isDropTarget={
+                          overGroupTeam?.group === group &&
+                          overGroupTeam.teamId === team.id &&
+                          activeGroupTeam?.teamId !== team.id
                         }
-                      }}
-                      onDragLeave={(event) => {
-                        if (
-                          !event.currentTarget.contains(
-                            event.relatedTarget as Node | null,
-                          )
-                        )
-                          setDropGroupTeam(null);
-                      }}
-                      onDrop={() => {
-                        if (!disabled) reorderGroupTeam(group, team.id);
-                        setDropGroupTeam(null);
-                      }}
-                      onDragEnd={() => {
-                        setDraggedGroupTeam(null);
-                        setDropGroupTeam(null);
-                      }}
-                      className={`grid cursor-grab grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 transition active:cursor-grabbing ${
-                        isDropTarget
-                          ? "border-[#a7f600] bg-[#a7f600]/15 shadow-[0_0_0_1px_rgba(167,246,0,0.35),0_0_24px_rgba(167,246,0,0.12)]"
-                          : "border-white/10 bg-white/[0.06]"
-                      } ${isDragged ? "opacity-60" : ""}`}
-                    >
-                      <span className="text-sm font-black text-[#a7f600]">
-                        {index + 1}
-                      </span>
-                      <TeamBadge teamId={team.id} />
-                      <span className="text-lg font-black text-zinc-500">
-                        ☰
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </Card>
           );
         })}
@@ -1176,78 +1173,46 @@ function GroupStage({
           </span>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2">
-          {thirdRows.map(({ group, teamId, selected }) => {
-            const isDragged = draggedThirdGroup === group;
-            const isDropTarget =
-              dropThirdGroup === group &&
-              draggedThirdGroup !== group &&
-              selected;
-
-            return (
-              <button
-                key={group}
-                type="button"
-                disabled={disabled || !teamId}
-                draggable={!disabled && selected}
-                onDragStart={(event) => {
-                  setDraggedThirdGroup(group);
-                  setDragPreview(event);
-                }}
-                onDragEnter={() => {
-                  if (!disabled && selected && draggedThirdGroup)
-                    setDropThirdGroup(group);
-                }}
-                onDragOver={(event) => {
-                  if (!disabled && selected && draggedThirdGroup) {
-                    event.preventDefault();
-                    setDropThirdGroup(group);
-                  }
-                }}
-                onDragLeave={(event) => {
-                  if (
-                    !event.currentTarget.contains(
-                      event.relatedTarget as Node | null,
-                    )
-                  )
-                    setDropThirdGroup(null);
-                }}
-                onDrop={() => {
-                  if (!disabled) reorderThirdQualifier(group);
-                  setDropThirdGroup(null);
-                }}
-                onDragEnd={() => {
-                  setDraggedThirdGroup(null);
-                  setDropThirdGroup(null);
-                }}
-                onClick={() => onToggleThirdQualifier(group)}
-                className={`grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${
-                  isDropTarget
-                    ? "border-[#a7f600] bg-[#a7f600]/18 shadow-[0_0_0_1px_rgba(167,246,0,0.35),0_0_24px_rgba(167,246,0,0.12)]"
-                    : selected
-                      ? "border-[#a7f600]/70 bg-[#a7f600]/12"
-                      : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
-                } disabled:cursor-not-allowed disabled:opacity-40 ${isDragged ? "opacity-35" : ""}`}
-              >
-                <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black ${selected ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-400"}`}
-                >
-                  {group}
-                </span>
-                {teamId ? (
-                  <TeamBadge teamId={teamId} />
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleThirdDragStart}
+          onDragOver={handleThirdDragOver}
+          onDragEnd={handleThirdDragEnd}
+          onDragCancel={() => {
+            setActiveThirdGroup(null);
+            setOverThirdGroup(null);
+          }}
+        >
+          <SortableContext
+            items={selectedThirdGroups}
+            strategy={rectSortingStrategy}
+          >
+            <div className="grid gap-2 sm:grid-cols-2">
+              {thirdRows.map((row) =>
+                row.selected ? (
+                  <SortableThirdQualifierRow
+                    key={row.group}
+                    row={row}
+                    disabled={disabled}
+                    isDropTarget={
+                      overThirdGroup === row.group &&
+                      activeThirdGroup !== row.group
+                    }
+                    onToggle={onToggleThirdQualifier}
+                  />
                 ) : (
-                  <span className="text-sm text-zinc-500">
-                    Ordena el grupo primero
-                  </span>
-                )}
-                <span className="text-xs font-black text-zinc-500">
-                  {selected ? "Pasa" : "Elegir"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                  <ThirdQualifierToggleRow
+                    key={row.group}
+                    row={row}
+                    disabled={disabled}
+                    onToggle={onToggleThirdQualifier}
+                  />
+                ),
+              )}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         {prediction.bracket.thirdQualifiers.length === 8 ? (
           <Notice>
@@ -1261,6 +1226,189 @@ function GroupStage({
           </Notice>
         )}
       </Card>
+    </div>
+  );
+}
+
+function SortableGroupTeamRow({
+  team,
+  index,
+  disabled,
+  isDropTarget,
+}: {
+  team: Team;
+  index: number;
+  disabled: boolean;
+  isDropTarget: boolean;
+}) {
+  const {
+    attributes,
+    isDragging,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: team.id, disabled });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition: isDragging ? "none" : transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
+        isDropTarget
+          ? "border-[#a7f600] bg-[#a7f600]/15 shadow-[0_0_0_1px_rgba(167,246,0,0.35),0_0_24px_rgba(167,246,0,0.12)]"
+          : "border-white/10 bg-white/[0.06]"
+      } ${isDragging ? "opacity-60" : ""}`}
+    >
+      <span className="text-sm font-black text-[#a7f600]">{index + 1}</span>
+      <TeamBadge teamId={team.id} />
+      <button
+        ref={setActivatorNodeRef}
+        type="button"
+        disabled={disabled}
+        className="touch-none rounded-md px-2 py-1 text-lg font-black text-zinc-500 transition hover:bg-white/10 hover:text-zinc-200 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-35"
+        aria-label={`Mover ${team.name}`}
+        {...attributes}
+        {...listeners}
+      >
+        ☰
+      </button>
+    </div>
+  );
+}
+
+type ThirdQualifierRow = {
+  group: string;
+  selected: boolean;
+  teamId: string;
+};
+
+function ThirdQualifierToggleRow({
+  row,
+  disabled,
+  onToggle,
+}: {
+  row: ThirdQualifierRow;
+  disabled: boolean;
+  onToggle: (group: string) => void;
+}) {
+  const isDisabled = disabled || !row.teamId;
+  const toggle = () => {
+    if (!isDisabled) onToggle(row.group);
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={isDisabled ? -1 : 0}
+      aria-disabled={isDisabled}
+      onClick={toggle}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          toggle();
+        }
+      }}
+      className={`grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left transition hover:bg-white/[0.07] ${
+        isDisabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+      }`}
+    >
+      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-sm font-black text-zinc-400">
+        {row.group}
+      </span>
+      {row.teamId ? (
+        <TeamBadge teamId={row.teamId} />
+      ) : (
+        <span className="text-sm text-zinc-500">Ordena el grupo primero</span>
+      )}
+      <span className="text-xs font-black text-zinc-500">Elegir</span>
+    </div>
+  );
+}
+
+function SortableThirdQualifierRow({
+  row,
+  disabled,
+  isDropTarget,
+  onToggle,
+}: {
+  row: ThirdQualifierRow;
+  disabled: boolean;
+  isDropTarget: boolean;
+  onToggle: (group: string) => void;
+}) {
+  const isDisabled = disabled || !row.teamId;
+  const {
+    attributes,
+    isDragging,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: row.group, disabled: isDisabled || !row.selected });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition: isDragging ? "none" : transition,
+  };
+  const toggle = () => {
+    if (!isDisabled) onToggle(row.group);
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      role="button"
+      tabIndex={isDisabled ? -1 : 0}
+      aria-disabled={isDisabled}
+      onClick={toggle}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          toggle();
+        }
+      }}
+      style={style}
+      className={`grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${
+        isDropTarget
+          ? "border-[#a7f600] bg-[#a7f600]/18 shadow-[0_0_0_1px_rgba(167,246,0,0.35),0_0_24px_rgba(167,246,0,0.12)]"
+          : row.selected
+            ? "border-[#a7f600]/70 bg-[#a7f600]/12"
+            : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+      } ${isDisabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"} ${isDragging ? "opacity-60" : ""}`}
+    >
+      <span
+        className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black ${row.selected ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-400"}`}
+      >
+        {row.group}
+      </span>
+      {row.teamId ? (
+        <TeamBadge teamId={row.teamId} />
+      ) : (
+        <span className="text-sm text-zinc-500">Ordena el grupo primero</span>
+      )}
+      <span className="flex items-center gap-2">
+        <span className="text-xs font-black text-zinc-500">
+          {row.selected ? "Pasa" : "Elegir"}
+        </span>
+        {row.selected ? (
+          <span
+            ref={setActivatorNodeRef}
+            className="touch-none rounded-md px-1.5 py-1 text-base font-black text-zinc-500 transition hover:bg-white/10 hover:text-zinc-200 active:cursor-grabbing"
+            aria-label={`Mover grupo ${row.group}`}
+            onClick={(event) => event.stopPropagation()}
+            {...attributes}
+            {...listeners}
+          >
+            ☰
+          </span>
+        ) : null}
+      </span>
     </div>
   );
 }
@@ -1635,9 +1783,8 @@ function PlayerPickerModal({
             <input
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
-              autoFocus
               placeholder={`Buscar ${positionLabels[slot.position].toLowerCase()}`}
-              className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
+              className="min-w-0 flex-1 bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
             />
           </label>
           <button

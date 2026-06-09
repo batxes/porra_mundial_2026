@@ -37,6 +37,7 @@ body {
 
 .app-shell::before {
   content: "";
+  display: none;
   position: fixed;
   inset: 0;
   z-index: 0;
@@ -51,6 +52,7 @@ body {
 
 .app-shell::after {
   content: "";
+  display: none;
   position: fixed;
   inset: 0;
   z-index: 0;
@@ -63,6 +65,13 @@ body {
 .app-shell > * {
   position: relative;
   z-index: 1;
+}
+
+@media (min-width: 768px) {
+  .app-shell::before,
+  .app-shell::after {
+    display: block;
+  }
 }
 
 .score-number-input {
