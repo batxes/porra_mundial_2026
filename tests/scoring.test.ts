@@ -14,7 +14,7 @@ const playerIdByPosition = (position: string) => data.players.find((player) => p
 
   assert.equal(Object.values(prediction.groups.A).filter(Boolean).length, 4);
   assert.deepEqual(groupAIds.map((_, index) => groupTeamAt("A", index + 1, prediction)), groupAIds);
-  assert.deepEqual(prediction.bracket.thirdQualifiers, ["A", "B", "C", "D", "E", "F", "G", "H"]);
+  assert.deepEqual(prediction.bracket.thirdQualifiers, []);
 }
 
 {

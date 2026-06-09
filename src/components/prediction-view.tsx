@@ -25,7 +25,6 @@ import {
 } from "@dnd-kit/core";
 import {
   arrayMove,
-  rectSortingStrategy,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
@@ -110,7 +109,6 @@ export function PredictionView() {
     chooseMatchWinner,
     ready,
     replaceGroupOrder,
-    replaceThirdQualifierOrder,
     savePrediction,
     setPredictionExtra,
     setPredictionScore,
@@ -277,7 +275,6 @@ export function PredictionView() {
               disabled={tournamentLocked}
               onReplaceGroupOrder={replaceGroupOrder}
               onToggleThirdQualifier={toggleThirdQualifier}
-              onReplaceThirdQualifierOrder={replaceThirdQualifierOrder}
             />
           ) : null}
 
@@ -987,13 +984,11 @@ function GroupStage({
   disabled,
   onReplaceGroupOrder,
   onToggleThirdQualifier,
-  onReplaceThirdQualifierOrder,
 }: {
   prediction: Prediction;
   disabled: boolean;
   onReplaceGroupOrder: (group: string, teamIds: string[]) => void;
   onToggleThirdQualifier: (group: string) => void;
-  onReplaceThirdQualifierOrder: (groups: string[]) => void;
 }) {
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -1014,21 +1009,17 @@ function GroupStage({
     group: string;
     teamId: string;
   } | null>(null);
-  const [activeThirdGroup, setActiveThirdGroup] = useState<string | null>(null);
-  const [overThirdGroup, setOverThirdGroup] = useState<string | null>(null);
   const groups = Object.keys(prediction.groups);
   const selectedThirdGroups = prediction.bracket.thirdQualifiers.filter(
     (group, index, list) =>
       groups.includes(group) && list.indexOf(group) === index,
   );
-  const thirdRows = [
-    ...selectedThirdGroups,
-    ...groups.filter((group) => !selectedThirdGroups.includes(group)),
-  ].map((group) => ({
+  const thirdRows = groups.map((group) => ({
     group,
     teamId: groupTeamAt(group, 3, prediction),
     selected: selectedThirdGroups.includes(group),
   }));
+  const thirdLimitReached = selectedThirdGroups.length >= 8;
 
   const handleGroupDragStart = (group: string, event: DragStartEvent) => {
     setActiveGroupTeam({ group, teamId: String(event.active.id) });
@@ -1054,29 +1045,6 @@ function GroupStage({
 
     if (from >= 0 && to >= 0) {
       onReplaceGroupOrder(group, arrayMove(ordered, from, to));
-    }
-  };
-
-  const handleThirdDragStart = (event: DragStartEvent) => {
-    setActiveThirdGroup(String(event.active.id));
-  };
-
-  const handleThirdDragOver = (event: DragOverEvent) => {
-    setOverThirdGroup(event.over ? String(event.over.id) : null);
-  };
-
-  const handleThirdDragEnd = (event: DragEndEvent) => {
-    const activeGroup = String(event.active.id);
-    const overGroup = event.over ? String(event.over.id) : "";
-    setActiveThirdGroup(null);
-    setOverThirdGroup(null);
-
-    if (!overGroup || activeGroup === overGroup) return;
-
-    const from = selectedThirdGroups.indexOf(activeGroup);
-    const to = selectedThirdGroups.indexOf(overGroup);
-    if (from >= 0 && to >= 0) {
-      onReplaceThirdQualifierOrder(arrayMove(selectedThirdGroups, from, to));
     }
   };
 
@@ -1165,57 +1133,36 @@ function GroupStage({
               Terceros clasificados
             </h3>
             <p className="text-sm text-zinc-400">
-              Cargamos 8 terceros por defecto. Puedes cambiarlos y arrastrar los
-              elegidos para ajustar su prioridad de asignacion.
+              Elige los 8 terceros que pasan. El orden no cuenta.
             </p>
           </div>
           <span
-            className={`text-sm font-black ${prediction.bracket.thirdQualifiers.length === 8 ? "text-[#a7f600]" : "text-zinc-500"}`}
+            className={`rounded-full px-3 py-1 text-sm font-black ${
+              prediction.bracket.thirdQualifiers.length === 8
+                ? "bg-[#a7f600] text-black"
+                : "bg-yellow-300/15 text-yellow-200"
+            }`}
           >
             {prediction.bracket.thirdQualifiers.length}/8
           </span>
         </div>
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleThirdDragStart}
-          onDragOver={handleThirdDragOver}
-          onDragEnd={handleThirdDragEnd}
-          onDragCancel={() => {
-            setActiveThirdGroup(null);
-            setOverThirdGroup(null);
-          }}
-        >
-          <SortableContext
-            items={selectedThirdGroups}
-            strategy={rectSortingStrategy}
-          >
-            <div className="grid gap-2 sm:grid-cols-2">
-              {thirdRows.map((row) =>
-                row.selected ? (
-                  <SortableThirdQualifierRow
-                    key={row.group}
-                    row={row}
-                    disabled={disabled}
-                    isDropTarget={
-                      overThirdGroup === row.group &&
-                      activeThirdGroup !== row.group
-                    }
-                    onToggle={onToggleThirdQualifier}
-                  />
-                ) : (
-                  <ThirdQualifierToggleRow
-                    key={row.group}
-                    row={row}
-                    disabled={disabled}
-                    onToggle={onToggleThirdQualifier}
-                  />
-                ),
-              )}
-            </div>
-          </SortableContext>
-        </DndContext>
+        <div className="space-y-3">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500">
+            Lista de terceros
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {thirdRows.map((row) => (
+              <ThirdQualifierButton
+                key={row.group}
+                row={row}
+                disabled={disabled}
+                limitReached={thirdLimitReached}
+                onToggle={onToggleThirdQualifier}
+              />
+            ))}
+          </div>
+        </div>
 
         {prediction.bracket.thirdQualifiers.length === 8 ? (
           <Notice>
@@ -1291,102 +1238,47 @@ type ThirdQualifierRow = {
   teamId: string;
 };
 
-function ThirdQualifierToggleRow({
+function ThirdQualifierButton({
   row,
   disabled,
+  limitReached,
   onToggle,
 }: {
   row: ThirdQualifierRow;
   disabled: boolean;
+  limitReached: boolean;
   onToggle: (group: string) => void;
 }) {
-  const isDisabled = disabled || !row.teamId;
+  const isDisabled = disabled || !row.teamId || (!row.selected && limitReached);
   const toggle = () => {
     if (!isDisabled) onToggle(row.group);
   };
+  const actionLabel = row.selected
+    ? "Quitar"
+    : limitReached
+      ? "Completo"
+      : "Elegir";
 
   return (
-    <div
-      role="button"
-      tabIndex={isDisabled ? -1 : 0}
-      aria-disabled={isDisabled}
+    <button
+      type="button"
+      disabled={isDisabled}
+      aria-pressed={row.selected}
       onClick={toggle}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          toggle();
-        }
-      }}
-      className={`grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left transition hover:bg-white/[0.07] ${
-        isDisabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+      className={`grid w-full grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${
+        row.selected
+          ? "border-[#a7f600]/70 bg-[#a7f600]/12"
+          : "border-white/10 bg-white/[0.04]"
+      } ${
+        isDisabled
+          ? "cursor-not-allowed opacity-45"
+          : "cursor-pointer hover:border-[#a7f600]/45 hover:bg-[#a7f600]/10"
       }`}
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-sm font-black text-zinc-400">
-        {row.group}
-      </span>
-      {row.teamId ? (
-        <TeamBadge teamId={row.teamId} />
-      ) : (
-        <span className="text-sm text-zinc-500">Ordena el grupo primero</span>
-      )}
-      <span className="text-xs font-black text-zinc-500">Elegir</span>
-    </div>
-  );
-}
-
-function SortableThirdQualifierRow({
-  row,
-  disabled,
-  isDropTarget,
-  onToggle,
-}: {
-  row: ThirdQualifierRow;
-  disabled: boolean;
-  isDropTarget: boolean;
-  onToggle: (group: string) => void;
-}) {
-  const isDisabled = disabled || !row.teamId;
-  const {
-    attributes,
-    isDragging,
-    listeners,
-    setActivatorNodeRef,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: row.group, disabled: isDisabled || !row.selected });
-  const style: CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition: isDragging ? "none" : transition,
-  };
-  const toggle = () => {
-    if (!isDisabled) onToggle(row.group);
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      role="button"
-      tabIndex={isDisabled ? -1 : 0}
-      aria-disabled={isDisabled}
-      onClick={toggle}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          toggle();
-        }
-      }}
-      style={style}
-      className={`grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${
-        isDropTarget
-          ? "border-[#a7f600] bg-[#a7f600]/18 shadow-[0_0_0_1px_rgba(167,246,0,0.35),0_0_24px_rgba(167,246,0,0.12)]"
-          : row.selected
-            ? "border-[#a7f600]/70 bg-[#a7f600]/12"
-            : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
-      } ${isDisabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"} ${isDragging ? "opacity-60" : ""}`}
-    >
       <span
-        className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black ${row.selected ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-400"}`}
+        className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black ${
+          row.selected ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-400"
+        }`}
       >
         {row.group}
       </span>
@@ -1395,24 +1287,14 @@ function SortableThirdQualifierRow({
       ) : (
         <span className="text-sm text-zinc-500">Ordena el grupo primero</span>
       )}
-      <span className="flex items-center gap-2">
-        <span className="text-xs font-black text-zinc-500">
-          {row.selected ? "Pasa" : "Elegir"}
-        </span>
-        {row.selected ? (
-          <span
-            ref={setActivatorNodeRef}
-            className="touch-none rounded-md px-1.5 py-1 text-base font-black text-zinc-500 transition hover:bg-white/10 hover:text-zinc-200 active:cursor-grabbing"
-            aria-label={`Mover grupo ${row.group}`}
-            onClick={(event) => event.stopPropagation()}
-            {...attributes}
-            {...listeners}
-          >
-            ☰
-          </span>
-        ) : null}
+      <span
+        className={`text-xs font-black ${
+          row.selected ? "text-[#a7f600]" : "text-zinc-500"
+        }`}
+      >
+        {actionLabel}
       </span>
-    </div>
+    </button>
   );
 }
 

@@ -23,8 +23,7 @@ export function emptyPrediction(): Prediction {
     updatedAt: null,
   };
 
-  prediction.bracket.thirdQualifiers = defaultThirdQualifierGroups(prediction);
-  return autoAssignThirdSlots(prediction);
+  return prediction;
 }
 
 export function normalizePrediction(prediction?: Partial<Prediction> | null): Prediction {
@@ -48,6 +47,11 @@ export function normalizePrediction(prediction?: Partial<Prediction> | null): Pr
     xi: sanitizeXiForFormation(Array.isArray(prediction?.xi) ? prediction.xi : [], xiFormation),
     xiFormation,
   };
+
+  normalized.bracket.thirdQualifiers = normalizeThirdQualifiers(
+    normalized.bracket.thirdQualifiers,
+    normalized,
+  );
 
   return autoAssignThirdSlots(normalized);
 }
@@ -128,12 +132,20 @@ export function groupTeamAt(group: string, position: number, prediction: Predict
   return Object.entries(prediction.groups[group] || {}).find(([, value]) => String(value) === String(position))?.[0] || orderedGroupTeams(group, prediction)[position - 1]?.id || "";
 }
 
-function defaultThirdQualifierGroups(prediction: Prediction) {
-  const groups = data.teams
+function tournamentGroups() {
+  return data.teams
     .map((team) => team.group)
-    .filter((group, index, list) => list.indexOf(group) === index && Boolean(prediction.groups[group]));
+    .filter((group, index, list) => list.indexOf(group) === index);
+}
 
-  return groups.filter((group) => groupTeamAt(group, 3, prediction)).slice(0, 8);
+function normalizeThirdQualifiers(groups: string[], prediction: Prediction) {
+  const uniqueSelected = groups.filter(
+    (group, index, list) => list.indexOf(group) === index && groupTeamAt(group, 3, prediction),
+  );
+
+  return tournamentGroups()
+    .filter((group) => uniqueSelected.includes(group))
+    .slice(0, 8);
 }
 
 export function scheduleUtc(match: Match) {
@@ -216,7 +228,10 @@ function sanitizeBracket(prediction: Prediction) {
   const next = structuredClone(prediction);
   const bracket = next.bracket;
 
-  bracket.thirdQualifiers = bracket.thirdQualifiers.filter((group) => groupTeamAt(group, 3, next));
+  bracket.thirdQualifiers = normalizeThirdQualifiers(
+    bracket.thirdQualifiers,
+    next,
+  );
 
   Object.entries(bracket.thirdSlots).forEach(([matchNumber, group]) => {
     const match = knockoutMatches.find((candidate) => String(candidate.number) === String(matchNumber));
@@ -302,12 +317,17 @@ export function toggleThirdQualifier(prediction: Prediction, group: string) {
     selected.push(group);
   }
 
+  next.bracket.thirdQualifiers = normalizeThirdQualifiers(
+    next.bracket.thirdQualifiers,
+    next,
+  );
+
   return sanitizeBracket(autoAssignThirdSlots(next));
 }
 
 export function setThirdQualifierOrder(prediction: Prediction, groups: string[]) {
   const next = structuredClone(prediction);
-  next.bracket.thirdQualifiers = groups.filter((group, index, list) => list.indexOf(group) === index).slice(0, 8);
+  next.bracket.thirdQualifiers = normalizeThirdQualifiers(groups, next);
   return sanitizeBracket(autoAssignThirdSlots(next));
 }
 

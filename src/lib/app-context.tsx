@@ -35,7 +35,6 @@ import {
   setGroupOrder,
   setPredictionExtra,
   setPredictionMatchScore,
-  setThirdQualifierOrder,
   setXiFormation,
   setXiSelection,
   toggleThirdQualifier,
@@ -76,7 +75,6 @@ type AppContextValue = {
   moveGroupTeam: (group: string, teamId: string, direction: number) => void;
   replaceGroupOrder: (group: string, teamIds: string[]) => void;
   toggleThirdQualifier: (group: string) => void;
-  replaceThirdQualifierOrder: (groups: string[]) => void;
   chooseMatchWinner: (matchNumber: number, teamId: string) => void;
   setPredictionScore: (matchNumber: number, side: "homeScore" | "awayScore", value: string) => void;
   setPredictionExtra: (key: keyof Prediction["extras"], value: string) => void;
@@ -602,10 +600,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       toggleThirdQualifier: (group) => {
         if (hasTournamentStarted()) return;
         replacePrediction(toggleThirdQualifier(prediction, group));
-      },
-      replaceThirdQualifierOrder: (groups) => {
-        if (hasTournamentStarted()) return;
-        replacePrediction(setThirdQualifierOrder(prediction, groups));
       },
       chooseMatchWinner: (matchNumber, teamId) => {
         const match = schedule.find((candidate) => candidate.number === matchNumber);
