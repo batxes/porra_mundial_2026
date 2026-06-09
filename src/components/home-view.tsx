@@ -92,7 +92,7 @@ export function HomeView() {
 
 function LeaderboardRow({ profile, position }: { profile: UserProfile; position: number }) {
   return (
-    <Link href="/clasificacion" className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition hover:bg-white/5">
+    <Link href={`/perfil/${encodeURIComponent(profile.id)}`} className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition hover:bg-white/5">
       <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black ${position === 1 ? "bg-[#a7f600] text-black" : "bg-white/10 text-white"}`}>
         {position}
       </span>
