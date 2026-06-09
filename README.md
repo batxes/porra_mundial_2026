@@ -37,15 +37,20 @@ The app runs at `http://localhost:3000`.
 
 ## Deploying to Vercel
 
-Deployment is handled by GitHub Actions with the Vercel CLI (`.github/workflows/deploy.yml`). Every push to `main` builds and publishes to production, running Next.js with a server (server components, `/api` routes, server-side `API-Football` calls).
+Deployment is handled by GitHub Actions (`.github/workflows/deploy.yml`). Every push to `main` runs two jobs: `migrate` applies database migrations with `supabase db push`, then `deploy` builds and publishes to production with the Vercel CLI (Next.js with a server: server components, `/api` routes, server-side `API-Football` calls).
 
 Configure in GitHub (`Settings > Secrets and variables > Actions`):
 
 - `VERCEL_TOKEN` — Vercel account token
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
+- `SUPABASE_ACCESS_TOKEN` — personal access token from the Supabase dashboard
+- `SUPABASE_DB_PASSWORD` — production database password
+- `SUPABASE_PROJECT_REF` — production project ref (the subdomain in its URL)
 
-The two IDs come from `vercel link` (the `.vercel/project.json` file) or from the Vercel dashboard. The app's environment variables (Supabase, API-Football) are configured in the Vercel project; `vercel pull` downloads them during the build.
+The Vercel IDs come from `vercel link` (the `.vercel/project.json` file) or the dashboard. The app's runtime environment variables (Supabase, API-Football) are configured in the Vercel project; `vercel pull` downloads them during the build.
+
+The `migrate` job applies `supabase/migrations/` to production; `supabase/seed.sql` never runs against production. Deploy is gated on a successful migration.
 
 ## Environment variables
 
