@@ -23,7 +23,7 @@ Porra del Mundial 2026 refactorizada a `Next.js 16 + Tailwind 4`.
 - Motor de puntuación portado a `src/lib/scoring.ts`
 - Modelo de predicción portado a `src/lib/prediction.ts`
 - Estado compartido con modo demo local y modo Supabase
-- Panel admin para introducir y corregir resultados manualmente
+- Panel admin con consulta server-side a `API-Football`
 - Tests del scoring adaptados a TypeScript
 
 ## Desarrollo
@@ -54,46 +54,18 @@ NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_anon_key
 ```
 
-Para conectar la web publicada con Supabase en GitHub Pages:
-
-1. En GitHub, entra en el repositorio.
-2. Ve a `Settings` -> `Secrets and variables` -> `Actions`.
-3. Pulsa `New repository secret`.
-4. Crea `NEXT_PUBLIC_SUPABASE_URL` con la URL del proyecto Supabase.
-5. Crea `NEXT_PUBLIC_SUPABASE_ANON_KEY` con la publishable key de Supabase.
-6. No subas nunca la `service_role` ni una secret key al navegador.
-
 ## API-Football opcional
 
 ```env
 APIFOOTBALL_API_KEY=tu_api_key
 ```
 
-GitHub Pages solo sirve archivos estáticos, así que no puede ejecutar una ruta server-side segura para API-Football. En GitHub Pages, usa el panel admin para meter resultados, goles, tarjetas y eventos manualmente.
+La ruta `src/app/api/provider/world-cup/route.ts:1` consulta:
 
-Si quieres activar una integración automática con API-Football usando `APIFOOTBALL_API_KEY`, despliega la app en Vercel o en otro hosting con servidor, y añade la API route server-side allí.
+- `league=1`
+- `season=2026`
 
-## Publicar en GitHub Pages
-
-El workflow `.github/workflows/pages.yml` publica automáticamente desde la rama `main`.
-
-Pasos:
-
-1. En GitHub, entra en `Settings` -> `Pages`.
-2. En `Build and deployment`, selecciona `GitHub Actions`.
-3. En `Settings` -> `Secrets and variables` -> `Actions`, añade las variables de Supabase si quieres usar la base de datos real.
-4. Haz push a `main`.
-5. Abre `Actions` y espera a que termine `Deploy static site to GitHub Pages`.
-6. La web quedará en `https://batxes.github.io/porra_mundial_2026/`.
-
-El despliegue ejecuta:
-
-```bash
-npm ci
-npm run build
-```
-
-Después sube la carpeta `out/` generada por Next.js.
+según la documentación pública de API-Sports para el Mundial 2026.
 
 ## Scripts
 
@@ -135,7 +107,7 @@ Valida:
 
 ## Estado actual de la API gratis
 
-La integración puede prepararse para `API-Football` en un despliegue con servidor, porque ofrece plan gratuito y cobertura del Mundial 2026 con:
+La integración está preparada para `API-Football`, porque hoy ofrece plan gratuito y cobertura del Mundial 2026 con:
 
 - fixtures
 - standings
@@ -143,4 +115,4 @@ La integración puede prepararse para `API-Football` en un despliegue con servid
 - top cards
 - events / lineups / player stats según cobertura
 
-En GitHub Pages, el panel admin funciona en modo manual porque no hay backend server-side.
+Si falta `APIFOOTBALL_API_KEY`, el panel admin sigue funcionando en modo manual/local.
