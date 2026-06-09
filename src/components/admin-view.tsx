@@ -39,6 +39,12 @@ export function AdminView() {
   }
 
   const loadProvider = async () => {
+    if (process.env.NEXT_PUBLIC_STATIC_EXPORT === "true") {
+      setProviderError(
+        "En GitHub Pages la web es estática y no puede ejecutar la consulta server-side a API-Football. Usa la carga manual del admin o despliega en Vercel si quieres activar esa integración automática.",
+      );
+      return;
+    }
     setProviderBusy(true);
     setProviderError("");
     try {
@@ -103,7 +109,7 @@ export function AdminView() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <h3 className="text-xl font-semibold text-white">Proveedor externo</h3>
-              <p className="text-sm text-slate-400">API-Football vía ruta server-side.</p>
+              <p className="text-sm text-slate-400">API-Football vía ruta server-side cuando la app se despliega con servidor.</p>
             </div>
             <button
               type="button"
@@ -156,7 +162,7 @@ export function AdminView() {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-slate-400">Pulsa “Consultar API” para cargar cobertura, resultados, goleadores y tarjetas.</p>
+            <p className="text-sm text-slate-400">Pulsa “Consultar API” para cargar cobertura, resultados, goleadores y tarjetas si estás en un despliegue con servidor. En GitHub Pages, usa los formularios manuales.</p>
           )}
         </Card>
 
