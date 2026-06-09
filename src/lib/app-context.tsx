@@ -512,6 +512,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             data: {
               display_name: name,
             },
+            emailRedirectTo: window.location.origin,
           },
         });
         if (error) {
