@@ -40,7 +40,11 @@ export function LeaderboardView() {
               >
                 <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-400/10 text-lg font-bold text-cyan-300 md:block md:h-auto md:w-auto md:bg-transparent">{index + 1}</span>
                 <span className="flex min-w-0 items-center gap-3">
-                  <Avatar name={profile.name} avatarUrl={profile.avatarUrl} className="h-10 w-10" />
+                  <Avatar
+                    name={profile.name}
+                    avatarUrl={profile.avatarUrl}
+                    className="aspect-square h-12 w-12 shrink-0"
+                  />
                   <span className="min-w-0">
                     <strong className="block truncate text-white">{profile.name}</strong>
                     <small className="text-slate-400">{profile.complete}% completa</small>

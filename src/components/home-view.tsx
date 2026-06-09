@@ -268,7 +268,7 @@ function LeaderboardRow({
         <Avatar
           name={profile.name}
           avatarUrl={profile.avatarUrl}
-          className="h-9 w-9 shrink-0"
+          className="aspect-square h-12 w-12 shrink-0"
         />
         <span className="min-w-0">
           <strong className="block truncate text-sm text-white">
