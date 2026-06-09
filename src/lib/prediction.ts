@@ -148,6 +148,72 @@ function normalizeThirdQualifiers(groups: string[], prediction: Prediction) {
     .slice(0, 8);
 }
 
+function thirdSlotOptions(match: Match) {
+  const slot = match.home.startsWith("3rd Group")
+    ? match.home
+    : match.away.startsWith("3rd Group")
+      ? match.away
+      : "";
+
+  return slot ? slot.replace("3rd Group ", "").split("/") : [];
+}
+
+function assignThirdSlots(qualifiers: string[]) {
+  const assignments: Record<string, string> = {};
+  const variableMatches = knockoutMatches
+    .map((match) => ({
+      number: String(match.number),
+      allowed: thirdSlotOptions(match),
+    }))
+    .filter((match) => match.allowed.length)
+    .sort((a, b) => a.allowed.length - b.allowed.length);
+
+  function assign(index: number, used: Set<string>) {
+    if (index === variableMatches.length) {
+      return true;
+    }
+
+    const match = variableMatches[index];
+
+    for (const group of qualifiers) {
+      if (used.has(group) || !match.allowed.includes(group)) {
+        continue;
+      }
+
+      assignments[match.number] = group;
+      used.add(group);
+
+      if (assign(index + 1, used)) {
+        return true;
+      }
+
+      used.delete(group);
+      delete assignments[match.number];
+    }
+
+    return false;
+  }
+
+  return assign(0, new Set()) ? assignments : {};
+}
+
+function defaultThirdQualifiers(prediction: Prediction) {
+  const selected = normalizeThirdQualifiers(
+    prediction.bracket?.thirdQualifiers || [],
+    prediction,
+  );
+  const selectedSet = new Set(selected);
+  const fallback = tournamentGroups().filter(
+    (group) => !selectedSet.has(group) && groupTeamAt(group, 3, prediction),
+  );
+
+  return [...selected, ...fallback].slice(0, 8);
+}
+
+function defaultThirdSlots(prediction: Prediction) {
+  return assignThirdSlots(defaultThirdQualifiers(prediction));
+}
+
 export function scheduleUtc(match: Match) {
   const time = match.time.match(/^(\d+):(\d+) ([ap])\.m\. UTC([+-]\d+)$/);
   if (!time) return `${match.date}T12:00:00Z`;
@@ -194,7 +260,9 @@ export function resolveSlot(slot: string, matchNumber: number, prediction: Predi
   if (match) return loserForMatch(Number(match[1]), prediction);
 
   if (String(slot).startsWith("3rd Group")) {
-    const group = prediction.bracket?.thirdSlots?.[String(matchNumber)];
+    const group =
+      prediction.bracket?.thirdSlots?.[String(matchNumber)] ||
+      defaultThirdSlots(prediction)[String(matchNumber)];
     return group ? groupTeamAt(group, 3, prediction) : "";
   }
 
@@ -235,7 +303,7 @@ function sanitizeBracket(prediction: Prediction) {
 
   Object.entries(bracket.thirdSlots).forEach(([matchNumber, group]) => {
     const match = knockoutMatches.find((candidate) => String(candidate.number) === String(matchNumber));
-    const allowed = match?.away.startsWith("3rd Group") ? match.away.replace("3rd Group ", "").split("/") : [];
+    const allowed = match ? thirdSlotOptions(match) : [];
     if (!bracket.thirdQualifiers.includes(group) || !allowed.includes(group)) {
       delete bracket.thirdSlots[matchNumber];
     }
@@ -267,41 +335,7 @@ function autoAssignThirdSlots(prediction: Prediction) {
     return next;
   }
 
-  const variableMatches = knockoutMatches
-    .filter((match) => match.home.startsWith("3rd Group") || match.away.startsWith("3rd Group"))
-    .map((match) => {
-      const slot = match.home.startsWith("3rd Group") ? match.home : match.away;
-      return { number: String(match.number), allowed: slot.replace("3rd Group ", "").split("/") };
-    })
-    .sort((a, b) => a.allowed.length - b.allowed.length);
-
-  function assign(index: number, used: Set<string>) {
-    if (index === variableMatches.length) {
-      return true;
-    }
-
-    const match = variableMatches[index];
-
-    for (const group of next.bracket.thirdQualifiers) {
-      if (used.has(group) || !match.allowed.includes(group)) {
-        continue;
-      }
-
-      next.bracket.thirdSlots[match.number] = group;
-      used.add(group);
-
-      if (assign(index + 1, used)) {
-        return true;
-      }
-
-      used.delete(group);
-      delete next.bracket.thirdSlots[match.number];
-    }
-
-    return false;
-  }
-
-  assign(0, new Set());
+  next.bracket.thirdSlots = assignThirdSlots(next.bracket.thirdQualifiers);
   return next;
 }
 
