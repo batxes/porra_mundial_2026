@@ -19,7 +19,15 @@ insert into auth.users (
   raw_app_meta_data,
   raw_user_meta_data,
   is_sso_user,
-  is_anonymous
+  is_anonymous,
+  confirmation_token,
+  recovery_token,
+  email_change,
+  email_change_token_new,
+  email_change_token_current,
+  phone_change,
+  phone_change_token,
+  reauthentication_token
 )
 values (
   '00000000-0000-0000-0000-000000000000',
@@ -34,7 +42,15 @@ values (
   '{"provider":"email","providers":["email"]}',
   '{"display_name":"admin"}',
   false,
-  false
+  false,
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  ''
 )
 on conflict (id) do nothing;
 
