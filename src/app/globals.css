@@ -109,6 +109,10 @@ body {
     animation: lineup-slot-settle 240ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
+  .lineup-player-bounce-in {
+    animation: lineup-player-bounce-in 460ms cubic-bezier(0.2, 1.4, 0.34, 1) both;
+  }
+
   .result-pending-check {
     transform-origin: center;
     animation:
@@ -144,6 +148,27 @@ body {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes lineup-player-bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.58);
+  }
+
+  58% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+
+  78% {
+    transform: scale(0.94);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

@@ -1483,6 +1483,16 @@ function LineupBuilder({
   const filledCount = slots.filter((slot) => slot.playerId).length;
   const rows = formationRows(formation);
   const [isFormationAnimating, setIsFormationAnimating] = useState(false);
+  const [animatedSlotId, setAnimatedSlotId] = useState<string | null>(null);
+  const animatedSlotTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (animatedSlotTimerRef.current) {
+        window.clearTimeout(animatedSlotTimerRef.current);
+      }
+    };
+  }, []);
 
   const closeModal = () => {
     setActiveSlotId(null);
@@ -1491,11 +1501,22 @@ function LineupBuilder({
 
   const selectPlayer = (playerId: string) => {
     if (!activeSlot) return;
+    if (selectedPlayerIds.includes(playerId)) return;
+    const nextAnimatedSlotId = activeSlot.id;
     const nextSlots = slots.map((slot) => {
       if (slot.id === activeSlot.id) return { ...slot, playerId };
-      if (slot.playerId === playerId) return { ...slot, playerId: undefined };
       return slot;
     });
+    if (animatedSlotTimerRef.current) {
+      window.clearTimeout(animatedSlotTimerRef.current);
+    }
+    setAnimatedSlotId(nextAnimatedSlotId);
+    animatedSlotTimerRef.current = window.setTimeout(() => {
+      setAnimatedSlotId((current) =>
+        current === nextAnimatedSlotId ? null : current,
+      );
+      animatedSlotTimerRef.current = null;
+    }, 520);
     onSelectionChange(slotSelection(nextSlots));
     closeModal();
   };
@@ -1624,6 +1645,7 @@ function LineupBuilder({
                       key={slot.id}
                       slot={slot}
                       disabled={disabled}
+                      animatePlayer={animatedSlotId === slot.id}
                       onClick={() => {
                         if (!disabled) setActiveSlotId(slot.id);
                       }}
@@ -1672,10 +1694,12 @@ function PitchLines() {
 }
 
 function LineupPlayerButton({
+  animatePlayer,
   slot,
   disabled,
   onClick,
 }: {
+  animatePlayer: boolean;
   slot: LineupSlot;
   disabled: boolean;
   onClick: () => void;
@@ -1699,7 +1723,9 @@ function LineupPlayerButton({
         {player ? (
           <PlayerAvatar
             player={player}
-            className="h-9 w-9 rounded-full border-2 border-white bg-white text-xs text-emerald-900 shadow-lg sm:h-11 sm:w-11"
+            className={`h-9 w-9 rounded-full border-2 border-white bg-white text-xs text-emerald-900 shadow-lg sm:h-11 sm:w-11 ${
+              animatePlayer ? "lineup-player-bounce-in" : ""
+            }`}
           />
         ) : (
           <span className="relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-600 shadow-[0_0_0_3px_#10b981] sm:h-11 sm:w-11">
@@ -1804,15 +1830,21 @@ function PlayerPickerModal({
                   <span>{group.country}</span>
                 </div>
                 {group.players.map((player) => {
-                  const alreadySelected =
-                    selectedPlayerIds.includes(player.id) &&
-                    player.id !== currentPlayer?.id;
+                  const alreadySelected = selectedPlayerIds.includes(
+                    player.id,
+                  );
+                  const current = player.id === currentPlayer?.id;
                   return (
                     <button
                       key={player.id}
                       type="button"
+                      disabled={alreadySelected}
                       onClick={() => onSelect(player.id)}
-                      className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl px-2 py-1.5 text-left transition hover:bg-slate-100"
+                      className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl px-2 py-1.5 text-left transition ${
+                        alreadySelected
+                          ? "cursor-not-allowed bg-slate-50 opacity-45"
+                          : "hover:bg-slate-100"
+                      }`}
                     >
                       <PlayerAvatar
                         player={player}
@@ -1827,8 +1859,8 @@ function PlayerPickerModal({
                         </p>
                       </div>
                       {alreadySelected ? (
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                          Mover
+                        <span className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                          {current ? "Actual" : "Ya en tu once"}
                         </span>
                       ) : null}
                     </button>
