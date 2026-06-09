@@ -1548,16 +1548,19 @@ function GroupStage({
         {groups.map((group) => {
           const ordered = orderedGroupTeams(group, prediction);
           const orderedIds = ordered.map((team) => team.id);
+          const completedCount = Object.values(prediction.groups[group]).filter(
+            Boolean,
+          ).length;
           return (
             <Card key={group} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-white">Grupo {group}</h3>
-                <span className="text-sm font-semibold text-zinc-500">
-                  {
-                    Object.values(prediction.groups[group]).filter(Boolean)
-                      .length
-                  }
-                  /4
+                <span
+                  className={`text-sm font-semibold ${
+                    completedCount === 4 ? "text-[#a7f600]" : "text-zinc-500"
+                  }`}
+                >
+                  {completedCount}/4
                 </span>
               </div>
               <DndContext
@@ -1674,6 +1677,7 @@ function SortableGroupTeamRow({
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? "none" : transition,
   };
+  const isDirectQualifier = index < 2;
 
   return (
     <div
@@ -1682,7 +1686,9 @@ function SortableGroupTeamRow({
       className={`grid touch-none select-none grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
         isDropTarget
           ? "border-[#a7f600] bg-[#a7f600]/15 shadow-[0_0_0_1px_rgba(167,246,0,0.35),0_0_24px_rgba(167,246,0,0.12)]"
-          : "border-white/10 bg-white/[0.06]"
+          : isDirectQualifier
+            ? "border-[#a7f600]/25 bg-[#a7f600]/10"
+            : "border-white/10 bg-white/[0.06]"
       } ${
         disabled
           ? "cursor-not-allowed opacity-50"
@@ -1693,7 +1699,13 @@ function SortableGroupTeamRow({
       {...attributes}
       {...listeners}
     >
-      <span className="text-sm font-bold text-[#a7f600]">{index + 1}</span>
+      <span
+        className={`text-sm font-bold ${
+          isDirectQualifier ? "text-[#a7f600]" : "text-white"
+        }`}
+      >
+        {index + 1}
+      </span>
       <TeamBadge teamId={team.id} />
       <span
         aria-hidden="true"
