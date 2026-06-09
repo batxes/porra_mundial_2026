@@ -195,7 +195,7 @@ function AuthenticatedProfile() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-5 border-b border-white/10">
+      <div className="flex items-center gap-5 overflow-x-auto border-b border-white/10">
         <button
           type="button"
           onClick={() => setProfileTab("profile")}
@@ -219,15 +219,15 @@ function AuthenticatedProfile() {
       <SectionHeading eyebrow="Tu espacio" title="Mi perfil" description="Consulta tus puntos, tu porra y la configuración de tu cuenta." />
 
       <Card className="space-y-0 p-0">
-        <div className="grid gap-5 p-5 sm:grid-cols-[auto_1fr_auto] sm:items-center">
-          <Avatar name={user.name} avatarUrl={user.avatarUrl} className="h-20 w-20 rounded-xl" />
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-4 p-4 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:gap-5 sm:p-5">
+          <Avatar name={user.name} avatarUrl={user.avatarUrl} className="h-16 w-16 rounded-xl sm:h-20 sm:w-20" />
           <div className="min-w-0">
-            <h2 className="truncate text-2xl font-semibold text-white">{user.name}</h2>
+            <h2 className="truncate text-xl font-semibold text-white sm:text-2xl">{user.name}</h2>
             <p className="truncate text-sm text-slate-400">{user.email}</p>
           </div>
-          <div className="rounded-lg border border-[#a7f600]/30 bg-[#a7f600]/10 px-5 py-4 sm:min-w-40 sm:text-right">
+          <div className="col-span-2 rounded-lg border border-[#a7f600]/30 bg-[#a7f600]/10 px-4 py-3 sm:col-auto sm:min-w-40 sm:px-5 sm:py-4 sm:text-right">
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#a7f600]">Puntos</p>
-            <p className="text-4xl font-black leading-none text-white">{currentScorecard.total}</p>
+            <p className="text-3xl font-black leading-none text-white sm:text-4xl">{currentScorecard.total}</p>
           </div>
         </div>
       </Card>
@@ -241,7 +241,7 @@ function AuthenticatedProfile() {
       {profileTab === "options" ? (
         <Card className="space-y-6">
           <div className="flex items-center gap-4">
-            <Avatar name={user.name} avatarUrl={avatarPreviewUrl} className="h-16 w-16 rounded-xl" />
+            <Avatar name={user.name} avatarUrl={avatarPreviewUrl} className="h-14 w-14 rounded-xl sm:h-16 sm:w-16" />
             <div className="min-w-0">
               <h3 className="text-xl font-semibold text-white">Opciones</h3>
               <p className="truncate text-sm text-slate-400">Nombre y avatar</p>
@@ -287,9 +287,9 @@ function AuthenticatedProfile() {
 
             <div>
               <p className="text-sm text-slate-300">Subir avatar</p>
-              <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-white/15 bg-white/5 px-4 py-3 text-sm text-slate-200 transition hover:border-[#a7f600]/50 hover:bg-white/10">
+              <label className="mt-3 flex cursor-pointer flex-col gap-3 rounded-lg border border-dashed border-white/15 bg-white/5 px-4 py-3 text-sm text-slate-200 transition hover:border-[#a7f600]/50 hover:bg-white/10 sm:flex-row sm:items-center sm:justify-between">
                 <span className="truncate">{uploadedAvatarName || "Elegir imagen"}</span>
-                <span className="shrink-0 rounded-md bg-white/10 px-3 py-1 text-xs font-semibold text-white">Subir</span>
+                <span className="inline-flex shrink-0 justify-center rounded-md bg-white/10 px-3 py-1 text-xs font-semibold text-white">Subir</span>
                 <input type="file" accept="image/*" className="sr-only" onChange={handleAvatarUpload} />
               </label>
             </div>
@@ -297,14 +297,14 @@ function AuthenticatedProfile() {
             {avatarError ? <Notice tone="danger">{avatarError}</Notice> : null}
             {profileMessage ? <Notice>{profileMessage}</Notice> : null}
 
-            <div className="flex flex-wrap gap-3">
-              <button type="submit" className="rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <button type="submit" className="w-full rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 sm:w-auto">
                 Guardar perfil
               </button>
               <button
                 type="button"
                 onClick={() => void signOut()}
-                className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                className="w-full rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
               >
                 Cerrar sesión
               </button>
@@ -314,7 +314,7 @@ function AuthenticatedProfile() {
                   const result = await savePrediction(false);
                   setProfileMessage(result.message);
                 }}
-                className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                className="w-full rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
               >
                 Guardar borrador
               </button>

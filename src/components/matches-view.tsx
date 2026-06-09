@@ -37,20 +37,20 @@ export function MatchesView() {
                 const result = adminResults[String(match.number)];
                 return (
                   <Card key={match.number} className="space-y-4">
-                    <div className="flex items-center justify-between gap-3 text-sm text-slate-400">
+                    <div className="flex flex-col gap-1 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
                       <span>
                         Partido {match.number} · {match.stage}
                       </span>
                       <span>{match.time}</span>
                     </div>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between gap-4 rounded-2xl bg-white/5 px-4 py-3">
+                      <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-3 sm:gap-4 sm:px-4">
                         <TeamBadge teamId={match.home} fallback={translateSlot(match.home)} />
-                        <strong className="text-2xl text-white">{result?.homeScore ?? "-"}</strong>
+                        <strong className="shrink-0 text-2xl text-white">{result?.homeScore ?? "-"}</strong>
                       </div>
-                      <div className="flex items-center justify-between gap-4 rounded-2xl bg-white/5 px-4 py-3">
+                      <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-3 sm:gap-4 sm:px-4">
                         <TeamBadge teamId={match.away} fallback={translateSlot(match.away)} />
-                        <strong className="text-2xl text-white">{result?.awayScore ?? "-"}</strong>
+                        <strong className="shrink-0 text-2xl text-white">{result?.awayScore ?? "-"}</strong>
                       </div>
                     </div>
                     <ScheduleMeta match={match} />
@@ -58,9 +58,9 @@ export function MatchesView() {
                       <div className="space-y-2 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
                         <p className="text-sm font-semibold text-white">Eventos validados</p>
                         {result.events.map((event) => (
-                          <div key={event.id} className="flex items-center justify-between gap-3 text-sm">
+                          <div key={event.id} className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 text-sm">
                             <span className="text-slate-400">{event.minute}&apos;</span>
-                            <span className="flex-1 text-slate-200">
+                            <span className="min-w-0 text-slate-200">
                               {playerName(event.playerId)} · {event.type}
                             </span>
                           </div>

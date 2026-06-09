@@ -28,11 +28,11 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#0d0d0d]/86 backdrop-blur">
         <div className="mx-auto w-full max-w-5xl px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between gap-3">
-            <Link href="/" className="flex min-w-0 items-center gap-3">
-              <Image src="/logo.png" alt="" width={42} height={42} className="h-10 w-10 shrink-0 object-contain" priority />
+            <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <Image src="/logo.png" alt="" width={42} height={42} className="h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10" priority />
               <div className="min-w-0">
-                <p className="truncate text-lg font-black tracking-tight">Triliporra</p>
-                <p className="text-xs font-medium text-zinc-500">World Cup 2026</p>
+                <p className="truncate text-base font-black tracking-tight sm:text-lg">Triliporra</p>
+                <p className="hidden text-xs font-medium text-zinc-500 sm:block">World Cup 2026</p>
               </div>
             </Link>
 
@@ -63,7 +63,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
               ) : null}
             </nav>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               {ready && user ? (
                 <Link href="/perfil" className="flex items-center gap-2 rounded-lg bg-white/[0.08] px-2 py-1.5">
                   <Avatar name={user.name} avatarUrl={user.avatarUrl} className="h-8 w-8" />
@@ -73,11 +73,11 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                   </span>
                 </Link>
               ) : (
-                <Link href="/perfil" className="rounded-lg bg-white px-3 py-2 text-sm font-bold text-black">
+                <Link href="/perfil" className="rounded-lg bg-white px-2.5 py-2 text-sm font-bold text-black sm:px-3">
                   Entrar
                 </Link>
               )}
-              <Link href="/porra" className="rounded-lg bg-[#a7f600] px-3 py-2 text-sm font-black text-black transition hover:bg-[#c7ff43]">
+              <Link href="/porra" className="rounded-lg bg-[#a7f600] px-2.5 py-2 text-sm font-black text-black transition hover:bg-[#c7ff43] sm:px-3">
                 Jugar
               </Link>
             </div>
@@ -90,7 +90,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`rounded-lg px-2 py-2 text-center text-xs font-semibold transition ${
+                  className={`truncate rounded-lg px-1.5 py-2 text-center text-[11px] font-semibold transition sm:px-2 sm:text-xs ${
                     active ? "bg-white text-black" : "bg-white/[0.08] text-zinc-300"
                   }`}
                 >

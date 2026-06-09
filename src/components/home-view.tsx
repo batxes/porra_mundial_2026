@@ -26,10 +26,10 @@ export function HomeView() {
   const upcomingMatches = schedule.filter((match) => match.date >= todayKey).slice(0, 2);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-8 py-8">
+    <div className="mx-auto flex max-w-3xl flex-col gap-8 py-6 sm:py-8">
       <section className="flex flex-col items-center text-center">
-        <Image src="/logo.png" alt="" width={88} height={88} className="mb-4 h-20 w-20 object-contain" priority />
-        <h1 className="text-5xl font-black tracking-tight text-white sm:text-6xl">Triliporra</h1>
+        <Image src="/logo.png" alt="" width={88} height={88} className="mb-4 h-16 w-16 object-contain sm:h-20 sm:w-20" priority />
+        <h1 className="text-4xl font-black tracking-tight text-white sm:text-6xl">Triliporra</h1>
         <p className="mt-3 max-w-xl text-base text-zinc-400 sm:text-lg">Adivina el Mundial 2026 y compite con tus amigos.</p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
           <PrimaryLink href="/porra">Jugar</PrimaryLink>
@@ -40,12 +40,12 @@ export function HomeView() {
       </section>
 
       <section className="space-y-3">
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-2xl font-black tracking-tight text-white">Clasificacion</h2>
             <p className="mt-1 text-sm text-zinc-500">{leaderboard.length} participantes - tu porra {completion}%</p>
           </div>
-          <Link href="/clasificacion" className="shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10">
+          <Link href="/clasificacion" className="w-fit shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10">
             Ver mas
           </Link>
         </div>
@@ -64,12 +64,12 @@ export function HomeView() {
       </section>
 
       <section className="space-y-3">
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-2xl font-black tracking-tight text-white">Proximos partidos</h2>
             <p className="mt-1 text-sm text-zinc-500">Siguientes 2 encuentros</p>
           </div>
-          <Link href="/partidos" className="shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10">
+          <Link href="/partidos" className="w-fit shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10">
             Ver todos
           </Link>
         </div>
@@ -114,16 +114,16 @@ function LeaderboardRow({ profile, position }: { profile: UserProfile; position:
 function UpcomingMatchCard({ match, result }: { match: Match; result?: { homeScore?: string | number; awayScore?: string | number } }) {
   return (
     <Card className="space-y-3">
-      <div className="flex items-center justify-between gap-3 text-xs font-semibold text-zinc-500">
+      <div className="flex flex-col gap-1 text-xs font-semibold text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
         <span>Partido {match.number} - {match.stage}</span>
         <span>{formatDate(match.date)} - {match.time}</span>
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
         <TeamBadge teamId={match.home} fallback={translateSlot(match.home)} />
-        <span className="rounded-lg bg-white/10 px-3 py-2 text-sm font-black text-white">
+        <span className="justify-self-center rounded-lg bg-white/10 px-3 py-2 text-sm font-black text-white">
           {result ? `${result.homeScore ?? "-"} - ${result.awayScore ?? "-"}` : "vs"}
         </span>
-        <TeamBadge teamId={match.away} fallback={translateSlot(match.away)} className="justify-end text-right" />
+        <TeamBadge teamId={match.away} fallback={translateSlot(match.away)} className="sm:justify-end sm:text-right" />
       </div>
       <p className="truncate text-xs text-zinc-500">{match.venue}</p>
     </Card>

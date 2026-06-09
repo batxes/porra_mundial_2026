@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   type CSSProperties,
   type DragEvent,
@@ -208,7 +209,7 @@ export function PredictionView() {
   }, [predictionSignature, ready, savePrediction, userId]);
 
   return (
-    <div className="mx-auto max-w-3xl pb-28">
+    <div className="mx-auto max-w-3xl pb-44 sm:pb-32">
       <SectionHeading eyebrow="Porra" title="Juega el Mundial" />
 
       <div className="space-y-4">
@@ -403,7 +404,7 @@ function AutoSaveStatus({ state }: { state: AutoSaveState }) {
     <div
       key={state}
       aria-live="polite"
-      className={`autosave-status-pop inline-flex h-9 min-w-0 items-center gap-2 rounded-full border px-3 text-sm font-bold transition ${current.className}`}
+      className={`autosave-status-pop inline-flex h-8 min-w-0 items-center gap-2 rounded-full border px-2.5 text-xs font-bold transition sm:h-9 sm:px-3 sm:text-sm ${current.className}`}
     >
       <span className="flex h-5 w-5 shrink-0 items-center justify-center">
         {current.icon}
@@ -423,9 +424,9 @@ function StepTabs({
   onSectionChange: (section: SectionId) => void;
 }) {
   return (
-    <div className="sticky top-[102px] z-30 -mx-1 py-2 backdrop-blur">
+    <div className="sticky top-[112px] z-30 -mx-1 overflow-x-auto py-2 backdrop-blur md:top-[73px] md:overflow-visible">
       <div className="relative left-1/2 w-[calc(100vw-2rem)] max-w-5xl -translate-x-1/2 sm:w-[calc(100vw-3rem)]">
-        <div className="grid grid-cols-5 gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1">
+        <div className="flex min-w-max gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:grid md:min-w-0 md:grid-cols-5">
           {sections.map((tab) => {
             const active = section === tab.id;
             const complete = progresses[tab.id].status === "complete";
@@ -435,7 +436,7 @@ function StepTabs({
                 key={tab.id}
                 type="button"
                 onClick={() => onSectionChange(tab.id)}
-                className={`relative flex h-14 min-w-0 items-center justify-center gap-2 rounded-lg px-1.5 text-xs font-bold transition sm:px-2 sm:text-sm ${
+                className={`relative flex h-12 min-w-[9.25rem] items-center justify-center gap-2 rounded-lg px-2 text-xs font-bold transition sm:h-14 sm:text-sm md:min-w-0 ${
                   active
                     ? "bg-white text-black shadow-[0_0_0_1px_rgba(255,255,255,0.22)]"
                     : complete
@@ -485,9 +486,9 @@ function StepActionBar({
   const progress = progresses[section];
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 px-4">
+    <div className="pointer-events-none fixed inset-x-0 bottom-2 z-50 px-2 sm:bottom-4 sm:px-4">
       <div className="pointer-events-auto mx-auto flex max-w-5xl flex-col gap-2 rounded-2xl border border-white/10 bg-[#101010]/94 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.42)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           {autoSaveState ? <AutoSaveStatus state={autoSaveState} /> : null}
           <SectionProgressStatus progress={progress} />
         </div>
@@ -497,7 +498,7 @@ function StepActionBar({
             type="button"
             disabled={!previous}
             onClick={() => previous && onSectionChange(previous.id)}
-            className="h-10 rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+            className="h-10 rounded-lg border border-white/10 bg-white/[0.06] px-2 text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:px-3"
           >
             Anterior
           </button>
@@ -506,7 +507,7 @@ function StepActionBar({
             <button
               type="button"
               onClick={() => onSectionChange(next.id)}
-              className="inline-flex h-10 items-center justify-center rounded-lg border border-white/12 bg-white/[0.10] px-3 text-sm font-semibold text-white transition hover:border-white/18 hover:bg-white/[0.14]"
+              className="inline-flex h-10 min-w-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.10] px-2 text-sm font-semibold text-white transition hover:border-white/18 hover:bg-white/[0.14] sm:px-3"
             >
               <span>Siguiente</span>
               <span className="hidden text-zinc-400 md:inline">
@@ -514,13 +515,12 @@ function StepActionBar({
               </span>
             </button>
           ) : (
-            <button
-              type="button"
-              disabled
-              className="inline-flex h-10 cursor-not-allowed items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-zinc-600"
+            <Link
+              href="/perfil"
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-white/12 bg-white/[0.10] px-2 text-sm font-semibold text-white transition hover:border-white/18 hover:bg-white/[0.14] sm:px-3"
             >
-              Siguiente
-            </button>
+              Finalizar
+            </Link>
           )}
         </div>
       </div>
@@ -533,7 +533,7 @@ function SectionProgressStatus({ progress }: { progress: SectionProgress }) {
 
   return (
     <div
-      className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-bold ${
+      className={`inline-flex h-8 shrink-0 items-center gap-2 rounded-full border px-2.5 text-xs font-bold sm:h-9 sm:px-3 sm:text-sm ${
         complete
           ? "border-[#a7f600]/30 bg-[#a7f600]/12 text-[#a7f600]"
           : "border-yellow-300/25 bg-yellow-300/10 text-yellow-100"
@@ -1440,7 +1440,7 @@ function LineupBuilder({
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-3xl border border-emerald-300/15 bg-emerald-600 shadow-2xl shadow-emerald-950/30">
+      <div className="overflow-hidden rounded-2xl border border-emerald-300/15 bg-emerald-600 shadow-2xl shadow-emerald-950/30 sm:rounded-3xl">
         <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-950/20 px-4 py-3">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-50/75">
             Alineacion
@@ -1471,7 +1471,7 @@ function LineupBuilder({
         </div>
 
         <div
-          className={`relative mx-3 my-5 aspect-[7/8] overflow-hidden rounded-3xl border border-emerald-200/20 bg-emerald-600 sm:my-6 ${isFormationAnimating ? "lineup-field-animating" : ""}`}
+          className={`relative mx-2 my-4 aspect-[7/8] overflow-hidden rounded-2xl border border-emerald-200/20 bg-emerald-600 sm:mx-3 sm:my-6 sm:rounded-3xl ${isFormationAnimating ? "lineup-field-animating" : ""}`}
         >
           <PitchLines />
           <div className="relative z-10 flex h-full flex-col justify-between px-2 py-4 sm:px-5 sm:py-5">
@@ -1559,17 +1559,17 @@ function LineupPlayerButton({
       disabled={disabled}
       onClick={onClick}
       style={transitionStyle}
-      className="lineup-slot-button mx-auto flex w-16 flex-col items-center gap-0.5 text-center transition hover:scale-105 disabled:opacity-60 sm:w-[4.5rem]"
+      className="lineup-slot-button mx-auto flex w-12 flex-col items-center gap-0.5 text-center transition hover:scale-105 disabled:opacity-60 sm:w-[4.5rem]"
     >
       <span className="relative inline-flex">
         {player ? (
           <PlayerAvatar
             player={player}
-            className="h-10 w-10 rounded-full border-2 border-white bg-white text-xs text-emerald-900 shadow-lg sm:h-11 sm:w-11"
+            className="h-9 w-9 rounded-full border-2 border-white bg-white text-xs text-emerald-900 shadow-lg sm:h-11 sm:w-11"
           />
         ) : (
-          <span className="relative flex h-10 w-10 items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-600 shadow-[0_0_0_3px_#10b981] sm:h-11 sm:w-11">
-            <span className="h-7 w-7 rounded-full border border-emerald-100 bg-emerald-700" />
+          <span className="relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-600 shadow-[0_0_0_3px_#10b981] sm:h-11 sm:w-11">
+            <span className="h-6 w-6 rounded-full border border-emerald-100 bg-emerald-700 sm:h-7 sm:w-7" />
           </span>
         )}
         {player ? (
@@ -1585,7 +1585,7 @@ function LineupPlayerButton({
           </span>
         )}
       </span>
-      <span className="max-w-full truncate text-[11px] font-bold leading-tight text-white drop-shadow sm:text-xs">
+      <span className="max-w-full truncate text-[10px] font-bold leading-tight text-white drop-shadow sm:text-xs">
         {player?.name || positionLabels[slot.position]}
       </span>
     </button>
@@ -1767,11 +1767,11 @@ function ResultsSchedule({
   return (
     <div className="space-y-3">
       <div className="space-y-2">
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <h2 className="text-2xl font-black tracking-tight text-white">
             Resultados
           </h2>
-          <span className="pb-1 text-sm font-semibold text-zinc-500">
+          <span className="text-sm font-semibold text-zinc-500 sm:pb-1">
             {completedMatches}/{matches.length}
           </span>
         </div>
@@ -1793,7 +1793,7 @@ function ResultsSchedule({
 
           return (
             <section key={dateKey} className="scroll-mt-28">
-              <h4 className="flex h-16 items-center gap-2 pt-6 pb-4 text-xl/6 font-semibold tracking-[-0.5px] not-first-of-type:mt-4 md:scroll-mt-24">
+              <h4 className="flex min-h-14 items-center gap-2 pb-3 pt-5 text-xl/6 font-semibold not-first-of-type:mt-4 md:scroll-mt-24">
                 <span className="first-letter:capitalize">
                   {formatResultsDay(dateKey)}
                 </span>
@@ -1857,7 +1857,7 @@ function ResultMatchCard({
           {formatResultTime(match)}
         </time>
       </div>
-      <div className="grid min-h-[128px] w-full grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)] items-start py-2 pb-4">
+      <div className="grid min-h-[124px] w-full grid-cols-[minmax(0,1fr)_104px_minmax(0,1fr)] items-start py-2 pb-4 sm:min-h-[128px] sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)]">
         <ResultTeamColumn teamId={home} fallback={translateSlot(match.home)} />
         <div className="relative flex items-center justify-center gap-2 pt-2">
           <ResultScoreStepper
@@ -1905,18 +1905,18 @@ function ResultTeamColumn({
   const teamName = teamId ? teamsById.get(teamId)?.name || fallback : fallback;
 
   return (
-    <div className="flex h-full w-full min-w-0 flex-col items-center justify-start gap-3 px-3 pt-4">
+    <div className="flex h-full w-full min-w-0 flex-col items-center justify-start gap-2 px-2 pt-4 sm:gap-3 sm:px-3">
       {teamId ? (
         <TeamFlag
           teamId={teamId}
-          className="h-8 w-8 rounded-full border border-white/15 object-cover"
+          className="h-7 w-7 rounded-full border border-white/15 object-cover sm:h-8 sm:w-8"
         />
       ) : (
-        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[10px] font-black text-zinc-300">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[9px] font-black text-zinc-300 sm:h-8 sm:w-8 sm:text-[10px]">
           TBD
         </span>
       )}
-      <span className="line-clamp-2 w-full min-w-0 text-center text-xs font-bold leading-4 text-white">
+      <span className="line-clamp-2 w-full min-w-0 text-center text-[11px] font-bold leading-4 text-white sm:text-xs">
         {teamName}
       </span>
     </div>
@@ -1939,13 +1939,13 @@ function ResultScoreStepper({
   const decrement = () => onChange(String(Math.max(0, numericValue - 1)));
 
   return (
-    <div className="flex w-14 flex-col overflow-hidden rounded-md">
+    <div className="flex w-12 flex-col overflow-hidden rounded-md sm:w-14">
       <button
         type="button"
         tabIndex={-1}
         disabled={disabled}
         onClick={increment}
-        className="flex h-7 items-center justify-center bg-[#454545] text-lg font-black leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600"
+        className="flex h-6 items-center justify-center bg-[#454545] text-base font-black leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600 sm:h-7 sm:text-lg"
         aria-label={`Subir ${label}`}
       >
         +
@@ -1959,7 +1959,7 @@ function ResultScoreStepper({
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="score-number-input h-10 w-14 appearance-none bg-[#222] text-center text-xl font-black text-white outline-none placeholder:text-zinc-600 disabled:opacity-60"
+        className="score-number-input h-9 w-12 appearance-none bg-[#222] text-center text-lg font-black text-white outline-none placeholder:text-zinc-600 disabled:opacity-60 sm:h-10 sm:w-14 sm:text-xl"
         placeholder="?"
         aria-label={label}
       />
@@ -1968,7 +1968,7 @@ function ResultScoreStepper({
         tabIndex={-1}
         disabled={disabled}
         onClick={decrement}
-        className="flex h-7 items-center justify-center bg-[#454545] text-lg font-black leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600"
+        className="flex h-6 items-center justify-center bg-[#454545] text-base font-black leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600 sm:h-7 sm:text-lg"
         aria-label={`Bajar ${label}`}
       >
         -

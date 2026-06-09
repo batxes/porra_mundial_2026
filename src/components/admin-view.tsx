@@ -100,7 +100,7 @@ export function AdminView() {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Card className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-xl font-semibold text-white">Proveedor externo</h3>
               <p className="text-sm text-slate-400">API-Football vía ruta server-side.</p>
@@ -109,7 +109,7 @@ export function AdminView() {
               type="button"
               onClick={() => void loadProvider()}
               disabled={providerBusy}
-              className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+              className="w-full rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60 sm:w-auto"
             >
               {providerBusy ? "Cargando…" : "Consultar API"}
             </button>
@@ -181,7 +181,7 @@ export function AdminView() {
               <FieldInput name="homeScore" label="Goles local" />
               <FieldInput name="awayScore" label="Goles visitante" />
             </div>
-            <button type="submit" className="rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">
+            <button type="submit" className="w-full rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 sm:w-auto">
               Guardar resultado y recalcular
             </button>
           </form>
@@ -220,20 +220,20 @@ export function AdminView() {
               ]}
             />
             <FieldInput name="minute" label="Minuto" />
-            <button type="submit" className="rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">
+            <button type="submit" className="w-full rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 sm:w-auto">
               Añadir evento
             </button>
           </form>
         </Card>
 
         <Card className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-xl font-semibold text-white">Puntuaciones recalculadas</h3>
             {savedEntries.length ? (
               <button
                 type="button"
                 onClick={() => void clearAdminResults()}
-                className="rounded-full border border-white/15 px-4 py-2 text-sm text-white"
+                className="w-full rounded-full border border-white/15 px-4 py-2 text-sm text-white sm:w-auto"
               >
                 Vaciar demo
               </button>
@@ -243,8 +243,8 @@ export function AdminView() {
             {leaderboard.length ? (
               leaderboard.map((profile) => (
                 <div key={profile.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm">
-                  <span className="text-slate-200">{profile.name}</span>
-                  <strong className="text-cyan-300">{profile.points} pts</strong>
+                  <span className="min-w-0 truncate text-slate-200">{profile.name}</span>
+                  <strong className="shrink-0 text-cyan-300">{profile.points} pts</strong>
                 </div>
               ))
             ) : (
@@ -260,7 +260,7 @@ export function AdminView() {
           <div className="space-y-4">
             {savedEntries.map(([matchNumber, result]) => (
               <div key={matchNumber} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="mb-3 flex items-center justify-between gap-4">
+                <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="font-semibold text-white">
                       Partido {matchNumber} · {result.homeScore} - {result.awayScore}
@@ -275,15 +275,15 @@ export function AdminView() {
                 {result.events?.length ? (
                   <div className="space-y-2">
                     {result.events.map((event) => (
-                      <div key={event.id} className="flex items-center justify-between gap-4 rounded-xl bg-slate-950/40 px-4 py-3 text-sm">
+                      <div key={event.id} className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-xl bg-slate-950/40 px-4 py-3 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
                         <span className="text-slate-400">{event.minute}&apos;</span>
-                        <span className="flex-1 text-slate-200">
+                        <span className="min-w-0 text-slate-200">
                           {playerName(event.playerId)} · {event.type}
                         </span>
                         <button
                           type="button"
                           onClick={() => void deleteAdminEvent(matchNumber, event.id)}
-                          className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white"
+                          className="col-span-2 rounded-full border border-white/15 px-3 py-1.5 text-xs text-white sm:col-auto"
                         >
                           Eliminar
                         </button>

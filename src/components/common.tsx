@@ -29,9 +29,11 @@ export function Card({
   children: React.ReactNode;
   className?: string;
 }) {
+  const hasPaddingOverride = /\bp[trblxy]?-\S+/.test(className);
+
   return (
     <article
-      className={`rounded-lg border border-white/10 bg-[#151515] p-5 shadow-lg shadow-black/20 ${className}`}
+      className={`rounded-lg border border-white/10 bg-[#151515] shadow-lg shadow-black/20 ${hasPaddingOverride ? "" : "p-4 sm:p-5"} ${className}`}
     >
       {children}
     </article>
@@ -82,7 +84,7 @@ export function TeamBadge({
 
   if (!team) {
     return (
-      <span className={`text-sm text-slate-300 ${className}`}>
+      <span className={`inline-block max-w-full truncate text-sm text-slate-300 ${className}`}>
         {fallback || "Por confirmar"}
       </span>
     );
@@ -182,14 +184,14 @@ export function TeamPicker({
           type="button"
           disabled={disabled}
           onClick={() => setOpen((current) => !current)}
-          className="flex w-full items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#0f0f0f] px-4 py-3 text-left text-white transition hover:border-white/20 disabled:opacity-40"
+          className="flex w-full min-w-0 items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#0f0f0f] px-4 py-3 text-left text-white transition hover:border-white/20 disabled:opacity-40"
         >
           {selected ? (
             <TeamBadge teamId={selected.id} />
           ) : (
-            <span className="text-sm text-zinc-500">{placeholder}</span>
+            <span className="min-w-0 truncate text-sm text-zinc-500">{placeholder}</span>
           )}
-          <span className="text-xs text-zinc-500">{open ? "▲" : "▼"}</span>
+          <span className="shrink-0 text-xs text-zinc-500">{open ? "▲" : "▼"}</span>
         </button>
 
         {open && !disabled ? (
@@ -294,14 +296,14 @@ export function ScoreBreakdown({
 }) {
   return (
     <Card className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
             Detalle
           </p>
           <h3 className="text-xl font-semibold text-white">{title}</h3>
         </div>
-        <div className="rounded-lg bg-white/10 px-4 py-2 text-right">
+        <div className="rounded-lg bg-white/10 px-4 py-2 sm:text-right">
           <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
             Total
           </p>
@@ -328,11 +330,9 @@ export function ScoreBreakdown({
                     key={`${entry.ruleCode}-${entry.sourceRef}-${entry.matchNumber ?? "x"}`}
                     className="flex items-start justify-between gap-3"
                   >
-                    <p className="text-slate-300">{entry.explanation}</p>
+                    <p className="min-w-0 text-slate-300">{entry.explanation}</p>
                     <strong
-                      className={
-                        entry.points >= 0 ? "text-emerald-300" : "text-rose-300"
-                      }
+                      className={`shrink-0 ${entry.points >= 0 ? "text-emerald-300" : "text-rose-300"}`}
                     >
                       {entry.points > 0 ? `+${entry.points}` : entry.points}
                     </strong>
@@ -450,7 +450,7 @@ function LineupSnapshot({ prediction }: { prediction: Prediction }) {
 
   return (
     <div className="overflow-hidden rounded-lg border border-emerald-300/15 bg-emerald-700 shadow-lg shadow-emerald-950/20">
-      <div className="flex items-center justify-between gap-3 bg-emerald-950/25 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-950/25 px-4 py-3">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-50/75">
           Once elegido
         </p>
@@ -493,16 +493,16 @@ function LineupSnapshotSlot({ slot }: { slot: SnapshotLineupSlot }) {
   const player = slot.playerId ? playersById.get(slot.playerId) : null;
 
   return (
-    <div className="mx-auto flex w-16 flex-col items-center gap-0.5 text-center sm:w-[4.5rem]">
+    <div className="mx-auto flex w-12 flex-col items-center gap-0.5 text-center sm:w-[4.5rem]">
       <span className="relative inline-flex">
         {player ? (
           <PlayerAvatar
             player={player}
-            className="h-10 w-10 rounded-full border-2 border-white bg-white text-xs text-emerald-900 shadow-lg sm:h-11 sm:w-11"
+            className="h-9 w-9 rounded-full border-2 border-white bg-white text-xs text-emerald-900 shadow-lg sm:h-11 sm:w-11"
           />
         ) : (
-          <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-700 shadow-[0_0_0_3px_#10b981] sm:h-11 sm:w-11">
-            <span className="h-7 w-7 rounded-full border border-emerald-100 bg-emerald-600" />
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-700 shadow-[0_0_0_3px_#10b981] sm:h-11 sm:w-11">
+            <span className="h-6 w-6 rounded-full border border-emerald-100 bg-emerald-600 sm:h-7 sm:w-7" />
           </span>
         )}
         {player ? (
@@ -514,7 +514,7 @@ function LineupSnapshotSlot({ slot }: { slot: SnapshotLineupSlot }) {
           </span>
         ) : null}
       </span>
-      <span className="max-w-full truncate text-[11px] font-bold leading-tight text-white drop-shadow sm:text-xs">
+      <span className="max-w-full truncate text-[10px] font-bold leading-tight text-white drop-shadow sm:text-xs">
         {player?.name || lineupPositionLabels[slot.position]}
       </span>
     </div>
@@ -543,10 +543,10 @@ function GroupSummary({ prediction }: { prediction: Prediction }) {
                 rows.map(([teamId, value]) => (
                   <div
                     key={teamId}
-                    className="flex items-center justify-between"
+                    className="flex items-center justify-between gap-3"
                   >
                     <TeamBadge teamId={teamId} />
-                    <span className="text-sm text-slate-300">{value}º</span>
+                    <span className="shrink-0 text-sm text-slate-300">{value}º</span>
                   </div>
                 ))
               ) : (
@@ -919,7 +919,7 @@ function ResultsSummary({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h4 className="font-semibold text-white">Resultados elegidos</h4>
         <span className="text-sm font-semibold text-[#a7f600]">{completedMatches.length}/{matches.length}</span>
       </div>
@@ -935,12 +935,12 @@ function ResultsSummary({
                 <span>Partido {match.number} · {match.stage}</span>
                 <span>{formatScheduleDate(match)}</span>
               </div>
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
                 <TeamBadge teamId={home} fallback={translateSlot(match.home)} />
-                <span className="rounded-md bg-[#0f0f0f] px-3 py-2 text-center text-xl font-black text-white">
+                <span className="justify-self-center rounded-md bg-[#0f0f0f] px-3 py-2 text-center text-xl font-black text-white">
                   {score.homeScore} - {score.awayScore}
                 </span>
-                <TeamBadge teamId={away} fallback={translateSlot(match.away)} className="justify-end text-right" />
+                <TeamBadge teamId={away} fallback={translateSlot(match.away)} className="sm:justify-end sm:text-right" />
               </div>
             </div>
           );
@@ -987,32 +987,32 @@ export function PredictionSnapshot({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <button
           type="button"
           onClick={() => setSection("summary")}
-          className={`rounded-lg px-4 py-2 text-sm ${section === "summary" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+          className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "summary" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
         >
           Resumen
         </button>
         <button
           type="button"
           onClick={() => setSection("groups")}
-          className={`rounded-lg px-4 py-2 text-sm ${section === "groups" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+          className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "groups" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
         >
           Grupos
         </button>
         <button
           type="button"
           onClick={() => setSection("knockout")}
-          className={`rounded-lg px-4 py-2 text-sm ${section === "knockout" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+          className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "knockout" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
         >
           Cuadro
         </button>
         <button
           type="button"
           onClick={() => setSection("results")}
-          className={`rounded-lg px-4 py-2 text-sm ${section === "results" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+          className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "results" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
         >
           Resultados
         </button>
