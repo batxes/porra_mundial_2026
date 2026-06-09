@@ -2,6 +2,7 @@
   "use strict";
 
   const ruleMeta = {
+    match_outcome_hit: { label: "Eleccion acertada", category: "Marcadores" },
     match_exact_score: { label: "Marcador exacto", category: "Marcadores" },
     player_goal: { label: "Gol de tu once", category: "Tu once" },
     player_penalty_goal: { label: "Penalti marcado", category: "Tu once" },
@@ -10,6 +11,8 @@
     player_penalty_miss: { label: "Penalti fallado", category: "Tu once" },
     player_red_card: { label: "Tarjeta roja", category: "Tu once" },
     team_progression_hit: { label: "Acierto de fase", category: "Grupos y cuadro" },
+    group_qualification_hit: { label: "Equipo clasificado en grupos", category: "Grupos y cuadro" },
+    group_position_hit: { label: "Orden exacto en grupo", category: "Grupos y cuadro" },
     tournament_champion_hit: { label: "Campeón del Mundial", category: "Extras finales" },
     tournament_mvp_hit: { label: "MVP del Mundial", category: "Extras finales" },
     tournament_top_scorer_hit: { label: "Máximo goleador", category: "Extras finales" },
@@ -28,6 +31,13 @@
     "penalti fallado": { ruleCode: "player_penalty_miss", points: -1 },
     red_card: { ruleCode: "player_red_card", points: -2 },
     roja: { ruleCode: "player_red_card", points: -2 },
+  };
+
+  const goalPointsByPosition = {
+    DEL: 2,
+    MED: 6,
+    DEF: 11,
+    POR: 35,
   };
 
   function normalizeSchedule(schedule) {
@@ -67,6 +77,18 @@
 
     function playerName(playerId) {
       return players.get(playerId)?.name || "Jugador";
+    }
+
+    function matchOutcome(homeScore, awayScore) {
+      if (homeScore > awayScore) return "home";
+      if (awayScore > homeScore) return "away";
+      return "draw";
+    }
+
+    function pointsForEvent(playerId, rule) {
+      if (rule.ruleCode !== "player_goal") return rule.points;
+      const position = players.get(playerId)?.position;
+      return position ? goalPointsByPosition[position] : rule.points;
     }
 
     function actualTeamId(match, result, side) {
@@ -139,6 +161,24 @@
       );
     }
 
+    function predictedGroupTeamAt(prediction, group, position) {
+      return Object.entries(prediction.groups?.[group] || {}).find(([, value]) => String(value) === String(position))?.[0] || "";
+    }
+
+    function calculateThirdQualifierIds(groupTables) {
+      const tables = Object.values(groupTables);
+      if (!tables.length || tables.some((table) => !table.complete)) return new Set();
+
+      return new Set(
+        tables
+          .map((table) => table.positions.find((row) => row.position === 3))
+          .filter(Boolean)
+          .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || teamName(a.teamId).localeCompare(teamName(b.teamId)))
+          .slice(0, 8)
+          .map((row) => row.teamId),
+      );
+    }
+
     function calculateFinalExtras(adminResults) {
       const completed = matches.every((match) => isScored(adminResults[String(match.number)]));
       if (!completed) return null;
@@ -193,7 +233,26 @@
         if (!isScored(result)) return;
         const homeScore = parseScore(result.homeScore);
         const awayScore = parseScore(result.awayScore);
-        if (parseScore(forecast.homeScore) === homeScore && parseScore(forecast.awayScore) === awayScore) {
+        const forecastHomeScore = parseScore(forecast.homeScore);
+        const forecastAwayScore = parseScore(forecast.awayScore);
+
+        if (
+          forecastHomeScore !== null &&
+          forecastAwayScore !== null &&
+          matchOutcome(forecastHomeScore, forecastAwayScore) === matchOutcome(homeScore, awayScore)
+        ) {
+          addEntry(entries, {
+            userId,
+            matchId: `wc26-${match.number}`,
+            matchNumber: match.number,
+            ruleCode: "match_outcome_hit",
+            points: 1,
+            explanation: `Eleccion acertada partido ${match.number}`,
+            sourceRef: `match-outcome-${match.number}`,
+          });
+        }
+
+        if (forecastHomeScore === homeScore && forecastAwayScore === awayScore) {
           addEntry(entries, {
             userId,
             matchId: `wc26-${match.number}`,
@@ -232,20 +291,49 @@
         }
       });
 
-      Object.entries(calculateGroupPositions(adminResults)).forEach(([group, table]) => {
-        if (!table.complete) return;
-        table.positions.forEach((row) => {
-          if (String(prediction.groups?.[group]?.[row.teamId]) !== String(row.position)) return;
-          addEntry(entries, {
-            userId,
-            ruleCode: "team_progression_hit",
-            points: 1,
-            explanation: `${teamName(row.teamId)} ${row.position}º en el grupo ${group}`,
-            sourceRef: `group-${group}-${row.teamId}`,
-          });
+      const groupTables = calculateGroupPositions(adminResults);
+      const thirdQualifierIds = calculateThirdQualifierIds(groupTables);
+      const predictedQualifiedIds = new Set();
+
+      Object.keys(prediction.groups || {}).forEach((group) => {
+        [1, 2].forEach((position) => {
+          const teamId = predictedGroupTeamAt(prediction, group, position);
+          if (teamId) predictedQualifiedIds.add(teamId);
         });
+
+        if (prediction.bracket?.thirdQualifiers?.includes(group)) {
+          const teamId = predictedGroupTeamAt(prediction, group, 3);
+          if (teamId) predictedQualifiedIds.add(teamId);
+        }
       });
 
+      Object.entries(groupTables).forEach(([group, table]) => {
+        if (!table.complete) return;
+        table.positions.forEach((row) => {
+          const predictedPosition = Number(prediction.groups?.[group]?.[row.teamId]);
+          const actualQualified = row.position <= 2 || thirdQualifierIds.has(row.teamId);
+
+          if (actualQualified && predictedQualifiedIds.has(row.teamId)) {
+            addEntry(entries, {
+              userId,
+              ruleCode: "group_qualification_hit",
+              points: 2,
+              explanation: `${teamName(row.teamId)} clasificado desde el grupo ${group}`,
+              sourceRef: `group-qualified-${group}-${row.teamId}`,
+            });
+          }
+
+          if (predictedPosition === row.position) {
+            addEntry(entries, {
+              userId,
+              ruleCode: "group_position_hit",
+              points: 3,
+              explanation: `${teamName(row.teamId)} ${row.position}º en el grupo ${group}`,
+              sourceRef: `group-position-${group}-${row.teamId}`,
+            });
+          }
+        });
+      });
       const selectedPlayers = new Set(prediction.xi || []);
       Object.entries(adminResults).forEach(([matchNumber, result]) => {
         (result.events || []).forEach((event, index) => {
@@ -253,12 +341,13 @@
           if (!selectedPlayers.has(playerId)) return;
           const rule = eventRules[String(event.type || event.event_type || "")];
           if (!rule) return;
+          const points = pointsForEvent(playerId, rule);
           addEntry(entries, {
             userId,
             matchId: `wc26-${matchNumber}`,
             matchNumber: Number(matchNumber),
             ruleCode: rule.ruleCode,
-            points: rule.points,
+            points,
             explanation: `${playerName(playerId)} · ${ruleMeta[rule.ruleCode].label} en el partido ${matchNumber}`,
             sourceRef: event.id || event.supabaseId || `event-${matchNumber}-${index}`,
           });

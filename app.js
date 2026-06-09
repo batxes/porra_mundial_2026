@@ -581,6 +581,7 @@
           <article class="card">
             <h3>Puntos de partido</h3>
             <div class="rule-grid">
+              <div class="rule"><span>Eleccion acertada</span><strong>+1</strong></div>
               <div class="rule"><span>Marcador exacto</span><strong>Goles del partido</strong></div>
               <div class="rule"><span>Gol de jugador de tu once</span><strong>+2</strong></div>
               <div class="rule"><span>Penalti marcado</span><strong>+1</strong></div>
@@ -593,7 +594,8 @@
           <article class="card">
             <h3>Puntos de torneo</h3>
             <div class="rule-grid">
-              <div class="rule"><span>Posición acertada en grupo cerrado</span><strong>+1</strong></div>
+              <div class="rule"><span>Equipo clasificado en grupos</span><strong>+2</strong></div>
+              <div class="rule"><span>Orden exacto en grupo</span><strong>+3</strong></div>
               <div class="rule"><span>Equipo que avanza en eliminatoria</span><strong>+1</strong></div>
               <div class="rule"><span>Campeón del Mundial</span><strong>+5</strong></div>
               <div class="rule"><span>MVP del Mundial</span><strong>+5</strong></div>
@@ -825,6 +827,7 @@
         <div>
           <p class="eyebrow">Marcadores exactos</p>
           <h2>Pronostica cada resultado</h2>
+          <p class="muted">Eleccion acertada +1 punto. Si aciertas el resultado exacto, sumas el valor de todos los goles.</p>
           <p class="muted">Puedes modificar cada marcador hasta que empiece ese partido. Los cruces de eliminatorias aparecen cuando quedan resueltos en tu cuadro.</p>
         </div>
       </div>

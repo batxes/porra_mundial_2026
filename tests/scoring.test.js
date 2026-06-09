@@ -16,19 +16,36 @@ const schedule = window.PORRA_SCHEDULE.map(([number, date, time, home, away, ven
   stage,
 }));
 const engine = window.PORRA_SCORING.createEngine({ data: window.PORRA_DATA, schedule });
+const playerIdByPosition = (position) => window.PORRA_DATA.players.find((player) => player.position === position)?.id || "";
 
 {
-  const prediction = {
+  const exactPrediction = {
     groups: {},
     bracket: { winners: {} },
     extras: {},
     xi: [],
     matchPredictions: { 1: { homeScore: "2", awayScore: "2" } },
   };
-  const hit = engine.calculateScorecard(prediction, { 1: { homeScore: 2, awayScore: 2, events: [] } }, "u1");
-  const corrected = engine.calculateScorecard(prediction, { 1: { homeScore: 2, awayScore: 1, events: [] } }, "u1");
-  assert.equal(hit.total, 4);
-  assert.equal(hit.entries[0].ruleCode, "match_exact_score");
+  const outcomePrediction = {
+    groups: {},
+    bracket: { winners: {} },
+    extras: {},
+    xi: [],
+    matchPredictions: { 1: { homeScore: "3", awayScore: "1" } },
+  };
+  const hit = engine.calculateScorecard(exactPrediction, { 1: { homeScore: 2, awayScore: 2, events: [] } }, "u1");
+  const outcomeOnly = engine.calculateScorecard(outcomePrediction, { 1: { homeScore: 2, awayScore: 1, events: [] } }, "u1");
+  const corrected = engine.calculateScorecard(exactPrediction, { 1: { homeScore: 2, awayScore: 1, events: [] } }, "u1");
+  assert.equal(hit.total, 5);
+  assert.deepEqual(
+    hit.entries.map((entry) => [entry.ruleCode, entry.points]),
+    [
+      ["match_outcome_hit", 1],
+      ["match_exact_score", 4],
+    ],
+  );
+  assert.equal(outcomeOnly.total, 1);
+  assert.equal(outcomeOnly.entries[0].ruleCode, "match_outcome_hit");
   assert.equal(corrected.total, 0);
 }
 
@@ -56,6 +73,23 @@ const engine = window.PORRA_SCORING.createEngine({ data: window.PORRA_DATA, sche
 }
 
 {
+  const scorerIds = ["DEL", "MED", "DEF", "POR"].map(playerIdByPosition);
+  const prediction = { groups: {}, bracket: { winners: {} }, extras: {}, xi: scorerIds, matchPredictions: {} };
+  const card = engine.calculateScorecard(prediction, {
+    1: {
+      homeScore: 4,
+      awayScore: 0,
+      events: scorerIds.map((playerId, index) => ({ id: `goal-${index}`, playerId, type: "gol", minute: index + 1 })),
+    },
+  });
+
+  assert.deepEqual(
+    card.entries.map((entry) => entry.points),
+    [2, 6, 11, 35],
+  );
+}
+
+{
   const prediction = {
     groups: { A: { mex: "1", kor: "2", rsa: "3", cze: "4" } },
     bracket: { winners: {} },
@@ -73,7 +107,10 @@ const engine = window.PORRA_SCORING.createEngine({ data: window.PORRA_DATA, sche
     54: { homeScore: 0, awayScore: 1, events: [] },
   };
   assert.equal(engine.calculateScorecard(prediction, partial).total, 0);
-  assert.equal(engine.calculateScorecard(prediction, full).total, 4);
+  const groupScorecard = engine.calculateScorecard(prediction, full);
+  assert.equal(groupScorecard.total, 16);
+  assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_qualification_hit").length, 2);
+  assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_position_hit").length, 4);
 }
 
 {

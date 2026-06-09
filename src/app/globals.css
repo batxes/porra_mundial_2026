@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  --background: #050505;
+  --foreground: #f8fafc;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #050505;
+    --foreground: #f4f4f5;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+.score-number-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.score-number-input::-webkit-inner-spin-button,
+.score-number-input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+* {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+::selection {
+  background: rgba(167, 246, 0, 0.3);
+  color: #ffffff;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+
+  ::view-transition-group(*) {
+    animation-duration: 260ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .lineup-field-animating .lineup-slot-button {
+    animation: lineup-slot-settle 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@keyframes lineup-slot-settle {
+  from {
+    opacity: 0.72;
+    transform: translateY(6px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
