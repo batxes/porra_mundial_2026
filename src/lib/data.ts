@@ -13,6 +13,7 @@ export const sections = [
   { id: "extras", label: "Tus elecciones" },
   { id: "xi", label: "Tu once" },
   { id: "groups", label: "Fase de grupos" },
+  { id: "bracket", label: "Fase eliminacion" },
   { id: "results", label: "Resultados" },
 ] as const;
 

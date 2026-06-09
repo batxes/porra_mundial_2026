@@ -158,12 +158,12 @@ insert into public.scoring_rules (code, label, points) values
   ('player_penalty_save', 'Penalti parado', 2),
   ('player_penalty_miss', 'Penalti fallado', -1),
   ('player_red_card', 'Tarjeta roja', -2),
-  ('team_progression_hit', 'Acierto de clasificación', 1),
+  ('team_progression_hit', 'Acierto de clasificación según ronda', 0),
   ('group_qualification_hit', 'Equipo clasificado en grupos', 2),
   ('group_position_hit', 'Orden exacto en grupo', 3),
-  ('tournament_champion_hit', 'Ganador del Mundial', 5),
-  ('tournament_mvp_hit', 'MVP del Mundial', 5),
-  ('tournament_top_scorer_hit', 'Máximo goleador', 5)
+  ('tournament_champion_hit', 'Ganador del Mundial', 25),
+  ('tournament_mvp_hit', 'MVP del Mundial', 20),
+  ('tournament_top_scorer_hit', 'Máximo goleador', 20)
 on conflict (code) do update set label = excluded.label, points = excluded.points;
 
 create or replace function public.handle_new_user()
@@ -394,12 +394,20 @@ begin
     p.user_id,
     m.id,
     'team_progression_hit',
-    1,
+    case m.stage
+      when 'Dieciseisavos' then 5
+      when 'Octavos' then 10
+      when 'Cuartos' then 15
+      when 'Semifinales' then 20
+      when 'Final' then 25
+      else 0
+    end,
     'Ganador acertado partido ' || replace(m.id, 'wc26-', ''),
     'winner-' || replace(m.id, 'wc26-', '')
   from public.predictions p
   join public.matches m on m.status in ('finished', 'validated')
   where replace(m.id, 'wc26-', '')::integer >= 73
+    and m.stage in ('Dieciseisavos', 'Octavos', 'Cuartos', 'Semifinales', 'Final')
     and m.home_score is not null
     and m.away_score is not null
     and m.home_score <> m.away_score
@@ -411,7 +419,7 @@ begin
     p.user_id,
     m.id,
     'tournament_champion_hit',
-    5,
+    25,
     'Campeón del Mundial acertado',
     'champion'
   from public.predictions p

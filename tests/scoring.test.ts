@@ -110,4 +110,34 @@ const playerIdByPosition = (position: string) => data.players.find((player) => p
   assert.equal(card.categories[0].label, "Marcadores");
 }
 
+{
+  const knockoutHits = {
+    groups: {},
+    bracket: {
+      winners: {
+        73: "mex",
+        89: "mex",
+        97: "mex",
+        101: "mex",
+        104: "mex",
+      },
+    },
+    extras: {},
+    xi: [],
+    matchPredictions: {},
+  } as any;
+  const knockoutResults = {
+    73: { homeScore: 1, awayScore: 0, homeTeamId: "mex", awayTeamId: "kor", events: [] },
+    89: { homeScore: 1, awayScore: 0, homeTeamId: "mex", awayTeamId: "fra", events: [] },
+    97: { homeScore: 1, awayScore: 0, homeTeamId: "mex", awayTeamId: "esp", events: [] },
+    101: { homeScore: 1, awayScore: 0, homeTeamId: "mex", awayTeamId: "bra", events: [] },
+    104: { homeScore: 1, awayScore: 0, homeTeamId: "mex", awayTeamId: "arg", events: [] },
+  } as any;
+  const card = engine.calculateScorecard(knockoutHits, knockoutResults, "u1");
+  assert.deepEqual(
+    card.entries.filter((entry) => entry.ruleCode === "team_progression_hit").map((entry) => entry.points),
+    [5, 10, 15, 20, 25],
+  );
+}
+
 console.log("scoring tests passed");

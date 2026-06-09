@@ -1,90 +1,6 @@
--- Run this after migration-002. It makes scoring deterministic and recalculable.
-
-insert into public.scoring_rules (code, label, points) values
-  ('match_outcome_hit', 'Eleccion acertada', 1),
-  ('match_exact_score', 'Marcador exacto', 0),
-  ('team_progression_hit', 'Acierto de clasificación según ronda', 0),
-  ('group_qualification_hit', 'Equipo clasificado en grupos', 2),
-  ('group_position_hit', 'Orden exacto en grupo', 3),
-  ('tournament_champion_hit', 'Ganador del Mundial', 25),
-  ('tournament_mvp_hit', 'MVP del Mundial', 20),
-  ('tournament_top_scorer_hit', 'Máximo goleador', 20)
-on conflict (code) do update set label = excluded.label, points = excluded.points;
-
-insert into public.players (id, team_id, display_name, position, squad_status) values
-  ('martinez', 'arg', 'Emiliano Martínez', 'POR', 'provisional'),
-  ('alisson', 'bra', 'Alisson Becker', 'POR', 'provisional'),
-  ('simon', 'esp', 'Unai Simón', 'POR', 'provisional'),
-  ('maignan', 'fra', 'Mike Maignan', 'POR', 'provisional'),
-  ('bounou', 'mar', 'Yassine Bounou', 'POR', 'provisional'),
-  ('dibu', 'uru', 'Sergio Rochet', 'POR', 'provisional'),
-  ('gvardiol', 'cro', 'Joško Gvardiol', 'DEF', 'provisional'),
-  ('saliba', 'fra', 'William Saliba', 'DEF', 'provisional'),
-  ('hakimi', 'mar', 'Achraf Hakimi', 'DEF', 'provisional'),
-  ('dias', 'por', 'Rúben Dias', 'DEF', 'provisional'),
-  ('romero', 'arg', 'Cristian Romero', 'DEF', 'provisional'),
-  ('van-dijk', 'ned', 'Virgil van Dijk', 'DEF', 'provisional'),
-  ('trent', 'eng', 'Trent Alexander-Arnold', 'DEF', 'provisional'),
-  ('theo', 'fra', 'Theo Hernández', 'DEF', 'provisional'),
-  ('davies', 'can', 'Alphonso Davies', 'DEF', 'provisional'),
-  ('araujo', 'uru', 'Ronald Araújo', 'DEF', 'provisional'),
-  ('rodri', 'esp', 'Rodri', 'MED', 'provisional'),
-  ('bellingham', 'eng', 'Jude Bellingham', 'MED', 'provisional'),
-  ('valverde', 'uru', 'Federico Valverde', 'MED', 'provisional'),
-  ('pedri', 'esp', 'Pedri', 'MED', 'provisional'),
-  ('vitinha', 'por', 'Vitinha', 'MED', 'provisional'),
-  ('wirtz', 'ger', 'Florian Wirtz', 'MED', 'provisional'),
-  ('mac-allister', 'arg', 'Alexis Mac Allister', 'MED', 'provisional'),
-  ('hakha', 'tur', 'Hakan Çalhanoğlu', 'MED', 'provisional'),
-  ('kdb', 'bel', 'Kevin De Bruyne', 'MED', 'provisional'),
-  ('odegaard', 'nor', 'Martin Ødegaard', 'MED', 'provisional'),
-  ('kudus', 'gha', 'Mohammed Kudus', 'MED', 'provisional'),
-  ('enzo', 'arg', 'Enzo Fernández', 'MED', 'provisional'),
-  ('yamal', 'esp', 'Lamine Yamal', 'DEL', 'provisional'),
-  ('mbappe', 'fra', 'Kylian Mbappé', 'DEL', 'provisional'),
-  ('vinicius', 'bra', 'Vinícius Júnior', 'DEL', 'provisional'),
-  ('haaland', 'nor', 'Erling Haaland', 'DEL', 'provisional'),
-  ('kane', 'eng', 'Harry Kane', 'DEL', 'provisional'),
-  ('lautaro', 'arg', 'Lautaro Martínez', 'DEL', 'provisional'),
-  ('salah', 'egy', 'Mohamed Salah', 'DEL', 'provisional'),
-  ('leao', 'por', 'Rafael Leão', 'DEL', 'provisional'),
-  ('diaz', 'col', 'Luis Díaz', 'DEL', 'provisional'),
-  ('pulisic', 'usa', 'Christian Pulisic', 'DEL', 'provisional'),
-  ('kubo', 'jpn', 'Takefusa Kubo', 'DEL', 'provisional'),
-  ('mane', 'sen', 'Sadio Mané', 'DEL', 'provisional')
-on conflict (id) do update set
-  team_id = excluded.team_id,
-  display_name = excluded.display_name,
-  position = excluded.position,
-  squad_status = excluded.squad_status;
-
-create or replace function public.prevent_profile_score_or_admin_self_update()
-returns trigger
-language plpgsql
-as $$
-begin
-  if current_setting('app.recalculating_scores', true) = 'on' then
-    return new;
-  end if;
-  if not public.is_admin() then
-    new.total_points := old.total_points;
-    new.is_admin := old.is_admin;
-  end if;
-  return new;
-end;
-$$;
-
-drop trigger if exists prevent_profile_score_or_admin_self_update on public.profiles;
-create trigger prevent_profile_score_or_admin_self_update
-  before update on public.profiles
-  for each row execute procedure public.prevent_profile_score_or_admin_self_update();
-
-drop policy if exists "admin profile update" on public.profiles;
-create policy "admin profile update" on public.profiles for update using (public.is_admin()) with check (public.is_admin());
-drop policy if exists "admin match delete" on public.matches;
-create policy "admin match delete" on public.matches for delete using (public.is_admin());
-drop policy if exists "admin event delete" on public.match_events;
-create policy "admin event delete" on public.match_events for delete using (public.is_admin());
+-- Updates knockout scoring to the current TRILIPORRA rules:
+-- dieciseisavos 5, octavos 10, cuartos 15, semifinales 20, final 25.
+-- Run this after the previous migrations if your Supabase project already exists.
 
 create or replace function public.recalculate_scores()
 returns void
@@ -93,6 +9,13 @@ security definer
 set search_path = public
 as $$
 begin
+  insert into public.scoring_rules (code, label, points) values
+    ('team_progression_hit', 'Acierto de clasificación según ronda', 0),
+    ('tournament_champion_hit', 'Ganador del Mundial', 25),
+    ('tournament_mvp_hit', 'MVP del Mundial', 20),
+    ('tournament_top_scorer_hit', 'Máximo goleador', 20)
+  on conflict (code) do update set label = excluded.label, points = excluded.points;
+
   perform set_config('app.recalculating_scores', 'on', true);
   delete from public.score_entries;
 
@@ -243,35 +166,8 @@ begin
     left join public.score_entries on score_entries.user_id = profiles.id
     group by profiles.id
   ) totals
-  where profile.id = totals.id;
+  where totals.id = profile.id;
 end;
 $$;
-
-create or replace function public.recalculate_scores_trigger()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  perform public.recalculate_scores();
-  return coalesce(new, old);
-end;
-$$;
-
-drop trigger if exists recalculate_scores_after_match_change on public.matches;
-create trigger recalculate_scores_after_match_change
-  after insert or update or delete on public.matches
-  for each row execute procedure public.recalculate_scores_trigger();
-
-drop trigger if exists recalculate_scores_after_event_change on public.match_events;
-create trigger recalculate_scores_after_event_change
-  after insert or update or delete on public.match_events
-  for each row execute procedure public.recalculate_scores_trigger();
-
-drop trigger if exists recalculate_scores_after_prediction_change on public.predictions;
-create trigger recalculate_scores_after_prediction_change
-  after insert or update or delete on public.predictions
-  for each row execute procedure public.recalculate_scores_trigger();
 
 select public.recalculate_scores();

@@ -5,9 +5,9 @@ import { flushSync } from "react-dom";
 
 import { Card, Notice, PlayerAvatar, SectionHeading, TeamBadge, TeamFlag, TeamPicker } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
-import { data, playersById, schedule, sections, teamsById, xiFormations } from "@/lib/data";
+import { data, knockoutMatches, playersById, schedule, sections, teamsById, xiFormations } from "@/lib/data";
 import { translateSlot } from "@/lib/format";
-import { hasMatchStarted, hasTournamentStarted, isMatchPredictionComplete, isMatchVisibleForPrediction, orderedGroupTeams, resolveSlot, scheduleUtc } from "@/lib/prediction";
+import { groupTeamAt, hasMatchStarted, hasTournamentStarted, isMatchPredictionComplete, isMatchVisibleForPrediction, orderedGroupTeams, resolveSlot, scheduleUtc } from "@/lib/prediction";
 import type { Match, Player, Position, Prediction } from "@/lib/types";
 
 type LineupRow = {
@@ -44,13 +44,16 @@ const positionTabs: Array<{ id: Position; label: string }> = [
 export function PredictionView() {
   const {
     completion,
-    moveGroupTeam,
+    chooseMatchWinner,
     prediction,
+    replaceGroupOrder,
+    replaceThirdQualifierOrder,
     savePrediction,
     setPredictionExtra,
     setPredictionScore,
     setXiFormation,
     setXiSelection,
+    toggleThirdQualifier,
     user,
   } = useAppContext();
   const [section, setSection] = useState<(typeof sections)[number]["id"]>("extras");
@@ -94,7 +97,21 @@ export function PredictionView() {
           ) : null}
 
           {section === "groups" ? (
-            <GroupStage prediction={prediction} disabled={tournamentLocked} onMoveTeam={moveGroupTeam} />
+            <GroupStage
+              prediction={prediction}
+              disabled={tournamentLocked}
+              onReplaceGroupOrder={replaceGroupOrder}
+              onToggleThirdQualifier={toggleThirdQualifier}
+              onReplaceThirdQualifierOrder={replaceThirdQualifierOrder}
+            />
+          ) : null}
+
+          {section === "bracket" ? (
+            <KnockoutBracket
+              prediction={prediction}
+              disabled={tournamentLocked}
+              onChooseWinner={chooseMatchWinner}
+            />
           ) : null}
 
           {section === "results" ? (
@@ -430,12 +447,50 @@ function ExtraPlayerPickerModal({
 function GroupStage({
   prediction,
   disabled,
-  onMoveTeam,
+  onReplaceGroupOrder,
+  onToggleThirdQualifier,
+  onReplaceThirdQualifierOrder,
 }: {
   prediction: Prediction;
   disabled: boolean;
-  onMoveTeam: (group: string, teamId: string, direction: number) => void;
+  onReplaceGroupOrder: (group: string, teamIds: string[]) => void;
+  onToggleThirdQualifier: (group: string) => void;
+  onReplaceThirdQualifierOrder: (groups: string[]) => void;
 }) {
+  const [draggedGroupTeam, setDraggedGroupTeam] = useState<{ group: string; teamId: string } | null>(null);
+  const [draggedThirdGroup, setDraggedThirdGroup] = useState<string | null>(null);
+  const groups = Object.keys(prediction.groups);
+  const thirdRows = groups.map((group) => ({
+    group,
+    teamId: groupTeamAt(group, 3, prediction),
+    selected: prediction.bracket.thirdQualifiers.includes(group),
+  }));
+
+  const reorderGroupTeam = (group: string, targetTeamId: string) => {
+    if (!draggedGroupTeam || draggedGroupTeam.group !== group || draggedGroupTeam.teamId === targetTeamId) return;
+    const ordered = orderedGroupTeams(group, prediction).map((team) => team.id);
+    const from = ordered.indexOf(draggedGroupTeam.teamId);
+    const to = ordered.indexOf(targetTeamId);
+    if (from < 0 || to < 0) return;
+    const [moved] = ordered.splice(from, 1);
+    ordered.splice(to, 0, moved);
+    onReplaceGroupOrder(group, ordered);
+  };
+
+  const reorderThirdQualifier = (targetGroup: string) => {
+    if (!draggedThirdGroup || draggedThirdGroup === targetGroup) return;
+    const selected = prediction.bracket.thirdQualifiers;
+    if (!selected.includes(draggedThirdGroup) || !selected.includes(targetGroup)) return;
+
+    const next = [...selected];
+    const from = next.indexOf(draggedThirdGroup);
+    const to = next.indexOf(targetGroup);
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+
+    onReplaceThirdQualifierOrder(next);
+  };
+
   return (
     <div className="space-y-5">
       <div className="space-y-2">
@@ -446,9 +501,10 @@ function GroupStage({
           <span>Orden exacto en el grupo:</span>
           <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">+3 pts</span>
         </p>
+        <p className="text-sm text-zinc-500">Arrastra los equipos para ordenar primero, segundo, tercero y cuarto. Despues elige los 8 terceros que pasan.</p>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
-        {Object.keys(prediction.groups).map((group) => {
+        {groups.map((group) => {
           const ordered = orderedGroupTeams(group, prediction);
           return (
             <Card key={group} className="space-y-3">
@@ -458,29 +514,24 @@ function GroupStage({
               </div>
               <div className="space-y-2">
                 {ordered.map((team, index) => (
-                  <div key={team.id} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-white/[0.06] px-3 py-2">
+                  <div
+                    key={team.id}
+                    draggable={!disabled}
+                    onDragStart={() => setDraggedGroupTeam({ group, teamId: team.id })}
+                    onDragOver={(event) => {
+                      if (!disabled) event.preventDefault();
+                    }}
+                    onDrop={() => {
+                      if (!disabled) reorderGroupTeam(group, team.id);
+                    }}
+                    onDragEnd={() => setDraggedGroupTeam(null)}
+                    className={`grid cursor-grab grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-white/[0.06] px-3 py-2 active:cursor-grabbing ${
+                      draggedGroupTeam?.teamId === team.id ? "opacity-45" : ""
+                    }`}
+                  >
                     <span className="text-sm font-black text-[#a7f600]">{index + 1}</span>
                     <TeamBadge teamId={team.id} />
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        aria-label={`Subir ${team.name}`}
-                        disabled={disabled || index === 0}
-                        onClick={() => onMoveTeam(group, team.id, -1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-sm font-black text-white disabled:opacity-25"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Bajar ${team.name}`}
-                        disabled={disabled || index === ordered.length - 1}
-                        onClick={() => onMoveTeam(group, team.id, 1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-sm font-black text-white disabled:opacity-25"
-                      >
-                        ↓
-                      </button>
-                    </div>
+                    <span className="text-lg font-black text-zinc-500">☰</span>
                   </div>
                 ))}
               </div>
@@ -488,7 +539,322 @@ function GroupStage({
           );
         })}
       </div>
+
+      <Card className="space-y-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h3 className="text-xl font-black tracking-tight text-white">Terceros clasificados</h3>
+            <p className="text-sm text-zinc-400">Elige exactamente 8 terceros. Puedes arrastrar los elegidos para cambiar su prioridad de asignacion.</p>
+          </div>
+          <span className={`text-sm font-black ${prediction.bracket.thirdQualifiers.length === 8 ? "text-[#a7f600]" : "text-zinc-500"}`}>
+            {prediction.bracket.thirdQualifiers.length}/8
+          </span>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          {thirdRows.map(({ group, teamId, selected }) => (
+            <button
+              key={group}
+              type="button"
+              disabled={disabled || !teamId}
+              draggable={!disabled && selected}
+              onDragStart={() => setDraggedThirdGroup(group)}
+              onDragOver={(event) => {
+                if (!disabled && selected) event.preventDefault();
+              }}
+              onDrop={() => {
+                if (!disabled) reorderThirdQualifier(group);
+              }}
+              onDragEnd={() => setDraggedThirdGroup(null)}
+              onClick={() => onToggleThirdQualifier(group)}
+              className={`grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${
+                selected
+                  ? "border-[#a7f600]/70 bg-[#a7f600]/12"
+                  : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+              } disabled:cursor-not-allowed disabled:opacity-40 ${draggedThirdGroup === group ? "opacity-45" : ""}`}
+            >
+              <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black ${selected ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-400"}`}>
+                {group}
+              </span>
+              {teamId ? <TeamBadge teamId={teamId} /> : <span className="text-sm text-zinc-500">Ordena el grupo primero</span>}
+              <span className="text-xs font-black text-zinc-500">{selected ? "Pasa" : "Elegir"}</span>
+            </button>
+          ))}
+        </div>
+
+        {prediction.bracket.thirdQualifiers.length === 8 ? (
+          <Notice>Los terceros ya estan completos. El cuadro de eliminacion puede resolver sus emparejamientos.</Notice>
+        ) : (
+          <Notice tone="warm">El cuadro se completara cuando haya 8 terceros clasificados seleccionados.</Notice>
+        )}
+      </Card>
     </div>
+  );
+}
+
+const leftBracketMatchNumbers = {
+  roundOf32: [74, 77, 73, 75, 83, 84, 81, 82],
+  roundOf16: [89, 90, 93, 94],
+  quarterfinals: [97, 98],
+  semifinals: [101],
+};
+
+const rightBracketMatchNumbers = {
+  roundOf32: [79, 80, 76, 78, 86, 88, 85, 87],
+  roundOf16: [91, 92, 95, 96],
+  quarterfinals: [99, 100],
+  semifinals: [102],
+};
+
+const knockoutStagePoints: Record<string, number> = {
+  Dieciseisavos: 5,
+  Octavos: 10,
+  Cuartos: 15,
+  Semifinales: 20,
+  Final: 25,
+};
+
+function KnockoutBracket({
+  prediction,
+  disabled,
+  onChooseWinner,
+}: {
+  prediction: Prediction;
+  disabled: boolean;
+  onChooseWinner: (matchNumber: number, teamId: string) => void;
+}) {
+  const [draggedTeamId, setDraggedTeamId] = useState("");
+  const matchesByNumber = useMemo(() => new Map(knockoutMatches.map((match) => [match.number, match])), []);
+  const thirdQualifiersComplete = prediction.bracket.thirdQualifiers.length === 8;
+
+  const renderSide = (side: typeof leftBracketMatchNumbers, align: "left" | "right") => (
+    <div className={`grid min-w-[980px] flex-1 grid-cols-[repeat(4,minmax(170px,1fr))] gap-3 ${align === "right" ? "xl:[direction:rtl]" : ""}`}>
+      <BracketRound title="Dieciseisavos" matchNumbers={side.roundOf32} matchesByNumber={matchesByNumber} prediction={prediction} disabled={disabled} draggedTeamId={draggedTeamId} onDragTeam={setDraggedTeamId} onChooseWinner={onChooseWinner} />
+      <BracketRound title="Octavos" matchNumbers={side.roundOf16} matchesByNumber={matchesByNumber} prediction={prediction} disabled={disabled} draggedTeamId={draggedTeamId} onDragTeam={setDraggedTeamId} onChooseWinner={onChooseWinner} />
+      <BracketRound title="Cuartos" matchNumbers={side.quarterfinals} matchesByNumber={matchesByNumber} prediction={prediction} disabled={disabled} draggedTeamId={draggedTeamId} onDragTeam={setDraggedTeamId} onChooseWinner={onChooseWinner} />
+      <BracketRound title="Semifinal" matchNumbers={side.semifinals} matchesByNumber={matchesByNumber} prediction={prediction} disabled={disabled} draggedTeamId={draggedTeamId} onDragTeam={setDraggedTeamId} onChooseWinner={onChooseWinner} />
+    </div>
+  );
+
+  const finalMatch = matchesByNumber.get(104);
+  const thirdPlaceMatch = matchesByNumber.get(103);
+
+  return (
+    <div className="space-y-5">
+      <div className="space-y-2">
+        <h2 className="text-2xl font-black tracking-tight text-white">Fase de eliminacion</h2>
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-6 text-zinc-400">
+          <span>Dieciseisavos</span>
+          <PointPill points={5} />
+          <span>Octavos</span>
+          <PointPill points={10} />
+          <span>Cuartos</span>
+          <PointPill points={15} />
+          <span>Semifinales</span>
+          <PointPill points={20} />
+          <span>Final</span>
+          <PointPill points={25} />
+        </p>
+        <p className="text-sm text-zinc-500">Haz click en el equipo que pasa. Tambien puedes arrastrarlo y soltarlo en la zona de ganador de su partido.</p>
+      </div>
+
+      {!thirdQualifiersComplete ? (
+        <Notice tone="warm">Completa los 8 terceros clasificados en la fase de grupos para ver todos los cruces de dieciseisavos.</Notice>
+      ) : null}
+
+      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#101010] p-3">
+        <div className="flex min-w-[1180px] items-center gap-4">
+          {renderSide(leftBracketMatchNumbers, "left")}
+
+          <div className="flex w-[220px] shrink-0 flex-col items-center gap-4">
+            <div className="rounded-2xl border border-[#a7f600]/30 bg-[#a7f600]/10 px-4 py-3 text-center">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-[#a7f600]">Centro</p>
+              <p className="text-lg font-black text-white">Final</p>
+            </div>
+            {finalMatch ? (
+              <BracketMatchCard
+                match={finalMatch}
+                prediction={prediction}
+                disabled={disabled}
+                draggedTeamId={draggedTeamId}
+                onDragTeam={setDraggedTeamId}
+                onChooseWinner={onChooseWinner}
+                compact
+              />
+            ) : null}
+            {thirdPlaceMatch ? (
+              <div className="w-full opacity-90">
+                <BracketMatchCard
+                  match={thirdPlaceMatch}
+                  prediction={prediction}
+                  disabled={disabled}
+                  draggedTeamId={draggedTeamId}
+                  onDragTeam={setDraggedTeamId}
+                  onChooseWinner={onChooseWinner}
+                  compact
+                />
+              </div>
+            ) : null}
+          </div>
+
+          {renderSide(rightBracketMatchNumbers, "right")}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PointPill({ points }: { points: number }) {
+  return <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">+{points} pts</span>;
+}
+
+function BracketRound({
+  title,
+  matchNumbers,
+  matchesByNumber,
+  prediction,
+  disabled,
+  draggedTeamId,
+  onDragTeam,
+  onChooseWinner,
+}: {
+  title: string;
+  matchNumbers: number[];
+  matchesByNumber: Map<number, Match>;
+  prediction: Prediction;
+  disabled: boolean;
+  draggedTeamId: string;
+  onDragTeam: (teamId: string) => void;
+  onChooseWinner: (matchNumber: number, teamId: string) => void;
+}) {
+  return (
+    <div className="space-y-3 xl:[direction:ltr]">
+      <div className="sticky left-0 top-0 z-10 rounded-lg bg-[#101010]/95 py-1 text-center">
+        <h3 className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500">{title}</h3>
+      </div>
+      <div className="flex h-full flex-col justify-around gap-3">
+        {matchNumbers.map((matchNumber) => {
+          const match = matchesByNumber.get(matchNumber);
+          return match ? (
+            <BracketMatchCard
+              key={match.number}
+              match={match}
+              prediction={prediction}
+              disabled={disabled}
+              draggedTeamId={draggedTeamId}
+              onDragTeam={onDragTeam}
+              onChooseWinner={onChooseWinner}
+            />
+          ) : null;
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BracketMatchCard({
+  match,
+  prediction,
+  disabled,
+  draggedTeamId,
+  compact = false,
+  onDragTeam,
+  onChooseWinner,
+}: {
+  match: Match;
+  prediction: Prediction;
+  disabled: boolean;
+  draggedTeamId: string;
+  compact?: boolean;
+  onDragTeam: (teamId: string) => void;
+  onChooseWinner: (matchNumber: number, teamId: string) => void;
+}) {
+  const home = resolveSlot(match.home, match.number, prediction);
+  const away = resolveSlot(match.away, match.number, prediction);
+  const winner = prediction.bracket.winners[String(match.number)] || "";
+  const candidates = [home, away].filter(Boolean);
+  const canChoose = !disabled && candidates.length === 2;
+
+  const chooseWinner = (teamId: string) => {
+    if (!canChoose || !candidates.includes(teamId)) return;
+    onChooseWinner(match.number, teamId);
+  };
+
+  return (
+    <article className={`rounded-xl border border-white/10 bg-[#151515] p-2 shadow-lg shadow-black/20 ${compact ? "w-full" : ""}`}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="rounded-md bg-white/10 px-2 py-1 text-[11px] font-black text-zinc-300">P{match.number}</span>
+        <span className="text-[11px] font-black text-[#a7f600]">+{knockoutStagePoints[match.stage] || 0} pts</span>
+      </div>
+      <div className="space-y-1.5">
+        <BracketTeamButton
+          teamId={home}
+          fallback={translateSlot(match.home)}
+          selected={winner === home && Boolean(home)}
+          disabled={!canChoose}
+          onClick={() => chooseWinner(home)}
+          onDragStart={() => onDragTeam(home)}
+        />
+        <BracketTeamButton
+          teamId={away}
+          fallback={translateSlot(match.away)}
+          selected={winner === away && Boolean(away)}
+          disabled={!canChoose}
+          onClick={() => chooseWinner(away)}
+          onDragStart={() => onDragTeam(away)}
+        />
+      </div>
+      <button
+        type="button"
+        disabled={!canChoose}
+        onDragOver={(event) => {
+          if (canChoose) event.preventDefault();
+        }}
+        onDrop={() => {
+          chooseWinner(draggedTeamId);
+          onDragTeam("");
+        }}
+        className={`mt-2 flex min-h-9 w-full items-center justify-center rounded-lg border border-dashed px-2 py-1 text-xs font-black transition ${
+          winner ? "border-[#a7f600]/50 bg-[#a7f600]/10 text-[#a7f600]" : "border-white/10 text-zinc-500"
+        } disabled:opacity-60`}
+      >
+        {winner ? <TeamBadge teamId={winner} /> : "Suelta aqui el ganador"}
+      </button>
+    </article>
+  );
+}
+
+function BracketTeamButton({
+  teamId,
+  fallback,
+  selected,
+  disabled,
+  onClick,
+  onDragStart,
+}: {
+  teamId: string;
+  fallback: string;
+  selected: boolean;
+  disabled: boolean;
+  onClick: () => void;
+  onDragStart: () => void;
+}) {
+  const team = teamId ? teamsById.get(teamId) : null;
+
+  return (
+    <button
+      type="button"
+      disabled={disabled || !teamId}
+      draggable={!disabled && Boolean(teamId)}
+      onDragStart={onDragStart}
+      onClick={onClick}
+      className={`flex min-h-10 w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition ${
+        selected ? "border-[#a7f600]/80 bg-[#a7f600]/15" : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+      } disabled:cursor-not-allowed disabled:opacity-45`}
+    >
+      {team ? <TeamFlag teamId={team.id} className="h-5 w-7 rounded-sm" /> : <span className="h-5 w-7 rounded-sm bg-white/10" />}
+      <span className={`min-w-0 truncate text-xs font-bold ${team ? "text-white" : "text-zinc-500"}`}>{team?.name || fallback}</span>
+    </button>
   );
 }
 
