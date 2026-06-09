@@ -45,6 +45,7 @@ const scoringGroups = [
     title: "Fase de grupos",
     rules: [
       ["Equipo clasificado acertado", "+2"],
+      ["Tercer clasificado acertado", "+1"],
       ["Orden exacto de grupo", "+3"],
     ],
   },

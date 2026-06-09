@@ -160,6 +160,7 @@ insert into public.scoring_rules (code, label, points) values
   ('player_red_card', 'Tarjeta roja', -2),
   ('team_progression_hit', 'Acierto de clasificación según ronda', 0),
   ('group_qualification_hit', 'Equipo clasificado en grupos', 2),
+  ('group_third_qualification_hit', 'Tercer clasificado acertado', 1),
   ('group_position_hit', 'Orden exacto en grupo', 3),
   ('tournament_champion_hit', 'Ganador del Mundial', 25),
   ('tournament_mvp_hit', 'MVP del Mundial', 20),

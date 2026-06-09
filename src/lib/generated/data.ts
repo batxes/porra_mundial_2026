@@ -7836,6 +7836,10 @@ export const porraData = {
       "value": "+2"
     },
     {
+      "label": "Tercer clasificado acertado",
+      "value": "+1"
+    },
+    {
       "label": "Orden exacto en grupo",
       "value": "+3"
     },

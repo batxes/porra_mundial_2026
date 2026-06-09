@@ -7559,6 +7559,7 @@ window.PORRA_DATA = {
     { label: "Penalti fallado", value: "-1" },
     { label: "Tarjeta roja", value: "-2" },
     { label: "Equipo clasificado en grupos", value: "+2" },
+    { label: "Tercer clasificado acertado", value: "+1" },
     { label: "Orden exacto en grupo", value: "+3" },
     { label: "Ganador del Mundial", value: "+5" },
     { label: "MVP o máximo goleador", value: "+5" },

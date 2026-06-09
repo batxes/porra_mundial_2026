@@ -12,6 +12,7 @@
     player_red_card: { label: "Tarjeta roja", category: "Tu once" },
     team_progression_hit: { label: "Acierto de fase", category: "Grupos y cuadro" },
     group_qualification_hit: { label: "Equipo clasificado en grupos", category: "Grupos y cuadro" },
+    group_third_qualification_hit: { label: "Tercer clasificado acertado", category: "Grupos y cuadro" },
     group_position_hit: { label: "Orden exacto en grupo", category: "Grupos y cuadro" },
     tournament_champion_hit: { label: "Campeón del Mundial", category: "Extras finales" },
     tournament_mvp_hit: { label: "MVP del Mundial", category: "Extras finales" },
@@ -161,8 +162,21 @@
       );
     }
 
+    function predictedGroupOrder(prediction, group) {
+      const positions = prediction.groups?.[group] || {};
+      return data.teams
+        .filter((team) => team.group === group)
+        .map((team, fallbackIndex) => ({
+          team,
+          fallbackIndex,
+          position: Number(positions[team.id] || 99),
+        }))
+        .sort((a, b) => a.position - b.position || a.fallbackIndex - b.fallbackIndex)
+        .map((row) => row.team.id);
+    }
+
     function predictedGroupTeamAt(prediction, group, position) {
-      return Object.entries(prediction.groups?.[group] || {}).find(([, value]) => String(value) === String(position))?.[0] || "";
+      return Object.entries(prediction.groups?.[group] || {}).find(([, value]) => String(value) === String(position))?.[0] || predictedGroupOrder(prediction, group)[position - 1] || "";
     }
 
     function calculateThirdQualifierIds(groupTables) {
@@ -293,33 +307,44 @@
 
       const groupTables = calculateGroupPositions(adminResults);
       const thirdQualifierIds = calculateThirdQualifierIds(groupTables);
-      const predictedQualifiedIds = new Set();
+      const predictedTopTwoQualifiedIds = new Set();
+      const predictedThirdQualifierIds = new Set();
 
       Object.keys(prediction.groups || {}).forEach((group) => {
         [1, 2].forEach((position) => {
           const teamId = predictedGroupTeamAt(prediction, group, position);
-          if (teamId) predictedQualifiedIds.add(teamId);
+          if (teamId) predictedTopTwoQualifiedIds.add(teamId);
         });
 
         if (prediction.bracket?.thirdQualifiers?.includes(group)) {
           const teamId = predictedGroupTeamAt(prediction, group, 3);
-          if (teamId) predictedQualifiedIds.add(teamId);
+          if (teamId) predictedThirdQualifierIds.add(teamId);
         }
       });
 
       Object.entries(groupTables).forEach(([group, table]) => {
         if (!table.complete) return;
+        const predictedOrder = predictedGroupOrder(prediction, group);
         table.positions.forEach((row) => {
-          const predictedPosition = Number(prediction.groups?.[group]?.[row.teamId]);
-          const actualQualified = row.position <= 2 || thirdQualifierIds.has(row.teamId);
+          const predictedPosition = predictedOrder.indexOf(row.teamId) + 1;
 
-          if (actualQualified && predictedQualifiedIds.has(row.teamId)) {
+          if (row.position <= 2 && predictedTopTwoQualifiedIds.has(row.teamId)) {
             addEntry(entries, {
               userId,
               ruleCode: "group_qualification_hit",
               points: 2,
               explanation: `${teamName(row.teamId)} clasificado desde el grupo ${group}`,
               sourceRef: `group-qualified-${group}-${row.teamId}`,
+            });
+          }
+
+          if (row.position === 3 && thirdQualifierIds.has(row.teamId) && predictedThirdQualifierIds.has(row.teamId)) {
+            addEntry(entries, {
+              userId,
+              ruleCode: "group_third_qualification_hit",
+              points: 1,
+              explanation: `${teamName(row.teamId)} tercer clasificado desde el grupo ${group}`,
+              sourceRef: `group-third-qualified-${group}-${row.teamId}`,
             });
           }
 

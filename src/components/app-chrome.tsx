@@ -19,15 +19,15 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   const { ready, usingSupabase, user, completion, currentScorecard } = useAppContext();
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
+    <div className="app-shell flex min-h-screen flex-col text-white">
       {!usingSupabase ? (
         <div className="bg-amber-400 px-4 py-1.5 text-center text-xs font-bold text-black">
           Modo demo · los datos se guardan solo en este navegador (localStorage)
         </div>
       ) : null}
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-24 sm:px-6">
-        <header className="sticky top-0 z-40 bg-[#050505]/88 py-3 backdrop-blur">
-          <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+      <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#0d0d0d]/86 backdrop-blur">
+        <div className="mx-auto w-full max-w-5xl px-4 py-3 sm:px-6">
+          <div className="flex items-center justify-between gap-3">
             <Link href="/" className="flex min-w-0 items-center gap-3">
               <Image src="/logo.png" alt="" width={42} height={42} className="h-10 w-10 shrink-0 object-contain" priority />
               <div className="min-w-0">
@@ -99,8 +99,10 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
-        </header>
+        </div>
+      </header>
 
+      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-24 sm:px-6">
         <main className="flex-1 pt-4">{children}</main>
       </div>
     </div>

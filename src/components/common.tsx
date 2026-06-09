@@ -12,7 +12,7 @@ import {
   playerPhotoUrl,
   translateSlot,
 } from "@/lib/format";
-import { emptyPrediction, loserForMatch, resolveSlot } from "@/lib/prediction";
+import { emptyPrediction, resolveSlot } from "@/lib/prediction";
 import type {
   Match,
   Player,
@@ -972,7 +972,6 @@ export function PredictionSnapshot({
     safePrediction.extras.worldChampion ||
     safePrediction.bracket.winners["104"] ||
     "";
-  const runnerUp = champion ? loserForMatch(104, safePrediction) : "";
 
   return (
     <Card className="space-y-5">
@@ -1021,14 +1020,10 @@ export function PredictionSnapshot({
 
       {section === "summary" ? (
         <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <SummaryStat
               title="Campeón"
               value={champion ? <TeamBadge teamId={champion} /> : "Pendiente"}
-            />
-            <SummaryStat
-              title="Subcampeón"
-              value={runnerUp ? <TeamBadge teamId={runnerUp} /> : "Pendiente"}
             />
             <SummaryStat
               title="M. goleador"

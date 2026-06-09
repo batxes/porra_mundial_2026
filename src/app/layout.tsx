@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import { AppChrome } from "@/components/app-chrome";
+import { AppToaster } from "@/components/app-toaster";
 import { AppProvider } from "@/lib/app-context";
 import "./globals.css";
 
@@ -32,6 +33,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-[#050505] text-white">
         <AppProvider>
           <AppChrome>{children}</AppChrome>
+          <AppToaster />
         </AppProvider>
       </body>
     </html>

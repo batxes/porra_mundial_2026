@@ -595,6 +595,7 @@
             <h3>Puntos de torneo</h3>
             <div class="rule-grid">
               <div class="rule"><span>Equipo clasificado en grupos</span><strong>+2</strong></div>
+              <div class="rule"><span>Tercer clasificado acertado</span><strong>+1</strong></div>
               <div class="rule"><span>Orden exacto en grupo</span><strong>+3</strong></div>
               <div class="rule"><span>Equipo que avanza en eliminatoria</span><strong>+1</strong></div>
               <div class="rule"><span>Campeón del Mundial</span><strong>+5</strong></div>

@@ -2,14 +2,9 @@ import { data, extraPredictionFields, knockoutMatches, playersById, schedule, te
 import type { Match, Position, Prediction } from "@/lib/types";
 
 export function emptyPrediction(): Prediction {
-  const groups: Prediction["groups"] = {};
+  const groups = defaultGroupSelections();
 
-  data.teams.forEach((team) => {
-    groups[team.group] ||= {};
-    groups[team.group][team.id] = "";
-  });
-
-  return {
+  const prediction: Prediction = {
     groups,
     bracket: { thirdQualifiers: [], thirdSlots: {}, winners: {} },
     matchPredictions: {},
@@ -27,6 +22,9 @@ export function emptyPrediction(): Prediction {
     isDefinitive: false,
     updatedAt: null,
   };
+
+  prediction.bracket.thirdQualifiers = defaultThirdQualifierGroups(prediction);
+  return autoAssignThirdSlots(prediction);
 }
 
 export function normalizePrediction(prediction?: Partial<Prediction> | null): Prediction {
@@ -36,12 +34,12 @@ export function normalizePrediction(prediction?: Partial<Prediction> | null): Pr
   if (!extras.worldChampion) {
     extras.worldChampion = prediction?.bracket?.winners?.["104"] || "";
   }
-  return {
+  const normalized: Prediction = {
     ...initial,
     ...prediction,
-    groups: { ...initial.groups, ...(prediction?.groups || {}) },
+    groups: normalizeGroupSelections(prediction?.groups),
     bracket: {
-      thirdQualifiers: prediction?.bracket?.thirdQualifiers || [],
+      thirdQualifiers: prediction?.bracket?.thirdQualifiers?.length ? prediction.bracket.thirdQualifiers : initial.bracket.thirdQualifiers,
       thirdSlots: prediction?.bracket?.thirdSlots || {},
       winners: prediction?.bracket?.winners || {},
     },
@@ -50,6 +48,8 @@ export function normalizePrediction(prediction?: Partial<Prediction> | null): Pr
     xi: sanitizeXiForFormation(Array.isArray(prediction?.xi) ? prediction.xi : [], xiFormation),
     xiFormation,
   };
+
+  return autoAssignThirdSlots(normalized);
 }
 
 export function orderedGroupTeams(group: string, prediction: Prediction) {
@@ -65,13 +65,49 @@ export function orderedGroupTeams(group: string, prediction: Prediction) {
   return rows.map((row) => row.team);
 }
 
+function defaultGroupSelections() {
+  const groups: Prediction["groups"] = {};
+  const groupPositions: Record<string, number> = {};
+
+  data.teams.forEach((team) => {
+    groups[team.group] ||= {};
+    groupPositions[team.group] = (groupPositions[team.group] || 0) + 1;
+    groups[team.group][team.id] = String(groupPositions[team.group]);
+  });
+
+  return groups;
+}
+
+function normalizeGroupSelections(groups?: Prediction["groups"]) {
+  const normalized: Prediction["groups"] = {};
+
+  Object.keys(defaultGroupSelections()).forEach((group) => {
+    const positions = groups?.[group] || {};
+    const rows = data.teams
+      .filter((team) => team.group === group)
+      .map((team, fallbackIndex) => ({
+        team,
+        fallbackIndex,
+        position: Number(positions[team.id] || 99),
+      }))
+      .sort((a, b) => a.position - b.position || a.fallbackIndex - b.fallbackIndex);
+
+    normalized[group] = {};
+    rows.forEach(({ team }, index) => {
+      normalized[group][team.id] = String(index + 1);
+    });
+  });
+
+  return normalized;
+}
+
 export function setGroupOrder(prediction: Prediction, group: string, teamIds: string[]) {
   const next = structuredClone(prediction);
   next.groups[group] ||= {};
   teamIds.forEach((teamId, index) => {
     next.groups[group][teamId] = String(index + 1);
   });
-  return sanitizeBracket(next);
+  return sanitizeBracket(autoAssignThirdSlots(next));
 }
 
 export function moveGroupTeam(prediction: Prediction, group: string, teamId: string, direction: number) {
@@ -89,7 +125,15 @@ export function moveGroupTeam(prediction: Prediction, group: string, teamId: str
 }
 
 export function groupTeamAt(group: string, position: number, prediction: Prediction) {
-  return Object.entries(prediction.groups[group] || {}).find(([, value]) => String(value) === String(position))?.[0] || "";
+  return Object.entries(prediction.groups[group] || {}).find(([, value]) => String(value) === String(position))?.[0] || orderedGroupTeams(group, prediction)[position - 1]?.id || "";
+}
+
+function defaultThirdQualifierGroups(prediction: Prediction) {
+  const groups = data.teams
+    .map((team) => team.group)
+    .filter((group, index, list) => list.indexOf(group) === index && Boolean(prediction.groups[group]));
+
+  return groups.filter((group) => groupTeamAt(group, 3, prediction)).slice(0, 8);
 }
 
 export function scheduleUtc(match: Match) {

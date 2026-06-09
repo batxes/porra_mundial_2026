@@ -1,13 +1,14 @@
 "use client";
 
-import { type CSSProperties, useMemo, useState } from "react";
+import { type CSSProperties, type DragEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { toast } from "sonner";
 
 import { Card, KnockoutBracket, Notice, PlayerAvatar, SectionHeading, TeamBadge, TeamFlag, TeamPicker } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
-import { data, playersById, schedule, sections, teamsById, xiFormations } from "@/lib/data";
+import { data, extraPredictionFields, playersById, schedule, sections, teamsById, xiFormations } from "@/lib/data";
 import { translateSlot } from "@/lib/format";
-import { groupTeamAt, hasMatchStarted, hasTournamentStarted, isMatchPredictionComplete, isMatchVisibleForPrediction, orderedGroupTeams, resolveSlot, scheduleUtc } from "@/lib/prediction";
+import { groupTeamAt, hasMatchStarted, hasTournamentStarted, isMatchPredictionComplete, isMatchVisibleForPrediction, orderedGroupTeams, resolveSlot, scheduleUtc, xiCounts, xiRequirements } from "@/lib/prediction";
 import type { Match, Player, Position, Prediction } from "@/lib/types";
 
 type LineupRow = {
@@ -27,6 +28,11 @@ type ViewTransitionDocument = Document & {
   startViewTransition?: (callback: () => void) => { finished: Promise<void> };
 };
 
+type AutoSaveState = "idle" | "pending" | "saving" | "saved" | "error";
+type SectionId = (typeof sections)[number]["id"];
+type SectionStatus = "complete" | "pending";
+type SectionProgress = { done: number; status: SectionStatus; total: number };
+
 const positionLabels: Record<Position, string> = {
   POR: "Portero",
   DEF: "Defensa",
@@ -43,8 +49,8 @@ const positionTabs: Array<{ id: Position; label: string }> = [
 
 export function PredictionView() {
   const {
-    completion,
     prediction,
+    ready,
     replaceGroupOrder,
     replaceThirdQualifierOrder,
     savePrediction,
@@ -55,28 +61,114 @@ export function PredictionView() {
     toggleThirdQualifier,
     user,
   } = useAppContext();
-  const [section, setSection] = useState<(typeof sections)[number]["id"]>("extras");
-  const [message, setMessage] = useState("");
+  const [section, setSection] = useState<SectionId>("extras");
+  const [autoSaveState, setAutoSaveState] = useState<AutoSaveState>("idle");
+  const savedSignatureRef = useRef("");
+  const latestSignatureRef = useRef("");
+  const userKeyRef = useRef("");
+  const saveRunRef = useRef(0);
+  const autoSaveTimerRef = useRef<number | null>(null);
+  const hideSavedTimerRef = useRef<number | null>(null);
 
   const visibleMatches = useMemo(() => schedule.filter((match) => isMatchVisibleForPrediction(match, prediction)), [prediction]);
   const finalPhaseMatches = useMemo(() => schedule.filter((match) => match.number >= 73), []);
+  const sectionProgresses = useMemo(
+    () => getSectionProgresses(prediction, visibleMatches, finalPhaseMatches),
+    [finalPhaseMatches, prediction, visibleMatches],
+  );
   const tournamentLocked = hasTournamentStarted();
-  const wideSection = section === "knockout";
-
-  const persist = async () => {
-    const result = await savePrediction(false);
-    setMessage(result.message);
+  const userId = user?.id || "";
+  const changeSection = (nextSection: SectionId) => {
+    if (nextSection === section) return;
+    setSection(nextSection);
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
   };
+  const predictionSignature = useMemo(
+    () =>
+      JSON.stringify({
+        groups: prediction.groups,
+        bracket: prediction.bracket,
+        matchPredictions: prediction.matchPredictions,
+        extras: prediction.extras,
+        xi: prediction.xi,
+        xiFormation: prediction.xiFormation,
+        isDefinitive: prediction.isDefinitive,
+      }),
+    [prediction],
+  );
+
+  useEffect(() => {
+    latestSignatureRef.current = predictionSignature;
+  }, [predictionSignature]);
+
+  useEffect(() => {
+    if (!ready) return;
+
+    if (userKeyRef.current === userId) return;
+
+    userKeyRef.current = userId;
+    savedSignatureRef.current = predictionSignature;
+    setAutoSaveState("idle");
+  }, [prediction.updatedAt, predictionSignature, ready, userId]);
+
+  useEffect(() => {
+    if (!ready || !userId) return;
+    if (predictionSignature === savedSignatureRef.current) return;
+
+    if (hideSavedTimerRef.current) {
+      window.clearTimeout(hideSavedTimerRef.current);
+      hideSavedTimerRef.current = null;
+    }
+
+    setAutoSaveState("pending");
+    const timer = window.setTimeout(async () => {
+      autoSaveTimerRef.current = null;
+      const runId = saveRunRef.current + 1;
+      saveRunRef.current = runId;
+      const signatureToSave = predictionSignature;
+
+      setAutoSaveState("saving");
+      const result = await savePrediction(false);
+      if (saveRunRef.current !== runId) return;
+
+      if (!result.ok) {
+        setAutoSaveState("error");
+        toast.error("No se ha podido guardar", { description: result.message });
+        return;
+      }
+
+      savedSignatureRef.current = signatureToSave;
+      if (latestSignatureRef.current === signatureToSave) {
+        setAutoSaveState("saved");
+        hideSavedTimerRef.current = window.setTimeout(() => {
+          if (latestSignatureRef.current === signatureToSave) {
+            setAutoSaveState("idle");
+          }
+          hideSavedTimerRef.current = null;
+        }, 1800);
+      } else {
+        setAutoSaveState("pending");
+      }
+    }, 1200);
+    autoSaveTimerRef.current = timer;
+
+    return () => {
+      window.clearTimeout(timer);
+      if (autoSaveTimerRef.current === timer) {
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [predictionSignature, ready, savePrediction, userId]);
 
   return (
-    <div className={`mx-auto pb-28 ${wideSection ? "max-w-none" : "max-w-3xl"}`}>
+    <div className="mx-auto max-w-3xl pb-28">
       <SectionHeading eyebrow="Porra" title="Juega el Mundial" />
 
       <div className="space-y-4">
         {!user ? <Notice tone="warm">Puedes rellenar tu porra. Para guardarla necesitas entrar en Perfil.</Notice> : null}
         {tournamentLocked ? <Notice>Elecciones, once y grupos estan cerrados. Los resultados siguen abiertos hasta el inicio de cada partido.</Notice> : null}
 
-        <StepTabs section={section} onSectionChange={setSection} />
+        <StepTabs section={section} progresses={sectionProgresses} onSectionChange={changeSection} />
 
         <div className="min-h-[520px]">
           {section === "extras" ? (
@@ -118,55 +210,268 @@ export function PredictionView() {
               onScoreChange={setPredictionScore}
             />
           ) : null}
+
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#050505]/92 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div className="flex items-center justify-between gap-4 sm:block">
-            <p className="text-sm font-semibold text-white">{message || (prediction.updatedAt ? "Progreso guardado" : "Sin guardar")}</p>
-            <p className="text-xs text-zinc-500">Completado {completion}%</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void persist()}
-            className="rounded-lg bg-[#a7f600] px-5 py-3 text-sm font-black text-black transition hover:bg-[#c7ff43]"
-          >
-            Guardar progreso
-          </button>
-        </div>
-      </div>
+      <StepActionBar
+        autoSaveState={autoSaveState === "idle" ? null : autoSaveState}
+        section={section}
+        progresses={sectionProgresses}
+        onSectionChange={changeSection}
+      />
+    </div>
+  );
+}
+
+function getSectionProgresses(
+  prediction: Prediction,
+  visibleMatches: Match[],
+  finalPhaseMatches: Match[],
+): Record<SectionId, SectionProgress> {
+  const completedGroups = Object.values(prediction.groups).filter((group) => {
+    const positions = Object.values(group).filter(Boolean);
+    return positions.length === 4 && new Set(positions).size === 4;
+  }).length;
+  const thirdDone = Math.min(prediction.bracket.thirdQualifiers.length, 8);
+  const counts = xiCounts(prediction);
+  const requirements = xiRequirements(prediction.xiFormation);
+  const requiredPlayers = Object.values(requirements).reduce((total, count) => total + count, 0);
+  const selectedPlayers = Math.min(
+    requiredPlayers,
+    Object.entries(requirements).reduce((total, [position, limit]) => total + Math.min(counts[position as Position], limit), 0),
+  );
+  const visibleKnockoutMatches = finalPhaseMatches.filter((match) => isMatchVisibleForPrediction(match, prediction));
+  const knockoutDone = visibleKnockoutMatches.filter((match) => Boolean(prediction.bracket.winners[String(match.number)])).length;
+  const resultsDone = visibleMatches.filter((match) => isMatchPredictionComplete(match, prediction)).length;
+  const extrasDone = extraPredictionFields.filter((key) => Boolean(prediction.extras[key])).length;
+
+  const makeProgress = (done: number, total: number): SectionProgress => ({
+    done,
+    total,
+    status: total > 0 && done >= total ? "complete" : "pending",
+  });
+
+  return {
+    extras: makeProgress(extrasDone, extraPredictionFields.length),
+    xi: makeProgress(selectedPlayers, requiredPlayers),
+    groups: makeProgress(completedGroups + thirdDone, Object.keys(prediction.groups).length + 8),
+    knockout: makeProgress(knockoutDone, visibleKnockoutMatches.length),
+    results: makeProgress(resultsDone, visibleMatches.length),
+  };
+}
+
+function AutoSaveStatus({ state }: { state: AutoSaveState }) {
+  const config = {
+    idle: {
+      label: "Sin guardar",
+      className: "border-white/10 bg-white/[0.04] text-zinc-400",
+      icon: <span className="h-2 w-2 rounded-full bg-zinc-500" />,
+    },
+    pending: {
+      label: "Cambios pendientes",
+      className: "border-yellow-300/20 bg-yellow-300/10 text-yellow-100",
+      icon: <span className="h-2.5 w-2.5 rounded-full bg-yellow-300 shadow-[0_0_16px_rgba(253,224,71,0.35)] animate-pulse" />,
+    },
+    saving: {
+      label: "Guardando...",
+      className: "border-[#a7f600]/20 bg-[#a7f600]/10 text-zinc-100",
+      icon: <span className="h-4 w-4 rounded-full border-2 border-[#a7f600]/25 border-t-[#a7f600] animate-spin" />,
+    },
+    saved: {
+      label: "Guardado",
+      className: "border-[#a7f600]/30 bg-[#a7f600]/12 text-white",
+      icon: (
+        <span className="autosave-check-pop flex h-5 w-5 items-center justify-center rounded-full bg-[#a7f600] text-black shadow-[0_0_18px_rgba(167,246,0,0.35)]">
+          <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none">
+            <path d="M3.4 8.2 6.5 11.1 12.8 4.8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" />
+          </svg>
+        </span>
+      ),
+    },
+    error: {
+      label: "Error al guardar",
+      className: "border-rose-400/25 bg-rose-400/10 text-rose-100",
+      icon: <span className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-400 text-xs font-black text-black">!</span>,
+    },
+  } satisfies Record<AutoSaveState, { label: string; className: string; icon: ReactNode }>;
+  const current = config[state];
+
+  return (
+    <div
+      key={state}
+      aria-live="polite"
+      className={`autosave-status-pop inline-flex h-9 min-w-0 items-center gap-2 rounded-full border px-3 text-sm font-bold transition ${current.className}`}
+    >
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center">{current.icon}</span>
+      <span className="truncate">{current.label}</span>
     </div>
   );
 }
 
 function StepTabs({
   section,
+  progresses,
   onSectionChange,
 }: {
-  section: (typeof sections)[number]["id"];
-  onSectionChange: (section: (typeof sections)[number]["id"]) => void;
+  section: SectionId;
+  progresses: Record<SectionId, SectionProgress>;
+  onSectionChange: (section: SectionId) => void;
 }) {
   return (
-    <div className="sticky top-[102px] z-30 -mx-1 overflow-x-auto bg-[#050505]/88 px-1 py-2 backdrop-blur">
-      <div className="flex min-w-max gap-2">
-        {sections.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => onSectionChange(tab.id)}
-            className={`flex h-11 items-center gap-2 rounded-lg px-3 text-sm font-bold transition ${
-              section === tab.id ? "bg-white text-black" : "bg-white/[0.08] text-zinc-300 hover:bg-white/[0.12]"
-            }`}
-          >
-            <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] ${section === tab.id ? "bg-black text-white" : "bg-white/10 text-zinc-400"}`}>
-              {tab.step}
-            </span>
-            {tab.label}
-          </button>
-        ))}
+    <div className="sticky top-[102px] z-30 -mx-1 bg-[#090909]/82 py-2 backdrop-blur">
+      <div className="relative left-1/2 w-[calc(100vw-2rem)] max-w-5xl -translate-x-1/2 sm:w-[calc(100vw-3rem)]">
+        <div className="grid grid-cols-5 gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1">
+          {sections.map((tab) => {
+            const active = section === tab.id;
+            const complete = progresses[tab.id].status === "complete";
+
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => onSectionChange(tab.id)}
+                className={`relative flex h-14 min-w-0 items-center justify-center gap-2 rounded-lg px-1.5 text-xs font-bold transition sm:px-2 sm:text-sm ${
+                  active
+                    ? "bg-white text-black shadow-[0_0_0_1px_rgba(255,255,255,0.22)]"
+                    : complete
+                      ? "bg-[#a7f600]/10 text-zinc-100 hover:bg-[#a7f600]/14"
+                      : "bg-white/[0.035] text-zinc-300 hover:bg-white/[0.08] hover:text-white"
+                }`}
+              >
+                <span
+                  className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] ${
+                    active ? "bg-black text-white" : complete ? "bg-[#a7f600]/18 text-[#a7f600]" : "bg-white/10 text-zinc-400"
+                  }`}
+                >
+                  {tab.step}
+                </span>
+                <span className="min-w-0 truncate">{tab.label}</span>
+                <StepStatusBadge progress={progresses[tab.id]} active={active} />
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
+  );
+}
+
+function StepActionBar({
+  autoSaveState,
+  section,
+  progresses,
+  onSectionChange,
+}: {
+  autoSaveState: AutoSaveState | null;
+  section: SectionId;
+  progresses: Record<SectionId, SectionProgress>;
+  onSectionChange: (section: SectionId) => void;
+}) {
+  const currentIndex = sections.findIndex((tab) => tab.id === section);
+  const previous = sections[currentIndex - 1];
+  const next = sections[currentIndex + 1];
+  const progress = progresses[section];
+
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 px-4">
+      <div className="pointer-events-auto mx-auto flex max-w-5xl flex-col gap-2 rounded-2xl border border-white/10 bg-[#101010]/94 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.42)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2">
+          {autoSaveState ? <AutoSaveStatus state={autoSaveState} /> : null}
+          <SectionProgressStatus progress={progress} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:items-center">
+          <button
+            type="button"
+            disabled={!previous}
+            onClick={() => previous && onSectionChange(previous.id)}
+            className="h-10 rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+          >
+            Anterior
+          </button>
+
+          {next ? (
+            <button
+              type="button"
+              onClick={() => onSectionChange(next.id)}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-white/12 bg-white/[0.10] px-3 text-sm font-semibold text-white transition hover:border-white/18 hover:bg-white/[0.14]"
+            >
+              <span>Siguiente</span>
+              <span className="hidden text-zinc-400 md:inline">: {next.label}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="inline-flex h-10 cursor-not-allowed items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-zinc-600"
+            >
+              Siguiente
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectionProgressStatus({ progress }: { progress: SectionProgress }) {
+  const complete = progress.status === "complete";
+
+  return (
+    <div
+      className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-bold ${
+        complete ? "border-[#a7f600]/30 bg-[#a7f600]/12 text-[#a7f600]" : "border-yellow-300/25 bg-yellow-300/10 text-yellow-100"
+      }`}
+      aria-label={complete ? "Seccion completa" : `Incompleto ${progress.done} de ${progress.total}`}
+      title={complete ? "Seccion completa" : `Incompleto ${progress.done}/${progress.total}`}
+    >
+      {complete ? (
+        <>
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#a7f600] text-black">
+            <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none">
+              <path d="M3.4 8.2 6.5 11.1 12.8 4.8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" />
+            </svg>
+          </span>
+          <span>Completo</span>
+        </>
+      ) : (
+        <>
+          <span className="h-2 w-2 rounded-full bg-yellow-300 shadow-[0_0_14px_rgba(253,224,71,0.28)]" />
+          <span>
+            Incompleto {progress.done}/{progress.total}
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
+function StepStatusBadge({ progress, active }: { progress: SectionProgress; active: boolean }) {
+  const complete = progress.status === "complete";
+
+  return (
+    <span
+      aria-label={complete ? "Completa" : `${progress.done} de ${progress.total}`}
+      title={complete ? "Completa" : `${progress.done}/${progress.total}`}
+      className={`inline-flex h-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
+        complete
+          ? active
+            ? "bg-[#a7f600] text-black"
+            : "bg-[#a7f600]/14 text-[#a7f600]"
+          : active
+            ? "bg-yellow-300 text-black"
+            : "bg-yellow-300/18 text-yellow-200"
+      }`}
+    >
+      {complete ? (
+        <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3 w-3" fill="none">
+          <path d="M3.4 8.2 6.5 11.1 12.8 4.8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" />
+        </svg>
+      ) : (
+        `${progress.done}/${progress.total}`
+      )}
+    </span>
   );
 }
 
@@ -441,6 +746,30 @@ function ExtraPlayerPickerModal({
   );
 }
 
+function setDragPreview(event: DragEvent<HTMLElement>) {
+  const element = event.currentTarget;
+  const preview = element.cloneNode(true) as HTMLElement;
+  const rect = element.getBoundingClientRect();
+
+  preview.style.width = `${rect.width}px`;
+  preview.style.position = "fixed";
+  preview.style.top = "-1000px";
+  preview.style.left = "-1000px";
+  preview.style.pointerEvents = "none";
+  preview.style.opacity = "1";
+  preview.style.transform = "none";
+  preview.style.boxShadow = "0 16px 40px rgba(0, 0, 0, 0.35)";
+  preview.style.border = "1px solid rgba(167, 246, 0, 0.75)";
+  preview.style.background = "#202020";
+  preview.style.zIndex = "9999";
+
+  document.body.appendChild(preview);
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", "");
+  event.dataTransfer.setDragImage(preview, rect.width / 2, rect.height / 2);
+  window.setTimeout(() => preview.remove(), 0);
+}
+
 function GroupStage({
   prediction,
   disabled,
@@ -455,7 +784,9 @@ function GroupStage({
   onReplaceThirdQualifierOrder: (groups: string[]) => void;
 }) {
   const [draggedGroupTeam, setDraggedGroupTeam] = useState<{ group: string; teamId: string } | null>(null);
+  const [dropGroupTeam, setDropGroupTeam] = useState<{ group: string; teamId: string } | null>(null);
   const [draggedThirdGroup, setDraggedThirdGroup] = useState<string | null>(null);
+  const [dropThirdGroup, setDropThirdGroup] = useState<string | null>(null);
   const groups = Object.keys(prediction.groups);
   const thirdRows = groups.map((group) => ({
     group,
@@ -495,6 +826,8 @@ function GroupStage({
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-5 text-zinc-400">
           <span>Equipo que pasa acertado:</span>
           <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">+2 pts</span>
+          <span>Tercer clasificado acertado:</span>
+          <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">+1 pt</span>
           <span>Orden exacto en el grupo:</span>
           <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">+3 pts</span>
         </p>
@@ -510,27 +843,50 @@ function GroupStage({
                 <span className="text-sm font-semibold text-zinc-500">{Object.values(prediction.groups[group]).filter(Boolean).length}/4</span>
               </div>
               <div className="space-y-2">
-                {ordered.map((team, index) => (
-                  <div
-                    key={team.id}
-                    draggable={!disabled}
-                    onDragStart={() => setDraggedGroupTeam({ group, teamId: team.id })}
-                    onDragOver={(event) => {
-                      if (!disabled) event.preventDefault();
-                    }}
-                    onDrop={() => {
-                      if (!disabled) reorderGroupTeam(group, team.id);
-                    }}
-                    onDragEnd={() => setDraggedGroupTeam(null)}
-                    className={`grid cursor-grab grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-white/[0.06] px-3 py-2 active:cursor-grabbing ${
-                      draggedGroupTeam?.teamId === team.id ? "opacity-45" : ""
-                    }`}
-                  >
-                    <span className="text-sm font-black text-[#a7f600]">{index + 1}</span>
-                    <TeamBadge teamId={team.id} />
-                    <span className="text-lg font-black text-zinc-500">☰</span>
-                  </div>
-                ))}
+                {ordered.map((team, index) => {
+                  const isDragged = draggedGroupTeam?.group === group && draggedGroupTeam.teamId === team.id;
+                  const isDropTarget = dropGroupTeam?.group === group && dropGroupTeam.teamId === team.id && !isDragged;
+
+                  return (
+                    <div
+                      key={team.id}
+                      draggable={!disabled}
+                      onDragStart={(event) => {
+                        setDraggedGroupTeam({ group, teamId: team.id });
+                        setDragPreview(event);
+                      }}
+                      onDragEnter={() => {
+                        if (!disabled && draggedGroupTeam?.group === group) setDropGroupTeam({ group, teamId: team.id });
+                      }}
+                      onDragOver={(event) => {
+                        if (!disabled && draggedGroupTeam?.group === group) {
+                          event.preventDefault();
+                          setDropGroupTeam({ group, teamId: team.id });
+                        }
+                      }}
+                      onDragLeave={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropGroupTeam(null);
+                      }}
+                      onDrop={() => {
+                        if (!disabled) reorderGroupTeam(group, team.id);
+                        setDropGroupTeam(null);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedGroupTeam(null);
+                        setDropGroupTeam(null);
+                      }}
+                      className={`grid cursor-grab grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 transition active:cursor-grabbing ${
+                        isDropTarget
+                          ? "border-[#a7f600] bg-[#a7f600]/15 shadow-[0_0_0_1px_rgba(167,246,0,0.35),0_0_24px_rgba(167,246,0,0.12)]"
+                          : "border-white/10 bg-white/[0.06]"
+                      } ${isDragged ? "opacity-60" : ""}`}
+                    >
+                      <span className="text-sm font-black text-[#a7f600]">{index + 1}</span>
+                      <TeamBadge teamId={team.id} />
+                      <span className="text-lg font-black text-zinc-500">☰</span>
+                    </div>
+                  );
+                })}
               </div>
             </Card>
           );
@@ -541,7 +897,7 @@ function GroupStage({
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h3 className="text-xl font-black tracking-tight text-white">Terceros clasificados</h3>
-            <p className="text-sm text-zinc-400">Elige exactamente 8 terceros. Puedes arrastrar los elegidos para cambiar su prioridad de asignacion.</p>
+            <p className="text-sm text-zinc-400">Cargamos 8 terceros por defecto. Puedes cambiarlos y arrastrar los elegidos para ajustar su prioridad de asignacion.</p>
           </div>
           <span className={`text-sm font-black ${prediction.bracket.thirdQualifiers.length === 8 ? "text-[#a7f600]" : "text-zinc-500"}`}>
             {prediction.bracket.thirdQualifiers.length}/8
@@ -549,34 +905,57 @@ function GroupStage({
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2">
-          {thirdRows.map(({ group, teamId, selected }) => (
-            <button
-              key={group}
-              type="button"
-              disabled={disabled || !teamId}
-              draggable={!disabled && selected}
-              onDragStart={() => setDraggedThirdGroup(group)}
-              onDragOver={(event) => {
-                if (!disabled && selected) event.preventDefault();
-              }}
-              onDrop={() => {
-                if (!disabled) reorderThirdQualifier(group);
-              }}
-              onDragEnd={() => setDraggedThirdGroup(null)}
-              onClick={() => onToggleThirdQualifier(group)}
-              className={`grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${
-                selected
-                  ? "border-[#a7f600]/70 bg-[#a7f600]/12"
-                  : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
-              } disabled:cursor-not-allowed disabled:opacity-40 ${draggedThirdGroup === group ? "opacity-45" : ""}`}
-            >
-              <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black ${selected ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-400"}`}>
-                {group}
-              </span>
-              {teamId ? <TeamBadge teamId={teamId} /> : <span className="text-sm text-zinc-500">Ordena el grupo primero</span>}
-              <span className="text-xs font-black text-zinc-500">{selected ? "Pasa" : "Elegir"}</span>
-            </button>
-          ))}
+          {thirdRows.map(({ group, teamId, selected }) => {
+            const isDragged = draggedThirdGroup === group;
+            const isDropTarget = dropThirdGroup === group && draggedThirdGroup !== group && selected;
+
+            return (
+              <button
+                key={group}
+                type="button"
+                disabled={disabled || !teamId}
+                draggable={!disabled && selected}
+                onDragStart={(event) => {
+                  setDraggedThirdGroup(group);
+                  setDragPreview(event);
+                }}
+                onDragEnter={() => {
+                  if (!disabled && selected && draggedThirdGroup) setDropThirdGroup(group);
+                }}
+                onDragOver={(event) => {
+                  if (!disabled && selected && draggedThirdGroup) {
+                    event.preventDefault();
+                    setDropThirdGroup(group);
+                  }
+                }}
+                onDragLeave={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropThirdGroup(null);
+                }}
+                onDrop={() => {
+                  if (!disabled) reorderThirdQualifier(group);
+                  setDropThirdGroup(null);
+                }}
+                onDragEnd={() => {
+                  setDraggedThirdGroup(null);
+                  setDropThirdGroup(null);
+                }}
+                onClick={() => onToggleThirdQualifier(group)}
+                className={`grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${
+                  isDropTarget
+                    ? "border-[#a7f600] bg-[#a7f600]/18 shadow-[0_0_0_1px_rgba(167,246,0,0.35),0_0_24px_rgba(167,246,0,0.12)]"
+                    : selected
+                      ? "border-[#a7f600]/70 bg-[#a7f600]/12"
+                      : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+                } disabled:cursor-not-allowed disabled:opacity-40 ${isDragged ? "opacity-35" : ""}`}
+              >
+                <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black ${selected ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-400"}`}>
+                  {group}
+                </span>
+                {teamId ? <TeamBadge teamId={teamId} /> : <span className="text-sm text-zinc-500">Ordena el grupo primero</span>}
+                <span className="text-xs font-black text-zinc-500">{selected ? "Pasa" : "Elegir"}</span>
+              </button>
+            );
+          })}
         </div>
 
         {prediction.bracket.thirdQualifiers.length === 8 ? (
