@@ -30,9 +30,9 @@ body {
   overflow-x: clip;
   position: relative;
   background:
-    linear-gradient(128deg, rgba(167, 246, 0, 0.11) 0%, rgba(167, 246, 0, 0.045) 16%, transparent 38%),
-    linear-gradient(236deg, rgba(41, 214, 177, 0.08) 0%, transparent 34%),
-    linear-gradient(180deg, #0b0b0b 0%, #070707 44%, #050505 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.038) 0%, transparent 30%),
+    linear-gradient(145deg, rgba(76, 86, 98, 0.08) 0%, transparent 42%),
+    linear-gradient(180deg, #0b0b0b 0%, #070707 48%, #050505 100%);
 }
 
 .app-shell::before {
