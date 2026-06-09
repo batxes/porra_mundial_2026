@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TRILIPORRA",
-  description: "Porra del Mundial 2026 refactorizada con Next.js, Tailwind y soporte para API externa.",
+  title: "Triliporra",
+  description: "Porra del Mundial 2026 para jugar con amigos.",
 };
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
       lang="es"
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-950 text-white">
+      <body className="min-h-full flex flex-col bg-[#050505] text-white">
         <AppProvider>
           <AppChrome>{children}</AppChrome>
         </AppProvider>

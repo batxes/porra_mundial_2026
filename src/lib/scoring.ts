@@ -1,6 +1,7 @@
 import type { AdminResults, Match, PorraData, Prediction, Scorecard, ScoreEntry } from "@/lib/types";
 
 const ruleMeta = {
+  match_outcome_hit: { label: "Eleccion acertada", category: "Marcadores" },
   match_exact_score: { label: "Marcador exacto", category: "Marcadores" },
   player_goal: { label: "Gol de tu once", category: "Tu once" },
   player_penalty_goal: { label: "Penalti marcado", category: "Tu once" },
@@ -9,9 +10,14 @@ const ruleMeta = {
   player_penalty_miss: { label: "Penalti fallado", category: "Tu once" },
   player_red_card: { label: "Tarjeta roja", category: "Tu once" },
   team_progression_hit: { label: "Acierto de fase", category: "Grupos y cuadro" },
-  tournament_champion_hit: { label: "Campeón del Mundial", category: "Extras finales" },
-  tournament_mvp_hit: { label: "MVP del Mundial", category: "Extras finales" },
-  tournament_top_scorer_hit: { label: "Máximo goleador", category: "Extras finales" },
+  group_qualification_hit: { label: "Equipo clasificado en grupos", category: "Grupos y cuadro" },
+  group_position_hit: { label: "Orden exacto en grupo", category: "Grupos y cuadro" },
+  tournament_champion_hit: { label: "Campeon del Mundial", category: "Tus elecciones" },
+  tournament_highest_scoring_team_hit: { label: "Equipo mas goleador", category: "Tus elecciones" },
+  tournament_most_conceded_team_hit: { label: "Equipo mas goleado", category: "Tus elecciones" },
+  tournament_most_reds_team_hit: { label: "Equipo con mas rojas", category: "Tus elecciones" },
+  tournament_mvp_hit: { label: "MVP del Mundial", category: "Tus elecciones" },
+  tournament_top_scorer_hit: { label: "Maximo goleador", category: "Tus elecciones" },
 } as const;
 
 const eventRules = {
@@ -27,6 +33,13 @@ const eventRules = {
   "penalti fallado": { ruleCode: "player_penalty_miss", points: -1 },
   red_card: { ruleCode: "player_red_card", points: -2 },
   roja: { ruleCode: "player_red_card", points: -2 },
+} as const;
+
+const goalPointsByPosition = {
+  DEL: 2,
+  MED: 6,
+  DEF: 11,
+  POR: 35,
 } as const;
 
 export function createEngine({ data, schedule }: { data: PorraData; schedule: Match[] }) {
@@ -49,6 +62,18 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
 
   function playerName(playerId: string) {
     return players.get(playerId)?.name || "Jugador";
+  }
+
+  function matchOutcome(homeScore: number, awayScore: number) {
+    if (homeScore > awayScore) return "home";
+    if (awayScore > homeScore) return "away";
+    return "draw";
+  }
+
+  function pointsForEvent(playerId: string, rule: (typeof eventRules)[keyof typeof eventRules]) {
+    if (rule.ruleCode !== "player_goal") return rule.points;
+    const position = players.get(playerId)?.position;
+    return position ? goalPointsByPosition[position] : rule.points;
   }
 
   function actualTeamId(match: Match, result: AdminResults[string] | undefined, side: "home" | "away") {
@@ -130,6 +155,24 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
     );
   }
 
+  function predictedGroupTeamAt(prediction: Prediction, group: string, position: number) {
+    return Object.entries(prediction.groups?.[group] || {}).find(([, value]) => String(value) === String(position))?.[0] || "";
+  }
+
+  function calculateThirdQualifierIds(groupTables: ReturnType<typeof calculateGroupPositions>) {
+    const tables = Object.values(groupTables);
+    if (!tables.length || tables.some((table) => !table.complete)) return new Set<string>();
+
+    return new Set(
+      tables
+        .map((table) => table.positions.find((row) => row.position === 3))
+        .filter((row): row is NonNullable<typeof row> => Boolean(row))
+        .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || teamName(a.teamId).localeCompare(teamName(b.teamId)))
+        .slice(0, 8)
+        .map((row) => row.teamId),
+    );
+  }
+
   function calculateFinalExtras(adminResults: AdminResults) {
     const completed = schedule.every((match) => isScored(adminResults[String(match.number)]));
     if (!completed) return null;
@@ -193,8 +236,26 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
 
       const homeScore = parseScore(result?.homeScore) ?? 0;
       const awayScore = parseScore(result?.awayScore) ?? 0;
+      const forecastHomeScore = parseScore(forecast.homeScore);
+      const forecastAwayScore = parseScore(forecast.awayScore);
 
-      if (parseScore(forecast.homeScore) === homeScore && parseScore(forecast.awayScore) === awayScore) {
+      if (
+        forecastHomeScore !== null &&
+        forecastAwayScore !== null &&
+        matchOutcome(forecastHomeScore, forecastAwayScore) === matchOutcome(homeScore, awayScore)
+      ) {
+        addEntry(entries, {
+          userId,
+          matchId: `wc26-${match.number}`,
+          matchNumber: match.number,
+          ruleCode: "match_outcome_hit",
+          points: 1,
+          explanation: `Eleccion acertada partido ${match.number}`,
+          sourceRef: `match-outcome-${match.number}`,
+        });
+      }
+
+      if (forecastHomeScore === homeScore && forecastAwayScore === awayScore) {
         addEntry(entries, {
           userId,
           matchId: `wc26-${match.number}`,
@@ -219,34 +280,64 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
             sourceRef: `winner-${match.number}`,
           });
         }
-        if (match.number === 104 && actualWinner && prediction.bracket?.winners?.["104"] === actualWinner) {
+        const predictedChampion = prediction.extras?.worldChampion || prediction.bracket?.winners?.["104"];
+        if (match.number === 104 && actualWinner && predictedChampion === actualWinner) {
           addEntry(entries, {
             userId,
             matchId: `wc26-${match.number}`,
             matchNumber: match.number,
             ruleCode: "tournament_champion_hit",
-            points: 5,
-            explanation: `${teamName(actualWinner)} campeón del Mundial`,
+            points: 25,
+            explanation: `${teamName(actualWinner)} campeon del Mundial`,
             sourceRef: "champion",
           });
         }
       }
     });
 
-    Object.entries(calculateGroupPositions(adminResults)).forEach(([group, table]) => {
-      if (!table.complete) return;
-      table.positions.forEach((row) => {
-        if (String(prediction.groups?.[group]?.[row.teamId]) !== String(row.position)) return;
-        addEntry(entries, {
-          userId,
-          ruleCode: "team_progression_hit",
-          points: 1,
-          explanation: `${teamName(row.teamId)} ${row.position}º en el grupo ${group}`,
-          sourceRef: `group-${group}-${row.teamId}`,
-        });
+    const groupTables = calculateGroupPositions(adminResults);
+    const thirdQualifierIds = calculateThirdQualifierIds(groupTables);
+    const predictedQualifiedIds = new Set<string>();
+
+    Object.keys(prediction.groups || {}).forEach((group) => {
+      [1, 2].forEach((position) => {
+        const teamId = predictedGroupTeamAt(prediction, group, position);
+        if (teamId) predictedQualifiedIds.add(teamId);
       });
+
+      if (prediction.bracket?.thirdQualifiers?.includes(group)) {
+        const teamId = predictedGroupTeamAt(prediction, group, 3);
+        if (teamId) predictedQualifiedIds.add(teamId);
+      }
     });
 
+    Object.entries(groupTables).forEach(([group, table]) => {
+      if (!table.complete) return;
+      table.positions.forEach((row) => {
+        const predictedPosition = Number(prediction.groups?.[group]?.[row.teamId]);
+        const actualQualified = row.position <= 2 || thirdQualifierIds.has(row.teamId);
+
+        if (actualQualified && predictedQualifiedIds.has(row.teamId)) {
+          addEntry(entries, {
+            userId,
+            ruleCode: "group_qualification_hit",
+            points: 2,
+            explanation: `${teamName(row.teamId)} clasificado desde el grupo ${group}`,
+            sourceRef: `group-qualified-${group}-${row.teamId}`,
+          });
+        }
+
+        if (predictedPosition === row.position) {
+          addEntry(entries, {
+            userId,
+            ruleCode: "group_position_hit",
+            points: 3,
+            explanation: `${teamName(row.teamId)} ${row.position}º en el grupo ${group}`,
+            sourceRef: `group-position-${group}-${row.teamId}`,
+          });
+        }
+      });
+    });
     const selectedPlayers = new Set(prediction.xi || []);
     Object.entries(adminResults).forEach(([matchNumber, result]) => {
       (result.events || []).forEach((event, index) => {
@@ -254,12 +345,13 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
         if (!selectedPlayers.has(playerId)) return;
         const rule = eventRules[String(event.type) as keyof typeof eventRules];
         if (!rule) return;
+        const points = pointsForEvent(playerId, rule);
         addEntry(entries, {
           userId,
           matchId: `wc26-${matchNumber}`,
           matchNumber: Number(matchNumber),
           ruleCode: rule.ruleCode,
-          points: rule.points,
+          points,
           explanation: `${playerName(playerId)} · ${ruleMeta[rule.ruleCode].label} en el partido ${matchNumber}`,
           sourceRef: event.id || `event-${matchNumber}-${index}`,
         });
@@ -268,9 +360,27 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
 
     const extras = calculateFinalExtras(adminResults);
     if (extras) {
+      const teamChecks = [
+        ["highestScoringTeam", "highestScoringTeams", "tournament_highest_scoring_team_hit", 10, "Equipo mas goleador"],
+        ["mostConcededTeam", "mostConcededTeams", "tournament_most_conceded_team_hit", 10, "Equipo mas goleado"],
+        ["mostRedsTeam", "mostRedsTeams", "tournament_most_reds_team_hit", 10, "Equipo con mas rojas"],
+      ] as const;
+
+      teamChecks.forEach(([predictionKey, leadersKey, ruleCode, points, label]) => {
+        const id = prediction.extras?.[predictionKey];
+        if (!id || !extras[leadersKey].has(id)) return;
+        addEntry(entries, {
+          userId,
+          ruleCode,
+          points,
+          explanation: `${teamName(id)} - ${label}`,
+          sourceRef: predictionKey,
+        });
+      });
+
       const specialChecks = [
-        ["topScorer", "topScorers", "tournament_top_scorer_hit", 5, "Máximo goleador del Mundial", playerName],
-        ["mvp", "mvps", "tournament_mvp_hit", 5, "MVP del Mundial", playerName],
+        ["topScorer", "topScorers", "tournament_top_scorer_hit", 20, "Maximo goleador del Mundial", playerName],
+        ["mvp", "mvps", "tournament_mvp_hit", 20, "MVP del Mundial", playerName],
       ] as const;
 
       specialChecks.forEach(([predictionKey, leadersKey, ruleCode, points, label, formatter]) => {

@@ -51,6 +51,7 @@ export type PredictionMatch = {
 };
 
 export type PredictionExtras = {
+  worldChampion: string;
   highestScoringTeam: string;
   topScorer: string;
   mostConcededTeam: string;

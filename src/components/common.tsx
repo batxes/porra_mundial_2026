@@ -17,7 +17,7 @@ export function Card({
   className?: string;
 }) {
   return (
-    <article className={`rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 ${className}`}>
+    <article className={`rounded-lg border border-white/10 bg-[#151515] p-5 shadow-lg shadow-black/20 ${className}`}>
       {children}
     </article>
   );
@@ -35,11 +35,11 @@ export function SectionHeading({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-300/80">{eyebrow}</p>
-        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{title}</h1>
-        {description ? <p className="max-w-3xl text-sm text-slate-300 sm:text-base">{description}</p> : null}
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#a7f600]">{eyebrow}</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{title}</h1>
+        {description ? <p className="max-w-3xl text-sm text-zinc-400 sm:text-base">{description}</p> : null}
       </div>
       {actions}
     </div>
@@ -81,7 +81,7 @@ export function PlayerAvatar({ player, className = "" }: { player: Player; class
 
   return (
     <span
-      className={`inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-slate-950/70 text-sm font-bold text-cyan-100 ${className}`}
+      className={`inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/15 bg-zinc-900 text-sm font-bold text-lime-100 ${className}`}
     >
       {photo ? (
         <Image className="h-full w-full object-cover" src={photo} alt="" width={48} height={48} unoptimized />
@@ -97,33 +97,35 @@ export function TeamPicker({
   value,
   disabled,
   placeholder = "Elige un equipo",
+  controlClassName = "",
   onChange,
 }: {
   label: string;
   value: string;
   disabled?: boolean;
   placeholder?: string;
+  controlClassName?: string;
   onChange: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const selected = value ? teamsById.get(value) : null;
 
   return (
-    <div className="space-y-2">
-      <span className="text-sm text-slate-300">{label}</span>
-      <div className="relative">
+    <div>
+      <span className="text-sm text-zinc-300">{label}</span>
+      <div className={`relative ${controlClassName}`}>
         <button
           type="button"
           disabled={disabled}
           onClick={() => setOpen((current) => !current)}
-          className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-left text-white disabled:opacity-40"
+          className="flex w-full items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#0f0f0f] px-4 py-3 text-left text-white transition hover:border-white/20 disabled:opacity-40"
         >
-          {selected ? <TeamBadge teamId={selected.id} /> : <span className="text-sm text-slate-400">{placeholder}</span>}
-          <span className="text-xs text-slate-500">{open ? "▲" : "▼"}</span>
+          {selected ? <TeamBadge teamId={selected.id} /> : <span className="text-sm text-zinc-500">{placeholder}</span>}
+          <span className="text-xs text-zinc-500">{open ? "▲" : "▼"}</span>
         </button>
 
         {open && !disabled ? (
-          <div className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl shadow-black/30 backdrop-blur">
+          <div className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-lg border border-white/10 bg-[#111] p-2 shadow-2xl shadow-black/30 backdrop-blur">
             <button
               type="button"
               onClick={() => {
@@ -160,7 +162,7 @@ export function Avatar({ name, avatarUrl, className = "" }: { name: string; avat
   if (avatarUrl && !avatarUrl.startsWith("preset:")) {
     return (
       <span
-        className={`inline-flex h-12 w-12 rounded-2xl border border-white/20 bg-cover bg-center ${className}`}
+        className={`inline-flex h-12 w-12 rounded-lg border border-white/20 bg-cover bg-center ${className}`}
         style={{ backgroundImage: `url("${avatarUrl}")` }}
       />
     );
@@ -176,7 +178,7 @@ export function Avatar({ name, avatarUrl, className = "" }: { name: string; avat
 
   return (
     <span
-      className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br ${
+      className={`inline-flex h-12 w-12 items-center justify-center rounded-lg border border-white/15 bg-gradient-to-br ${
         tones[preset] || "from-cyan-500 to-blue-500"
       } text-sm font-bold text-slate-950 ${className}`}
     >
@@ -192,7 +194,7 @@ export function Notice({ children, tone = "default" }: { children: React.ReactNo
     danger: "border-rose-400/20 bg-rose-400/10 text-rose-100",
   };
 
-  return <div className={`rounded-2xl border px-4 py-3 text-sm ${toneClasses[tone]}`}>{children}</div>;
+  return <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses[tone]}`}>{children}</div>;
 }
 
 export function ScoreBreakdown({ scorecard, title }: { scorecard: Scorecard; title: string }) {
@@ -203,7 +205,7 @@ export function ScoreBreakdown({ scorecard, title }: { scorecard: Scorecard; tit
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Detalle</p>
           <h3 className="text-xl font-semibold text-white">{title}</h3>
         </div>
-        <div className="rounded-2xl bg-white/10 px-4 py-2 text-right">
+        <div className="rounded-lg bg-white/10 px-4 py-2 text-right">
           <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Total</p>
           <p className="text-2xl font-bold text-white">{scorecard.total}</p>
         </div>
@@ -212,10 +214,10 @@ export function ScoreBreakdown({ scorecard, title }: { scorecard: Scorecard; tit
       {scorecard.categories.length ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {scorecard.categories.map((category) => (
-            <div key={category.label} className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+            <div key={category.label} className="rounded-lg border border-white/10 bg-[#0f0f0f] p-4">
               <div className="mb-3 flex items-center justify-between gap-4">
                 <h4 className="font-semibold text-white">{category.label}</h4>
-                <span className="text-sm font-semibold text-cyan-300">{category.total} pts</span>
+                <span className="text-sm font-semibold text-[#a7f600]">{category.total} pts</span>
               </div>
               <div className="space-y-2 text-sm">
                 {category.entries.map((entry) => (
@@ -246,7 +248,7 @@ function GroupSummary({ prediction }: { prediction: Prediction }) {
           .sort((a, b) => Number(a[1]) - Number(b[1]));
 
         return (
-          <div key={group} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div key={group} className="rounded-lg border border-white/10 bg-white/5 p-4">
             <div className="mb-3 flex items-center justify-between">
               <h4 className="font-semibold text-white">Grupo {group}</h4>
               <span className="text-xs text-slate-400">{rows.length}/4</span>
@@ -279,16 +281,16 @@ function KnockoutSummary({ prediction, matches }: { prediction: Prediction; matc
         const winner = prediction.bracket.winners[String(match.number)] || "";
 
         return (
-          <div key={match.number} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div key={match.number} className="rounded-lg border border-white/10 bg-white/5 p-4">
             <div className="mb-3 flex items-center justify-between text-sm text-slate-400">
               <span>Partido {match.number}</span>
               <span>{match.stage}</span>
             </div>
             <div className="space-y-2">
-              <div className={`rounded-xl px-3 py-2 ${winner === home ? "bg-cyan-400/10" : "bg-slate-950/40"}`}>
+              <div className={`rounded-md px-3 py-2 ${winner === home ? "bg-lime-300/10" : "bg-[#0f0f0f]"}`}>
                 <TeamBadge teamId={home} fallback={translateSlot(match.home)} />
               </div>
-              <div className={`rounded-xl px-3 py-2 ${winner === away ? "bg-cyan-400/10" : "bg-slate-950/40"}`}>
+              <div className={`rounded-md px-3 py-2 ${winner === away ? "bg-lime-300/10" : "bg-[#0f0f0f]"}`}>
                 <TeamBadge teamId={away} fallback={translateSlot(match.away)} />
               </div>
             </div>
@@ -313,7 +315,7 @@ export function PredictionSnapshot({
   const safePrediction = prediction || emptyPrediction();
   const [section, setSection] = useState<"summary" | "groups" | "knockout">("summary");
 
-  const champion = safePrediction.bracket.winners["104"] || "";
+  const champion = safePrediction.extras.worldChampion || safePrediction.bracket.winners["104"] || "";
   const runnerUp = champion ? loserForMatch(104, safePrediction) : "";
 
   return (
@@ -334,21 +336,21 @@ export function PredictionSnapshot({
         <button
           type="button"
           onClick={() => setSection("summary")}
-          className={`rounded-full px-4 py-2 text-sm ${section === "summary" ? "bg-cyan-400 text-slate-950" : "bg-white/10 text-slate-200"}`}
+          className={`rounded-lg px-4 py-2 text-sm ${section === "summary" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
         >
           Resumen
         </button>
         <button
           type="button"
           onClick={() => setSection("groups")}
-          className={`rounded-full px-4 py-2 text-sm ${section === "groups" ? "bg-cyan-400 text-slate-950" : "bg-white/10 text-slate-200"}`}
+          className={`rounded-lg px-4 py-2 text-sm ${section === "groups" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
         >
           Grupos
         </button>
         <button
           type="button"
           onClick={() => setSection("knockout")}
-          className={`rounded-full px-4 py-2 text-sm ${section === "knockout" ? "bg-cyan-400 text-slate-950" : "bg-white/10 text-slate-200"}`}
+          className={`rounded-lg px-4 py-2 text-sm ${section === "knockout" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
         >
           Cuadro
         </button>
@@ -372,7 +374,7 @@ export function PredictionSnapshot({
 
 function SummaryStat({ title, value }: { title: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+    <div className="rounded-lg border border-white/10 bg-white/5 p-4">
       <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{title}</p>
       <div className="mt-2 text-base font-semibold text-white">{value}</div>
     </div>
@@ -392,7 +394,7 @@ export function EmptyState({
 }) {
   return (
     <Card className="flex flex-col items-center justify-center gap-4 py-14 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-cyan-400/15 text-2xl font-bold text-cyan-300">{icon}</div>
+      <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-lime-300/15 text-2xl font-bold text-lime-300">{icon}</div>
       <div className="space-y-2">
         <h3 className="text-xl font-semibold text-white">{title}</h3>
         <p className="max-w-xl text-sm text-slate-400">{description}</p>
@@ -406,7 +408,7 @@ export function PrimaryLink({ href, children }: { href: string; children: React.
   return (
     <Link
       href={href}
-      className="inline-flex items-center justify-center rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+      className="inline-flex items-center justify-center rounded-lg bg-[#a7f600] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#c7ff43]"
     >
       {children}
     </Link>

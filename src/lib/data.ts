@@ -10,11 +10,19 @@ export const playersById = new Map<string, Player>(data.players.map((player) => 
 export const knockoutMatches = schedule.filter((match) => match.number >= 73);
 
 export const sections = [
-  { id: "groups", label: "1. Grupos" },
-  { id: "knockout", label: "2. Eliminatorias" },
-  { id: "results", label: "3. Marcadores" },
-  { id: "extras", label: "4. Extras" },
-  { id: "xi", label: "5. Tu once" },
+  { id: "extras", label: "Tus elecciones" },
+  { id: "xi", label: "Tu once" },
+  { id: "groups", label: "Fase de grupos" },
+  { id: "results", label: "Resultados" },
+] as const;
+
+export const extraPredictionFields = [
+  "worldChampion",
+  "highestScoringTeam",
+  "mostConcededTeam",
+  "mostRedsTeam",
+  "topScorer",
+  "mvp",
 ] as const;
 
 export const xiLimits = {

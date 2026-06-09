@@ -28,6 +28,7 @@ import {
   chooseMatchWinner,
   emptyPrediction,
   hasMatchStarted,
+  hasTournamentStarted,
   moveGroupTeam,
   normalizePrediction,
   scheduleUtc,
@@ -114,7 +115,7 @@ function buildLeaderboard(localUsers: LocalUser[], currentUserId: string | null,
         points: scorecard.total,
         isAdmin: Boolean(user.isAdmin),
         complete: calculateCompletion(userPrediction),
-        champion: userPrediction.bracket.winners["104"] || "",
+        champion: userPrediction.extras.worldChampion || userPrediction.bracket.winners["104"] || "",
         prediction: userPrediction,
         scorecard,
       };
@@ -256,7 +257,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             points: scorecard.entries.length ? scorecard.total : profile.total_points || 0,
             isAdmin: Boolean(profile.is_admin),
             complete: calculateCompletion(profilePrediction),
-            champion: profilePrediction.bracket.winners["104"] || "",
+            champion: profilePrediction.extras.worldChampion || profilePrediction.bracket.winners["104"] || "",
             prediction: profilePrediction,
             scorecard,
           };
@@ -279,10 +280,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ok: false, message: "Necesitas entrar para guardar la porra." };
       }
 
-      if (prediction.isDefinitive) {
-        return { ok: false, message: "La porra definitiva ya no admite cambios." };
-      }
-
       const finalPrediction = {
         ...nextPrediction,
         isDefinitive: makeDefinitive ? true : nextPrediction.isDefinitive,
@@ -292,7 +289,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!usingSupabase) {
         saveLocalPrediction(user.id, finalPrediction);
         await syncLocalState(user.id, finalPrediction);
-        return { ok: true, message: makeDefinitive ? "Porra definitiva guardada." : "Borrador guardado." };
+        return { ok: true, message: "Progreso guardado." };
       }
 
       const supabase = getSupabaseBrowserClient() as any;
@@ -315,9 +312,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       await refreshData();
-      return { ok: true, message: makeDefinitive ? "Porra definitiva guardada." : "Borrador guardado." };
+      return { ok: true, message: "Progreso guardado." };
     },
-    [prediction.isDefinitive, refreshData, syncLocalState, user, usingSupabase],
+    [refreshData, syncLocalState, user, usingSupabase],
   );
 
   const savePrediction = useCallback(
@@ -591,19 +588,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       signOut,
       updateProfile,
       savePrediction,
-      moveGroupTeam: (group, teamId, direction) => replacePrediction(moveGroupTeam(prediction, group, teamId, direction)),
-      replaceGroupOrder: (group, teamIds) => replacePrediction(setGroupOrder(prediction, group, teamIds)),
-      toggleThirdQualifier: (group) => replacePrediction(toggleThirdQualifier(prediction, group)),
-      chooseMatchWinner: (matchNumber, teamId) => replacePrediction(chooseMatchWinner(prediction, matchNumber, teamId)),
+      moveGroupTeam: (group, teamId, direction) => {
+        if (hasTournamentStarted()) return;
+        replacePrediction(moveGroupTeam(prediction, group, teamId, direction));
+      },
+      replaceGroupOrder: (group, teamIds) => {
+        if (hasTournamentStarted()) return;
+        replacePrediction(setGroupOrder(prediction, group, teamIds));
+      },
+      toggleThirdQualifier: (group) => {
+        if (hasTournamentStarted()) return;
+        replacePrediction(toggleThirdQualifier(prediction, group));
+      },
+      chooseMatchWinner: (matchNumber, teamId) => {
+        if (hasTournamentStarted()) return;
+        replacePrediction(chooseMatchWinner(prediction, matchNumber, teamId));
+      },
       setPredictionScore: (matchNumber, side, value) => {
         const match = schedule.find((candidate) => candidate.number === matchNumber);
-        if (!match || prediction.isDefinitive || hasMatchStarted(match)) return;
+        if (!match || hasMatchStarted(match)) return;
         replacePrediction(setPredictionMatchScore(prediction, matchNumber, side, value));
       },
-      setPredictionExtra: (key, value) => replacePrediction(setPredictionExtra(prediction, key, value)),
-      toggleXiPlayer: (playerId) => replacePrediction(toggleXi(prediction, playerId)),
-      setXiFormation: (formation) => replacePrediction(setXiFormation(prediction, formation)),
-      setXiSelection: (playerIds) => replacePrediction(setXiSelection(prediction, playerIds)),
+      setPredictionExtra: (key, value) => {
+        if (hasTournamentStarted()) return;
+        replacePrediction(setPredictionExtra(prediction, key, value));
+      },
+      toggleXiPlayer: (playerId) => {
+        if (hasTournamentStarted()) return;
+        replacePrediction(toggleXi(prediction, playerId));
+      },
+      setXiFormation: (formation) => {
+        if (hasTournamentStarted()) return;
+        replacePrediction(setXiFormation(prediction, formation));
+      },
+      setXiSelection: (playerIds) => {
+        if (hasTournamentStarted()) return;
+        replacePrediction(setXiSelection(prediction, playerIds));
+      },
       saveAdminResult,
       addAdminEvent,
       deleteAdminEvent,

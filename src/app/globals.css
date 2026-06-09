@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #020617;
+  --background: #050505;
   --foreground: #f8fafc;
 }
 
@@ -14,8 +14,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #050505;
+    --foreground: #f4f4f5;
   }
 }
 
@@ -25,13 +25,24 @@ body {
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
 }
 
+.score-number-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.score-number-input::-webkit-inner-spin-button,
+.score-number-input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
 * {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
 ::selection {
-  background: rgba(34, 211, 238, 0.3);
-  color: white;
+  background: rgba(167, 246, 0, 0.3);
+  color: #ffffff;
 }
 
 @media (prefers-reduced-motion: no-preference) {

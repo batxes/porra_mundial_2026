@@ -1,0 +1,37 @@
+
+> triliporra@2.0.0 dev
+> npm run generate:data && next dev
+
+
+> triliporra@2.0.0 generate:data
+> node scripts/generate-legacy-data.mjs
+
+Generated legacy modules in src\lib\generated
+[32m✔[0m [33mConsole Ninja[0m extension is connected to [33mNext.js[0m, see [36mhttps://tinyurl.com/2vt8jxzw[0m
+▲ Next.js 16.2.7 (Turbopack)
+- Local:         http://localhost:3003
+- Network:       http://192.168.1.54:3003
+✓ Ready in 661ms
+⚠ Console Ninja Turbopack support is a PRO feature, [33mcurrently available to community users while in preview[0m
+Creating turbopack project { dir: 'C:\\G\\mundial26\\porra_mundial_2026', testMode: true }
+
+ GET / 200 in 342ms (next.js: 158ms, application-code: 184ms)
+ GET /porra 200 in 58ms (next.js: 31ms, application-code: 27ms)
+ GET /clasificacion 200 in 53ms (next.js: 34ms, application-code: 19ms)
+ GET /porra 200 in 24ms (next.js: 4ms, application-code: 20ms)
+ GET /porra 200 in 55ms (next.js: 36ms, application-code: 19ms)
+✓ Compiled in 49ms
+ GET /porra 200 in 77ms (next.js: 2ms, application-code: 74ms)
+✓ Compiled in 116ms
+ GET /porra 200 in 53ms (next.js: 29ms, application-code: 24ms)
+ GET /porra 200 in 45ms (next.js: 28ms, application-code: 17ms)
+✓ Compiled in 44ms
+ GET /porra 200 in 118ms (next.js: 29ms, application-code: 89ms)
+✓ Compiled in 105ms
+ GET /porra 200 in 48ms (next.js: 27ms, application-code: 21ms)
+ GET /porra 200 in 33ms (next.js: 20ms, application-code: 13ms)
+✓ Compiled in 84ms
+ GET /porra 200 in 33ms (next.js: 19ms, application-code: 13ms)
+✓ Compiled in 95ms
+✓ Compiled in 76ms
+ GET /porra 200 in 38ms (next.js: 26ms, application-code: 12ms)

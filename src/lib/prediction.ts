@@ -1,4 +1,4 @@
-import { data, knockoutMatches, playersById, schedule, teamsById, xiDefaultFormation, xiFormations } from "@/lib/data";
+import { data, extraPredictionFields, knockoutMatches, playersById, schedule, teamsById, xiDefaultFormation, xiFormations } from "@/lib/data";
 import type { Match, Position, Prediction } from "@/lib/types";
 
 export function emptyPrediction(): Prediction {
@@ -14,6 +14,7 @@ export function emptyPrediction(): Prediction {
     bracket: { thirdQualifiers: [], thirdSlots: {}, winners: {} },
     matchPredictions: {},
     extras: {
+      worldChampion: "",
       highestScoringTeam: "",
       topScorer: "",
       mostConcededTeam: "",
@@ -31,6 +32,10 @@ export function emptyPrediction(): Prediction {
 export function normalizePrediction(prediction?: Partial<Prediction> | null): Prediction {
   const initial = emptyPrediction();
   const xiFormation = normalizeXiFormation(prediction?.xiFormation);
+  const extras = { ...initial.extras, ...(prediction?.extras || {}) };
+  if (!extras.worldChampion) {
+    extras.worldChampion = prediction?.bracket?.winners?.["104"] || "";
+  }
   return {
     ...initial,
     ...prediction,
@@ -41,7 +46,7 @@ export function normalizePrediction(prediction?: Partial<Prediction> | null): Pr
       winners: prediction?.bracket?.winners || {},
     },
     matchPredictions: { ...(prediction?.matchPredictions || {}) },
-    extras: { ...initial.extras, ...(prediction?.extras || {}) },
+    extras,
     xi: sanitizeXiForFormation(Array.isArray(prediction?.xi) ? prediction.xi : [], xiFormation),
     xiFormation,
   };
@@ -99,6 +104,11 @@ export function scheduleUtc(match: Match) {
 
 export function hasMatchStarted(match: Match) {
   return Date.now() >= new Date(scheduleUtc(match)).getTime();
+}
+
+export function hasTournamentStarted() {
+  const lockAt = data.tournament.lockAt || scheduleUtc(schedule[0]);
+  return Date.now() >= new Date(lockAt).getTime();
 }
 
 export function loserForMatch(matchNumber: number, prediction: Prediction): string {
@@ -401,16 +411,14 @@ export function calculateCompletion(prediction: Prediction) {
     const positions = Object.values(group).filter(Boolean);
     return total + (positions.length === 4 && new Set(positions).size === 4 ? 1 : 0);
   }, 0);
-  const bracketDone = Object.keys(prediction.bracket.winners).length;
-  const thirdsDone = prediction.bracket.thirdQualifiers.length === 8 ? 1 : 0;
   const visibleMatches = schedule.filter((match) => isMatchVisibleForPrediction(match, prediction));
   const resultsDone = visibleMatches.filter((match) => isMatchPredictionComplete(match, prediction)).length;
-  const extrasDone = Object.values(prediction.extras).filter(Boolean).length;
+  const extrasDone = extraPredictionFields.filter((key) => Boolean(prediction.extras[key])).length;
   const counts = xiCounts(prediction);
   const requirements = xiRequirements(prediction.xiFormation);
   const xiDone = Object.entries(requirements).every(([position, limit]) => counts[position as Position] === limit) ? 1 : 0;
-  const completedUnits = groupDone + thirdsDone + bracketDone + resultsDone + extrasDone + xiDone;
-  const totalUnits = 12 + 1 + knockoutMatches.length + visibleMatches.length + Object.keys(prediction.extras).length + 1;
+  const completedUnits = groupDone + resultsDone + extrasDone + xiDone;
+  const totalUnits = 12 + visibleMatches.length + extraPredictionFields.length + 1;
 
   return Math.round((completedUnits / totalUnits) * 100);
 }

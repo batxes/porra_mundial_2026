@@ -7788,12 +7788,28 @@ export const porraData = {
   ],
   "pointsRules": [
     {
+      "label": "Eleccion acertada",
+      "value": "+1"
+    },
+    {
       "label": "Marcador exacto",
       "value": "Goles del partido"
     },
     {
-      "label": "Gol",
+      "label": "Gol delantero",
       "value": "+2"
+    },
+    {
+      "label": "Gol centrocampista",
+      "value": "+6"
+    },
+    {
+      "label": "Gol defensa",
+      "value": "+11"
+    },
+    {
+      "label": "Gol portero",
+      "value": "+35"
     },
     {
       "label": "Penalti marcado",
@@ -7816,8 +7832,12 @@ export const porraData = {
       "value": "-2"
     },
     {
-      "label": "Acierto de clasificación",
-      "value": "+1"
+      "label": "Equipo clasificado en grupos",
+      "value": "+2"
+    },
+    {
+      "label": "Orden exacto en grupo",
+      "value": "+3"
     },
     {
       "label": "Ganador del Mundial",
