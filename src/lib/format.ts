@@ -2,13 +2,19 @@ import { teamsById } from "@/lib/data";
 import { playerPhotoOverrides } from "@/lib/generated/player-photos";
 import type { Match, Player, Team } from "@/lib/types";
 
+export function publicAssetUrl(path: string) {
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+  if (!path.startsWith("/")) return path;
+  return `${basePath}${path}`;
+}
+
 export function flagUrl(team: Team) {
   return `https://flagcdn.com/w80/${team.code}.png`;
 }
 
 export function playerPhotoUrl(player: Player) {
   if (player.photo) return player.photo;
-  if (playerPhotoOverrides[player.id]) return playerPhotoOverrides[player.id];
+  if (playerPhotoOverrides[player.id]) return publicAssetUrl(playerPhotoOverrides[player.id]);
   return player.apiPlayerId ? `https://media.api-sports.io/football/players/${player.apiPlayerId}.png` : "";
 }
 

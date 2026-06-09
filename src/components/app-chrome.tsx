@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { publicAssetUrl } from "@/lib/format";
+
 import { Avatar } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 
@@ -24,7 +26,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-40 bg-[#050505]/88 py-3 backdrop-blur">
           <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
             <Link href="/" className="flex min-w-0 items-center gap-3">
-              <Image src="/logo.png" alt="" width={42} height={42} className="h-10 w-10 shrink-0 object-contain" priority />
+              <Image src={publicAssetUrl("/logo.png")} alt="" width={42} height={42} className="h-10 w-10 shrink-0 object-contain" priority />
               <div className="min-w-0">
                 <p className="truncate text-lg font-black tracking-tight">Triliporra</p>
                 <p className="text-xs font-medium text-zinc-500">World Cup 2026</p>

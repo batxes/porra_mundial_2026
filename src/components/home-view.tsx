@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Avatar, Card, PrimaryLink, TeamBadge } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
-import { formatDate, translateSlot } from "@/lib/format";
+import { formatDate, publicAssetUrl, translateSlot } from "@/lib/format";
 import type { Match, UserProfile } from "@/lib/types";
 
 function madridTodayKey() {
@@ -27,15 +27,29 @@ export function HomeView() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 py-8">
-      <section className="flex flex-col items-center text-center">
-        <Image src="/logo.png" alt="" width={88} height={88} className="mb-4 h-20 w-20 object-contain" priority />
-        <h1 className="text-5xl font-black tracking-tight text-white sm:text-6xl">Triliporra</h1>
-        <p className="mt-3 max-w-xl text-base text-zinc-400 sm:text-lg">Adivina el Mundial 2026 y compite con tus amigos.</p>
-        <div className="mt-5 flex flex-wrap justify-center gap-3">
-          <PrimaryLink href="/porra">Jugar</PrimaryLink>
-          <Link href="/como-funciona" className="inline-flex items-center justify-center rounded-lg border border-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
-            Ver reglas
-          </Link>
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#151515] shadow-2xl shadow-black/30">
+        <div className="relative min-h-[24rem]">
+          <Image
+            src={publicAssetUrl("/triliporra-banner.png")}
+            alt="Banner de TRILIPORRA con futbolistas y la copa del mundo"
+            fill
+            sizes="(max-width: 768px) 100vw, 768px"
+            className="object-cover"
+            priority
+            unoptimized
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/10 sm:bg-gradient-to-r sm:from-black/75 sm:via-black/20 sm:to-transparent" />
+          <div className="relative flex min-h-[24rem] flex-col justify-end p-6 sm:p-8">
+            <Image src={publicAssetUrl("/logo.png")} alt="" width={88} height={88} className="mb-4 h-16 w-16 object-contain sm:h-20 sm:w-20" priority />
+            <h1 className="text-5xl font-black tracking-tight text-white sm:text-6xl">Triliporra</h1>
+            <p className="mt-3 max-w-xl text-base text-zinc-100 sm:text-lg">Adivina el Mundial 2026 y compite con tus amigos.</p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <PrimaryLink href="/porra">Jugar</PrimaryLink>
+              <Link href="/como-funciona" className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-black/30 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+                Ver reglas
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
