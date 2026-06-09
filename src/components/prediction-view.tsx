@@ -103,6 +103,8 @@ const positionTabs: Array<{ id: Position; label: string }> = [
   { id: "MED", label: "Centro" },
   { id: "DEL", label: "Delantero" },
 ];
+const groupsIntroStorageKey = "porra26_groups_intro_seen";
+const knockoutIntroStorageKey = "porra26_knockout_intro_seen";
 const resultsIntroStorageKey = "porra26_results_intro_seen";
 
 export function PredictionView() {
@@ -123,6 +125,8 @@ export function PredictionView() {
   const [section, setSection] = useState<SectionId>("extras");
   const [autoSaveState, setAutoSaveState] = useState<AutoSaveState>("idle");
   const [authOpen, setAuthOpen] = useState(false);
+  const [showGroupsIntroModal, setShowGroupsIntroModal] = useState(false);
+  const [showKnockoutIntroModal, setShowKnockoutIntroModal] = useState(false);
   const [showResultsIntroModal, setShowResultsIntroModal] = useState(false);
   const savedSignatureRef = useRef("");
   const latestSignatureRef = useRef("");
@@ -130,6 +134,8 @@ export function PredictionView() {
   const saveRunRef = useRef(0);
   const autoSaveTimerRef = useRef<number | null>(null);
   const hideSavedTimerRef = useRef<number | null>(null);
+  const groupsIntroQueuedRef = useRef(false);
+  const knockoutIntroQueuedRef = useRef(false);
   const resultsIntroQueuedRef = useRef(false);
 
   const visibleMatches = useMemo(
@@ -234,6 +240,25 @@ export function PredictionView() {
   }, [predictionSignature, ready, savePrediction, userId]);
 
   useEffect(() => {
+    if (section !== "groups" || groupsIntroQueuedRef.current) return;
+
+    try {
+      if (window.localStorage.getItem(groupsIntroStorageKey) === "1") {
+        return;
+      }
+    } catch {
+      // Ignore storage failures; the modal can still be shown this session.
+    }
+
+    groupsIntroQueuedRef.current = true;
+    const frame = window.requestAnimationFrame(() => {
+      setShowGroupsIntroModal(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [section]);
+
+  useEffect(() => {
     if (section !== "results" || resultsIntroQueuedRef.current) return;
 
     try {
@@ -252,6 +277,25 @@ export function PredictionView() {
     return () => window.cancelAnimationFrame(frame);
   }, [section]);
 
+  useEffect(() => {
+    if (section !== "knockout" || knockoutIntroQueuedRef.current) return;
+
+    try {
+      if (window.localStorage.getItem(knockoutIntroStorageKey) === "1") {
+        return;
+      }
+    } catch {
+      // Ignore storage failures; the modal can still be shown this session.
+    }
+
+    knockoutIntroQueuedRef.current = true;
+    const frame = window.requestAnimationFrame(() => {
+      setShowKnockoutIntroModal(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [section]);
+
   const dismissResultsIntroModal = () => {
     resultsIntroQueuedRef.current = true;
     try {
@@ -260,6 +304,24 @@ export function PredictionView() {
       // Ignore storage failures.
     }
     setShowResultsIntroModal(false);
+  };
+  const dismissGroupsIntroModal = () => {
+    groupsIntroQueuedRef.current = true;
+    try {
+      window.localStorage.setItem(groupsIntroStorageKey, "1");
+    } catch {
+      // Ignore storage failures.
+    }
+    setShowGroupsIntroModal(false);
+  };
+  const dismissKnockoutIntroModal = () => {
+    knockoutIntroQueuedRef.current = true;
+    try {
+      window.localStorage.setItem(knockoutIntroStorageKey, "1");
+    } catch {
+      // Ignore storage failures.
+    }
+    setShowKnockoutIntroModal(false);
   };
   const openSaveAccountModal = () => {
     setAuthMode("register");
@@ -348,6 +410,14 @@ export function PredictionView() {
 
       {showResultsIntroModal ? (
         <ResultsIntroModal onClose={dismissResultsIntroModal} />
+      ) : null}
+
+      {showGroupsIntroModal ? (
+        <GroupsIntroModal onClose={dismissGroupsIntroModal} />
+      ) : null}
+
+      {showKnockoutIntroModal ? (
+        <KnockoutIntroModal onClose={dismissKnockoutIntroModal} />
       ) : null}
 
       <AuthModal
@@ -462,7 +532,7 @@ function AutoSaveStatus({ state }: { state: AutoSaveState }) {
       label: "Error al guardar",
       className: "border-rose-400/25 bg-rose-400/10 text-rose-100",
       icon: (
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-400 text-xs font-black text-black">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-400 text-xs font-bold text-black">
           !
         </span>
       ),
@@ -608,6 +678,306 @@ function StepActionBar({
   );
 }
 
+function GroupsIntroModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="groups-intro-title"
+    >
+      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[#151515] text-white shadow-2xl shadow-black/50">
+        <div className="border-b border-white/10 p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#a7f600]">
+            Fase de grupos
+          </p>
+          <h3
+            id="groups-intro-title"
+            className="mt-1 text-2xl font-bold tracking-tight"
+          >
+            Ordena y elige terceros
+          </h3>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-bold text-white">Grupo A</p>
+              <span className="rounded-md bg-white/[0.06] px-2 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400">
+                Ordenar
+              </span>
+            </div>
+
+            <div className="relative h-44 overflow-hidden rounded-lg border border-white/10 bg-[#101010] p-2">
+              <GroupIntroDemoRow
+                label="ALE"
+                orderIndex={0}
+                rank={1}
+                tone="black-red-gold"
+              />
+              <GroupIntroDemoRow
+                className="groups-demo-row-shift-down"
+                label="MEX"
+                nextRank={3}
+                orderIndex={1}
+                rank={2}
+                tone="green-white-red"
+              />
+              <GroupIntroDemoRow
+                className="groups-demo-row-active z-10"
+                label="FRA"
+                nextRank={2}
+                orderIndex={2}
+                rank={3}
+                tone="blue-white-red"
+              />
+              <GroupIntroDemoRow
+                label="JPN"
+                orderIndex={3}
+                rank={4}
+                tone="white-red"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a7f600] text-sm font-bold text-black">
+              1
+            </span>
+            <div>
+              <p className="font-bold text-white">Arrastra los grupos</p>
+              <p className="mt-1 text-sm leading-5 text-zinc-400">
+                Ordena cada grupo de primero a cuarto.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-sm font-bold text-black">
+              2
+            </span>
+            <div>
+              <p className="font-bold text-white">Marca los terceros</p>
+              <p className="mt-1 text-sm leading-5 text-zinc-400">
+                Luego haz click mas abajo en los 8 terceros clasificados.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-2 w-full rounded-lg bg-[#a7f600] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#c7ff43]"
+          >
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GroupIntroDemoRow({
+  className = "",
+  label,
+  nextRank,
+  orderIndex,
+  rank,
+  tone,
+}: {
+  className?: string;
+  label: string;
+  nextRank?: number;
+  orderIndex: number;
+  rank: number;
+  tone:
+    | "black-red-gold"
+    | "blue-white-red"
+    | "green-white-red"
+    | "white-red";
+}) {
+  return (
+    <div
+      className={`absolute left-2 right-2 grid h-9 select-none grid-cols-[1.75rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-white/10 bg-white/[0.05] px-2 ${className}`}
+      style={{ top: 8 + orderIndex * 42 }}
+    >
+      <span className="relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-md bg-white/[0.08] text-xs font-bold text-[#a7f600]">
+        <span className={nextRank ? "groups-demo-rank-from" : ""}>
+          {rank}
+        </span>
+        {nextRank ? (
+          <span className="groups-demo-rank-to absolute inset-0 flex items-center justify-center">
+            {nextRank}
+          </span>
+        ) : null}
+      </span>
+      <div className="flex min-w-0 items-center gap-2">
+        <span
+          className="h-5 w-5 shrink-0 rounded-full border border-white/15"
+          style={{ background: getDemoFlagBackground(tone) }}
+        />
+        <span className="truncate text-sm font-bold text-white">{label}</span>
+      </div>
+      <span className="rounded-md px-2 py-1 text-base font-bold text-zinc-500">
+        ☰
+      </span>
+    </div>
+  );
+}
+
+function KnockoutIntroModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="knockout-intro-title"
+    >
+      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[#151515] text-white shadow-2xl shadow-black/50">
+        <div className="border-b border-white/10 p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#a7f600]">
+            Fase final
+          </p>
+          <h3
+            id="knockout-intro-title"
+            className="mt-1 text-2xl font-bold tracking-tight"
+          >
+            Elige quien pasa
+          </h3>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <div className="grid grid-cols-[minmax(0,1fr)_1.5rem_minmax(0,1fr)] items-center gap-2">
+              <div className="space-y-2">
+                <div className="rounded-lg border border-white/10 bg-[#101010] p-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <KnockoutDemoTeam
+                      label="ALE"
+                      tone="black-red-gold"
+                      className="knockout-demo-pick-first"
+                    />
+                    <KnockoutDemoTeam label="MEX" tone="green-white-red" />
+                  </div>
+                  <p className="mt-1 text-center text-[11px] font-semibold text-zinc-500">
+                    29 jun
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-white/10 bg-[#101010] p-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <KnockoutDemoTeam
+                      label="FRA"
+                      tone="blue-white-red"
+                      className="knockout-demo-pick-second"
+                    />
+                    <KnockoutDemoTeam label="JPN" tone="white-red" />
+                  </div>
+                  <p className="mt-1 text-center text-[11px] font-semibold text-zinc-500">
+                    30 jun
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative h-full min-h-32">
+                <span className="absolute left-0 top-[25%] h-px w-full bg-white/12" />
+                <span className="absolute left-0 top-[75%] h-px w-full bg-white/12" />
+                <span className="absolute right-0 top-[25%] h-1/2 w-px bg-white/12" />
+                <span className="absolute right-0 top-1/2 h-px w-full bg-white/12" />
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-[#101010] p-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <KnockoutDemoTeam
+                    label="ALE"
+                    tone="black-red-gold"
+                    className="knockout-demo-next-first"
+                  />
+                  <KnockoutDemoTeam
+                    label="FRA"
+                    tone="blue-white-red"
+                    className="knockout-demo-next-second"
+                  />
+                </div>
+                <p className="mt-1 text-center text-[11px] font-semibold text-zinc-500">
+                  4 jul
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
+            <p className="text-sm leading-6 text-zinc-300">
+              Pulsa sobre el ganador de cada cruce para elegir quien pasa de
+              fase. El cuadro se ira completando con tus elecciones.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-lg bg-[#a7f600] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#c7ff43]"
+          >
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getDemoFlagBackground(
+  tone:
+    | "black-red-gold"
+    | "blue-white-red"
+    | "green-white-red"
+    | "neutral"
+    | "white-red",
+) {
+  return tone === "black-red-gold"
+    ? "linear-gradient(180deg, #151515 0 33%, #ef4444 33% 66%, #facc15 66%)"
+    : tone === "blue-white-red"
+      ? "linear-gradient(90deg, #2563eb 0 33%, #f8fafc 33% 66%, #ef4444 66%)"
+      : tone === "green-white-red"
+        ? "linear-gradient(90deg, #15803d 0 33%, #f8fafc 33% 66%, #dc2626 66%)"
+        : tone === "white-red"
+          ? "radial-gradient(circle, #dc2626 0 34%, transparent 35%), #f8fafc"
+          : "#3f3f46";
+}
+
+function KnockoutDemoTeam({
+  className = "",
+  dimmed = false,
+  label,
+  tone = "neutral",
+}: {
+  className?: string;
+  dimmed?: boolean;
+  label: string;
+  tone?:
+    | "black-red-gold"
+    | "blue-white-red"
+    | "green-white-red"
+    | "neutral"
+    | "white-red";
+}) {
+  const flagBackground = getDemoFlagBackground(tone);
+
+  return (
+    <div
+      className={`relative flex min-w-0 flex-col items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-2 text-center ${dimmed ? "opacity-45" : ""} ${className}`}
+    >
+      <span
+        className="h-5 w-5 rounded-full border border-white/15"
+        style={{ background: flagBackground }}
+      />
+      <span className="max-w-full truncate text-[11px] font-black text-white">
+        {label}
+      </span>
+    </div>
+  );
+}
+
 function ResultsIntroModal({ onClose }: { onClose: () => void }) {
   return (
     <div
@@ -624,7 +994,7 @@ function ResultsIntroModal({ onClose }: { onClose: () => void }) {
           <div>
             <h3
               id="results-intro-title"
-              className="text-xl font-black tracking-tight"
+              className="text-xl font-bold tracking-tight"
             >
               Resultados abiertos
             </h3>
@@ -638,7 +1008,7 @@ function ResultsIntroModal({ onClose }: { onClose: () => void }) {
         <button
           type="button"
           onClick={onClose}
-          className="mt-2 w-full rounded-lg bg-white px-4 py-3 text-sm font-black text-black transition hover:bg-zinc-200"
+          className="mt-2 w-full rounded-lg bg-white px-4 py-3 text-sm font-bold text-black transition hover:bg-zinc-200"
         >
           Entendido
         </button>
@@ -715,7 +1085,7 @@ function StepStatusBadge({
         complete ? "Completa" : `${progress.done} de ${progress.total}`
       }
       title={complete ? "Completa" : `${progress.done}/${progress.total}`}
-      className={`inline-flex h-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
+      className={`inline-flex h-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
         complete
           ? active
             ? "bg-[#a7f600] text-black"
@@ -759,7 +1129,7 @@ function TusElecciones({
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-2xl font-black tracking-tight text-white">
+        <h2 className="text-2xl font-bold tracking-tight text-white">
           Tus elecciones
         </h2>
       </div>
@@ -872,7 +1242,7 @@ function ExtraPlayerField({
             className="h-9 w-9 rounded-full bg-zinc-900 text-xs text-lime-100"
           />
         ) : (
-          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-lg font-black text-zinc-500">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-lg font-bold text-zinc-500">
             +
           </span>
         )}
@@ -893,7 +1263,7 @@ function ExtraPlayerField({
             </span>
           </span>
         </span>
-        <span className="rounded-md bg-white/[0.06] px-2 py-1 text-[11px] font-black text-zinc-300">
+        <span className="rounded-md bg-white/[0.06] px-2 py-1 text-[11px] font-bold text-zinc-300">
           {player ? positionLabels[player.position] : "Elegir"}
         </span>
       </button>
@@ -982,7 +1352,7 @@ function ExtraPlayerPickerModal({
                 type="button"
                 aria-pressed={activePosition === position.id}
                 onClick={() => setActivePosition(position.id)}
-                className={`h-9 rounded-lg px-1 text-[11px] font-black transition sm:text-xs ${
+                className={`h-9 rounded-lg px-1 text-[11px] font-bold transition sm:text-xs ${
                   activePosition === position.id
                     ? "bg-white text-emerald-700 shadow-sm"
                     : "text-slate-500 hover:text-slate-800"
@@ -1152,7 +1522,7 @@ function GroupStage({
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <h2 className="text-2xl font-black tracking-tight text-white">
+        <h2 className="text-2xl font-bold tracking-tight text-white">
           Fase de grupos
         </h2>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-5 text-zinc-400">
@@ -1230,7 +1600,7 @@ function GroupStage({
       <Card className="space-y-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h3 className="text-xl font-black tracking-tight text-white">
+            <h3 className="text-xl font-bold tracking-tight text-white">
               Terceros clasificados
             </h3>
             <p className="text-sm text-zinc-400">
@@ -1238,7 +1608,7 @@ function GroupStage({
             </p>
           </div>
           <span
-            className={`rounded-full px-3 py-1 text-sm font-black ${
+            className={`rounded-full px-3 py-1 text-sm font-bold ${
               prediction.bracket.thirdQualifiers.length === 8
                 ? "bg-[#a7f600] text-black"
                 : "bg-yellow-300/15 text-yellow-200"
@@ -1249,7 +1619,7 @@ function GroupStage({
         </div>
 
         <div className="space-y-3">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
             Lista de terceros
           </p>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -1296,7 +1666,6 @@ function SortableGroupTeamRow({
     attributes,
     isDragging,
     listeners,
-    setActivatorNodeRef,
     setNodeRef,
     transform,
     transition,
@@ -1310,25 +1679,28 @@ function SortableGroupTeamRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
+      className={`grid touch-none select-none grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
         isDropTarget
           ? "border-[#a7f600] bg-[#a7f600]/15 shadow-[0_0_0_1px_rgba(167,246,0,0.35),0_0_24px_rgba(167,246,0,0.12)]"
           : "border-white/10 bg-white/[0.06]"
-      } ${isDragging ? "opacity-60" : ""}`}
+      } ${
+        disabled
+          ? "cursor-not-allowed opacity-50"
+          : isDragging
+            ? "cursor-grabbing opacity-60"
+            : "cursor-grab"
+      }`}
+      {...attributes}
+      {...listeners}
     >
-      <span className="text-sm font-black text-[#a7f600]">{index + 1}</span>
+      <span className="text-sm font-bold text-[#a7f600]">{index + 1}</span>
       <TeamBadge teamId={team.id} />
-      <button
-        ref={setActivatorNodeRef}
-        type="button"
-        disabled={disabled}
-        className="touch-none rounded-md px-2 py-1 text-lg font-black text-zinc-500 transition hover:bg-white/10 hover:text-zinc-200 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-35"
-        aria-label={`Mover ${team.name}`}
-        {...attributes}
-        {...listeners}
+      <span
+        aria-hidden="true"
+        className="rounded-md px-2 py-1 text-lg font-bold text-zinc-500"
       >
         ☰
-      </button>
+      </span>
     </div>
   );
 }
@@ -1377,7 +1749,7 @@ function ThirdQualifierButton({
       }`}
     >
       <span
-        className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black ${
+        className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold ${
           row.selected ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-400"
         }`}
       >
@@ -1389,7 +1761,7 @@ function ThirdQualifierButton({
         <span className="text-sm text-zinc-500">Ordena el grupo primero</span>
       )}
       <span
-        className={`text-xs font-black ${
+        className={`text-xs font-bold ${
           row.selected ? "text-[#a7f600]" : "text-zinc-500"
         }`}
       >
@@ -1572,7 +1944,7 @@ function LineupBuilder({
   return (
     <div className="mx-auto w-full max-w-[620px] space-y-5">
       <div className="space-y-2">
-        <h2 className="text-2xl font-black tracking-tight text-white">
+        <h2 className="text-2xl font-bold tracking-tight text-white">
           Tu once
         </h2>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-6 text-zinc-400">
@@ -1597,7 +1969,7 @@ function LineupBuilder({
 
       <div className="overflow-hidden rounded-2xl border border-emerald-300/15 bg-emerald-600 shadow-2xl shadow-emerald-950/30 sm:rounded-3xl">
         <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-950/20 px-4 py-3">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-50/75">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-50/75">
             Alineacion
           </p>
           <div className="flex items-center gap-2">
@@ -1740,7 +2112,7 @@ function LineupPlayerButton({
             />
           </span>
         ) : (
-          <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-sm font-black leading-none text-white shadow">
+          <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-sm font-bold leading-none text-white shadow">
             +
           </span>
         )}
@@ -1830,9 +2202,7 @@ function PlayerPickerModal({
                   <span>{group.country}</span>
                 </div>
                 {group.players.map((player) => {
-                  const alreadySelected = selectedPlayerIds.includes(
-                    player.id,
-                  );
+                  const alreadySelected = selectedPlayerIds.includes(player.id);
                   const current = player.id === currentPlayer?.id;
                   return (
                     <button
@@ -1895,7 +2265,7 @@ function FinalPhaseSection({
   return (
     <div className="relative left-1/2 w-[calc(100vw-2rem)] max-w-[1380px] -translate-x-1/2 space-y-5 sm:w-[calc(100vw-3rem)]">
       <div>
-        <h2 className="text-2xl font-black tracking-tight text-white">
+        <h2 className="text-2xl font-bold tracking-tight text-white">
           Fase final
         </h2>
       </div>
@@ -1942,7 +2312,7 @@ function ResultsSchedule({
     <div className="space-y-3">
       <div className="space-y-2">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <h2 className="text-2xl font-black tracking-tight text-white">
+          <h2 className="text-2xl font-bold tracking-tight text-white">
             Resultados
           </h2>
           <span className="text-sm font-semibold text-zinc-500 sm:pb-1">
@@ -2050,7 +2420,7 @@ function ResultMatchCard({
             aria-label={
               complete ? "Resultado rellenado" : "Resultado pendiente"
             }
-            className={`absolute left-1/2 top-10 z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border text-sm font-black ${
+            className={`absolute left-1/2 top-10 z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border text-sm font-bold ${
               complete
                 ? "result-pending-check border-[#ffe66d] bg-[#ffdd44] text-black"
                 : "border-white/20 bg-[#3a3a3a] text-zinc-500"
@@ -2090,7 +2460,7 @@ function ResultTeamColumn({
           className="h-7 w-7 rounded-full border border-white/15 object-cover sm:h-8 sm:w-8"
         />
       ) : (
-        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[9px] font-black text-zinc-300 sm:h-8 sm:w-8 sm:text-[10px]">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[9px] font-bold text-zinc-300 sm:h-8 sm:w-8 sm:text-[10px]">
           TBD
         </span>
       )}
@@ -2123,7 +2493,7 @@ function ResultScoreStepper({
         tabIndex={-1}
         disabled={disabled}
         onClick={increment}
-        className="flex h-6 items-center justify-center bg-[#454545] text-base font-black leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600 sm:h-7 sm:text-lg"
+        className="flex h-6 items-center justify-center bg-[#454545] text-base font-bold leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600 sm:h-7 sm:text-lg"
         aria-label={`Subir ${label}`}
       >
         +
@@ -2137,7 +2507,7 @@ function ResultScoreStepper({
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="score-number-input h-9 w-12 appearance-none bg-[#222] text-center text-lg font-black text-white outline-none placeholder:text-zinc-600 disabled:opacity-60 sm:h-10 sm:w-14 sm:text-xl"
+        className="score-number-input h-9 w-12 appearance-none bg-[#222] text-center text-lg font-bold text-white outline-none placeholder:text-zinc-600 disabled:opacity-60 sm:h-10 sm:w-14 sm:text-xl"
         placeholder="?"
         aria-label={label}
       />
@@ -2146,7 +2516,7 @@ function ResultScoreStepper({
         tabIndex={-1}
         disabled={disabled}
         onClick={decrement}
-        className="flex h-6 items-center justify-center bg-[#454545] text-base font-black leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600 sm:h-7 sm:text-lg"
+        className="flex h-6 items-center justify-center bg-[#454545] text-base font-bold leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600 sm:h-7 sm:text-lg"
         aria-label={`Bajar ${label}`}
       >
         -
