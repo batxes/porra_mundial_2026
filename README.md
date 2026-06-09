@@ -37,15 +37,20 @@ The app runs at `http://localhost:3000`.
 
 ## Deploying to Vercel
 
-Deployment is handled by GitHub Actions with the Vercel CLI (`.github/workflows/deploy.yml`). Every push to `main` builds and publishes to production, running Next.js with a server (server components, `/api` routes, server-side `API-Football` calls).
+Deployment is handled by GitHub Actions (`.github/workflows/deploy.yml`). Every push to `main` runs two jobs: `migrate` applies database migrations with `supabase db push`, then `deploy` builds and publishes to production with the Vercel CLI (Next.js with a server: server components, `/api` routes, server-side `API-Football` calls).
 
 Configure in GitHub (`Settings > Secrets and variables > Actions`):
 
 - `VERCEL_TOKEN` — Vercel account token
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
+- `SUPABASE_ACCESS_TOKEN` — personal access token from the Supabase dashboard
+- `SUPABASE_DB_PASSWORD` — production database password
+- `SUPABASE_PROJECT_REF` — production project ref (the subdomain in its URL)
 
-The two IDs come from `vercel link` (the `.vercel/project.json` file) or from the Vercel dashboard. The app's environment variables (Supabase, API-Football) are configured in the Vercel project; `vercel pull` downloads them during the build.
+The Vercel IDs come from `vercel link` (the `.vercel/project.json` file) or the dashboard. The app's runtime environment variables (Supabase, API-Football) are configured in the Vercel project; `vercel pull` downloads them during the build.
+
+The `migrate` job applies `supabase/migrations/` to production; `supabase/seed.sql` never runs against production. Deploy is gated on a successful migration.
 
 ## Environment variables
 
@@ -109,14 +114,24 @@ npm run db:stop      # stop the containers
 
 Studio (DB browser) is at `http://127.0.0.1:54323`.
 
-The schema lives in `supabase/migrations/`, data in `supabase/seed.sql`.
+The schema and reference data (teams, players, tournament, scoring rules) live in `supabase/migrations/` and reach every environment. `supabase/seed.sql` is **local-only** (run on `db reset`, never on `db push`) and just seeds a dev admin:
 
-To promote an admin locally, register `admin@admin.admin` in the app, then in Studio run:
+- email: `admin@admin.admin`
+- password: `admin1234`
+
+### First admin in production
+
+`seed.sql` does not run against production, so create the admin once by hand:
+
+1. Register `admin@admin.admin` through the app.
+2. In the Supabase SQL editor run:
 
 ```sql
 update public.profiles set is_admin = true
 where id = (select id from auth.users where email = 'admin@admin.admin');
 ```
+
+From then on that admin manages other users from the Admin panel.
 
 ## Optional API-Football
 

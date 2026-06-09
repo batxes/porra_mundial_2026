@@ -291,7 +291,7 @@ set search_path = public
 as $$
 begin
   perform set_config('app.recalculating_scores', 'on', true);
-  delete from public.score_entries;
+  delete from public.score_entries where true;
 
   insert into public.score_entries (user_id, match_id, rule_code, points, explanation, source_ref)
   select
