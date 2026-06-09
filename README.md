@@ -49,7 +49,11 @@ The two IDs come from `vercel link` (the `.vercel/project.json` file) or from th
 
 ## Environment variables
 
-Copy `.env.example` to `.env.local`.
+Copy `.env.example` to `.env.local`:
+
+```bash
+cp .env.example .env.local
+```
 
 ### Local demo
 
