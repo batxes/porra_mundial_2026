@@ -224,6 +224,24 @@ alter table public.predictions enable row level security;
 alter table public.scoring_rules enable row level security;
 alter table public.score_entries enable row level security;
 
+drop policy if exists "public tournament read" on public.tournaments;
+drop policy if exists "public profile read" on public.profiles;
+drop policy if exists "owner profile update" on public.profiles;
+drop policy if exists "public team read" on public.teams;
+drop policy if exists "public validated player read" on public.players;
+drop policy if exists "public validated match read" on public.matches;
+drop policy if exists "admin match insert" on public.matches;
+drop policy if exists "admin match update" on public.matches;
+drop policy if exists "public validated event read" on public.match_events;
+drop policy if exists "admin event insert" on public.match_events;
+drop policy if exists "admin event update" on public.match_events;
+drop policy if exists "public validated stats read" on public.player_match_stats;
+drop policy if exists "public scoring rule read" on public.scoring_rules;
+drop policy if exists "public score ledger read" on public.score_entries;
+drop policy if exists "owner prediction insert before lock" on public.predictions;
+drop policy if exists "owner prediction update before lock" on public.predictions;
+drop policy if exists "owner or locked prediction read" on public.predictions;
+
 create policy "public tournament read" on public.tournaments for select using (true);
 create policy "public profile read" on public.profiles for select using (true);
 create policy "owner profile update" on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
