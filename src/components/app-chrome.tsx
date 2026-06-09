@@ -4,8 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { publicAssetUrl } from "@/lib/format";
-
 import { Avatar } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 
@@ -18,15 +16,20 @@ const links = [
 
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { ready, user, completion, currentScorecard } = useAppContext();
+  const { ready, usingSupabase, user, completion, currentScorecard } = useAppContext();
 
   return (
     <div className="min-h-screen bg-[#050505] text-white">
+      {!usingSupabase ? (
+        <div className="bg-amber-400 px-4 py-1.5 text-center text-xs font-bold text-black">
+          Modo demo · los datos se guardan solo en este navegador (localStorage)
+        </div>
+      ) : null}
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-24 sm:px-6">
         <header className="sticky top-0 z-40 bg-[#050505]/88 py-3 backdrop-blur">
           <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
             <Link href="/" className="flex min-w-0 items-center gap-3">
-              <Image src={publicAssetUrl("/logo.png")} alt="" width={42} height={42} className="h-10 w-10 shrink-0 object-contain" priority />
+              <Image src="/logo.png" alt="" width={42} height={42} className="h-10 w-10 shrink-0 object-contain" priority />
               <div className="min-w-0">
                 <p className="truncate text-lg font-black tracking-tight">Triliporra</p>
                 <p className="text-xs font-medium text-zinc-500">World Cup 2026</p>

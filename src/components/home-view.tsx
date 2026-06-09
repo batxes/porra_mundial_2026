@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Avatar, Card, PrimaryLink, TeamBadge } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
-import { formatDate, publicAssetUrl, translateSlot } from "@/lib/format";
+import { formatDate, translateSlot } from "@/lib/format";
 import type { Match, UserProfile } from "@/lib/types";
 
 function madridTodayKey() {
@@ -28,7 +28,7 @@ export function HomeView() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 py-8">
       <section className="flex flex-col items-center text-center">
-        <Image src={publicAssetUrl("/logo.png")} alt="" width={88} height={88} className="mb-4 h-20 w-20 object-contain" priority />
+        <Image src="/logo.png" alt="" width={88} height={88} className="mb-4 h-20 w-20 object-contain" priority />
         <h1 className="text-5xl font-black tracking-tight text-white sm:text-6xl">Triliporra</h1>
         <p className="mt-3 max-w-xl text-base text-zinc-400 sm:text-lg">Adivina el Mundial 2026 y compite con tus amigos.</p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">

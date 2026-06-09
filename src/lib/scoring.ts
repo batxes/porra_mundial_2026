@@ -99,6 +99,15 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
     });
   }
 
+  function knockoutProgressionPoints(match: Match) {
+    if (match.stage === "Dieciseisavos") return 5;
+    if (match.stage === "Octavos") return 10;
+    if (match.stage === "Cuartos") return 15;
+    if (match.stage === "Semifinales") return 20;
+    if (match.stage === "Final") return 25;
+    return 0;
+  }
+
   function calculateGroupPositions(adminResults: AdminResults) {
     const byGroup: Record<string, { teams: Map<string, { teamId: string; pts: number; gf: number; ga: number; gd: number }>; playedMatches: number; expectedMatches: number }> = {};
 
@@ -269,13 +278,14 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
 
       if (match.number >= 73 && homeScore !== awayScore) {
         const actualWinner = homeScore > awayScore ? actualTeamId(match, result, "home") : actualTeamId(match, result, "away");
-        if (actualWinner && prediction.bracket?.winners?.[String(match.number)] === actualWinner) {
+        const progressionPoints = knockoutProgressionPoints(match);
+        if (progressionPoints && actualWinner && prediction.bracket?.winners?.[String(match.number)] === actualWinner) {
           addEntry(entries, {
             userId,
             matchId: `wc26-${match.number}`,
             matchNumber: match.number,
             ruleCode: "team_progression_hit",
-            points: 1,
+            points: progressionPoints,
             explanation: `${teamName(actualWinner)} pasa en el partido ${match.number}`,
             sourceRef: `winner-${match.number}`,
           });

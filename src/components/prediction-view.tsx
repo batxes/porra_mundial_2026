@@ -7,7 +7,7 @@ import { Card, KnockoutBracket, Notice, PlayerAvatar, SectionHeading, TeamBadge,
 import { useAppContext } from "@/lib/app-context";
 import { data, playersById, schedule, sections, teamsById, xiFormations } from "@/lib/data";
 import { translateSlot } from "@/lib/format";
-import { hasMatchStarted, hasTournamentStarted, isMatchPredictionComplete, isMatchVisibleForPrediction, orderedGroupTeams, resolveSlot, scheduleUtc } from "@/lib/prediction";
+import { groupTeamAt, hasMatchStarted, hasTournamentStarted, isMatchPredictionComplete, isMatchVisibleForPrediction, orderedGroupTeams, resolveSlot, scheduleUtc } from "@/lib/prediction";
 import type { Match, Player, Position, Prediction } from "@/lib/types";
 
 type LineupRow = {
@@ -44,13 +44,15 @@ const positionTabs: Array<{ id: Position; label: string }> = [
 export function PredictionView() {
   const {
     completion,
-    moveGroupTeam,
     prediction,
+    replaceGroupOrder,
+    replaceThirdQualifierOrder,
     savePrediction,
     setPredictionExtra,
     setPredictionScore,
     setXiFormation,
     setXiSelection,
+    toggleThirdQualifier,
     user,
   } = useAppContext();
   const [section, setSection] = useState<(typeof sections)[number]["id"]>("extras");
@@ -96,7 +98,13 @@ export function PredictionView() {
           ) : null}
 
           {section === "groups" ? (
-            <GroupStage prediction={prediction} disabled={tournamentLocked} onMoveTeam={moveGroupTeam} />
+            <GroupStage
+              prediction={prediction}
+              disabled={tournamentLocked}
+              onReplaceGroupOrder={replaceGroupOrder}
+              onToggleThirdQualifier={toggleThirdQualifier}
+              onReplaceThirdQualifierOrder={replaceThirdQualifierOrder}
+            />
           ) : null}
 
           {section === "knockout" ? (
@@ -436,12 +444,50 @@ function ExtraPlayerPickerModal({
 function GroupStage({
   prediction,
   disabled,
-  onMoveTeam,
+  onReplaceGroupOrder,
+  onToggleThirdQualifier,
+  onReplaceThirdQualifierOrder,
 }: {
   prediction: Prediction;
   disabled: boolean;
-  onMoveTeam: (group: string, teamId: string, direction: number) => void;
+  onReplaceGroupOrder: (group: string, teamIds: string[]) => void;
+  onToggleThirdQualifier: (group: string) => void;
+  onReplaceThirdQualifierOrder: (groups: string[]) => void;
 }) {
+  const [draggedGroupTeam, setDraggedGroupTeam] = useState<{ group: string; teamId: string } | null>(null);
+  const [draggedThirdGroup, setDraggedThirdGroup] = useState<string | null>(null);
+  const groups = Object.keys(prediction.groups);
+  const thirdRows = groups.map((group) => ({
+    group,
+    teamId: groupTeamAt(group, 3, prediction),
+    selected: prediction.bracket.thirdQualifiers.includes(group),
+  }));
+
+  const reorderGroupTeam = (group: string, targetTeamId: string) => {
+    if (!draggedGroupTeam || draggedGroupTeam.group !== group || draggedGroupTeam.teamId === targetTeamId) return;
+    const ordered = orderedGroupTeams(group, prediction).map((team) => team.id);
+    const from = ordered.indexOf(draggedGroupTeam.teamId);
+    const to = ordered.indexOf(targetTeamId);
+    if (from < 0 || to < 0) return;
+    const [moved] = ordered.splice(from, 1);
+    ordered.splice(to, 0, moved);
+    onReplaceGroupOrder(group, ordered);
+  };
+
+  const reorderThirdQualifier = (targetGroup: string) => {
+    if (!draggedThirdGroup || draggedThirdGroup === targetGroup) return;
+    const selected = prediction.bracket.thirdQualifiers;
+    if (!selected.includes(draggedThirdGroup) || !selected.includes(targetGroup)) return;
+
+    const next = [...selected];
+    const from = next.indexOf(draggedThirdGroup);
+    const to = next.indexOf(targetGroup);
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+
+    onReplaceThirdQualifierOrder(next);
+  };
+
   return (
     <div className="space-y-5">
       <div className="space-y-2">
@@ -452,9 +498,10 @@ function GroupStage({
           <span>Orden exacto en el grupo:</span>
           <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">+3 pts</span>
         </p>
+        <p className="text-sm text-zinc-500">Arrastra los equipos para ordenar primero, segundo, tercero y cuarto. Despues elige los 8 terceros que pasan.</p>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
-        {Object.keys(prediction.groups).map((group) => {
+        {groups.map((group) => {
           const ordered = orderedGroupTeams(group, prediction);
           return (
             <Card key={group} className="space-y-3">
@@ -464,29 +511,24 @@ function GroupStage({
               </div>
               <div className="space-y-2">
                 {ordered.map((team, index) => (
-                  <div key={team.id} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-white/[0.06] px-3 py-2">
+                  <div
+                    key={team.id}
+                    draggable={!disabled}
+                    onDragStart={() => setDraggedGroupTeam({ group, teamId: team.id })}
+                    onDragOver={(event) => {
+                      if (!disabled) event.preventDefault();
+                    }}
+                    onDrop={() => {
+                      if (!disabled) reorderGroupTeam(group, team.id);
+                    }}
+                    onDragEnd={() => setDraggedGroupTeam(null)}
+                    className={`grid cursor-grab grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-white/[0.06] px-3 py-2 active:cursor-grabbing ${
+                      draggedGroupTeam?.teamId === team.id ? "opacity-45" : ""
+                    }`}
+                  >
                     <span className="text-sm font-black text-[#a7f600]">{index + 1}</span>
                     <TeamBadge teamId={team.id} />
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        aria-label={`Subir ${team.name}`}
-                        disabled={disabled || index === 0}
-                        onClick={() => onMoveTeam(group, team.id, -1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-sm font-black text-white disabled:opacity-25"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Bajar ${team.name}`}
-                        disabled={disabled || index === ordered.length - 1}
-                        onClick={() => onMoveTeam(group, team.id, 1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-sm font-black text-white disabled:opacity-25"
-                      >
-                        ↓
-                      </button>
-                    </div>
+                    <span className="text-lg font-black text-zinc-500">☰</span>
                   </div>
                 ))}
               </div>
@@ -494,6 +536,55 @@ function GroupStage({
           );
         })}
       </div>
+
+      <Card className="space-y-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h3 className="text-xl font-black tracking-tight text-white">Terceros clasificados</h3>
+            <p className="text-sm text-zinc-400">Elige exactamente 8 terceros. Puedes arrastrar los elegidos para cambiar su prioridad de asignacion.</p>
+          </div>
+          <span className={`text-sm font-black ${prediction.bracket.thirdQualifiers.length === 8 ? "text-[#a7f600]" : "text-zinc-500"}`}>
+            {prediction.bracket.thirdQualifiers.length}/8
+          </span>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          {thirdRows.map(({ group, teamId, selected }) => (
+            <button
+              key={group}
+              type="button"
+              disabled={disabled || !teamId}
+              draggable={!disabled && selected}
+              onDragStart={() => setDraggedThirdGroup(group)}
+              onDragOver={(event) => {
+                if (!disabled && selected) event.preventDefault();
+              }}
+              onDrop={() => {
+                if (!disabled) reorderThirdQualifier(group);
+              }}
+              onDragEnd={() => setDraggedThirdGroup(null)}
+              onClick={() => onToggleThirdQualifier(group)}
+              className={`grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${
+                selected
+                  ? "border-[#a7f600]/70 bg-[#a7f600]/12"
+                  : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+              } disabled:cursor-not-allowed disabled:opacity-40 ${draggedThirdGroup === group ? "opacity-45" : ""}`}
+            >
+              <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black ${selected ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-400"}`}>
+                {group}
+              </span>
+              {teamId ? <TeamBadge teamId={teamId} /> : <span className="text-sm text-zinc-500">Ordena el grupo primero</span>}
+              <span className="text-xs font-black text-zinc-500">{selected ? "Pasa" : "Elegir"}</span>
+            </button>
+          ))}
+        </div>
+
+        {prediction.bracket.thirdQualifiers.length === 8 ? (
+          <Notice>Los terceros ya estan completos. El cuadro de eliminacion puede resolver sus emparejamientos.</Notice>
+        ) : (
+          <Notice tone="warm">El cuadro se completara cuando haya 8 terceros clasificados seleccionados.</Notice>
+        )}
+      </Card>
     </div>
   );
 }
