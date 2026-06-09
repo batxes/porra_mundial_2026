@@ -4,10 +4,23 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
-import { data, teamsById } from "@/lib/data";
-import { flagUrl, formatScheduleDate, initials, playerPhotoUrl, translateSlot } from "@/lib/format";
+import { data, playersById, teamsById } from "@/lib/data";
+import {
+  flagUrl,
+  formatScheduleDate,
+  initials,
+  playerPhotoUrl,
+  translateSlot,
+} from "@/lib/format";
 import { emptyPrediction, loserForMatch, resolveSlot } from "@/lib/prediction";
-import type { Match, Player, Prediction, Scorecard, UserProfile } from "@/lib/types";
+import type {
+  Match,
+  Player,
+  Position,
+  Prediction,
+  Scorecard,
+  UserProfile,
+} from "@/lib/types";
 
 export function Card({
   children,
@@ -17,7 +30,9 @@ export function Card({
   className?: string;
 }) {
   return (
-    <article className={`rounded-lg border border-white/10 bg-[#151515] p-5 shadow-lg shadow-black/20 ${className}`}>
+    <article
+      className={`rounded-lg border border-white/10 bg-[#151515] p-5 shadow-lg shadow-black/20 ${className}`}
+    >
       {children}
     </article>
   );
@@ -37,9 +52,17 @@ export function SectionHeading({
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#a7f600]">{eyebrow}</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{title}</h1>
-        {description ? <p className="max-w-3xl text-sm text-zinc-400 sm:text-base">{description}</p> : null}
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#a7f600]">
+          {eyebrow}
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          {title}
+        </h1>
+        {description ? (
+          <p className="max-w-3xl text-sm text-zinc-400 sm:text-base">
+            {description}
+          </p>
+        ) : null}
       </div>
       {actions}
     </div>
@@ -58,25 +81,59 @@ export function TeamBadge({
   const team = teamId ? teamsById.get(teamId) : null;
 
   if (!team) {
-    return <span className={`text-sm text-slate-300 ${className}`}>{fallback || "Por confirmar"}</span>;
+    return (
+      <span className={`text-sm text-slate-300 ${className}`}>
+        {fallback || "Por confirmar"}
+      </span>
+    );
   }
 
   return (
-    <span className={`inline-flex min-w-0 items-center gap-2 text-sm font-medium text-white ${className}`}>
-      <Image className="h-5 w-7 shrink-0 rounded-sm object-cover" src={flagUrl(team)} alt="" width={28} height={20} unoptimized />
+    <span
+      className={`inline-flex min-w-0 items-center gap-2 text-sm font-medium text-white ${className}`}
+    >
+      <Image
+        className="h-5 w-7 shrink-0 rounded-sm object-cover"
+        src={flagUrl(team)}
+        alt=""
+        width={28}
+        height={20}
+        unoptimized
+      />
       <span className="truncate">{team.name}</span>
     </span>
   );
 }
 
-export function TeamFlag({ teamId, className = "" }: { teamId?: string; className?: string }) {
+export function TeamFlag({
+  teamId,
+  className = "",
+}: {
+  teamId?: string;
+  className?: string;
+}) {
   const team = teamId ? teamsById.get(teamId) : null;
   if (!team) return null;
 
-  return <Image className={`object-cover ${className}`} src={flagUrl(team)} alt="" width={28} height={20} unoptimized />;
+  return (
+    <Image
+      className={`object-cover ${className}`}
+      src={flagUrl(team)}
+      alt=""
+      width={28}
+      height={20}
+      unoptimized
+    />
+  );
 }
 
-export function PlayerAvatar({ player, className = "" }: { player: Player; className?: string }) {
+export function PlayerAvatar({
+  player,
+  className = "",
+}: {
+  player: Player;
+  className?: string;
+}) {
   const photo = playerPhotoUrl(player);
 
   return (
@@ -84,7 +141,14 @@ export function PlayerAvatar({ player, className = "" }: { player: Player; class
       className={`inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/15 bg-zinc-900 text-sm font-bold text-lime-100 ${className}`}
     >
       {photo ? (
-        <Image className="h-full w-full object-cover" src={photo} alt="" width={48} height={48} unoptimized />
+        <Image
+          className="h-full w-full object-cover"
+          src={photo}
+          alt=""
+          width={48}
+          height={48}
+          unoptimized
+        />
       ) : (
         initials(player.name)
       )}
@@ -120,7 +184,11 @@ export function TeamPicker({
           onClick={() => setOpen((current) => !current)}
           className="flex w-full items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#0f0f0f] px-4 py-3 text-left text-white transition hover:border-white/20 disabled:opacity-40"
         >
-          {selected ? <TeamBadge teamId={selected.id} /> : <span className="text-sm text-zinc-500">{placeholder}</span>}
+          {selected ? (
+            <TeamBadge teamId={selected.id} />
+          ) : (
+            <span className="text-sm text-zinc-500">{placeholder}</span>
+          )}
           <span className="text-xs text-zinc-500">{open ? "▲" : "▼"}</span>
         </button>
 
@@ -156,8 +224,18 @@ export function TeamPicker({
   );
 }
 
-export function Avatar({ name, avatarUrl, className = "" }: { name: string; avatarUrl?: string; className?: string }) {
-  const preset = avatarUrl?.startsWith("preset:") ? avatarUrl.replace("preset:", "") : "";
+export function Avatar({
+  name,
+  avatarUrl,
+  className = "",
+}: {
+  name: string;
+  avatarUrl?: string;
+  className?: string;
+}) {
+  const preset = avatarUrl?.startsWith("preset:")
+    ? avatarUrl.replace("preset:", "")
+    : "";
 
   if (avatarUrl && !avatarUrl.startsWith("preset:")) {
     return (
@@ -187,26 +265,46 @@ export function Avatar({ name, avatarUrl, className = "" }: { name: string; avat
   );
 }
 
-export function Notice({ children, tone = "default" }: { children: React.ReactNode; tone?: "default" | "warm" | "danger" }) {
+export function Notice({
+  children,
+  tone = "default",
+}: {
+  children: React.ReactNode;
+  tone?: "default" | "warm" | "danger";
+}) {
   const toneClasses = {
     default: "border-cyan-400/20 bg-cyan-400/10 text-cyan-100",
     warm: "border-amber-400/20 bg-amber-400/10 text-amber-100",
     danger: "border-rose-400/20 bg-rose-400/10 text-rose-100",
   };
 
-  return <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses[tone]}`}>{children}</div>;
+  return (
+    <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses[tone]}`}>
+      {children}
+    </div>
+  );
 }
 
-export function ScoreBreakdown({ scorecard, title }: { scorecard: Scorecard; title: string }) {
+export function ScoreBreakdown({
+  scorecard,
+  title,
+}: {
+  scorecard: Scorecard;
+  title: string;
+}) {
   return (
     <Card className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Detalle</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+            Detalle
+          </p>
           <h3 className="text-xl font-semibold text-white">{title}</h3>
         </div>
         <div className="rounded-lg bg-white/10 px-4 py-2 text-right">
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Total</p>
+          <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
+            Total
+          </p>
           <p className="text-2xl font-bold text-white">{scorecard.total}</p>
         </div>
       </div>
@@ -214,16 +312,28 @@ export function ScoreBreakdown({ scorecard, title }: { scorecard: Scorecard; tit
       {scorecard.categories.length ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {scorecard.categories.map((category) => (
-            <div key={category.label} className="rounded-lg border border-white/10 bg-[#0f0f0f] p-4">
+            <div
+              key={category.label}
+              className="rounded-lg border border-white/10 bg-[#0f0f0f] p-4"
+            >
               <div className="mb-3 flex items-center justify-between gap-4">
                 <h4 className="font-semibold text-white">{category.label}</h4>
-                <span className="text-sm font-semibold text-[#a7f600]">{category.total} pts</span>
+                <span className="text-sm font-semibold text-[#a7f600]">
+                  {category.total} pts
+                </span>
               </div>
               <div className="space-y-2 text-sm">
                 {category.entries.map((entry) => (
-                  <div key={`${entry.ruleCode}-${entry.sourceRef}-${entry.matchNumber ?? "x"}`} className="flex items-start justify-between gap-3">
+                  <div
+                    key={`${entry.ruleCode}-${entry.sourceRef}-${entry.matchNumber ?? "x"}`}
+                    className="flex items-start justify-between gap-3"
+                  >
                     <p className="text-slate-300">{entry.explanation}</p>
-                    <strong className={entry.points >= 0 ? "text-emerald-300" : "text-rose-300"}>
+                    <strong
+                      className={
+                        entry.points >= 0 ? "text-emerald-300" : "text-rose-300"
+                      }
+                    >
                       {entry.points > 0 ? `+${entry.points}` : entry.points}
                     </strong>
                   </div>
@@ -233,9 +343,181 @@ export function ScoreBreakdown({ scorecard, title }: { scorecard: Scorecard; tit
           ))}
         </div>
       ) : (
-        <p className="text-sm text-slate-400">Todavía no hay puntos validados.</p>
+        <p className="text-sm text-slate-400">
+          Todavía no hay puntos validados.
+        </p>
       )}
     </Card>
+  );
+}
+
+type SnapshotLineupRow = {
+  count: number;
+  position: Position;
+};
+
+type SnapshotLineupSlot = {
+  id: string;
+  row: number;
+  index: number;
+  position: Position;
+  playerId?: string;
+};
+
+const lineupPositionLabels: Record<Position, string> = {
+  POR: "Portero",
+  DEF: "Defensa",
+  MED: "Centro",
+  DEL: "Delantero",
+};
+
+function formationRows(formation: string): SnapshotLineupRow[] {
+  const parts = formation.split("-").map(Number).filter(Boolean);
+  const defense = parts[0] || 4;
+  const attack = parts[parts.length - 1] || 3;
+  const midfield = parts.slice(1, -1).reverse();
+
+  return [
+    { position: "DEL", count: attack },
+    ...midfield.map((count) => ({ position: "MED" as const, count })),
+    { position: "DEF", count: defense },
+    { position: "POR", count: 1 },
+  ];
+}
+
+function lineupSlots(formation: string) {
+  return formationRows(formation).flatMap((row, rowIndex) =>
+    Array.from({ length: row.count }, (_, index) => ({
+      id: `${rowIndex}-${index}-${row.position}`,
+      row: rowIndex,
+      index,
+      position: row.position,
+    })),
+  );
+}
+
+function assignPlayersToSlots(
+  playerIds: string[],
+  formation: string,
+): SnapshotLineupSlot[] {
+  const baseSlots = lineupSlots(formation);
+  const isPositionalSelection =
+    playerIds.length >= baseSlots.length ||
+    playerIds.some((playerId) => !playerId);
+
+  if (isPositionalSelection) {
+    return baseSlots.map((slot, index) => {
+      const playerId = playerIds[index];
+      const player = playerId ? playersById.get(playerId) : null;
+
+      return {
+        ...slot,
+        playerId: player?.position === slot.position ? playerId : undefined,
+      };
+    });
+  }
+
+  const used = new Set<string>();
+
+  return baseSlots.map((slot) => {
+    const playerId = playerIds.find(
+      (id) => !used.has(id) && playersById.get(id)?.position === slot.position,
+    );
+    if (playerId) used.add(playerId);
+    return { ...slot, playerId };
+  });
+}
+
+function PitchLines() {
+  return (
+    <div className="pointer-events-none absolute inset-0 text-emerald-100/35">
+      <div className="absolute inset-0 border-2 border-current" />
+      <div className="absolute left-0 right-0 top-1/2 border-t-2 border-current" />
+      <div className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-current sm:h-32 sm:w-32" />
+      <div className="absolute left-1/2 top-0 h-16 w-32 -translate-x-1/2 rounded-b-2xl border-2 border-t-0 border-current sm:h-24 sm:w-48" />
+      <div className="absolute left-1/2 top-0 h-8 w-16 -translate-x-1/2 rounded-b-xl border-2 border-t-0 border-current sm:h-12 sm:w-24" />
+      <div className="absolute bottom-0 left-1/2 h-16 w-32 -translate-x-1/2 rounded-t-2xl border-2 border-b-0 border-current sm:h-24 sm:w-48" />
+      <div className="absolute bottom-0 left-1/2 h-8 w-16 -translate-x-1/2 rounded-t-xl border-2 border-b-0 border-current sm:h-12 sm:w-24" />
+    </div>
+  );
+}
+
+function LineupSnapshot({ prediction }: { prediction: Prediction }) {
+  const formation = prediction.xiFormation || "4-3-3";
+  const slots = assignPlayersToSlots(prediction.xi, formation);
+  const rows = formationRows(formation);
+  const filledCount = slots.filter((slot) => slot.playerId).length;
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-emerald-300/15 bg-emerald-700 shadow-lg shadow-emerald-950/20">
+      <div className="flex items-center justify-between gap-3 bg-emerald-950/25 px-4 py-3">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-50/75">
+          Once elegido
+        </p>
+        <div className="flex items-center gap-2">
+          <span className="rounded-md bg-emerald-950/35 px-3 py-1 text-xs font-semibold text-emerald-50">
+            {formation}
+          </span>
+          <span className="rounded-md bg-emerald-950/35 px-3 py-1 text-xs font-semibold text-emerald-50">
+            {filledCount}/11
+          </span>
+        </div>
+      </div>
+
+      <div className="relative mx-auto my-4 aspect-[7/8] w-full max-w-[560px] overflow-hidden rounded-lg border border-emerald-200/20 bg-emerald-600">
+        <PitchLines />
+        <div className="relative z-10 flex h-full flex-col justify-between px-2 py-4 sm:px-5 sm:py-5">
+          {rows.map((row, rowIndex) => {
+            const rowSlots = slots.filter((slot) => slot.row === rowIndex);
+            return (
+              <div
+                key={`${row.position}-${rowIndex}`}
+                className="grid items-center gap-1"
+                style={{
+                  gridTemplateColumns: `repeat(${row.count}, minmax(0, 1fr))`,
+                }}
+              >
+                {rowSlots.map((slot) => (
+                  <LineupSnapshotSlot key={slot.id} slot={slot} />
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LineupSnapshotSlot({ slot }: { slot: SnapshotLineupSlot }) {
+  const player = slot.playerId ? playersById.get(slot.playerId) : null;
+
+  return (
+    <div className="mx-auto flex w-16 flex-col items-center gap-0.5 text-center sm:w-[4.5rem]">
+      <span className="relative inline-flex">
+        {player ? (
+          <PlayerAvatar
+            player={player}
+            className="h-10 w-10 rounded-full border-2 border-white bg-white text-xs text-emerald-900 shadow-lg sm:h-11 sm:w-11"
+          />
+        ) : (
+          <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-700 shadow-[0_0_0_3px_#10b981] sm:h-11 sm:w-11">
+            <span className="h-7 w-7 rounded-full border border-emerald-100 bg-emerald-600" />
+          </span>
+        )}
+        {player ? (
+          <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow">
+            <TeamFlag
+              teamId={player.team}
+              className="h-full w-full rounded-full"
+            />
+          </span>
+        ) : null}
+      </span>
+      <span className="max-w-full truncate text-[11px] font-bold leading-tight text-white drop-shadow sm:text-xs">
+        {player?.name || lineupPositionLabels[slot.position]}
+      </span>
+    </div>
   );
 }
 
@@ -248,7 +530,10 @@ function GroupSummary({ prediction }: { prediction: Prediction }) {
           .sort((a, b) => Number(a[1]) - Number(b[1]));
 
         return (
-          <div key={group} className="rounded-lg border border-white/10 bg-white/5 p-4">
+          <div
+            key={group}
+            className="rounded-lg border border-white/10 bg-white/5 p-4"
+          >
             <div className="mb-3 flex items-center justify-between">
               <h4 className="font-semibold text-white">Grupo {group}</h4>
               <span className="text-xs text-slate-400">{rows.length}/4</span>
@@ -256,7 +541,10 @@ function GroupSummary({ prediction }: { prediction: Prediction }) {
             <div className="space-y-2">
               {rows.length ? (
                 rows.map(([teamId, value]) => (
-                  <div key={teamId} className="flex items-center justify-between">
+                  <div
+                    key={teamId}
+                    className="flex items-center justify-between"
+                  >
                     <TeamBadge teamId={teamId} />
                     <span className="text-sm text-slate-300">{value}º</span>
                   </div>
@@ -272,50 +560,418 @@ function GroupSummary({ prediction }: { prediction: Prediction }) {
   );
 }
 
-function KnockoutSummary({ prediction, matches }: { prediction: Prediction; matches: Match[] }) {
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {matches.map((match) => {
-        const home = resolveSlot(match.home, match.number, prediction);
-        const away = resolveSlot(match.away, match.number, prediction);
-        const winner = prediction.bracket.winners[String(match.number)] || "";
+const leftBracketRounds = [
+  [74, 77, 73, 75, 83, 84, 81, 82],
+  [89, 90, 93, 94],
+  [97, 98],
+  [101],
+] as const;
 
-        return (
-          <div key={match.number} className="rounded-lg border border-white/10 bg-white/5 p-4">
-            <div className="mb-3 flex items-center justify-between text-sm text-slate-400">
-              <span>Partido {match.number}</span>
-              <span>{match.stage}</span>
+const rightBracketRounds = [
+  [76, 78, 79, 80, 86, 88, 85, 87],
+  [91, 92, 95, 96],
+  [99, 100],
+  [102],
+] as const;
+
+const bracketRoundLabels = ["Dieciseisavos", "Octavos", "Cuartos", "Semis"] as const;
+
+export function KnockoutBracket({
+  layout = "responsive",
+  prediction,
+  matches,
+}: {
+  layout?: "responsive" | "mobile";
+  prediction: Prediction;
+  matches: Match[];
+}) {
+  const matchByNumber = new Map(matches.map((match) => [match.number, match]));
+  const champion = prediction.bracket.winners["104"] || "";
+  const thirdPlaceMatch = matchByNumber.get(103);
+  const finalMatch = matchByNumber.get(104);
+
+  return (
+    <>
+      {layout === "responsive" ? (
+        <div className="hidden w-full overflow-x-auto rounded-[18px] border border-white/10 bg-[#151515] p-3 text-white md:block">
+          <div className="grid min-w-[1280px] grid-cols-[1fr_250px_1fr] gap-4 rounded-[16px] border border-white/10 bg-[#0f0f0f] px-3 py-4">
+            <BracketTree rounds={leftBracketRounds} matchByNumber={matchByNumber} prediction={prediction} />
+
+            <div className="flex h-[670px] flex-col items-center justify-center gap-5">
+              <div className="text-center">
+                <ChampionTrophyIcon />
+                <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#a7f600]">Campeón</p>
+                <div className="mt-2 flex justify-center">
+                  {champion ? <TeamBadge teamId={champion} /> : <span className="text-xs font-bold text-zinc-500">Por decidir</span>}
+                </div>
+              </div>
+
+              <div className="grid w-full grid-cols-3 items-center gap-3">
+                <div className="h-px bg-white/10" />
+                {finalMatch ? <BracketMatchCard match={finalMatch} prediction={prediction} label="Final" featured /> : null}
+                <div className="h-px bg-white/10" />
+              </div>
+
+              {thirdPlaceMatch ? <BracketMatchCard match={thirdPlaceMatch} prediction={prediction} label="Final de bronce" tagTone="blue" /> : null}
             </div>
-            <div className="space-y-2">
-              <div className={`rounded-md px-3 py-2 ${winner === home ? "bg-lime-300/10" : "bg-[#0f0f0f]"}`}>
-                <TeamBadge teamId={home} fallback={translateSlot(match.home)} />
-              </div>
-              <div className={`rounded-md px-3 py-2 ${winner === away ? "bg-lime-300/10" : "bg-[#0f0f0f]"}`}>
-                <TeamBadge teamId={away} fallback={translateSlot(match.away)} />
-              </div>
+
+            <BracketTree rounds={rightBracketRounds} matchByNumber={matchByNumber} prediction={prediction} reverse />
+          </div>
+        </div>
+      ) : null}
+      <MobileKnockoutBracket
+        champion={champion}
+        className={layout === "mobile" ? "" : "md:hidden"}
+        finalMatch={finalMatch}
+        matchByNumber={matchByNumber}
+        prediction={prediction}
+        thirdPlaceMatch={thirdPlaceMatch}
+      />
+    </>
+  );
+}
+
+function ChampionTrophyIcon() {
+  return (
+    <span className="relative mx-auto inline-flex h-[72px] w-[53px] text-zinc-500" aria-hidden="true">
+      <svg className="h-full w-full" viewBox="0 0 53 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M42.6182 0.265696C42.8928 0.265696 43.1121 0.488777 43.108 0.763023L43.0178 6.86398C42.6366 14.9952 41.2573 24.1702 33.7519 28.7935C32.2086 29.7431 29.8065 30.3427 28.9068 31.9289C27.7673 33.9407 28.8597 36.0119 30.9174 36.5706C31.1326 36.6299 31.2884 36.8182 31.2863 37.0413C31.2802 38.7359 31.0732 40.5758 30.5977 42.207C29.7184 45.2278 27.1995 47.7533 29.7553 50.7741C30.5382 51.6992 31.7044 52.3459 32.7333 52.9537C32.7579 52.9681 32.7845 52.9803 32.8112 52.9906L34.1987 53.5043C34.7111 53.6946 34.5758 54.4539 34.0286 54.4539H18.9543C18.403 54.4539 18.2697 53.6844 18.7903 53.5022L19.2105 53.3549C19.2228 53.3508 19.2351 53.3467 19.2474 53.3406C20.5447 52.7736 22.1946 51.8629 23.1025 50.7761C25.6583 47.7103 23.1497 45.2605 22.2602 42.209C21.7847 40.5758 21.5777 38.738 21.5715 37.0434C21.5715 36.8203 21.7252 36.632 21.9404 36.5726C23.1661 36.235 24.2503 35.2751 24.3794 33.955C24.6991 30.6538 21.176 30.1156 19.026 28.775C9.84206 23.0445 9.8687 10.4374 9.75393 0.760977C9.74983 0.488777 9.97118 0.265696 10.2438 0.265696H42.6182ZM13.5456 2.51493H12.5024C12.2277 2.51493 12.0064 2.74005 12.0125 3.0143C12.0986 7.29991 12.2031 11.6224 13.1787 15.8077C14.2854 20.564 16.6178 25.1075 21.1637 27.3608C21.2989 27.3076 21.0448 27.15 20.9997 27.1152C19.6511 26.0101 18.6427 24.9172 17.7553 23.4047C15.5398 19.6287 14.9454 15.163 14.5642 10.8651C14.5642 10.8528 14.5642 10.8406 14.5642 10.8262L14.472 3.42362C14.4658 2.91811 14.0538 2.51288 13.5497 2.51288L13.5456 2.51493ZM23.9018 37.995H23.4632C23.1784 37.995 22.955 38.2365 22.9734 38.519C23.0308 39.4318 23.1907 40.3261 23.4223 41.2041C23.5739 41.7813 24.4204 41.6482 24.3876 41.0506C24.3876 41.0363 24.3876 41.024 24.3855 41.0097C24.3425 40.1726 24.3958 39.3253 24.3937 38.4842C24.3937 38.214 24.1724 37.995 23.9018 37.995Z"
+          fill="currentColor"
+        />
+        <path d="M37.9268 56.1723H14.9351C14.6137 56.1723 14.3531 56.4325 14.3531 56.7535V67.3488C14.3531 67.6698 14.6137 67.9301 14.9351 67.9301H37.9268C38.2483 67.9301 38.5089 67.6698 38.5089 67.3488V56.7535C38.5089 56.4325 38.2483 56.1723 37.9268 56.1723Z" fill="currentColor" />
+        <path d="M39.5336 23.8836C39.8206 23.2799 40.2366 22.6884 40.5276 22.0928C40.7633 21.6098 41.0421 20.6029 41.3167 20.2345C41.6446 19.7945 43.0404 18.8408 43.5548 18.3619C46.9611 15.206 51.177 10.2757 50.7712 5.30651C50.4453 1.3238 45.961 -0.0556226 43.811 3.37041L43.4626 4.3446C43.2392 -0.567276 49.894 -1.59058 51.8226 2.70321C55.0199 9.81929 46.1495 19.1764 40.8535 22.9667L39.5316 23.8816L39.5336 23.8836Z" fill="currentColor" />
+        <path d="M9.4424 4.56154L9.09808 3.59758C6.92763 0.177692 2.49039 1.59395 2.2096 5.59713C1.86528 10.5049 5.99509 15.2981 9.35222 18.4233C9.91379 18.9472 11.1558 19.7679 11.5637 20.2775C11.8219 20.6009 12.1252 21.661 12.3466 22.1133C12.6417 22.7109 13.0516 23.2778 13.3304 23.8836L12.0248 22.977C6.78621 19.2276 -2.05342 9.89297 1.20123 2.87513C3.14214 -1.30815 9.66785 -0.256191 9.4424 4.56154Z" fill="currentColor" />
+        <path d="M39.5275 71.998H13.3078C12.986 71.998 12.7913 71.6398 12.9676 71.3717C13.3796 70.7413 13.8448 69.9411 14.2014 69.6484C14.2977 69.5686 14.3674 69.5236 14.5006 69.5379L38.2588 69.5441C38.3838 69.5441 38.5027 69.6034 38.5806 69.7017L39.8493 71.3471C40.0542 71.6132 39.8636 72 39.5275 72V71.998Z" fill="currentColor" />
+      </svg>
+
+      <svg className="absolute left-1/2 top-[29px] h-[23px] w-[22px] -translate-x-1/2 text-[#a7f600]" viewBox="0 0 22 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g clipPath="url(#champion-trophy-crest)">
+          <path
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d="M11.8241 0.664213C11.5665 0.551444 11.2877 0.495535 11.0067 0.500278C10.7222 0.496838 10.4402 0.552662 10.1784 0.664213L3.04819 3.81151C2.68674 3.97246 2.37963 4.23511 2.16411 4.5676C1.94859 4.9001 1.83391 5.28815 1.83398 5.6847V10.3653C1.83573 13.1137 2.73268 15.7864 4.38841 17.9768C6.04414 20.1672 8.36804 21.7554 11.0067 22.5C13.643 21.7532 15.9643 20.164 17.6177 17.9738C19.2711 15.7836 20.1663 13.1121 20.1673 10.3653V5.6847C20.1685 5.29703 20.0593 4.91708 19.8525 4.58952C19.6457 4.26197 19.3499 4.00041 19 3.83562L11.8241 0.664213ZM10.4115 16.4132C10.5545 16.471 10.7077 16.5005 10.8623 16.5C11.0164 16.5004 11.169 16.4707 11.3114 16.4127C11.4537 16.3547 11.5828 16.2695 11.6913 16.1621C11.7998 16.0546 11.8855 15.9271 11.9434 15.7869C12.0013 15.6467 12.0303 15.4966 12.0286 15.3454C12.0317 15.1942 12.0036 15.0439 11.9461 14.9037C11.8885 14.7634 11.8027 14.636 11.6938 14.5291C11.5849 14.4221 11.4551 14.3379 11.3122 14.2814C11.1693 14.2249 11.0163 14.1974 10.8623 14.2004C10.708 14.198 10.5548 14.2259 10.4116 14.2825C10.2685 14.339 10.1383 14.4231 10.0287 14.5298C9.91914 14.6365 9.83239 14.7636 9.77356 14.9036C9.71474 15.0437 9.68502 15.1939 9.68616 15.3454C9.6856 15.4971 9.71564 15.6475 9.77455 15.7879C9.83346 15.9282 9.92008 16.0557 10.0294 16.163C10.1387 16.2704 10.2686 16.3554 10.4115 16.4132ZM12.6448 10.8747C12.9529 10.5806 13.3077 10.2419 13.6724 9.71929L13.671 9.71791C13.9263 9.28925 14.0594 8.80102 14.0561 8.30448C14.0529 7.80793 13.9136 7.32139 13.6528 6.89594C13.3499 6.44247 12.9307 6.07522 12.4375 5.83106C11.9442 5.58689 11.3942 5.47441 10.8427 5.50489C10.2946 5.49658 9.75322 5.6241 9.26865 5.87565C8.78407 6.12721 8.37193 6.49467 8.07037 6.94405C7.95649 7.12397 7.91829 7.34029 7.96384 7.54734C8.00939 7.75439 8.13512 7.93596 8.31448 8.05371C8.49385 8.17145 8.7128 8.21616 8.92511 8.17838C9.13742 8.14061 9.32647 8.02331 9.45233 7.85126C9.59692 7.61123 9.80336 7.41282 10.0509 7.27601C10.2984 7.13919 10.5783 7.06879 10.8623 7.07189C11.1267 7.0449 11.3935 7.09313 11.6308 7.21084C11.868 7.32854 12.0658 7.51075 12.2006 7.73574C12.3353 7.96073 12.4013 8.21902 12.3907 8.4798C12.38 8.74059 12.2933 8.99287 12.1406 9.20658C11.9156 9.52136 11.6181 9.79067 11.3168 10.0633C10.9433 10.4014 10.5641 10.7446 10.3106 11.1859C10.1486 11.4671 10.0529 11.7804 10.0306 12.1028C10.0203 12.217 10.0343 12.3322 10.0719 12.4408C10.1095 12.5494 10.1697 12.6492 10.2488 12.7336C10.3279 12.8181 10.424 12.8855 10.5311 12.9314C10.6382 12.9773 10.7538 13.0008 10.8707 13.0004H10.9085C11.1179 12.9975 11.3191 12.9194 11.4738 12.7809C11.6286 12.6423 11.7264 12.4529 11.7486 12.2485C11.7708 12.0586 11.8312 11.875 11.9264 11.7083C12.1034 11.3915 12.3532 11.153 12.6448 10.8747Z"
+            fill="currentColor"
+          />
+        </g>
+        <defs>
+          <clipPath id="champion-trophy-crest">
+            <rect width="22" height="22" fill="white" transform="translate(0 0.5)" />
+          </clipPath>
+        </defs>
+      </svg>
+    </span>
+  );
+}
+
+function MobileKnockoutBracket({
+  champion,
+  className = "md:hidden",
+  finalMatch,
+  matchByNumber,
+  prediction,
+  thirdPlaceMatch,
+}: {
+  champion: string;
+  className?: string;
+  finalMatch?: Match;
+  matchByNumber: Map<number, Match>;
+  prediction: Prediction;
+  thirdPlaceMatch?: Match;
+}) {
+  return (
+    <div className={`w-full rounded-[18px] border border-white/10 bg-[#151515] p-3 text-white ${className}`}>
+      <div className="rounded-[16px] border border-white/10 bg-[#0f0f0f] px-3 py-4">
+        <MobileBracketRound matchByNumber={matchByNumber} matchNumbers={[89, 90, 93, 94]} prediction={prediction} />
+        <MobileBracketJoin />
+        <MobileBracketRound matchByNumber={matchByNumber} matchNumbers={[97, 98]} prediction={prediction} />
+        <MobileBracketJoin compact />
+        <MobileBracketRound matchByNumber={matchByNumber} matchNumbers={[101]} prediction={prediction} />
+
+        <div className="my-8 grid grid-cols-3 items-center gap-3">
+          <div className="flex justify-center">
+            {thirdPlaceMatch ? <BracketMatchCard match={thirdPlaceMatch} prediction={prediction} label="Final de bronce" tagTone="blue" compact /> : null}
+          </div>
+          <div className="flex justify-center">
+            {finalMatch ? <BracketMatchCard match={finalMatch} prediction={prediction} label="Final" featured compact /> : null}
+          </div>
+          <div className="text-center">
+            <ChampionTrophyIcon />
+            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#a7f600]">Campeón</p>
+            <div className="mt-1 flex justify-center">
+              {champion ? <TeamBadge teamId={champion} /> : null}
             </div>
           </div>
-        );
+        </div>
+
+        <MobileBracketRound matchByNumber={matchByNumber} matchNumbers={[102]} prediction={prediction} />
+        <MobileBracketJoin compact />
+        <MobileBracketRound matchByNumber={matchByNumber} matchNumbers={[99, 100]} prediction={prediction} />
+        <MobileBracketJoin />
+        <MobileBracketRound matchByNumber={matchByNumber} matchNumbers={[91, 92, 95, 96]} prediction={prediction} />
+      </div>
+    </div>
+  );
+}
+
+function MobileBracketRound({
+  matchByNumber,
+  matchNumbers,
+  prediction,
+}: {
+  matchByNumber: Map<number, Match>;
+  matchNumbers: number[];
+  prediction: Prediction;
+}) {
+  const columns = matchNumbers.length === 1 ? "grid-cols-1" : matchNumbers.length === 2 ? "grid-cols-2" : "grid-cols-4";
+
+  return (
+    <div className={`mx-auto grid max-w-[340px] ${columns} justify-items-center gap-2`}>
+      {matchNumbers.map((matchNumber) => {
+        const match = matchByNumber.get(matchNumber);
+        return match ? <BracketMatchCard key={match.number} match={match} prediction={prediction} compact /> : null;
       })}
     </div>
   );
 }
 
+function MobileBracketJoin({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`relative mx-auto ${compact ? "h-8" : "h-10"} w-[76%] max-w-[260px]`}>
+      <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-white/10" />
+      <span className="absolute left-[18%] right-[18%] top-1/2 h-px -translate-y-1/2 bg-white/10" />
+    </div>
+  );
+}
+
+function BracketTree({
+  rounds,
+  matchByNumber,
+  prediction,
+  reverse = false,
+}: {
+  rounds: readonly (readonly number[])[];
+  matchByNumber: Map<number, Match>;
+  prediction: Prediction;
+  reverse?: boolean;
+}) {
+  const orderedRounds = reverse ? [...rounds].reverse() : rounds;
+  const labels = reverse ? [...bracketRoundLabels].reverse() : bracketRoundLabels;
+
+  return (
+    <div className="grid h-[670px] grid-cols-4 gap-4">
+      {orderedRounds.map((round, roundIndex) => (
+        <div key={labels[roundIndex]} className="flex min-w-0 flex-col">
+          <p className="mb-3 text-center text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">{labels[roundIndex]}</p>
+          <div className="relative grid flex-1" style={{ gridTemplateRows: `repeat(${round.length}, minmax(0, 1fr))` }}>
+            {!reverse && roundIndex < orderedRounds.length - 1 ? <BracketVerticalConnectors count={round.length} side="right" /> : null}
+            {reverse && roundIndex > 0 ? <BracketVerticalConnectors count={round.length} side="left" /> : null}
+            {round.map((matchNumber) => {
+              const match = matchByNumber.get(matchNumber);
+              return match ? (
+                <div key={match.number} className="relative flex items-center justify-center">
+                  {roundIndex > 0 ? <BracketHorizontalConnector side="left" /> : null}
+                  {roundIndex < orderedRounds.length - 1 ? <BracketHorizontalConnector side="right" /> : null}
+                  <BracketMatchCard match={match} prediction={prediction} />
+                </div>
+              ) : null;
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BracketHorizontalConnector({ side }: { side: "left" | "right" }) {
+  return <span className={`absolute top-1/2 h-px w-5 -translate-y-1/2 bg-white/10 ${side === "right" ? "left-[calc(50%+41px)]" : "right-[calc(50%+41px)]"}`} />;
+}
+
+function BracketVerticalConnectors({ count, side }: { count: number; side: "left" | "right" }) {
+  if (count < 2) return null;
+
+  return (
+    <>
+      {Array.from({ length: Math.floor(count / 2) }, (_, pairIndex) => (
+        <span
+          key={`${side}-${pairIndex}`}
+          className={`absolute w-px bg-white/10 ${side === "right" ? "left-[calc(50%+61px)]" : "right-[calc(50%+61px)]"}`}
+          style={{
+            height: `${100 / count}%`,
+            top: `${((pairIndex * 2 + 0.5) / count) * 100}%`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+function BracketMatchCard({
+  match,
+  prediction,
+  label,
+  featured = false,
+  tagTone = "gold",
+  compact = false,
+}: {
+  match: Match;
+  prediction: Prediction;
+  label?: string;
+  featured?: boolean;
+  tagTone?: "gold" | "blue";
+  compact?: boolean;
+}) {
+  const home = resolveSlot(match.home, match.number, prediction);
+  const away = resolveSlot(match.away, match.number, prediction);
+  const current = prediction.matchPredictions[String(match.number)];
+
+  return (
+    <div className={`relative z-10 mx-auto rounded-lg border border-white/10 bg-[#151515] px-2 py-2 text-center shadow-sm shadow-black/20 ${featured ? (compact ? "w-[78px]" : "w-[92px]") : compact ? "w-[64px]" : "w-[82px]"}`}>
+      <div className={`flex justify-center ${compact ? "gap-2" : "gap-3"}`}>
+        <BracketTeamToken teamId={home} fallback={shortSlotLabel(match.home)} compact={compact} />
+        <BracketTeamToken teamId={away} fallback={shortSlotLabel(match.away)} compact={compact} />
+      </div>
+      {current?.homeScore !== "" && current?.awayScore !== "" && current?.homeScore != null && current?.awayScore != null ? (
+        <div className="mt-1 rounded bg-white/10 px-1 py-0.5 text-[10px] font-black text-white">
+          {current.homeScore} - {current.awayScore}
+        </div>
+      ) : null}
+      <p className={`${compact ? "text-[10px]" : "text-[11px]"} mt-1 font-medium leading-none text-zinc-500`}>{formatBracketDate(match)}</p>
+      {label ? (
+        <span className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase leading-none text-black ${tagTone === "blue" ? "bg-cyan-400" : "bg-white"}`}>
+          {label}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function BracketTeamToken({ teamId, fallback, compact = false }: { teamId?: string; fallback: string; compact?: boolean }) {
+  const team = teamId ? teamsById.get(teamId) : null;
+
+  return (
+    <div className="flex min-w-0 flex-col items-center gap-1">
+      {team ? (
+        <TeamFlag teamId={team.id} className={`${compact ? "h-4 w-4" : "h-5 w-5"} rounded-full border border-white/15 object-cover`} />
+      ) : (
+        <span className={`${compact ? "h-4 w-4" : "h-5 w-5"} rounded-full bg-white/10 shadow-inner`} />
+      )}
+      <span className={`${compact ? "max-w-[24px] text-[10px]" : "max-w-[34px] text-[11px]"} truncate font-black leading-none text-white`}>
+        {team?.code.toUpperCase() || fallback}
+      </span>
+    </div>
+  );
+}
+
+function shortSlotLabel(slot: string) {
+  if (teamsById.has(slot)) return teamsById.get(slot)?.code.toUpperCase() || slot.toUpperCase();
+
+  let match = String(slot).match(/^Winner Group ([A-L])$/);
+  if (match) return `1${match[1]}`;
+
+  match = String(slot).match(/^Runner-up Group ([A-L])$/);
+  if (match) return `2${match[1]}`;
+
+  match = String(slot).match(/^3rd Group ([A-L/]+)$/);
+  if (match) return `3${match[1].replace(/\//g, "")}`;
+
+  match = String(slot).match(/^Winner Match (\d+)$/);
+  if (match) {
+    const number = Number(match[1]);
+    if (number >= 73 && number <= 88) return `EF${number - 72}`;
+    if (number >= 89 && number <= 96) return `OF${number - 88}`;
+    if (number >= 97 && number <= 100) return `WQ${number - 96}`;
+    if (number >= 101 && number <= 102) return `WS${number - 100}`;
+    return `W${number}`;
+  }
+
+  match = String(slot).match(/^Loser Match (\d+)$/);
+  if (match) return `LS${Number(match[1]) - 100}`;
+
+  return translateSlot(slot);
+}
+
+function formatBracketDate(match: Match) {
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  })
+    .format(new Date(`${match.date}T12:00:00Z`))
+    .replace(".", "");
+}
+
+function ResultsSummary({
+  prediction,
+  matches,
+}: {
+  prediction: Prediction;
+  matches: Match[];
+}) {
+  const completedMatches = matches.filter((match) => {
+    const score = prediction.matchPredictions[String(match.number)];
+    return score?.homeScore !== "" && score?.awayScore !== "" && score?.homeScore != null && score?.awayScore != null;
+  });
+
+  if (!completedMatches.length) {
+    return <p className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-400">Todavía no hay resultados elegidos.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="font-semibold text-white">Resultados elegidos</h4>
+        <span className="text-sm font-semibold text-[#a7f600]">{completedMatches.length}/{matches.length}</span>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {completedMatches.map((match) => {
+          const score = prediction.matchPredictions[String(match.number)];
+          const home = resolveSlot(match.home, match.number, prediction);
+          const away = resolveSlot(match.away, match.number, prediction);
+
+          return (
+            <div key={match.number} className="rounded-lg border border-white/10 bg-white/5 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                <span>Partido {match.number} · {match.stage}</span>
+                <span>{formatScheduleDate(match)}</span>
+              </div>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+                <TeamBadge teamId={home} fallback={translateSlot(match.home)} />
+                <span className="rounded-md bg-[#0f0f0f] px-3 py-2 text-center text-xl font-black text-white">
+                  {score.homeScore} - {score.awayScore}
+                </span>
+                <TeamBadge teamId={away} fallback={translateSlot(match.away)} className="justify-end text-right" />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function PredictionSnapshot({
+  bracketLayout = "responsive",
   prediction,
   matches,
   playerName,
   profile,
 }: {
+  bracketLayout?: "responsive" | "mobile";
   prediction: Prediction | null;
   matches: Match[];
   playerName: (playerId: string) => string;
   profile?: UserProfile;
 }) {
   const safePrediction = prediction || emptyPrediction();
-  const [section, setSection] = useState<"summary" | "groups" | "knockout">("summary");
+  const [section, setSection] = useState<"summary" | "groups" | "knockout" | "results">(
+    "summary",
+  );
 
-  const champion = safePrediction.extras.worldChampion || safePrediction.bracket.winners["104"] || "";
+  const champion =
+    safePrediction.extras.worldChampion ||
+    safePrediction.bracket.winners["104"] ||
+    "";
   const runnerUp = champion ? loserForMatch(104, safePrediction) : "";
 
   return (
@@ -354,28 +1010,80 @@ export function PredictionSnapshot({
         >
           Cuadro
         </button>
+        <button
+          type="button"
+          onClick={() => setSection("results")}
+          className={`rounded-lg px-4 py-2 text-sm ${section === "results" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+        >
+          Resultados
+        </button>
       </div>
 
       {section === "summary" ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <SummaryStat title="Campeón" value={champion ? <TeamBadge teamId={champion} /> : "Pendiente"} />
-          <SummaryStat title="Subcampeón" value={runnerUp ? <TeamBadge teamId={runnerUp} /> : "Pendiente"} />
-          <SummaryStat title="Máximo goleador" value={safePrediction.extras.topScorer ? playerName(safePrediction.extras.topScorer) : "Pendiente"} />
-          <SummaryStat title="MVP" value={safePrediction.extras.mvp ? playerName(safePrediction.extras.mvp) : "Pendiente"} />
-          <SummaryStat title="Once ideal" value={`${safePrediction.xi.filter(Boolean).length}/11`} />
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <SummaryStat
+              title="Campeón"
+              value={champion ? <TeamBadge teamId={champion} /> : "Pendiente"}
+            />
+            <SummaryStat
+              title="Subcampeón"
+              value={runnerUp ? <TeamBadge teamId={runnerUp} /> : "Pendiente"}
+            />
+            <SummaryStat
+              title="M. goleador"
+              value={
+                safePrediction.extras.topScorer
+                  ? playerName(safePrediction.extras.topScorer)
+                  : "Pendiente"
+              }
+            />
+            <SummaryStat
+              title="MVP"
+              value={
+                safePrediction.extras.mvp
+                  ? playerName(safePrediction.extras.mvp)
+                  : "Pendiente"
+              }
+            />
+            <SummaryStat
+              title="Once elegido"
+              value={`${safePrediction.xi.filter(Boolean).length}/11`}
+            />
+          </div>
+          <LineupSnapshot prediction={safePrediction} />
         </div>
       ) : null}
 
-      {section === "groups" ? <GroupSummary prediction={safePrediction} /> : null}
-      {section === "knockout" ? <KnockoutSummary prediction={safePrediction} matches={matches.filter((match) => match.number >= 73)} /> : null}
+      {section === "groups" ? (
+        <GroupSummary prediction={safePrediction} />
+      ) : null}
+      {section === "knockout" ? (
+        <KnockoutBracket
+          layout={bracketLayout}
+          prediction={safePrediction}
+          matches={matches.filter((match) => match.number >= 73)}
+        />
+      ) : null}
+      {section === "results" ? (
+        <ResultsSummary prediction={safePrediction} matches={matches} />
+      ) : null}
     </Card>
   );
 }
 
-function SummaryStat({ title, value }: { title: string; value: React.ReactNode }) {
+function SummaryStat({
+  title,
+  value,
+}: {
+  title: string;
+  value: React.ReactNode;
+}) {
   return (
     <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-      <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{title}</p>
+      <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
+        {title}
+      </p>
       <div className="mt-2 text-base font-semibold text-white">{value}</div>
     </div>
   );
@@ -394,7 +1102,9 @@ export function EmptyState({
 }) {
   return (
     <Card className="flex flex-col items-center justify-center gap-4 py-14 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-lime-300/15 text-2xl font-bold text-lime-300">{icon}</div>
+      <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-lime-300/15 text-2xl font-bold text-lime-300">
+        {icon}
+      </div>
       <div className="space-y-2">
         <h3 className="text-xl font-semibold text-white">{title}</h3>
         <p className="max-w-xl text-sm text-slate-400">{description}</p>
@@ -404,7 +1114,13 @@ export function EmptyState({
   );
 }
 
-export function PrimaryLink({ href, children }: { href: string; children: React.ReactNode }) {
+export function PrimaryLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
   return (
     <Link
       href={href}

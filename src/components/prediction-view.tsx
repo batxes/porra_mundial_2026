@@ -3,7 +3,7 @@
 import { type CSSProperties, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 
-import { Card, Notice, PlayerAvatar, SectionHeading, TeamBadge, TeamFlag, TeamPicker } from "@/components/common";
+import { Card, KnockoutBracket, Notice, PlayerAvatar, SectionHeading, TeamBadge, TeamFlag, TeamPicker } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { data, playersById, schedule, sections, teamsById, xiFormations } from "@/lib/data";
 import { translateSlot } from "@/lib/format";
@@ -57,7 +57,9 @@ export function PredictionView() {
   const [message, setMessage] = useState("");
 
   const visibleMatches = useMemo(() => schedule.filter((match) => isMatchVisibleForPrediction(match, prediction)), [prediction]);
+  const finalPhaseMatches = useMemo(() => schedule.filter((match) => match.number >= 73), []);
   const tournamentLocked = hasTournamentStarted();
+  const wideSection = section === "knockout";
 
   const persist = async () => {
     const result = await savePrediction(false);
@@ -65,7 +67,7 @@ export function PredictionView() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl pb-28">
+    <div className={`mx-auto pb-28 ${wideSection ? "max-w-none" : "max-w-3xl"}`}>
       <SectionHeading eyebrow="Porra" title="Juega el Mundial" />
 
       <div className="space-y-4">
@@ -95,6 +97,10 @@ export function PredictionView() {
 
           {section === "groups" ? (
             <GroupStage prediction={prediction} disabled={tournamentLocked} onMoveTeam={moveGroupTeam} />
+          ) : null}
+
+          {section === "knockout" ? (
+            <FinalPhaseSection prediction={prediction} matches={finalPhaseMatches} />
           ) : null}
 
           {section === "results" ? (
@@ -136,7 +142,7 @@ function StepTabs({
   return (
     <div className="sticky top-[102px] z-30 -mx-1 overflow-x-auto bg-[#050505]/88 px-1 py-2 backdrop-blur">
       <div className="flex min-w-max gap-2">
-        {sections.map((tab, index) => (
+        {sections.map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -145,8 +151,8 @@ function StepTabs({
               section === tab.id ? "bg-white text-black" : "bg-white/[0.08] text-zinc-300 hover:bg-white/[0.12]"
             }`}
           >
-            <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${section === tab.id ? "bg-black text-white" : "bg-white/10 text-zinc-400"}`}>
-              {index + 1}
+            <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] ${section === tab.id ? "bg-black text-white" : "bg-white/10 text-zinc-400"}`}>
+              {tab.step}
             </span>
             {tab.label}
           </button>
@@ -845,6 +851,17 @@ function PlayerPickerModal({
   );
 }
 
+function FinalPhaseSection({ prediction, matches }: { prediction: Prediction; matches: Match[] }) {
+  return (
+    <div className="relative left-1/2 w-[calc(100vw-2rem)] max-w-[1380px] -translate-x-1/2 space-y-5 sm:w-[calc(100vw-3rem)]">
+      <div>
+        <h2 className="text-2xl font-black tracking-tight text-white">Fase final</h2>
+      </div>
+      <KnockoutBracket prediction={prediction} matches={matches} />
+    </div>
+  );
+}
+
 function ResultsSchedule({
   matches,
   prediction,
@@ -948,7 +965,12 @@ function ResultMatchCard({
             disabled={locked}
             onChange={(value) => onScoreChange(match.number, "homeScore", value)}
           />
-          <span className={`absolute left-1/2 top-10 z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border border-white/20 text-sm font-black ${complete ? "bg-[#a7f600] text-black" : "bg-[#3a3a3a] text-zinc-500"}`}>
+          <span
+            aria-label={complete ? "Resultado rellenado" : "Resultado pendiente"}
+            className={`absolute left-1/2 top-10 z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border text-sm font-black ${
+              complete ? "result-pending-check border-[#ffe66d] bg-[#ffdd44] text-black" : "border-white/20 bg-[#3a3a3a] text-zinc-500"
+            }`}
+          >
             {complete ? "✓" : ""}
           </span>
           <ResultScoreStepper
