@@ -35,6 +35,18 @@ npm run dev
 
 La app corre en `http://localhost:3000`.
 
+## Despliegue en Vercel
+
+El deploy lo hace GitHub Actions con la Vercel CLI (`.github/workflows/deploy.yml`). Cada push a `main` construye y publica en producción, ejecutando Next.js con servidor (server components, rutas `/api`, llamadas server-side a `API-Football`).
+
+Configura en GitHub (`Settings > Secrets and variables > Actions`):
+
+- `VERCEL_TOKEN` — token de cuenta de Vercel
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
+Los dos IDs salen de `vercel link` (fichero `.vercel/project.json`) o del dashboard de Vercel. Las variables de entorno de la app (Supabase, API-Football) se configuran en el proyecto de Vercel; `vercel pull` las descarga durante el build.
+
 ## Variables de entorno
 
 Copia `.env.example` a `.env.local`.
