@@ -1,18 +1,18 @@
 # TRILIPORRA
 
-Porra del Mundial 2026 refactorizada a `Next.js 16 + Tailwind 4`.
+World Cup 2026 prediction pool refactored to `Next.js 16 + Tailwind 4`.
 
 ## Stack
 
 - `Next.js` App Router
 - `React 19`
 - `Tailwind CSS 4`
-- `Supabase` opcional para auth + persistencia
-- `API-Football` opcional para resultados, goleadores y tarjetas
+- `Supabase` optional for auth + persistence
+- `API-Football` optional for results, scorers and cards
 
-## Qué hay ya migrado
+## Already migrated
 
-- Navegación real con rutas:
+- Real navigation with routes:
   - `/`
   - `/como-funciona`
   - `/porra`
@@ -20,64 +20,64 @@ Porra del Mundial 2026 refactorizada a `Next.js 16 + Tailwind 4`.
   - `/clasificacion`
   - `/perfil`
   - `/admin`
-- Motor de puntuación portado a `src/lib/scoring.ts`
-- Modelo de predicción portado a `src/lib/prediction.ts`
-- Estado compartido con modo demo local y modo Supabase
-- Panel admin con consulta server-side a `API-Football`
-- Tests del scoring adaptados a TypeScript
+- Scoring engine ported to `src/lib/scoring.ts`
+- Prediction model ported to `src/lib/prediction.ts`
+- Shared state with local demo mode and Supabase mode
+- Admin panel with server-side query to `API-Football`
+- Scoring tests adapted to TypeScript
 
-## Desarrollo
+## Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-La app corre en `http://localhost:3000`.
+The app runs at `http://localhost:3000`.
 
-## Despliegue en Vercel
+## Deploying to Vercel
 
-El deploy lo hace GitHub Actions con la Vercel CLI (`.github/workflows/deploy.yml`). Cada push a `main` construye y publica en producción, ejecutando Next.js con servidor (server components, rutas `/api`, llamadas server-side a `API-Football`).
+Deployment is handled by GitHub Actions with the Vercel CLI (`.github/workflows/deploy.yml`). Every push to `main` builds and publishes to production, running Next.js with a server (server components, `/api` routes, server-side `API-Football` calls).
 
-Configura en GitHub (`Settings > Secrets and variables > Actions`):
+Configure in GitHub (`Settings > Secrets and variables > Actions`):
 
-- `VERCEL_TOKEN` — token de cuenta de Vercel
+- `VERCEL_TOKEN` — Vercel account token
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
 
-Los dos IDs salen de `vercel link` (fichero `.vercel/project.json`) o del dashboard de Vercel. Las variables de entorno de la app (Supabase, API-Football) se configuran en el proyecto de Vercel; `vercel pull` las descarga durante el build.
+The two IDs come from `vercel link` (the `.vercel/project.json` file) or from the Vercel dashboard. The app's environment variables (Supabase, API-Football) are configured in the Vercel project; `vercel pull` downloads them during the build.
 
-## Variables de entorno
+## Environment variables
 
-Copia `.env.example` a `.env.local`.
+Copy `.env.example` to `.env.local`.
 
-### Demo local
+### Local demo
 
-No necesitas ninguna variable. La app funciona con `localStorage`.
+You don't need any variable. The app works with `localStorage`.
 
-Usuario admin demo:
+Demo admin user:
 
 - email: `admin@admin.admin`
 
-## Supabase opcional
+## Optional Supabase
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_anon_key
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 ```
 
-## API-Football opcional
+## Optional API-Football
 
 ```env
-APIFOOTBALL_API_KEY=tu_api_key
+APIFOOTBALL_API_KEY=your_api_key
 ```
 
-La ruta `src/app/api/provider/world-cup/route.ts:1` consulta:
+The `src/app/api/provider/world-cup/route.ts:1` route queries:
 
 - `league=1`
 - `season=2026`
 
-según la documentación pública de API-Sports para el Mundial 2026.
+according to the public API-Sports documentation for World Cup 2026.
 
 ## Scripts
 
@@ -90,17 +90,17 @@ npm run test
 npm run check
 ```
 
-## Datos legacy
+## Legacy data
 
-Los ficheros históricos `data.js` y `schedule.js` siguen en la raíz como fuente.
+The historical files `data.js` and `schedule.js` remain at the root as the source.
 
-Antes de `dev`, `build` y `test` se ejecuta:
+Before `dev`, `build` and `test`, this runs:
 
 ```bash
 npm run generate:data
 ```
 
-Eso genera:
+That generates:
 
 - `src/lib/generated/data.ts`
 - `src/lib/generated/schedule.ts`
@@ -111,20 +111,20 @@ Eso genera:
 npm run test
 ```
 
-Valida:
+Validates:
 
-- aciertos de marcador exacto
-- eventos del once ideal
-- simulación completa de los 104 partidos
+- exact-score hits
+- best-XI events
+- full simulation of all 104 matches
 
-## Estado actual de la API gratis
+## Current state of the free API
 
-La integración está preparada para `API-Football`, porque hoy ofrece plan gratuito y cobertura del Mundial 2026 con:
+The integration is ready for `API-Football`, since it currently offers a free plan and World Cup 2026 coverage with:
 
 - fixtures
 - standings
 - top scorers
 - top cards
-- events / lineups / player stats según cobertura
+- events / lineups / player stats depending on coverage
 
-Si falta `APIFOOTBALL_API_KEY`, el panel admin sigue funcionando en modo manual/local.
+If `APIFOOTBALL_API_KEY` is missing, the admin panel keeps working in manual/local mode.
