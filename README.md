@@ -109,14 +109,24 @@ npm run db:stop      # stop the containers
 
 Studio (DB browser) is at `http://127.0.0.1:54323`.
 
-The schema lives in `supabase/migrations/`, data in `supabase/seed.sql`.
+The schema and reference data (teams, players, tournament, scoring rules) live in `supabase/migrations/` and reach every environment. `supabase/seed.sql` is **local-only** (run on `db reset`, never on `db push`) and just seeds a dev admin:
 
-To promote an admin locally, register `admin@admin.admin` in the app, then in Studio run:
+- email: `admin@admin.admin`
+- password: `admin1234`
+
+### First admin in production
+
+`seed.sql` does not run against production, so create the admin once by hand:
+
+1. Register `admin@admin.admin` through the app.
+2. In the Supabase SQL editor run:
 
 ```sql
 update public.profiles set is_admin = true
 where id = (select id from auth.users where email = 'admin@admin.admin');
 ```
+
+From then on that admin manages other users from the Admin panel.
 
 ## Optional API-Football
 
