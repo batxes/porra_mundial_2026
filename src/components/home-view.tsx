@@ -234,11 +234,14 @@ function hasMissingNextMatchdayResults(
 }
 
 function formatMissingSections(sections: string[]) {
+  const displaySections = sections.map((section) =>
+    section === "Resultados" ? "Resultados de la proxima jornada" : section,
+  );
   const label =
-    sections.length === 1
-      ? sections[0]
-      : `${sections.slice(0, -1).join(", ")} y ${
-          sections[sections.length - 1]
+    displaySections.length === 1
+      ? displaySections[0]
+      : `${displaySections.slice(0, -1).join(", ")} y ${
+          displaySections[displaySections.length - 1]
         }`;
 
   return `Te falta completar: ${label}.`;

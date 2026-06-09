@@ -42,6 +42,7 @@ import {
   TeamFlag,
   TeamPicker,
 } from "@/components/common";
+import { AuthModal } from "@/components/auth-modal";
 import { useAppContext } from "@/lib/app-context";
 import {
   data,
@@ -111,6 +112,7 @@ export function PredictionView() {
     ready,
     replaceGroupOrder,
     savePrediction,
+    setAuthMode,
     setPredictionExtra,
     setPredictionScore,
     setXiFormation,
@@ -120,6 +122,7 @@ export function PredictionView() {
   } = useAppContext();
   const [section, setSection] = useState<SectionId>("extras");
   const [autoSaveState, setAutoSaveState] = useState<AutoSaveState>("idle");
+  const [authOpen, setAuthOpen] = useState(false);
   const [showResultsIntroModal, setShowResultsIntroModal] = useState(false);
   const savedSignatureRef = useRef("");
   const latestSignatureRef = useRef("");
@@ -258,6 +261,10 @@ export function PredictionView() {
     }
     setShowResultsIntroModal(false);
   };
+  const openSaveAccountModal = () => {
+    setAuthMode("register");
+    setAuthOpen(true);
+  };
 
   return (
     <div className="mx-auto max-w-3xl pb-44 sm:pb-32">
@@ -266,7 +273,8 @@ export function PredictionView() {
       <div className="space-y-4">
         {!user ? (
           <Notice tone="warm">
-            Puedes rellenar tu porra. Para guardarla necesitas entrar en Perfil.
+            Puedes rellenar cada apartado hasta el momento en el que comienza la
+            fase.
           </Notice>
         ) : null}
         {tournamentLocked ? (
@@ -334,11 +342,20 @@ export function PredictionView() {
         section={section}
         progresses={sectionProgresses}
         onSectionChange={changeSection}
+        onCreateAccount={openSaveAccountModal}
+        hasUser={Boolean(user)}
       />
 
       {showResultsIntroModal ? (
         <ResultsIntroModal onClose={dismissResultsIntroModal} />
       ) : null}
+
+      <AuthModal
+        defaultMode="register"
+        open={authOpen}
+        onOpenChange={setAuthOpen}
+        predictionToSaveOnRegister={prediction}
+      />
     </div>
   );
 }
@@ -522,11 +539,15 @@ function StepTabs({
 
 function StepActionBar({
   autoSaveState,
+  hasUser,
+  onCreateAccount,
   section,
   progresses,
   onSectionChange,
 }: {
   autoSaveState: AutoSaveState | null;
+  hasUser: boolean;
+  onCreateAccount: () => void;
   section: SectionId;
   progresses: Record<SectionId, SectionProgress>;
   onSectionChange: (section: SectionId) => void;
@@ -565,13 +586,21 @@ function StepActionBar({
                 : {next.label}
               </span>
             </button>
-          ) : (
+          ) : hasUser ? (
             <Link
               href="/perfil"
               className="inline-flex h-10 items-center justify-center rounded-lg border border-white/12 bg-white/[0.10] px-2 text-sm font-semibold text-white transition hover:border-white/18 hover:bg-white/[0.14] sm:px-3"
             >
               Finalizar
             </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={onCreateAccount}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-white/12 bg-[#a7f600] px-2 text-sm font-semibold text-black transition hover:bg-[#c7ff43] sm:px-3"
+            >
+              Finalizar
+            </button>
           )}
         </div>
       </div>
@@ -600,8 +629,8 @@ function ResultsIntroModal({ onClose }: { onClose: () => void }) {
               Resultados abiertos
             </h3>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
-              Puedes volver y rellenar o cambiar cada resultado hasta la hora
-              de comienzo de ese partido.
+              Puedes volver y rellenar o cambiar cada resultado hasta la hora de
+              comienzo de ese partido.
             </p>
           </div>
         </div>

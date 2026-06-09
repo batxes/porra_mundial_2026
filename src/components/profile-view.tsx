@@ -2,17 +2,17 @@
 
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 
+import { AuthModal } from "@/components/auth-modal";
 import {
   Avatar,
   Card,
-  EmptyState,
   Notice,
   PredictionSnapshot,
-  PrimaryLink,
   SectionHeading,
 } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
+import type { AuthMode } from "@/lib/types";
 
 const MAX_AVATAR_BYTES = 1024 * 1024;
 
@@ -246,127 +246,52 @@ export function ProfileOptionsView() {
 }
 
 function UnauthenticatedProfile() {
-  const {
-    authBusy,
-    authError,
-    authMode,
-    clearAuthError,
-    register,
-    setAuthMode,
-    signIn,
-  } = useAppContext();
+  const { setAuthMode } = useAppContext();
+  const [authOpen, setAuthOpen] = useState(true);
+  const [authDefaultMode, setAuthDefaultMode] = useState<AuthMode>("login");
 
-  const submitAuth = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    clearAuthError();
-    const form = new FormData(event.currentTarget);
-    const email = String(form.get("email") || "")
-      .trim()
-      .toLowerCase();
-    const password = String(form.get("password") || "");
-    const name = String(form.get("name") || "").trim();
-
-    if (authMode === "register") {
-      await register(name, email, password);
-      return;
-    }
-
-    await signIn(email, password);
+  const openAuth = (mode: AuthMode) => {
+    setAuthDefaultMode(mode);
+    setAuthMode(mode);
+    setAuthOpen(true);
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <SectionHeading
         eyebrow="Tu espacio"
         title="Mi perfil"
-        description="Registrate o entra para ver tus puntos, editar el perfil y consultar tu porra."
+        description="Entra para ver tus puntos, editar el perfil y consultar tu porra."
       />
 
-      <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-        <Card className="space-y-6">
-          <div className="flex gap-2 rounded-full bg-white/5 p-1">
-            <button
-              type="button"
-              onClick={() => setAuthMode("register")}
-              className={`flex-1 rounded-full px-4 py-3 text-sm ${
-                authMode === "register"
-                  ? "bg-cyan-400 text-slate-950"
-                  : "text-slate-200"
-              }`}
-            >
-              Crear cuenta
-            </button>
-            <button
-              type="button"
-              onClick={() => setAuthMode("login")}
-              className={`flex-1 rounded-full px-4 py-3 text-sm ${
-                authMode === "login"
-                  ? "bg-cyan-400 text-slate-950"
-                  : "text-slate-200"
-              }`}
-            >
-              Entrar
-            </button>
-          </div>
+      <Card className="max-w-xl space-y-5">
+        <div className="rounded-lg border border-[#a7f600]/20 bg-[#a7f600]/10 px-4 py-3 text-sm font-semibold text-lime-100">
+          Tu porra se guarda en tu cuenta y podras verla desde cualquier
+          dispositivo.
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => openAuth("login")}
+            className="rounded-lg bg-[#a7f600] px-5 py-3 text-sm font-black text-black transition hover:bg-[#c7ff43]"
+          >
+            Entrar
+          </button>
+          <button
+            type="button"
+            onClick={() => openAuth("register")}
+            className="rounded-lg border border-white/10 bg-white/[0.06] px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10"
+          >
+            Crear cuenta
+          </button>
+        </div>
+      </Card>
 
-          <form className="space-y-4" onSubmit={submitAuth}>
-            {authMode === "register" ? (
-              <label className="space-y-2 text-sm text-slate-300">
-                <span>Nombre visible</span>
-                <input
-                  name="name"
-                  minLength={2}
-                  maxLength={40}
-                  required
-                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-base text-white outline-none ring-cyan-400 transition focus:ring-2"
-                />
-              </label>
-            ) : null}
-
-            <label className="space-y-2 text-sm text-slate-300">
-              <span>Email</span>
-              <input
-                name="email"
-                type="email"
-                required
-                className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-base text-white outline-none ring-cyan-400 transition focus:ring-2"
-              />
-            </label>
-
-            <label className="space-y-2 text-sm text-slate-300">
-              <span>Contrasena</span>
-              <input
-                name="password"
-                type="password"
-                minLength={5}
-                required
-                className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-base text-white outline-none ring-cyan-400 transition focus:ring-2"
-              />
-            </label>
-
-            {authError ? <Notice tone="danger">{authError}</Notice> : null}
-
-            <button
-              type="submit"
-              disabled={authBusy}
-              className="w-full rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {authBusy
-                ? "Procesando..."
-                : authMode === "register"
-                  ? "Crear cuenta"
-                  : "Entrar"}
-            </button>
-          </form>
-        </Card>
-
-        <EmptyState
-          icon="26"
-          title="Tu puntuacion aparece aqui"
-          description="Cuando entres podras ver tu desglose de puntos, editar el perfil y consultar tu porra completa."
-          action={<PrimaryLink href="/porra">Ir al editor</PrimaryLink>}
-        />
-      </div>
+      <AuthModal
+        defaultMode={authDefaultMode}
+        open={authOpen}
+        onOpenChange={setAuthOpen}
+      />
     </div>
   );
 }

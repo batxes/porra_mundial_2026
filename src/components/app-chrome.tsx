@@ -3,7 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
+import { AuthModal } from "@/components/auth-modal";
 import { Avatar } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 
@@ -16,7 +18,8 @@ const links = [
 
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { ready, usingSupabase, user } = useAppContext();
+  const { ready, setAuthMode, usingSupabase, user } = useAppContext();
+  const [authOpen, setAuthOpen] = useState(false);
 
   return (
     <div className="app-shell flex min-h-screen flex-col text-white">
@@ -126,12 +129,16 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                   </Link>
                 </>
               ) : (
-                <Link
-                  href="/perfil"
-                  className="rounded-lg bg-white px-2.5 py-2 text-sm font-bold text-black sm:px-3"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode("login");
+                    setAuthOpen(true);
+                  }}
+                  className="rounded-lg bg-[#a7f600] px-2.5 py-2 text-sm font-bold text-black transition hover:bg-[#c7ff43] sm:px-3"
                 >
                   Entrar
-                </Link>
+                </button>
               )}
             </div>
           </div>
@@ -160,6 +167,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-24 sm:px-6">
         <main className="flex-1 pt-4">{children}</main>
       </div>
+      <AuthModal defaultMode="login" open={authOpen} onOpenChange={setAuthOpen} />
     </div>
   );
 }
