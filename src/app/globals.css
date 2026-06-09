@@ -125,6 +125,10 @@ body {
       autosave-check-pop 360ms cubic-bezier(0.22, 1, 0.36, 1),
       autosave-check-glow 1200ms ease-out;
   }
+
+  .home-missing-alert {
+    animation: home-missing-alert-fade 300ms ease-out both;
+  }
 }
 
 @keyframes lineup-slot-settle {
@@ -204,5 +208,17 @@ body {
 
   100% {
     box-shadow: 0 0 0 0 rgba(167, 246, 0, 0);
+  }
+}
+
+@keyframes home-missing-alert-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

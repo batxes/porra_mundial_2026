@@ -84,7 +84,9 @@ export function TeamBadge({
 
   if (!team) {
     return (
-      <span className={`inline-block max-w-full truncate text-sm text-slate-300 ${className}`}>
+      <span
+        className={`inline-block max-w-full truncate text-sm text-slate-300 ${className}`}
+      >
         {fallback || "Por confirmar"}
       </span>
     );
@@ -189,9 +191,13 @@ export function TeamPicker({
           {selected ? (
             <TeamBadge teamId={selected.id} />
           ) : (
-            <span className="min-w-0 truncate text-sm text-zinc-500">{placeholder}</span>
+            <span className="min-w-0 truncate text-sm text-zinc-500">
+              {placeholder}
+            </span>
           )}
-          <span className="shrink-0 text-xs text-zinc-500">{open ? "▲" : "▼"}</span>
+          <span className="shrink-0 text-xs text-zinc-500">
+            {open ? "▲" : "▼"}
+          </span>
         </button>
 
         {open && !disabled ? (
@@ -258,7 +264,7 @@ export function Avatar({
 
   return (
     <span
-      className={`inline-flex h-12 w-12 items-center justify-center rounded-lg border border-white/15 bg-gradient-to-br ${
+      className={`inline-flex size-10 items-center justify-center rounded-lg border border-white/15 bg-gradient-to-br ${
         tones[preset] || "from-cyan-500 to-blue-500"
       } text-sm font-bold text-slate-950 ${className}`}
     >
@@ -330,7 +336,9 @@ export function ScoreBreakdown({
                     key={`${entry.ruleCode}-${entry.sourceRef}-${entry.matchNumber ?? "x"}`}
                     className="flex items-start justify-between gap-3"
                   >
-                    <p className="min-w-0 text-slate-300">{entry.explanation}</p>
+                    <p className="min-w-0 text-slate-300">
+                      {entry.explanation}
+                    </p>
                     <strong
                       className={`shrink-0 ${entry.points >= 0 ? "text-emerald-300" : "text-rose-300"}`}
                     >
@@ -546,7 +554,9 @@ function GroupSummary({ prediction }: { prediction: Prediction }) {
                     className="flex items-center justify-between gap-3"
                   >
                     <TeamBadge teamId={teamId} />
-                    <span className="shrink-0 text-sm text-slate-300">{value}º</span>
+                    <span className="shrink-0 text-sm text-slate-300">
+                      {value}º
+                    </span>
                   </div>
                 ))
               ) : (
@@ -574,7 +584,12 @@ const rightBracketRounds = [
   [102],
 ] as const;
 
-const bracketRoundLabels = ["Dieciseisavos", "Octavos", "Cuartos", "Semis"] as const;
+const bracketRoundLabels = [
+  "Dieciseisavos",
+  "Octavos",
+  "Cuartos",
+  "Semis",
+] as const;
 
 export function KnockoutBracket({
   disabled = false,
@@ -613,9 +628,17 @@ export function KnockoutBracket({
             <div className="flex h-[670px] flex-col items-center justify-center gap-5">
               <div className="text-center">
                 <ChampionTrophyIcon />
-                <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#a7f600]">Campeón</p>
+                <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#a7f600]">
+                  Campeón
+                </p>
                 <div className="mt-2 flex justify-center">
-                  {champion ? <TeamBadge teamId={champion} /> : <span className="text-xs font-bold text-zinc-500">Por decidir</span>}
+                  {champion ? (
+                    <TeamBadge teamId={champion} />
+                  ) : (
+                    <span className="text-xs font-bold text-zinc-500">
+                      Por decidir
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -677,19 +700,44 @@ export function KnockoutBracket({
 
 function ChampionTrophyIcon() {
   return (
-    <span className="relative mx-auto inline-flex h-[72px] w-[53px] text-zinc-500" aria-hidden="true">
-      <svg className="h-full w-full" viewBox="0 0 53 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <span
+      className="relative mx-auto inline-flex h-[72px] w-[53px] text-zinc-500"
+      aria-hidden="true"
+    >
+      <svg
+        className="h-full w-full"
+        viewBox="0 0 53 72"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <path
           d="M42.6182 0.265696C42.8928 0.265696 43.1121 0.488777 43.108 0.763023L43.0178 6.86398C42.6366 14.9952 41.2573 24.1702 33.7519 28.7935C32.2086 29.7431 29.8065 30.3427 28.9068 31.9289C27.7673 33.9407 28.8597 36.0119 30.9174 36.5706C31.1326 36.6299 31.2884 36.8182 31.2863 37.0413C31.2802 38.7359 31.0732 40.5758 30.5977 42.207C29.7184 45.2278 27.1995 47.7533 29.7553 50.7741C30.5382 51.6992 31.7044 52.3459 32.7333 52.9537C32.7579 52.9681 32.7845 52.9803 32.8112 52.9906L34.1987 53.5043C34.7111 53.6946 34.5758 54.4539 34.0286 54.4539H18.9543C18.403 54.4539 18.2697 53.6844 18.7903 53.5022L19.2105 53.3549C19.2228 53.3508 19.2351 53.3467 19.2474 53.3406C20.5447 52.7736 22.1946 51.8629 23.1025 50.7761C25.6583 47.7103 23.1497 45.2605 22.2602 42.209C21.7847 40.5758 21.5777 38.738 21.5715 37.0434C21.5715 36.8203 21.7252 36.632 21.9404 36.5726C23.1661 36.235 24.2503 35.2751 24.3794 33.955C24.6991 30.6538 21.176 30.1156 19.026 28.775C9.84206 23.0445 9.8687 10.4374 9.75393 0.760977C9.74983 0.488777 9.97118 0.265696 10.2438 0.265696H42.6182ZM13.5456 2.51493H12.5024C12.2277 2.51493 12.0064 2.74005 12.0125 3.0143C12.0986 7.29991 12.2031 11.6224 13.1787 15.8077C14.2854 20.564 16.6178 25.1075 21.1637 27.3608C21.2989 27.3076 21.0448 27.15 20.9997 27.1152C19.6511 26.0101 18.6427 24.9172 17.7553 23.4047C15.5398 19.6287 14.9454 15.163 14.5642 10.8651C14.5642 10.8528 14.5642 10.8406 14.5642 10.8262L14.472 3.42362C14.4658 2.91811 14.0538 2.51288 13.5497 2.51288L13.5456 2.51493ZM23.9018 37.995H23.4632C23.1784 37.995 22.955 38.2365 22.9734 38.519C23.0308 39.4318 23.1907 40.3261 23.4223 41.2041C23.5739 41.7813 24.4204 41.6482 24.3876 41.0506C24.3876 41.0363 24.3876 41.024 24.3855 41.0097C24.3425 40.1726 24.3958 39.3253 24.3937 38.4842C24.3937 38.214 24.1724 37.995 23.9018 37.995Z"
           fill="currentColor"
         />
-        <path d="M37.9268 56.1723H14.9351C14.6137 56.1723 14.3531 56.4325 14.3531 56.7535V67.3488C14.3531 67.6698 14.6137 67.9301 14.9351 67.9301H37.9268C38.2483 67.9301 38.5089 67.6698 38.5089 67.3488V56.7535C38.5089 56.4325 38.2483 56.1723 37.9268 56.1723Z" fill="currentColor" />
-        <path d="M39.5336 23.8836C39.8206 23.2799 40.2366 22.6884 40.5276 22.0928C40.7633 21.6098 41.0421 20.6029 41.3167 20.2345C41.6446 19.7945 43.0404 18.8408 43.5548 18.3619C46.9611 15.206 51.177 10.2757 50.7712 5.30651C50.4453 1.3238 45.961 -0.0556226 43.811 3.37041L43.4626 4.3446C43.2392 -0.567276 49.894 -1.59058 51.8226 2.70321C55.0199 9.81929 46.1495 19.1764 40.8535 22.9667L39.5316 23.8816L39.5336 23.8836Z" fill="currentColor" />
-        <path d="M9.4424 4.56154L9.09808 3.59758C6.92763 0.177692 2.49039 1.59395 2.2096 5.59713C1.86528 10.5049 5.99509 15.2981 9.35222 18.4233C9.91379 18.9472 11.1558 19.7679 11.5637 20.2775C11.8219 20.6009 12.1252 21.661 12.3466 22.1133C12.6417 22.7109 13.0516 23.2778 13.3304 23.8836L12.0248 22.977C6.78621 19.2276 -2.05342 9.89297 1.20123 2.87513C3.14214 -1.30815 9.66785 -0.256191 9.4424 4.56154Z" fill="currentColor" />
-        <path d="M39.5275 71.998H13.3078C12.986 71.998 12.7913 71.6398 12.9676 71.3717C13.3796 70.7413 13.8448 69.9411 14.2014 69.6484C14.2977 69.5686 14.3674 69.5236 14.5006 69.5379L38.2588 69.5441C38.3838 69.5441 38.5027 69.6034 38.5806 69.7017L39.8493 71.3471C40.0542 71.6132 39.8636 72 39.5275 72V71.998Z" fill="currentColor" />
+        <path
+          d="M37.9268 56.1723H14.9351C14.6137 56.1723 14.3531 56.4325 14.3531 56.7535V67.3488C14.3531 67.6698 14.6137 67.9301 14.9351 67.9301H37.9268C38.2483 67.9301 38.5089 67.6698 38.5089 67.3488V56.7535C38.5089 56.4325 38.2483 56.1723 37.9268 56.1723Z"
+          fill="currentColor"
+        />
+        <path
+          d="M39.5336 23.8836C39.8206 23.2799 40.2366 22.6884 40.5276 22.0928C40.7633 21.6098 41.0421 20.6029 41.3167 20.2345C41.6446 19.7945 43.0404 18.8408 43.5548 18.3619C46.9611 15.206 51.177 10.2757 50.7712 5.30651C50.4453 1.3238 45.961 -0.0556226 43.811 3.37041L43.4626 4.3446C43.2392 -0.567276 49.894 -1.59058 51.8226 2.70321C55.0199 9.81929 46.1495 19.1764 40.8535 22.9667L39.5316 23.8816L39.5336 23.8836Z"
+          fill="currentColor"
+        />
+        <path
+          d="M9.4424 4.56154L9.09808 3.59758C6.92763 0.177692 2.49039 1.59395 2.2096 5.59713C1.86528 10.5049 5.99509 15.2981 9.35222 18.4233C9.91379 18.9472 11.1558 19.7679 11.5637 20.2775C11.8219 20.6009 12.1252 21.661 12.3466 22.1133C12.6417 22.7109 13.0516 23.2778 13.3304 23.8836L12.0248 22.977C6.78621 19.2276 -2.05342 9.89297 1.20123 2.87513C3.14214 -1.30815 9.66785 -0.256191 9.4424 4.56154Z"
+          fill="currentColor"
+        />
+        <path
+          d="M39.5275 71.998H13.3078C12.986 71.998 12.7913 71.6398 12.9676 71.3717C13.3796 70.7413 13.8448 69.9411 14.2014 69.6484C14.2977 69.5686 14.3674 69.5236 14.5006 69.5379L38.2588 69.5441C38.3838 69.5441 38.5027 69.6034 38.5806 69.7017L39.8493 71.3471C40.0542 71.6132 39.8636 72 39.5275 72V71.998Z"
+          fill="currentColor"
+        />
       </svg>
 
-      <svg className="absolute left-1/2 top-[29px] h-[23px] w-[22px] -translate-x-1/2 text-[#a7f600]" viewBox="0 0 22 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        className="absolute left-1/2 top-[29px] h-[23px] w-[22px] -translate-x-1/2 text-[#a7f600]"
+        viewBox="0 0 22 23"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <g clipPath="url(#champion-trophy-crest)">
           <path
             fillRule="evenodd"
@@ -700,7 +748,12 @@ function ChampionTrophyIcon() {
         </g>
         <defs>
           <clipPath id="champion-trophy-crest">
-            <rect width="22" height="22" fill="white" transform="translate(0 0.5)" />
+            <rect
+              width="22"
+              height="22"
+              fill="white"
+              transform="translate(0 0.5)"
+            />
           </clipPath>
         </defs>
       </svg>
@@ -730,7 +783,9 @@ function MobileKnockoutBracket({
   thirdPlaceMatch?: Match;
 }) {
   return (
-    <div className={`w-full rounded-[18px] border border-white/10 bg-[#151515] p-3 text-white ${className}`}>
+    <div
+      className={`w-full rounded-[18px] border border-white/10 bg-[#151515] p-3 text-white ${className}`}
+    >
       <div className="rounded-[16px] border border-white/10 bg-[#0f0f0f] px-3 py-4">
         <MobileBracketRound
           disabled={disabled}
@@ -790,7 +845,9 @@ function MobileKnockoutBracket({
           </div>
           <div className="text-center">
             <ChampionTrophyIcon />
-            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#a7f600]">Campeón</p>
+            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#a7f600]">
+              Campeón
+            </p>
             <div className="mt-1 flex justify-center">
               {champion ? <TeamBadge teamId={champion} /> : null}
             </div>
@@ -843,10 +900,17 @@ function MobileBracketRound({
   onWinnerSelect?: (matchNumber: number, teamId: string) => void;
   prediction: Prediction;
 }) {
-  const columns = matchNumbers.length === 1 ? "grid-cols-1" : matchNumbers.length === 2 ? "grid-cols-2" : "grid-cols-4";
+  const columns =
+    matchNumbers.length === 1
+      ? "grid-cols-1"
+      : matchNumbers.length === 2
+        ? "grid-cols-2"
+        : "grid-cols-4";
 
   return (
-    <div className={`mx-auto grid max-w-[340px] ${columns} justify-items-center gap-2`}>
+    <div
+      className={`mx-auto grid max-w-[340px] ${columns} justify-items-center gap-2`}
+    >
       {matchNumbers.map((matchNumber) => {
         const match = matchByNumber.get(matchNumber);
         return match ? (
@@ -867,7 +931,9 @@ function MobileBracketRound({
 
 function MobileBracketJoin({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`relative mx-auto ${compact ? "h-8" : "h-10"} w-[76%] max-w-[260px]`}>
+    <div
+      className={`relative mx-auto ${compact ? "h-8" : "h-10"} w-[76%] max-w-[260px]`}
+    >
       <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-white/10" />
       <span className="absolute left-[18%] right-[18%] top-1/2 h-px -translate-y-1/2 bg-white/10" />
     </div>
@@ -892,22 +958,42 @@ function BracketTree({
   reverse?: boolean;
 }) {
   const orderedRounds = reverse ? [...rounds].reverse() : rounds;
-  const labels = reverse ? [...bracketRoundLabels].reverse() : bracketRoundLabels;
+  const labels = reverse
+    ? [...bracketRoundLabels].reverse()
+    : bracketRoundLabels;
 
   return (
     <div className="grid h-[670px] grid-cols-4 gap-4">
       {orderedRounds.map((round, roundIndex) => (
         <div key={labels[roundIndex]} className="flex min-w-0 flex-col">
-          <p className="mb-3 text-center text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">{labels[roundIndex]}</p>
-          <div className="relative grid flex-1" style={{ gridTemplateRows: `repeat(${round.length}, minmax(0, 1fr))` }}>
-            {!reverse && roundIndex < orderedRounds.length - 1 ? <BracketVerticalConnectors count={round.length} side="right" /> : null}
-            {reverse && roundIndex > 0 ? <BracketVerticalConnectors count={round.length} side="left" /> : null}
+          <p className="mb-3 text-center text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+            {labels[roundIndex]}
+          </p>
+          <div
+            className="relative grid flex-1"
+            style={{
+              gridTemplateRows: `repeat(${round.length}, minmax(0, 1fr))`,
+            }}
+          >
+            {!reverse && roundIndex < orderedRounds.length - 1 ? (
+              <BracketVerticalConnectors count={round.length} side="right" />
+            ) : null}
+            {reverse && roundIndex > 0 ? (
+              <BracketVerticalConnectors count={round.length} side="left" />
+            ) : null}
             {round.map((matchNumber) => {
               const match = matchByNumber.get(matchNumber);
               return match ? (
-                <div key={match.number} className="relative flex items-center justify-center">
-                  {roundIndex > 0 ? <BracketHorizontalConnector side="left" /> : null}
-                  {roundIndex < orderedRounds.length - 1 ? <BracketHorizontalConnector side="right" /> : null}
+                <div
+                  key={match.number}
+                  className="relative flex items-center justify-center"
+                >
+                  {roundIndex > 0 ? (
+                    <BracketHorizontalConnector side="left" />
+                  ) : null}
+                  {roundIndex < orderedRounds.length - 1 ? (
+                    <BracketHorizontalConnector side="right" />
+                  ) : null}
                   <BracketMatchCard
                     disabled={disabled}
                     isMatchLocked={isMatchLocked}
@@ -926,10 +1012,20 @@ function BracketTree({
 }
 
 function BracketHorizontalConnector({ side }: { side: "left" | "right" }) {
-  return <span className={`absolute top-1/2 h-px w-5 -translate-y-1/2 bg-white/10 ${side === "right" ? "left-[calc(50%+41px)]" : "right-[calc(50%+41px)]"}`} />;
+  return (
+    <span
+      className={`absolute top-1/2 h-px w-5 -translate-y-1/2 bg-white/10 ${side === "right" ? "left-[calc(50%+41px)]" : "right-[calc(50%+41px)]"}`}
+    />
+  );
 }
 
-function BracketVerticalConnectors({ count, side }: { count: number; side: "left" | "right" }) {
+function BracketVerticalConnectors({
+  count,
+  side,
+}: {
+  count: number;
+  side: "left" | "right";
+}) {
   if (count < 2) return null;
 
   return (
@@ -1004,14 +1100,23 @@ function BracketMatchCard({
           onSelect={selectWinner}
         />
       </div>
-      {current?.homeScore !== "" && current?.awayScore !== "" && current?.homeScore != null && current?.awayScore != null ? (
+      {current?.homeScore !== "" &&
+      current?.awayScore !== "" &&
+      current?.homeScore != null &&
+      current?.awayScore != null ? (
         <div className="mt-1 rounded bg-white/10 px-1 py-0.5 text-[10px] font-black text-white">
           {current.homeScore} - {current.awayScore}
         </div>
       ) : null}
-      <p className={`${compact ? "text-[10px]" : "text-[11px]"} mt-1 font-medium leading-none text-zinc-500`}>{formatBracketDate(match)}</p>
+      <p
+        className={`${compact ? "text-[10px]" : "text-[11px]"} mt-1 font-medium leading-none text-zinc-500`}
+      >
+        {formatBracketDate(match)}
+      </p>
       {label ? (
-        <span className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase leading-none text-black ${tagTone === "blue" ? "bg-cyan-400" : "bg-white"}`}>
+        <span
+          className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase leading-none text-black ${tagTone === "blue" ? "bg-cyan-400" : "bg-white"}`}
+        >
           {label}
         </span>
       ) : null}
@@ -1069,25 +1174,24 @@ function BracketTeamToken({
     </>
   );
 
-  return (
-    canSelect ? (
-      <button
-        type="button"
-        aria-pressed={selected}
-        aria-label={`Elegir ${team?.name || fallback}`}
-        className={className}
-        onClick={() => onSelect?.(teamId || "")}
-      >
-        {content}
-      </button>
-    ) : (
-      <div className={className}>{content}</div>
-    )
+  return canSelect ? (
+    <button
+      type="button"
+      aria-pressed={selected}
+      aria-label={`Elegir ${team?.name || fallback}`}
+      className={className}
+      onClick={() => onSelect?.(teamId || "")}
+    >
+      {content}
+    </button>
+  ) : (
+    <div className={className}>{content}</div>
   );
 }
 
 function shortSlotLabel(slot: string) {
-  if (teamsById.has(slot)) return teamsById.get(slot)?.code.toUpperCase() || slot.toUpperCase();
+  if (teamsById.has(slot))
+    return teamsById.get(slot)?.code.toUpperCase() || slot.toUpperCase();
 
   let match = String(slot).match(/^Winner Group ([A-L])$/);
   if (match) return `1${match[1]}`;
@@ -1133,18 +1237,29 @@ function ResultsSummary({
 }) {
   const completedMatches = matches.filter((match) => {
     const score = prediction.matchPredictions[String(match.number)];
-    return score?.homeScore !== "" && score?.awayScore !== "" && score?.homeScore != null && score?.awayScore != null;
+    return (
+      score?.homeScore !== "" &&
+      score?.awayScore !== "" &&
+      score?.homeScore != null &&
+      score?.awayScore != null
+    );
   });
 
   if (!completedMatches.length) {
-    return <p className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-400">Todavía no hay resultados elegidos.</p>;
+    return (
+      <p className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-400">
+        Todavía no hay resultados elegidos.
+      </p>
+    );
   }
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h4 className="font-semibold text-white">Resultados elegidos</h4>
-        <span className="text-sm font-semibold text-[#a7f600]">{completedMatches.length}/{matches.length}</span>
+        <span className="text-sm font-semibold text-[#a7f600]">
+          {completedMatches.length}/{matches.length}
+        </span>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         {completedMatches.map((match) => {
@@ -1153,9 +1268,14 @@ function ResultsSummary({
           const away = resolveSlot(match.away, match.number, prediction);
 
           return (
-            <div key={match.number} className="rounded-lg border border-white/10 bg-white/5 p-4">
+            <div
+              key={match.number}
+              className="rounded-lg border border-white/10 bg-white/5 p-4"
+            >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-                <span>Partido {match.number} · {match.stage}</span>
+                <span>
+                  Partido {match.number} · {match.stage}
+                </span>
                 <span>{formatScheduleDate(match)}</span>
               </div>
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
@@ -1163,7 +1283,11 @@ function ResultsSummary({
                 <span className="justify-self-center rounded-md bg-[#0f0f0f] px-3 py-2 text-center text-xl font-black text-white">
                   {score.homeScore} - {score.awayScore}
                 </span>
-                <TeamBadge teamId={away} fallback={translateSlot(match.away)} className="sm:justify-end sm:text-right" />
+                <TeamBadge
+                  teamId={away}
+                  fallback={translateSlot(match.away)}
+                  className="sm:justify-end sm:text-right"
+                />
               </div>
             </div>
           );
@@ -1175,21 +1299,23 @@ function ResultsSummary({
 
 export function PredictionSnapshot({
   bracketLayout = "responsive",
+  editHref,
   prediction,
   matches,
   playerName,
   profile,
 }: {
   bracketLayout?: "responsive" | "mobile";
+  editHref?: string;
   prediction: Prediction | null;
   matches: Match[];
   playerName: (playerId: string) => string;
   profile?: UserProfile;
 }) {
   const safePrediction = prediction || emptyPrediction();
-  const [section, setSection] = useState<"summary" | "groups" | "knockout" | "results">(
-    "summary",
-  );
+  const [section, setSection] = useState<
+    "summary" | "groups" | "knockout" | "results"
+  >("summary");
 
   const champion =
     safePrediction.extras.worldChampion ||
@@ -1210,35 +1336,45 @@ export function PredictionSnapshot({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        <button
-          type="button"
-          onClick={() => setSection("summary")}
-          className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "summary" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
-        >
-          Resumen
-        </button>
-        <button
-          type="button"
-          onClick={() => setSection("groups")}
-          className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "groups" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
-        >
-          Grupos
-        </button>
-        <button
-          type="button"
-          onClick={() => setSection("knockout")}
-          className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "knockout" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
-        >
-          Cuadro
-        </button>
-        <button
-          type="button"
-          onClick={() => setSection("results")}
-          className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "results" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
-        >
-          Resultados
-        </button>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <button
+            type="button"
+            onClick={() => setSection("summary")}
+            className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "summary" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+          >
+            Resumen
+          </button>
+          <button
+            type="button"
+            onClick={() => setSection("groups")}
+            className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "groups" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+          >
+            Grupos
+          </button>
+          <button
+            type="button"
+            onClick={() => setSection("knockout")}
+            className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "knockout" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+          >
+            Cuadro
+          </button>
+          <button
+            type="button"
+            onClick={() => setSection("results")}
+            className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "results" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+          >
+            Resultados
+          </button>
+        </div>
+        {editHref ? (
+          <Link
+            href={editHref}
+            className="inline-flex justify-center rounded-lg border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+          >
+            Editar
+          </Link>
+        ) : null}
       </div>
 
       {section === "summary" ? (

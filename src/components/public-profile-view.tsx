@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 import { Avatar, EmptyState, PredictionSnapshot, PrimaryLink, SectionHeading } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
@@ -77,14 +75,6 @@ export function PublicProfileView({ userId }: { userId: string }) {
               {profile.points}
             </p>
           </div>
-          <div className="col-span-2 flex justify-end">
-          <Link
-            href="/clasificacion"
-            className="inline-flex rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10"
-          >
-            Clasificacion
-          </Link>
-          </div>
         </div>
       </div>
 
@@ -93,7 +83,6 @@ export function PublicProfileView({ userId }: { userId: string }) {
         prediction={profile.prediction}
         matches={schedule}
         playerName={playerName}
-        profile={profile}
       />
     </div>
   );

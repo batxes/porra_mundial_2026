@@ -11,12 +11,12 @@ const links = [
   { href: "/", label: "Inicio" },
   { href: "/porra", label: "Jugar" },
   { href: "/clasificacion", label: "Clasificacion" },
-  { href: "/perfil", label: "Perfil" },
+  { href: "/como-funciona", label: "Reglas" },
 ];
 
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { ready, usingSupabase, user, completion, currentScorecard } = useAppContext();
+  const { ready, usingSupabase, user } = useAppContext();
 
   return (
     <div className="app-shell flex min-h-screen flex-col text-white">
@@ -29,10 +29,21 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         <div className="mx-auto w-full max-w-5xl px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between gap-3">
             <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
-              <Image src="/logo.png" alt="" width={42} height={42} className="h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10" priority />
+              <Image
+                src="/logo.png"
+                alt=""
+                width={42}
+                height={42}
+                className="h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10"
+                priority
+              />
               <div className="min-w-0">
-                <p className="truncate text-base font-black tracking-tight sm:text-lg">Triliporra</p>
-                <p className="hidden text-xs font-medium text-zinc-500 sm:block">World Cup 2026</p>
+                <p className="truncate text-base font-black tracking-tight sm:text-lg">
+                  Triliporra
+                </p>
+                <p className="hidden text-xs font-medium text-zinc-500 sm:block">
+                  World Cup 2026
+                </p>
               </div>
             </Link>
 
@@ -43,8 +54,10 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                      active ? "bg-white text-black" : "text-zinc-300 hover:bg-white/10 hover:text-white"
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                      active
+                        ? "bg-white text-black"
+                        : "text-zinc-300 hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     {link.label}
@@ -55,7 +68,9 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                 <Link
                   href="/admin"
                   className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                    pathname === "/admin" ? "bg-white text-black" : "text-zinc-300 hover:bg-white/10 hover:text-white"
+                    pathname === "/admin"
+                      ? "bg-white text-black"
+                      : "text-zinc-300 hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   Admin
@@ -65,21 +80,59 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
 
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               {ready && user ? (
-                <Link href="/perfil" className="flex items-center gap-2 rounded-lg bg-white/[0.08] px-2 py-1.5">
-                  <Avatar name={user.name} avatarUrl={user.avatarUrl} className="h-8 w-8" />
-                  <span className="hidden text-left text-xs leading-4 sm:block">
-                    <strong className="block text-white">{currentScorecard.total} pts</strong>
-                    <span className="text-zinc-500">{completion}%</span>
-                  </span>
-                </Link>
+                <>
+                  <Link
+                    href="/perfil"
+                    aria-label="Perfil"
+                    title="Perfil"
+                    className={`flex h-10 min-w-0 items-center gap-2 rounded-lg border border-white/10 px-2 transition ${
+                      pathname === "/perfil"
+                        ? "bg-white/15"
+                        : "bg-white/[0.08] hover:bg-white/[0.12]"
+                    }`}
+                  >
+                    <Avatar
+                      name={user.name}
+                      avatarUrl={user.avatarUrl}
+                      className="aspect-square h-7 w-7 shrink-0 rounded-md"
+                    />
+                    <span className="hidden max-w-24 truncate text-sm font-semibold text-white sm:block">
+                      {user.name}
+                    </span>
+                  </Link>
+                  <Link
+                    href="/perfil/opciones"
+                    aria-label="Opciones"
+                    title="Opciones"
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 transition ${
+                      pathname === "/perfil/opciones"
+                        ? "bg-white/15 text-white"
+                        : "bg-white/[0.08] text-zinc-300 hover:bg-white/[0.12] hover:text-white"
+                    }`}
+                  >
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                    >
+                      <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" />
+                      <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.06.06a2.1 2.1 0 1 1-2.98 2.98l-.06-.06a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.08 1.64V21.4a2.1 2.1 0 1 1-4.2 0v-.16A1.8 1.8 0 0 0 8.45 19.6a1.8 1.8 0 0 0-1.98.36l-.06.06a2.1 2.1 0 1 1-2.98-2.98l.06-.06A1.8 1.8 0 0 0 3.85 15a1.8 1.8 0 0 0-1.64-1.08H2.05a2.1 2.1 0 1 1 0-4.2h.16a1.8 1.8 0 0 0 1.64-1.08 1.8 1.8 0 0 0-.36-1.98l-.06-.06a2.1 2.1 0 1 1 2.98-2.98l.06.06a1.8 1.8 0 0 0 1.98.36 1.8 1.8 0 0 0 1.08-1.64V2.24a2.1 2.1 0 1 1 4.2 0v.16a1.8 1.8 0 0 0 1.08 1.64 1.8 1.8 0 0 0 1.98-.36l.06-.06a2.1 2.1 0 1 1 2.98 2.98l-.06.06a1.8 1.8 0 0 0-.36 1.98 1.8 1.8 0 0 0 1.64 1.08h.16a2.1 2.1 0 1 1 0 4.2h-.16A1.8 1.8 0 0 0 19.4 15Z" />
+                    </svg>
+                  </Link>
+                </>
               ) : (
-                <Link href="/perfil" className="rounded-lg bg-white px-2.5 py-2 text-sm font-bold text-black sm:px-3">
+                <Link
+                  href="/perfil"
+                  className="rounded-lg bg-white px-2.5 py-2 text-sm font-bold text-black sm:px-3"
+                >
                   Entrar
                 </Link>
               )}
-              <Link href="/porra" className="rounded-lg bg-[#a7f600] px-2.5 py-2 text-sm font-black text-black transition hover:bg-[#c7ff43] sm:px-3">
-                Jugar
-              </Link>
             </div>
           </div>
 
@@ -90,11 +143,13 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`truncate rounded-lg px-1.5 py-2 text-center text-[11px] font-semibold transition sm:px-2 sm:text-xs ${
-                    active ? "bg-white text-black" : "bg-white/[0.08] text-zinc-300"
+                  className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-center text-[11px] font-semibold transition sm:px-2 sm:text-xs ${
+                    active
+                      ? "bg-white text-black"
+                      : "bg-white/[0.08] text-zinc-300"
                   }`}
                 >
-                  {link.label}
+                  <span className="truncate">{link.label}</span>
                 </Link>
               );
             })}

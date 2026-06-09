@@ -102,6 +102,7 @@ const positionTabs: Array<{ id: Position; label: string }> = [
   { id: "MED", label: "Centro" },
   { id: "DEL", label: "Delantero" },
 ];
+const resultsIntroStorageKey = "porra26_results_intro_seen";
 
 export function PredictionView() {
   const {
@@ -119,12 +120,14 @@ export function PredictionView() {
   } = useAppContext();
   const [section, setSection] = useState<SectionId>("extras");
   const [autoSaveState, setAutoSaveState] = useState<AutoSaveState>("idle");
+  const [showResultsIntroModal, setShowResultsIntroModal] = useState(false);
   const savedSignatureRef = useRef("");
   const latestSignatureRef = useRef("");
   const userKeyRef = useRef("");
   const saveRunRef = useRef(0);
   const autoSaveTimerRef = useRef<number | null>(null);
   const hideSavedTimerRef = useRef<number | null>(null);
+  const resultsIntroQueuedRef = useRef(false);
 
   const visibleMatches = useMemo(
     () =>
@@ -227,6 +230,35 @@ export function PredictionView() {
     };
   }, [predictionSignature, ready, savePrediction, userId]);
 
+  useEffect(() => {
+    if (section !== "results" || resultsIntroQueuedRef.current) return;
+
+    try {
+      if (window.localStorage.getItem(resultsIntroStorageKey) === "1") {
+        return;
+      }
+    } catch {
+      // Ignore storage failures; the modal can still be shown this session.
+    }
+
+    resultsIntroQueuedRef.current = true;
+    const frame = window.requestAnimationFrame(() => {
+      setShowResultsIntroModal(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [section]);
+
+  const dismissResultsIntroModal = () => {
+    resultsIntroQueuedRef.current = true;
+    try {
+      window.localStorage.setItem(resultsIntroStorageKey, "1");
+    } catch {
+      // Ignore storage failures.
+    }
+    setShowResultsIntroModal(false);
+  };
+
   return (
     <div className="mx-auto max-w-3xl pb-44 sm:pb-32">
       <SectionHeading eyebrow="Porra" title="Juega el Mundial" />
@@ -303,6 +335,10 @@ export function PredictionView() {
         progresses={sectionProgresses}
         onSectionChange={changeSection}
       />
+
+      {showResultsIntroModal ? (
+        <ResultsIntroModal onClose={dismissResultsIntroModal} />
+      ) : null}
     </div>
   );
 }
@@ -446,42 +482,39 @@ function StepTabs({
   return (
     <div className="-mx-4 overflow-x-auto px-4 py-2 sm:-mx-6 sm:px-6 md:mx-0 md:overflow-visible md:px-0">
       <div className="flex w-max max-w-none gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:relative md:left-1/2 md:grid md:w-[calc(100vw-3rem)] md:max-w-5xl md:-translate-x-1/2 md:grid-cols-5">
-          {sections.map((tab) => {
-            const active = section === tab.id;
-            const complete = progresses[tab.id].status === "complete";
+        {sections.map((tab) => {
+          const active = section === tab.id;
+          const complete = progresses[tab.id].status === "complete";
 
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => onSectionChange(tab.id)}
-                className={`relative flex h-12 min-w-[9.25rem] items-center justify-center gap-2 rounded-lg px-2 text-xs font-bold transition sm:h-14 sm:text-sm md:min-w-0 ${
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onSectionChange(tab.id)}
+              className={`relative flex h-12 min-w-[9.25rem] items-center justify-center gap-2 rounded-lg px-2 text-xs font-bold transition sm:h-14 sm:text-sm md:min-w-0 ${
+                active
+                  ? "bg-white text-black shadow-[0_0_0_1px_rgba(255,255,255,0.22)]"
+                  : complete
+                    ? "bg-[#a7f600]/10 text-zinc-100 hover:bg-[#a7f600]/14"
+                    : "bg-white/[0.035] text-zinc-300 hover:bg-white/[0.08] hover:text-white"
+              }`}
+            >
+              <span
+                className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] ${
                   active
-                    ? "bg-white text-black shadow-[0_0_0_1px_rgba(255,255,255,0.22)]"
+                    ? "bg-black text-white"
                     : complete
-                      ? "bg-[#a7f600]/10 text-zinc-100 hover:bg-[#a7f600]/14"
-                      : "bg-white/[0.035] text-zinc-300 hover:bg-white/[0.08] hover:text-white"
+                      ? "bg-[#a7f600]/18 text-[#a7f600]"
+                      : "bg-white/10 text-zinc-400"
                 }`}
               >
-                <span
-                  className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] ${
-                    active
-                      ? "bg-black text-white"
-                      : complete
-                        ? "bg-[#a7f600]/18 text-[#a7f600]"
-                        : "bg-white/10 text-zinc-400"
-                  }`}
-                >
-                  {tab.step}
-                </span>
-                <span className="min-w-0 truncate">{tab.label}</span>
-                <StepStatusBadge
-                  progress={progresses[tab.id]}
-                  active={active}
-                />
-              </button>
-            );
-          })}
+                {tab.step}
+              </span>
+              <span className="min-w-0 truncate">{tab.label}</span>
+              <StepStatusBadge progress={progresses[tab.id]} active={active} />
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -541,6 +574,45 @@ function StepActionBar({
             </Link>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ResultsIntroModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="results-intro-title"
+    >
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#151515] p-5 text-white shadow-2xl shadow-black/50">
+        <div className="mb-4 flex items-start gap-3">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-yellow-300/15 text-yellow-200">
+            <span className="h-2.5 w-2.5 rounded-full bg-yellow-300" />
+          </span>
+          <div>
+            <h3
+              id="results-intro-title"
+              className="text-xl font-black tracking-tight"
+            >
+              Resultados abiertos
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              Puedes volver y rellenar o cambiar cada resultado hasta la hora
+              de comienzo de ese partido.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-2 w-full rounded-lg bg-white px-4 py-3 text-sm font-black text-black transition hover:bg-zinc-200"
+        >
+          Entendido
+        </button>
       </div>
     </div>
   );
@@ -732,7 +804,7 @@ function ChoiceBlock({
 }) {
   return (
     <div className="relative rounded-lg border border-white/10 bg-[#151515] p-4">
-      <span className="absolute right-3 top-3 rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">
+      <span className="absolute right-3 top-3 rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
         {points} pts
       </span>
       <div className="pr-16">{children}</div>
@@ -1056,15 +1128,15 @@ function GroupStage({
         </h2>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-5 text-zinc-400">
           <span>Equipo que pasa acertado:</span>
-          <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">
+          <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
             +2 pts
           </span>
           <span>Tercer clasificado acertado:</span>
-          <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">
+          <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
             +1 pt
           </span>
           <span>Orden exacto en el grupo:</span>
-          <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">
+          <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
             +3 pts
           </span>
         </p>
@@ -1455,19 +1527,19 @@ function LineupBuilder({
         </h2>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-6 text-zinc-400">
           <span>Gol delantero</span>
-          <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">
+          <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
             +2 pts
           </span>
           <span>centrocampista</span>
-          <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">
+          <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
             +6 pts
           </span>
           <span>defensa</span>
-          <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">
+          <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
             +11 pts
           </span>
           <span>portero</span>
-          <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">
+          <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
             +35 pts
           </span>
         </p>
@@ -1818,13 +1890,17 @@ function ResultsSchedule({
         </div>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-6 text-zinc-400">
           <span>Eleccion acertada</span>
-          <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">
+          <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
             +1 punto
           </span>
           <span>Resultado exacto suma el valor de todos los</span>
-          <span className="rounded-md bg-[#a7f600] px-2 py-1 text-xs font-black text-black">
+          <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
             goles del partido
           </span>
+        </p>
+        <p className="text-sm font-medium text-yellow-100">
+          Puedes meter o cambiar cada resultado hasta justo antes de que
+          comience ese partido.
         </p>
       </div>
 
