@@ -70,6 +70,49 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 ```
 
+### Local Supabase (Docker)
+
+Runs the full Supabase stack (Postgres + Auth + API + Studio) locally via the Supabase CLI, which manages its own Docker containers.
+
+One-time setup:
+
+```bash
+brew install supabase/tap/supabase   # or see supabase.com/docs
+open -a Docker                        # Docker must be running
+```
+
+Then, from the repo root:
+
+```bash
+npm run db:setup     # init config, start the stack, apply schema + seed
+```
+
+`db:setup` prints a local API URL and `anon` key. Put them in `.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key from the output>
+```
+
+Other commands:
+
+```bash
+npm run db:reset     # drop and re-apply migrations + seed
+npm run db:status    # show local URLs and keys
+npm run db:stop      # stop the containers
+```
+
+Studio (DB browser) is at `http://127.0.0.1:54323`.
+
+The schema lives in `supabase/migrations/`, data in `supabase/seed.sql`.
+
+To promote an admin locally, register `admin@admin.admin` in the app, then in Studio run:
+
+```sql
+update public.profiles set is_admin = true
+where id = (select id from auth.users where email = 'admin@admin.admin');
+```
+
 ## Optional API-Football
 
 ```env
