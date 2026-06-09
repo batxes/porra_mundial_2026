@@ -608,7 +608,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         replacePrediction(setThirdQualifierOrder(prediction, groups));
       },
       chooseMatchWinner: (matchNumber, teamId) => {
-        if (hasTournamentStarted()) return;
+        const match = schedule.find((candidate) => candidate.number === matchNumber);
+        if (!match || hasMatchStarted(match)) return;
         replacePrediction(chooseMatchWinner(prediction, matchNumber, teamId));
       },
       setPredictionScore: (matchNumber, side, value) => {

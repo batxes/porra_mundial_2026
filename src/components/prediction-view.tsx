@@ -107,6 +107,7 @@ const positionTabs: Array<{ id: Position; label: string }> = [
 export function PredictionView() {
   const {
     prediction,
+    chooseMatchWinner,
     ready,
     replaceGroupOrder,
     replaceThirdQualifierOrder,
@@ -284,6 +285,8 @@ export function PredictionView() {
             <FinalPhaseSection
               prediction={prediction}
               matches={finalPhaseMatches}
+              isMatchLocked={hasMatchStarted}
+              onWinnerSelect={chooseMatchWinner}
             />
           ) : null}
 
@@ -1864,11 +1867,15 @@ function PlayerPickerModal({
 }
 
 function FinalPhaseSection({
+  isMatchLocked,
   prediction,
   matches,
+  onWinnerSelect,
 }: {
+  isMatchLocked: (match: Match) => boolean;
   prediction: Prediction;
   matches: Match[];
+  onWinnerSelect: (matchNumber: number, teamId: string) => void;
 }) {
   return (
     <div className="relative left-1/2 w-[calc(100vw-2rem)] max-w-[1380px] -translate-x-1/2 space-y-5 sm:w-[calc(100vw-3rem)]">
@@ -1877,7 +1884,12 @@ function FinalPhaseSection({
           Fase final
         </h2>
       </div>
-      <KnockoutBracket prediction={prediction} matches={matches} />
+      <KnockoutBracket
+        isMatchLocked={isMatchLocked}
+        prediction={prediction}
+        matches={matches}
+        onWinnerSelect={onWinnerSelect}
+      />
     </div>
   );
 }

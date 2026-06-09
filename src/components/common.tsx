@@ -577,11 +577,17 @@ const rightBracketRounds = [
 const bracketRoundLabels = ["Dieciseisavos", "Octavos", "Cuartos", "Semis"] as const;
 
 export function KnockoutBracket({
+  disabled = false,
+  isMatchLocked,
   layout = "responsive",
+  onWinnerSelect,
   prediction,
   matches,
 }: {
+  disabled?: boolean;
+  isMatchLocked?: (match: Match) => boolean;
   layout?: "responsive" | "mobile";
+  onWinnerSelect?: (matchNumber: number, teamId: string) => void;
   prediction: Prediction;
   matches: Match[];
 }) {
@@ -595,7 +601,14 @@ export function KnockoutBracket({
       {layout === "responsive" ? (
         <div className="hidden w-full overflow-x-auto rounded-[18px] border border-white/10 bg-[#151515] p-3 text-white md:block">
           <div className="grid min-w-[1280px] grid-cols-[1fr_250px_1fr] gap-4 rounded-[16px] border border-white/10 bg-[#0f0f0f] px-3 py-4">
-            <BracketTree rounds={leftBracketRounds} matchByNumber={matchByNumber} prediction={prediction} />
+            <BracketTree
+              disabled={disabled}
+              isMatchLocked={isMatchLocked}
+              rounds={leftBracketRounds}
+              matchByNumber={matchByNumber}
+              onWinnerSelect={onWinnerSelect}
+              prediction={prediction}
+            />
 
             <div className="flex h-[670px] flex-col items-center justify-center gap-5">
               <div className="text-center">
@@ -608,14 +621,42 @@ export function KnockoutBracket({
 
               <div className="grid w-full grid-cols-3 items-center gap-3">
                 <div className="h-px bg-white/10" />
-                {finalMatch ? <BracketMatchCard match={finalMatch} prediction={prediction} label="Final" featured /> : null}
+                {finalMatch ? (
+                  <BracketMatchCard
+                    disabled={disabled}
+                    isMatchLocked={isMatchLocked}
+                    match={finalMatch}
+                    onWinnerSelect={onWinnerSelect}
+                    prediction={prediction}
+                    label="Final"
+                    featured
+                  />
+                ) : null}
                 <div className="h-px bg-white/10" />
               </div>
 
-              {thirdPlaceMatch ? <BracketMatchCard match={thirdPlaceMatch} prediction={prediction} label="Final de bronce" tagTone="blue" /> : null}
+              {thirdPlaceMatch ? (
+                <BracketMatchCard
+                  disabled={disabled}
+                  isMatchLocked={isMatchLocked}
+                  match={thirdPlaceMatch}
+                  onWinnerSelect={onWinnerSelect}
+                  prediction={prediction}
+                  label="Final de bronce"
+                  tagTone="blue"
+                />
+              ) : null}
             </div>
 
-            <BracketTree rounds={rightBracketRounds} matchByNumber={matchByNumber} prediction={prediction} reverse />
+            <BracketTree
+              disabled={disabled}
+              isMatchLocked={isMatchLocked}
+              rounds={rightBracketRounds}
+              matchByNumber={matchByNumber}
+              onWinnerSelect={onWinnerSelect}
+              prediction={prediction}
+              reverse
+            />
           </div>
         </div>
       ) : null}
@@ -624,6 +665,9 @@ export function KnockoutBracket({
         className={layout === "mobile" ? "" : "md:hidden"}
         finalMatch={finalMatch}
         matchByNumber={matchByNumber}
+        disabled={disabled}
+        isMatchLocked={isMatchLocked}
+        onWinnerSelect={onWinnerSelect}
         prediction={prediction}
         thirdPlaceMatch={thirdPlaceMatch}
       />
@@ -667,33 +711,82 @@ function ChampionTrophyIcon() {
 function MobileKnockoutBracket({
   champion,
   className = "md:hidden",
+  disabled = false,
   finalMatch,
+  isMatchLocked,
   matchByNumber,
+  onWinnerSelect,
   prediction,
   thirdPlaceMatch,
 }: {
   champion: string;
   className?: string;
+  disabled?: boolean;
   finalMatch?: Match;
+  isMatchLocked?: (match: Match) => boolean;
   matchByNumber: Map<number, Match>;
+  onWinnerSelect?: (matchNumber: number, teamId: string) => void;
   prediction: Prediction;
   thirdPlaceMatch?: Match;
 }) {
   return (
     <div className={`w-full rounded-[18px] border border-white/10 bg-[#151515] p-3 text-white ${className}`}>
       <div className="rounded-[16px] border border-white/10 bg-[#0f0f0f] px-3 py-4">
-        <MobileBracketRound matchByNumber={matchByNumber} matchNumbers={[89, 90, 93, 94]} prediction={prediction} />
+        <MobileBracketRound
+          disabled={disabled}
+          isMatchLocked={isMatchLocked}
+          matchByNumber={matchByNumber}
+          matchNumbers={[89, 90, 93, 94]}
+          onWinnerSelect={onWinnerSelect}
+          prediction={prediction}
+        />
         <MobileBracketJoin />
-        <MobileBracketRound matchByNumber={matchByNumber} matchNumbers={[97, 98]} prediction={prediction} />
+        <MobileBracketRound
+          disabled={disabled}
+          isMatchLocked={isMatchLocked}
+          matchByNumber={matchByNumber}
+          matchNumbers={[97, 98]}
+          onWinnerSelect={onWinnerSelect}
+          prediction={prediction}
+        />
         <MobileBracketJoin compact />
-        <MobileBracketRound matchByNumber={matchByNumber} matchNumbers={[101]} prediction={prediction} />
+        <MobileBracketRound
+          disabled={disabled}
+          isMatchLocked={isMatchLocked}
+          matchByNumber={matchByNumber}
+          matchNumbers={[101]}
+          onWinnerSelect={onWinnerSelect}
+          prediction={prediction}
+        />
 
         <div className="my-8 grid grid-cols-3 items-center gap-3">
           <div className="flex justify-center">
-            {thirdPlaceMatch ? <BracketMatchCard match={thirdPlaceMatch} prediction={prediction} label="Final de bronce" tagTone="blue" compact /> : null}
+            {thirdPlaceMatch ? (
+              <BracketMatchCard
+                compact
+                disabled={disabled}
+                isMatchLocked={isMatchLocked}
+                match={thirdPlaceMatch}
+                onWinnerSelect={onWinnerSelect}
+                prediction={prediction}
+                label="Final de bronce"
+                tagTone="blue"
+              />
+            ) : null}
           </div>
           <div className="flex justify-center">
-            {finalMatch ? <BracketMatchCard match={finalMatch} prediction={prediction} label="Final" featured compact /> : null}
+            {finalMatch ? (
+              <BracketMatchCard
+                compact
+                disabled={disabled}
+                isMatchLocked={isMatchLocked}
+                match={finalMatch}
+                onWinnerSelect={onWinnerSelect}
+                prediction={prediction}
+                label="Final"
+                featured
+              />
+            ) : null}
           </div>
           <div className="text-center">
             <ChampionTrophyIcon />
@@ -704,23 +797,50 @@ function MobileKnockoutBracket({
           </div>
         </div>
 
-        <MobileBracketRound matchByNumber={matchByNumber} matchNumbers={[102]} prediction={prediction} />
+        <MobileBracketRound
+          disabled={disabled}
+          isMatchLocked={isMatchLocked}
+          matchByNumber={matchByNumber}
+          matchNumbers={[102]}
+          onWinnerSelect={onWinnerSelect}
+          prediction={prediction}
+        />
         <MobileBracketJoin compact />
-        <MobileBracketRound matchByNumber={matchByNumber} matchNumbers={[99, 100]} prediction={prediction} />
+        <MobileBracketRound
+          disabled={disabled}
+          isMatchLocked={isMatchLocked}
+          matchByNumber={matchByNumber}
+          matchNumbers={[99, 100]}
+          onWinnerSelect={onWinnerSelect}
+          prediction={prediction}
+        />
         <MobileBracketJoin />
-        <MobileBracketRound matchByNumber={matchByNumber} matchNumbers={[91, 92, 95, 96]} prediction={prediction} />
+        <MobileBracketRound
+          disabled={disabled}
+          isMatchLocked={isMatchLocked}
+          matchByNumber={matchByNumber}
+          matchNumbers={[91, 92, 95, 96]}
+          onWinnerSelect={onWinnerSelect}
+          prediction={prediction}
+        />
       </div>
     </div>
   );
 }
 
 function MobileBracketRound({
+  disabled = false,
+  isMatchLocked,
   matchByNumber,
   matchNumbers,
+  onWinnerSelect,
   prediction,
 }: {
+  disabled?: boolean;
+  isMatchLocked?: (match: Match) => boolean;
   matchByNumber: Map<number, Match>;
   matchNumbers: number[];
+  onWinnerSelect?: (matchNumber: number, teamId: string) => void;
   prediction: Prediction;
 }) {
   const columns = matchNumbers.length === 1 ? "grid-cols-1" : matchNumbers.length === 2 ? "grid-cols-2" : "grid-cols-4";
@@ -729,7 +849,17 @@ function MobileBracketRound({
     <div className={`mx-auto grid max-w-[340px] ${columns} justify-items-center gap-2`}>
       {matchNumbers.map((matchNumber) => {
         const match = matchByNumber.get(matchNumber);
-        return match ? <BracketMatchCard key={match.number} match={match} prediction={prediction} compact /> : null;
+        return match ? (
+          <BracketMatchCard
+            key={match.number}
+            compact
+            disabled={disabled}
+            isMatchLocked={isMatchLocked}
+            match={match}
+            onWinnerSelect={onWinnerSelect}
+            prediction={prediction}
+          />
+        ) : null;
       })}
     </div>
   );
@@ -745,13 +875,19 @@ function MobileBracketJoin({ compact = false }: { compact?: boolean }) {
 }
 
 function BracketTree({
+  disabled = false,
+  isMatchLocked,
   rounds,
   matchByNumber,
+  onWinnerSelect,
   prediction,
   reverse = false,
 }: {
+  disabled?: boolean;
+  isMatchLocked?: (match: Match) => boolean;
   rounds: readonly (readonly number[])[];
   matchByNumber: Map<number, Match>;
+  onWinnerSelect?: (matchNumber: number, teamId: string) => void;
   prediction: Prediction;
   reverse?: boolean;
 }) {
@@ -772,7 +908,13 @@ function BracketTree({
                 <div key={match.number} className="relative flex items-center justify-center">
                   {roundIndex > 0 ? <BracketHorizontalConnector side="left" /> : null}
                   {roundIndex < orderedRounds.length - 1 ? <BracketHorizontalConnector side="right" /> : null}
-                  <BracketMatchCard match={match} prediction={prediction} />
+                  <BracketMatchCard
+                    disabled={disabled}
+                    isMatchLocked={isMatchLocked}
+                    match={match}
+                    onWinnerSelect={onWinnerSelect}
+                    prediction={prediction}
+                  />
                 </div>
               ) : null;
             })}
@@ -807,14 +949,20 @@ function BracketVerticalConnectors({ count, side }: { count: number; side: "left
 }
 
 function BracketMatchCard({
+  disabled = false,
+  isMatchLocked,
   match,
+  onWinnerSelect,
   prediction,
   label,
   featured = false,
   tagTone = "gold",
   compact = false,
 }: {
+  disabled?: boolean;
+  isMatchLocked?: (match: Match) => boolean;
   match: Match;
+  onWinnerSelect?: (matchNumber: number, teamId: string) => void;
   prediction: Prediction;
   label?: string;
   featured?: boolean;
@@ -824,12 +972,37 @@ function BracketMatchCard({
   const home = resolveSlot(match.home, match.number, prediction);
   const away = resolveSlot(match.away, match.number, prediction);
   const current = prediction.matchPredictions[String(match.number)];
+  const winner = prediction.bracket.winners[String(match.number)] || "";
+  const matchLocked = disabled || Boolean(isMatchLocked?.(match));
+  const canSelect = Boolean(onWinnerSelect && !matchLocked && home && away);
+  const selectWinner = (teamId: string) => {
+    if (!onWinnerSelect || !canSelect || !teamId) return;
+    onWinnerSelect(match.number, teamId);
+  };
 
   return (
-    <div className={`relative z-10 mx-auto rounded-lg border border-white/10 bg-[#151515] px-2 py-2 text-center shadow-sm shadow-black/20 ${featured ? (compact ? "w-[78px]" : "w-[92px]") : compact ? "w-[64px]" : "w-[82px]"}`}>
+    <div
+      className={`relative z-10 mx-auto rounded-lg border bg-[#151515] px-1.5 py-2 text-center shadow-sm shadow-black/20 transition-colors ${
+        winner ? "border-[#a7f600]/55" : "border-white/10"
+      } ${featured ? (compact ? "w-[82px]" : "w-[98px]") : compact ? "w-[72px]" : "w-[88px]"}`}
+    >
       <div className={`flex justify-center ${compact ? "gap-2" : "gap-3"}`}>
-        <BracketTeamToken teamId={home} fallback={shortSlotLabel(match.home)} compact={compact} />
-        <BracketTeamToken teamId={away} fallback={shortSlotLabel(match.away)} compact={compact} />
+        <BracketTeamToken
+          compact={compact}
+          disabled={!canSelect}
+          fallback={shortSlotLabel(match.home)}
+          selected={Boolean(home && winner === home)}
+          teamId={home}
+          onSelect={selectWinner}
+        />
+        <BracketTeamToken
+          compact={compact}
+          disabled={!canSelect}
+          fallback={shortSlotLabel(match.away)}
+          selected={Boolean(away && winner === away)}
+          teamId={away}
+          onSelect={selectWinner}
+        />
       </div>
       {current?.homeScore !== "" && current?.awayScore !== "" && current?.homeScore != null && current?.awayScore != null ? (
         <div className="mt-1 rounded bg-white/10 px-1 py-0.5 text-[10px] font-black text-white">
@@ -846,20 +1019,70 @@ function BracketMatchCard({
   );
 }
 
-function BracketTeamToken({ teamId, fallback, compact = false }: { teamId?: string; fallback: string; compact?: boolean }) {
+function BracketTeamToken({
+  teamId,
+  fallback,
+  compact = false,
+  disabled = true,
+  selected = false,
+  onSelect,
+}: {
+  teamId?: string;
+  fallback: string;
+  compact?: boolean;
+  disabled?: boolean;
+  selected?: boolean;
+  onSelect?: (teamId: string) => void;
+}) {
   const team = teamId ? teamsById.get(teamId) : null;
-
-  return (
-    <div className="flex min-w-0 flex-col items-center gap-1">
+  const canSelect = Boolean(teamId && onSelect && !disabled);
+  const className = `flex min-w-0 flex-1 flex-col items-center gap-1 rounded-md border px-0.5 py-1 transition-colors ${
+    selected
+      ? "border-[#a7f600] bg-[#a7f600] text-black shadow-[0_0_16px_rgba(167,246,0,0.2)]"
+      : canSelect
+        ? "border-white/10 text-white hover:border-[#a7f600]/60 hover:bg-[#a7f600]/10 active:bg-[#a7f600]/15"
+        : "border-transparent text-white"
+  }`;
+  const content = (
+    <>
       {team ? (
-        <TeamFlag teamId={team.id} className={`${compact ? "h-4 w-4" : "h-5 w-5"} rounded-full border border-white/15 object-cover`} />
+        <TeamFlag
+          teamId={team.id}
+          className={`${compact ? "h-4 w-4" : "h-5 w-5"} rounded-full border ${
+            selected ? "border-black/20" : "border-white/15"
+          } object-cover`}
+        />
       ) : (
-        <span className={`${compact ? "h-4 w-4" : "h-5 w-5"} rounded-full bg-white/10 shadow-inner`} />
+        <span
+          className={`${compact ? "h-4 w-4" : "h-5 w-5"} rounded-full ${
+            selected ? "bg-black/20" : "bg-white/10"
+          } shadow-inner`}
+        />
       )}
-      <span className={`${compact ? "max-w-[24px] text-[10px]" : "max-w-[34px] text-[11px]"} truncate font-black leading-none text-white`}>
+      <span
+        className={`${compact ? "max-w-[24px] text-[10px]" : "max-w-[34px] text-[11px]"} truncate font-black leading-none ${
+          selected ? "text-black" : "text-white"
+        }`}
+      >
         {team?.code.toUpperCase() || fallback}
       </span>
-    </div>
+    </>
+  );
+
+  return (
+    canSelect ? (
+      <button
+        type="button"
+        aria-pressed={selected}
+        aria-label={`Elegir ${team?.name || fallback}`}
+        className={className}
+        onClick={() => onSelect?.(teamId || "")}
+      >
+        {content}
+      </button>
+    ) : (
+      <div className={className}>{content}</div>
+    )
   );
 }
 
