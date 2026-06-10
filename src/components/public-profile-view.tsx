@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar, EmptyState, PredictionSnapshot, PrimaryLink, SectionHeading } from "@/components/common";
+import { Avatar, EmptyState, PredictionSnapshot, PrimaryLink, ProBadge, SectionHeading } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
 
@@ -49,8 +49,9 @@ export function PublicProfileView({ userId }: { userId: string }) {
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#a7f600]">
               Perfil publico
             </p>
-            <h1 className="mt-2 truncate text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-              {profile.name}
+            <h1 className="mt-2 flex min-w-0 items-center gap-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              <span className="truncate">{profile.name}</span>
+              {profile.isPro ? <ProBadge size="md" /> : null}
             </h1>
             <p className="mt-1 text-sm text-zinc-400">
               Elecciones de este participante.

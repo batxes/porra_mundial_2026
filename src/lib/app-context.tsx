@@ -50,6 +50,7 @@ type SessionUser = {
   avatarUrl: string;
   points: number;
   isAdmin: boolean;
+  isPro: boolean;
 };
 
 type AppContextValue = {
@@ -81,6 +82,7 @@ type AppContextValue = {
   toggleXiPlayer: (playerId: string) => void;
   setXiFormation: (formation: string) => void;
   setXiSelection: (playerIds: string[]) => void;
+  setUserPro: (userId: string, isPro: boolean) => Promise<void>;
   saveAdminResult: (matchNumber: string, payload: AdminResults[string]) => Promise<void>;
   addAdminEvent: (matchNumber: string, event: AdminResults[string]["events"][number]) => Promise<void>;
   deleteAdminEvent: (matchNumber: string, eventId: string) => Promise<void>;
@@ -114,6 +116,7 @@ function buildLeaderboard(localUsers: LocalUser[], currentUserId: string | null,
         avatarUrl: user.avatarUrl || "",
         points: scorecard.total,
         isAdmin: Boolean(user.isAdmin),
+        isPro: Boolean(user.isPro),
         complete: calculateCompletion(userPrediction),
         champion: userPrediction.extras.worldChampion || userPrediction.bracket.winners["104"] || "",
         prediction: userPrediction,
@@ -160,6 +163,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               avatarUrl: sessionUser.avatarUrl || "",
               points: scorecardForUser(sessionUser.id, currentPrediction, currentResults).total,
               isAdmin: Boolean(sessionUser.isAdmin),
+              isPro: Boolean(sessionUser.isPro),
             }
           : null,
       );
@@ -192,7 +196,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const tournamentId = tournamentResponse.data?.id;
 
     const [{ data: profiles }, { data: predictions }, { data: matches }, { data: events }, { data: scoreEntries }] = await Promise.all([
-      supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin"),
+      supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro"),
       tournamentId
         ? supabase.from("predictions").select("user_id, selections, completion_percent, is_definitive").eq("tournament_id", tournamentId)
         : Promise.resolve({ data: [] as any[], error: null }),
@@ -249,6 +253,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             avatarUrl: currentProfile.avatar_url || "",
             points: currentProfile.total_points || 0,
             isAdmin: Boolean(currentProfile.is_admin),
+            isPro: Boolean(currentProfile.is_pro),
           }
         : null,
     );
@@ -266,6 +271,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             avatarUrl: profile.avatar_url || "",
             points: scorecard.entries.length ? scorecard.total : profile.total_points || 0,
             isAdmin: Boolean(profile.is_admin),
+            isPro: Boolean(profile.is_pro),
             complete: calculateCompletion(profilePrediction),
             champion: profilePrediction.extras.worldChampion || profilePrediction.bracket.winners["104"] || "",
             prediction: profilePrediction,
@@ -339,6 +345,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const replacePrediction = useCallback((next: Prediction) => {
     setPrediction(next);
   }, []);
+
+  const setUserPro = useCallback(
+    async (userId: string, isPro: boolean) => {
+      if (!user?.isAdmin) return;
+
+      if (!usingSupabase) {
+        const users = getLocalUsers();
+        const target = users.find((candidate) => candidate.id === userId);
+        if (!target) return;
+        target.isPro = isPro;
+        setLocalUsers(users);
+        await syncLocalState(user.id);
+        return;
+      }
+
+      const supabase = getSupabaseBrowserClient() as any;
+      if (!supabase) return;
+      await supabase.rpc("admin_set_user_pro", { target_user_id: userId, next_is_pro: isPro });
+      await refreshData();
+    },
+    [refreshData, syncLocalState, user, usingSupabase],
+  );
 
   const saveAdminResult = useCallback(
     async (matchNumber: string, payload: AdminResults[string]) => {
@@ -654,6 +682,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (hasTournamentStarted()) return;
         replacePrediction(setXiSelection(prediction, playerIds));
       },
+      setUserPro,
       saveAdminResult,
       addAdminEvent,
       deleteAdminEvent,
@@ -679,6 +708,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       replacePrediction,
       saveAdminResult,
       savePrediction,
+      setUserPro,
       signIn,
       signOut,
       updateProfile,

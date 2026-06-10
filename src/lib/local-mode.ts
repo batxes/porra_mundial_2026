@@ -25,6 +25,7 @@ export type LocalUser = {
   passwordHash: string;
   points: number;
   isAdmin: boolean;
+  isPro?: boolean;
   avatarUrl: string;
 };
 

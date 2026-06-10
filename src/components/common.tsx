@@ -87,6 +87,26 @@ export function SectionHeading({
   );
 }
 
+export function ProBadge({
+  size = "sm",
+  className = "",
+}: {
+  size?: "sm" | "md";
+  className?: string;
+}) {
+  const sizeClasses =
+    size === "md" ? "px-2 py-[3px] text-[10px]" : "px-1.5 py-[2px] text-[9px]";
+
+  return (
+    <span
+      title="Usuario PRO"
+      className={`inline-flex shrink-0 select-none items-center rounded-full bg-amber-400 font-black uppercase leading-none tracking-[0.08em] text-amber-950 ${sizeClasses} ${className}`}
+    >
+      PRO
+    </span>
+  );
+}
+
 export function TeamBadge({
   teamId,
   fallback,
@@ -1525,8 +1545,11 @@ export function PredictionSnapshot({
       {profile ? (
         <div className="flex items-center gap-4">
           <Avatar name={profile.name} avatarUrl={profile.avatarUrl} />
-          <div>
-            <h3 className="text-xl font-semibold text-white">{profile.name}</h3>
+          <div className="min-w-0">
+            <h3 className="flex min-w-0 items-center gap-2 text-xl font-semibold text-white">
+              <span className="truncate">{profile.name}</span>
+              {profile.isPro ? <ProBadge /> : null}
+            </h3>
             <p className="text-sm text-slate-400">
               {profile.points} puntos · {profile.complete}% completada
             </p>

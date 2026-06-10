@@ -129,6 +129,7 @@ export type UserProfile = {
   avatarUrl: string;
   points: number;
   isAdmin: boolean;
+  isPro: boolean;
   complete: number;
   champion?: string;
   prediction: Prediction | null;

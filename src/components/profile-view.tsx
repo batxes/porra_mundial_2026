@@ -8,6 +8,7 @@ import {
   Card,
   Notice,
   PredictionSnapshot,
+  ProBadge,
   SectionHeading,
 } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
@@ -47,8 +48,9 @@ export function ProfileView() {
             className="h-16 w-16 rounded-xl sm:h-20 sm:w-20"
           />
           <div className="min-w-0">
-            <h2 className="truncate text-xl font-semibold text-white sm:text-2xl">
-              {user.name}
+            <h2 className="flex min-w-0 items-center gap-2 text-xl font-semibold text-white sm:text-2xl">
+              <span className="truncate">{user.name}</span>
+              {user.isPro ? <ProBadge size="md" /> : null}
             </h2>
             <p className="truncate text-sm text-slate-400">{user.email}</p>
           </div>

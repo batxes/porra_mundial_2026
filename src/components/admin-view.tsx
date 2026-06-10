@@ -3,7 +3,7 @@
 
 import { FormEvent, useState } from "react";
 
-import { Card, EmptyState, Notice, SectionHeading, TeamBadge, TeamPicker } from "@/components/common";
+import { Card, EmptyState, Notice, ProBadge, SectionHeading, TeamBadge, TeamPicker } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { data, schedule, teamsById } from "@/lib/data";
 import type { ProviderSummary } from "@/lib/types";
@@ -17,6 +17,7 @@ export function AdminView() {
     leaderboard,
     playerName,
     saveAdminResult,
+    setUserPro,
     teamName,
     user,
     usingSupabase,
@@ -253,6 +254,47 @@ export function AdminView() {
           </div>
         </Card>
       </div>
+
+      <Card className="space-y-4">
+        <div>
+          <h3 className="text-xl font-semibold text-white">Badge PRO</h3>
+          <p className="text-sm text-slate-400">
+            Concede o retira el distintivo PRO a los participantes que hayan pagado. El badge se muestra en la clasificación y en su perfil.
+          </p>
+        </div>
+        <div className="space-y-3">
+          {leaderboard.length ? (
+            leaderboard.map((profile) => (
+              <div key={profile.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="min-w-0 truncate text-slate-200">{profile.name}</span>
+                  {profile.isPro ? <ProBadge /> : null}
+                </span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await setUserPro(profile.id, !profile.isPro);
+                    setAdminMessage(
+                      profile.isPro
+                        ? `Badge PRO retirado a ${profile.name}.`
+                        : `Badge PRO concedido a ${profile.name}.`,
+                    );
+                  }}
+                  className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                    profile.isPro
+                      ? "border border-white/15 text-white hover:bg-white/10"
+                      : "bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-500 text-amber-950 hover:brightness-110"
+                  }`}
+                >
+                  {profile.isPro ? "Quitar PRO" : "Hacer PRO"}
+                </button>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-slate-400">Aún no hay participantes.</p>
+          )}
+        </div>
+      </Card>
 
       <Card className="space-y-4">
         <h3 className="text-xl font-semibold text-white">Partidos publicados</h3>

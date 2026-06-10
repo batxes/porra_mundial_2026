@@ -6,6 +6,7 @@ import {
   Avatar,
   Card,
   EmptyState,
+  ProBadge,
   SectionHeading,
   TeamBadge,
 } from "@/components/common";
@@ -76,8 +77,9 @@ function LeaderboardRow({
           className="size-10"
         />
         <span className="min-w-0">
-          <strong className="block truncate text-sm text-white">
-            {profile.name}
+          <strong className="flex min-w-0 items-center gap-1.5 text-sm text-white">
+            <span className="truncate">{profile.name}</span>
+            {profile.isPro ? <ProBadge /> : null}
           </strong>
           <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-zinc-500">
             {profile.champion ? (
