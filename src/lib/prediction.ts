@@ -516,16 +516,14 @@ export function calculateCompletion(prediction: Prediction) {
     return total + (positions.length === 4 && new Set(positions).size === 4 ? 1 : 0);
   }, 0);
   const thirdDone = prediction.bracket.thirdQualifiers.length === 8 ? 1 : 0;
-  const visibleKnockoutMatches = knockoutMatches.filter((match) => isMatchVisibleForPrediction(match, prediction));
-  const bracketDone = visibleKnockoutMatches.filter((match) => Boolean(prediction.bracket.winners[String(match.number)])).length;
-  const visibleMatches = schedule.filter((match) => isMatchVisibleForPrediction(match, prediction));
+  const visibleMatches = schedule.filter((match) => match.number < 73 && isMatchVisibleForPrediction(match, prediction));
   const resultsDone = visibleMatches.filter((match) => isMatchPredictionComplete(match, prediction)).length;
   const extrasDone = extraPredictionFields.filter((key) => Boolean(prediction.extras[key])).length;
   const counts = xiCounts(prediction);
   const requirements = xiRequirements(prediction.xiFormation);
   const xiDone = Object.entries(requirements).every(([position, limit]) => counts[position as Position] === limit) ? 1 : 0;
-  const completedUnits = groupDone + thirdDone + bracketDone + resultsDone + extrasDone + xiDone;
-  const totalUnits = 12 + 1 + visibleKnockoutMatches.length + visibleMatches.length + extraPredictionFields.length + 1;
+  const completedUnits = groupDone + thirdDone + resultsDone + extrasDone + xiDone;
+  const totalUnits = 12 + 1 + visibleMatches.length + extraPredictionFields.length + 1;
 
   return Math.round((completedUnits / totalUnits) * 100);
 }

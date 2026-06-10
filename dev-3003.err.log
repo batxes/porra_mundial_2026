@@ -1,2 +1,2374 @@
-⚠ Fast Refresh had to perform a full reload when ./src/lib/scoring.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
-⚠ Fast Refresh had to perform a full reload when ./src/lib/generated/data.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⨯ ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { [33mLeaderboardView[0m } [36mfrom[0m [32m"@/components/leaderboard-view"[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m
+  [90m3 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mLeaderboardPage[0m() {
+  [90m4 |[0m   [36mreturn[0m <[33mLeaderboardView[0m />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { [33mLeaderboardView[0m } [36mfrom[0m [32m"@/components/leaderboard-view"[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m
+  [90m3 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mLeaderboardPage[0m() {
+  [90m4 |[0m   [36mreturn[0m <[33mLeaderboardView[0m />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { [33mLeaderboardView[0m } [36mfrom[0m [32m"@/components/leaderboard-view"[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m
+  [90m3 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mLeaderboardPage[0m() {
+  [90m4 |[0m   [36mreturn[0m <[33mLeaderboardView[0m />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { [33mLeaderboardView[0m } [36mfrom[0m [32m"@/components/leaderboard-view"[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m
+  [90m3 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mLeaderboardPage[0m() {
+  [90m4 |[0m   [36mreturn[0m <[33mLeaderboardView[0m />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] Uncaught Error: ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (Error: ./src/app/clasificacion/page.tsx:1:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (Error: (./src/app/clasificacion/page.tsx:1:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./src/app/clasificacion/page.tsx:1:1
+Module not found: Can't resolve '@/components/leaderboard-view'
+> 1 | import { LeaderboardView } from "@/components/leaderboard-view";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export default function LeaderboardPage() {
+  4 |   return <LeaderboardView />;
+
+Import map: aliased to relative './src/components/leaderboard-view' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+⚠ Fast Refresh had to perform a full reload when ./src/lib/app-context.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload

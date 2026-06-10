@@ -97,7 +97,7 @@ export function TeamBadge({
       className={`inline-flex min-w-0 items-center gap-2 text-sm font-medium text-white ${className}`}
     >
       <Image
-        className="h-5 w-7 shrink-0 rounded-sm object-cover"
+        className="h-3 w-5 shrink-0 rounded-sm object-cover"
         src={flagUrl(team)}
         alt=""
         width={28}
@@ -142,7 +142,8 @@ export function PlayerAvatar({
 
   return (
     <span
-      className={`inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/15 bg-zinc-900 text-sm font-bold text-lime-100 ${className}`}
+      className={`inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-zinc-900 text-sm font-bold text-lime-100 ${className}`}
+      style={{ borderRadius: "9999px" }}
     >
       {photo ? (
         <Image
@@ -245,15 +246,16 @@ export function Avatar({
     ? avatarUrl.replace("preset:", "")
     : "";
   const hasCustomSize = /\b(size|h|w)-/.test(className);
-  const hasCustomRadius = /\brounded(?:-[^\s]+)?\b/.test(className);
   const sizeClass = hasCustomSize ? "" : "size-10";
-  const radiusClass = hasCustomRadius ? "" : "rounded-lg";
 
   if (avatarUrl && !avatarUrl.startsWith("preset:")) {
     return (
       <span
-        className={`inline-flex aspect-square shrink-0 ${sizeClass} ${radiusClass} border border-white/20 bg-cover bg-center ${className}`}
-        style={{ backgroundImage: `url("${avatarUrl}")` }}
+        className={`inline-flex aspect-square shrink-0 ${sizeClass} overflow-hidden rounded-full border border-white/20 bg-cover bg-center ${className}`}
+        style={{
+          backgroundImage: `url("${avatarUrl}")`,
+          borderRadius: "9999px",
+        }}
       />
     );
   }
@@ -268,9 +270,10 @@ export function Avatar({
 
   return (
     <span
-      className={`inline-flex aspect-square shrink-0 ${sizeClass} items-center justify-center ${radiusClass} border border-white/15 bg-gradient-to-br ${
+      className={`inline-flex aspect-square shrink-0 ${sizeClass} items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br ${
         tones[preset] || "from-cyan-500 to-blue-500"
       } text-sm font-bold text-slate-950 ${className}`}
+      style={{ borderRadius: "9999px" }}
     >
       {initials(name)}
     </span>
@@ -1339,10 +1342,10 @@ export function PredictionSnapshot({
     "summary" | "groups" | "knockout" | "results"
   >("summary");
 
-  const champion =
-    safePrediction.extras.worldChampion ||
-    safePrediction.bracket.winners["104"] ||
-    "";
+  const teamValue = (teamId: string) =>
+    teamId ? <TeamBadge teamId={teamId} /> : "Pendiente";
+  const playerValue = (playerId: string) =>
+    playerId ? playerName(playerId) : "Pendiente";
 
   return (
     <Card className="space-y-5">
@@ -1401,30 +1404,30 @@ export function PredictionSnapshot({
 
       {section === "summary" ? (
         <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <SummaryStat
-              title="Campeón"
-              value={champion ? <TeamBadge teamId={champion} /> : "Pendiente"}
+              title="Campeon"
+              value={teamValue(safePrediction.extras.worldChampion)}
             />
             <SummaryStat
-              title="M. goleador"
-              value={
-                safePrediction.extras.topScorer
-                  ? playerName(safePrediction.extras.topScorer)
-                  : "Pendiente"
-              }
+              title="Equipo mas goleador"
+              value={teamValue(safePrediction.extras.highestScoringTeam)}
+            />
+            <SummaryStat
+              title="Equipo mas goleado"
+              value={teamValue(safePrediction.extras.mostConcededTeam)}
+            />
+            <SummaryStat
+              title="Equipo con mas rojas"
+              value={teamValue(safePrediction.extras.mostRedsTeam)}
+            />
+            <SummaryStat
+              title="Maximo goleador"
+              value={playerValue(safePrediction.extras.topScorer)}
             />
             <SummaryStat
               title="MVP"
-              value={
-                safePrediction.extras.mvp
-                  ? playerName(safePrediction.extras.mvp)
-                  : "Pendiente"
-              }
-            />
-            <SummaryStat
-              title="Once elegido"
-              value={`${safePrediction.xi.filter(Boolean).length}/11`}
+              value={playerValue(safePrediction.extras.mvp)}
             />
           </div>
           <LineupSnapshot prediction={safePrediction} />
@@ -1457,7 +1460,7 @@ function SummaryStat({
 }) {
   return (
     <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-      <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
+      <p className="text-xs uppercase leading-4 tracking-[0.16em] text-slate-400">
         {title}
       </p>
       <div className="mt-2 text-base font-semibold text-white">{value}</div>

@@ -120,7 +120,7 @@ function buildLeaderboard(localUsers: LocalUser[], currentUserId: string | null,
         scorecard,
       };
     })
-    .sort((a, b) => b.points - a.points || b.complete - a.complete || a.name.localeCompare(b.name));
+    .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
 }
 
 function preparePredictionForSave(nextPrediction: Prediction, makeDefinitive = false) {
@@ -272,7 +272,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             scorecard,
           };
         })
-        .sort((a, b) => b.points - a.points || b.complete - a.complete || a.name.localeCompare(b.name)),
+        .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name)),
     );
     setReady(true);
   }, [syncLocalState, usingSupabase]);

@@ -34,7 +34,6 @@ import { CSS } from "@dnd-kit/utilities";
 
 import {
   Card,
-  KnockoutBracket,
   Notice,
   PlayerAvatar,
   SectionHeading,
@@ -49,7 +48,6 @@ import {
   extraPredictionFields,
   playersById,
   schedule,
-  sections,
   teamsById,
   xiFormations,
 } from "@/lib/data";
@@ -86,9 +84,21 @@ type ViewTransitionDocument = Document & {
 };
 
 type AutoSaveState = "idle" | "pending" | "saving" | "saved" | "error";
-type SectionId = (typeof sections)[number]["id"];
 type SectionStatus = "complete" | "pending";
 type SectionProgress = { done: number; status: SectionStatus; total: number };
+
+const playSections = [
+  { id: "extras", label: "Tus elecciones", step: "1" },
+  { id: "xi", label: "Tu once", step: "2" },
+  { id: "groups", label: "Fase de grupos", step: "3" },
+  { id: "results", label: "Resultados", step: "4" },
+] as const;
+
+type SectionId = (typeof playSections)[number]["id"];
+
+function isSectionId(value: string | null): value is SectionId {
+  return playSections.some((section) => section.id === value);
+}
 
 const positionLabels: Record<Position, string> = {
   POR: "Portero",
@@ -130,13 +140,11 @@ const initialPlayerRenderLimit = 80;
 const playerRenderBatchSize = 80;
 
 const groupsIntroStorageKey = "porra26_groups_intro_seen";
-const knockoutIntroStorageKey = "porra26_knockout_intro_seen";
 const resultsIntroStorageKey = "porra26_results_intro_seen";
 
 export function PredictionView() {
   const {
     prediction,
-    chooseMatchWinner,
     ready,
     replaceGroupOrder,
     savePrediction,
@@ -152,7 +160,6 @@ export function PredictionView() {
   const [autoSaveState, setAutoSaveState] = useState<AutoSaveState>("idle");
   const [authOpen, setAuthOpen] = useState(false);
   const [showGroupsIntroModal, setShowGroupsIntroModal] = useState(false);
-  const [showKnockoutIntroModal, setShowKnockoutIntroModal] = useState(false);
   const [showResultsIntroModal, setShowResultsIntroModal] = useState(false);
   const savedSignatureRef = useRef("");
   const latestSignatureRef = useRef("");
@@ -161,23 +168,19 @@ export function PredictionView() {
   const autoSaveTimerRef = useRef<number | null>(null);
   const hideSavedTimerRef = useRef<number | null>(null);
   const groupsIntroQueuedRef = useRef(false);
-  const knockoutIntroQueuedRef = useRef(false);
   const resultsIntroQueuedRef = useRef(false);
 
   const visibleMatches = useMemo(
     () =>
-      schedule.filter((match) =>
-        isMatchVisibleForPrediction(match, prediction),
+      schedule.filter(
+        (match) =>
+          match.number < 73 && isMatchVisibleForPrediction(match, prediction),
       ),
     [prediction],
   );
-  const finalPhaseMatches = useMemo(
-    () => schedule.filter((match) => match.number >= 73),
-    [],
-  );
   const sectionProgresses = useMemo(
-    () => getSectionProgresses(prediction, visibleMatches, finalPhaseMatches),
-    [finalPhaseMatches, prediction, visibleMatches],
+    () => getSectionProgresses(prediction, visibleMatches),
+    [prediction, visibleMatches],
   );
   const tournamentLocked = hasTournamentStarted();
   const userId = user?.id || "";
@@ -188,6 +191,22 @@ export function PredictionView() {
       window.scrollTo({ top: 0, behavior: "smooth" }),
     );
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedSection =
+      params.get("section") || window.location.hash.slice(1);
+
+    if (!isSectionId(requestedSection)) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      setSection((current) =>
+        requestedSection === current ? current : requestedSection,
+      );
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
   const predictionSignature = useMemo(
     () =>
       JSON.stringify({
@@ -303,25 +322,6 @@ export function PredictionView() {
     return () => window.cancelAnimationFrame(frame);
   }, [section]);
 
-  useEffect(() => {
-    if (section !== "knockout" || knockoutIntroQueuedRef.current) return;
-
-    try {
-      if (window.localStorage.getItem(knockoutIntroStorageKey) === "1") {
-        return;
-      }
-    } catch {
-      // Ignore storage failures; the modal can still be shown this session.
-    }
-
-    knockoutIntroQueuedRef.current = true;
-    const frame = window.requestAnimationFrame(() => {
-      setShowKnockoutIntroModal(true);
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [section]);
-
   const dismissResultsIntroModal = () => {
     resultsIntroQueuedRef.current = true;
     try {
@@ -339,15 +339,6 @@ export function PredictionView() {
       // Ignore storage failures.
     }
     setShowGroupsIntroModal(false);
-  };
-  const dismissKnockoutIntroModal = () => {
-    knockoutIntroQueuedRef.current = true;
-    try {
-      window.localStorage.setItem(knockoutIntroStorageKey, "1");
-    } catch {
-      // Ignore storage failures.
-    }
-    setShowKnockoutIntroModal(false);
   };
   const openSaveAccountModal = () => {
     setAuthMode("register");
@@ -406,15 +397,6 @@ export function PredictionView() {
             />
           ) : null}
 
-          {section === "knockout" ? (
-            <FinalPhaseSection
-              prediction={prediction}
-              matches={finalPhaseMatches}
-              isMatchLocked={hasMatchStarted}
-              onWinnerSelect={chooseMatchWinner}
-            />
-          ) : null}
-
           {section === "results" ? (
             <ResultsSchedule
               matches={visibleMatches}
@@ -442,10 +424,6 @@ export function PredictionView() {
         <GroupsIntroModal onClose={dismissGroupsIntroModal} />
       ) : null}
 
-      {showKnockoutIntroModal ? (
-        <KnockoutIntroModal onClose={dismissKnockoutIntroModal} />
-      ) : null}
-
       <AuthModal
         defaultMode="register"
         open={authOpen}
@@ -459,7 +437,6 @@ export function PredictionView() {
 function getSectionProgresses(
   prediction: Prediction,
   visibleMatches: Match[],
-  finalPhaseMatches: Match[],
 ): Record<SectionId, SectionProgress> {
   const completedGroups = Object.values(prediction.groups).filter((group) => {
     const positions = Object.values(group).filter(Boolean);
@@ -480,12 +457,6 @@ function getSectionProgresses(
       0,
     ),
   );
-  const visibleKnockoutMatches = finalPhaseMatches.filter((match) =>
-    isMatchVisibleForPrediction(match, prediction),
-  );
-  const knockoutDone = visibleKnockoutMatches.filter((match) =>
-    Boolean(prediction.bracket.winners[String(match.number)]),
-  ).length;
   const resultsDone = visibleMatches.filter((match) =>
     isMatchPredictionComplete(match, prediction),
   ).length;
@@ -506,7 +477,6 @@ function getSectionProgresses(
       completedGroups + thirdDone,
       Object.keys(prediction.groups).length + 8,
     ),
-    knockout: makeProgress(knockoutDone, visibleKnockoutMatches.length),
     results: makeProgress(resultsDone, visibleMatches.length),
   };
 }
@@ -594,8 +564,8 @@ function StepTabs({
 }) {
   return (
     <div className="-mx-4 overflow-x-auto px-4 py-2 sm:-mx-6 sm:px-6 md:mx-0 md:overflow-visible md:px-0">
-      <div className="flex w-max max-w-none gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:relative md:left-1/2 md:grid md:w-[calc(100vw-3rem)] md:max-w-5xl md:-translate-x-1/2 md:grid-cols-5">
-        {sections.map((tab) => {
+      <div className="flex w-max max-w-none gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:relative md:left-1/2 md:grid md:w-[calc(100vw-3rem)] md:max-w-5xl md:-translate-x-1/2 md:grid-cols-4">
+        {playSections.map((tab) => {
           const active = section === tab.id;
           const complete = progresses[tab.id].status === "complete";
 
@@ -648,9 +618,9 @@ function StepActionBar({
   progresses: Record<SectionId, SectionProgress>;
   onSectionChange: (section: SectionId) => void;
 }) {
-  const currentIndex = sections.findIndex((tab) => tab.id === section);
-  const previous = sections[currentIndex - 1];
-  const next = sections[currentIndex + 1];
+  const currentIndex = playSections.findIndex((tab) => tab.id === section);
+  const previous = playSections[currentIndex - 1];
+  const next = playSections[currentIndex + 1];
   const progress = progresses[section];
 
   return (
@@ -851,107 +821,6 @@ function GroupIntroDemoRow({
   );
 }
 
-function KnockoutIntroModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="knockout-intro-title"
-    >
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[#151515] text-white shadow-2xl shadow-black/50">
-        <div className="border-b border-white/10 p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#a7f600]">
-            Fase final
-          </p>
-          <h3
-            id="knockout-intro-title"
-            className="mt-1 text-2xl font-bold tracking-tight"
-          >
-            Elige quien pasa
-          </h3>
-        </div>
-
-        <div className="space-y-4 p-5">
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-            <div className="grid grid-cols-[minmax(0,1fr)_1.5rem_minmax(0,1fr)] items-center gap-2">
-              <div className="space-y-2">
-                <div className="rounded-lg border border-white/10 bg-[#101010] p-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <KnockoutDemoTeam
-                      label="ALE"
-                      tone="black-red-gold"
-                      className="knockout-demo-pick-first"
-                    />
-                    <KnockoutDemoTeam label="MEX" tone="green-white-red" />
-                  </div>
-                  <p className="mt-1 text-center text-[11px] font-semibold text-zinc-500">
-                    29 jun
-                  </p>
-                </div>
-
-                <div className="rounded-lg border border-white/10 bg-[#101010] p-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <KnockoutDemoTeam
-                      label="FRA"
-                      tone="blue-white-red"
-                      className="knockout-demo-pick-second"
-                    />
-                    <KnockoutDemoTeam label="JPN" tone="white-red" />
-                  </div>
-                  <p className="mt-1 text-center text-[11px] font-semibold text-zinc-500">
-                    30 jun
-                  </p>
-                </div>
-              </div>
-
-              <div className="relative h-full min-h-32">
-                <span className="absolute left-0 top-[25%] h-px w-full bg-white/12" />
-                <span className="absolute left-0 top-[75%] h-px w-full bg-white/12" />
-                <span className="absolute right-0 top-[25%] h-1/2 w-px bg-white/12" />
-                <span className="absolute right-0 top-1/2 h-px w-full bg-white/12" />
-              </div>
-
-              <div className="rounded-lg border border-white/10 bg-[#101010] p-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <KnockoutDemoTeam
-                    label="ALE"
-                    tone="black-red-gold"
-                    className="knockout-demo-next-first"
-                  />
-                  <KnockoutDemoTeam
-                    label="FRA"
-                    tone="blue-white-red"
-                    className="knockout-demo-next-second"
-                  />
-                </div>
-                <p className="mt-1 text-center text-[11px] font-semibold text-zinc-500">
-                  4 jul
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-sm leading-6 text-zinc-300">
-              Pulsa sobre el ganador de cada cruce para elegir quien pasa de
-              fase. El cuadro se ira completando con tus elecciones.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-lg bg-[#a7f600] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#c7ff43]"
-          >
-            Entendido
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function getDemoFlagBackground(
   tone:
     | "black-red-gold"
@@ -969,39 +838,6 @@ function getDemoFlagBackground(
         : tone === "white-red"
           ? "radial-gradient(circle, #dc2626 0 34%, transparent 35%), #f8fafc"
           : "#3f3f46";
-}
-
-function KnockoutDemoTeam({
-  className = "",
-  dimmed = false,
-  label,
-  tone = "neutral",
-}: {
-  className?: string;
-  dimmed?: boolean;
-  label: string;
-  tone?:
-    | "black-red-gold"
-    | "blue-white-red"
-    | "green-white-red"
-    | "neutral"
-    | "white-red";
-}) {
-  const flagBackground = getDemoFlagBackground(tone);
-
-  return (
-    <div
-      className={`relative flex min-w-0 flex-col items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-2 text-center ${dimmed ? "opacity-45" : ""} ${className}`}
-    >
-      <span
-        className="h-5 w-5 rounded-full border border-white/15"
-        style={{ background: flagBackground }}
-      />
-      <span className="max-w-full truncate text-[11px] font-black text-white">
-        {label}
-      </span>
-    </div>
-  );
 }
 
 function ResultsIntroModal({ onClose }: { onClose: () => void }) {
@@ -2339,34 +2175,6 @@ function PlayerPickerModal({
   );
 }
 
-function FinalPhaseSection({
-  isMatchLocked,
-  prediction,
-  matches,
-  onWinnerSelect,
-}: {
-  isMatchLocked: (match: Match) => boolean;
-  prediction: Prediction;
-  matches: Match[];
-  onWinnerSelect: (matchNumber: number, teamId: string) => void;
-}) {
-  return (
-    <div className="relative left-1/2 w-[calc(100vw-2rem)] max-w-[1380px] -translate-x-1/2 space-y-5 sm:w-[calc(100vw-3rem)]">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-white">
-          Fase final
-        </h2>
-      </div>
-      <KnockoutBracket
-        isMatchLocked={isMatchLocked}
-        prediction={prediction}
-        matches={matches}
-        onWinnerSelect={onWinnerSelect}
-      />
-    </div>
-  );
-}
-
 function ResultsSchedule({
   matches,
   prediction,
@@ -2488,12 +2296,45 @@ function ResultMatchCard({
           "radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), rgb(47, 47, 47)",
       }}
     >
-      <div className="flex justify-center px-4 pb-0 pt-4">
+      <div className="flex items-center justify-between gap-3 px-3 pb-0 pt-3 sm:justify-center sm:px-4 sm:pt-4">
         <time className="inline-flex items-center text-sm font-semibold text-zinc-200">
           {formatResultTime(match)}
         </time>
+        <ResultStatusBadge complete={complete} className="sm:hidden" />
       </div>
-      <div className="grid min-h-[124px] w-full grid-cols-[minmax(0,1fr)_104px_minmax(0,1fr)] items-start py-2 pb-4 sm:min-h-[128px] sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)]">
+      <div className="space-y-2 px-3 py-3 sm:hidden">
+        <ResultTeamScoreRow
+          teamId={home}
+          fallback={translateSlot(match.home)}
+          scoreControl={
+            <ResultScoreStepper
+              label="Goles local"
+              value={current.homeScore}
+              disabled={locked}
+              compact
+              onChange={(value) =>
+                onScoreChange(match.number, "homeScore", value)
+              }
+            />
+          }
+        />
+        <ResultTeamScoreRow
+          teamId={away}
+          fallback={translateSlot(match.away)}
+          scoreControl={
+            <ResultScoreStepper
+              label="Goles visitante"
+              value={current.awayScore}
+              disabled={locked}
+              compact
+              onChange={(value) =>
+                onScoreChange(match.number, "awayScore", value)
+              }
+            />
+          }
+        />
+      </div>
+      <div className="hidden min-h-[124px] w-full grid-cols-[minmax(0,1fr)_104px_minmax(0,1fr)] items-start py-2 pb-4 sm:grid sm:min-h-[128px] sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)]">
         <ResultTeamColumn teamId={home} fallback={translateSlot(match.home)} />
         <div className="relative flex items-center justify-center gap-2 pt-2">
           <ResultScoreStepper
@@ -2559,15 +2400,97 @@ function ResultTeamColumn({
   );
 }
 
+function ResultTeamScoreRow({
+  teamId,
+  fallback,
+  scoreControl,
+}: {
+  teamId?: string;
+  fallback: string;
+  scoreControl: ReactNode;
+}) {
+  const teamName = teamId ? teamsById.get(teamId)?.name || fallback : fallback;
+
+  return (
+    <div className="grid min-h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-white/10 bg-black/15 px-3 py-2">
+      <div className="flex min-w-0 items-center gap-3">
+        {teamId ? (
+          <TeamFlag
+            teamId={teamId}
+            className="h-8 w-8 shrink-0 rounded-full border border-white/15 object-cover"
+          />
+        ) : (
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[10px] font-bold text-zinc-300">
+            TBD
+          </span>
+        )}
+        <span className="min-w-0 truncate text-sm font-bold text-white">
+          {teamName}
+        </span>
+      </div>
+      {scoreControl}
+    </div>
+  );
+}
+
+function ResultStatusBadge({
+  complete,
+  className = "",
+}: {
+  complete: boolean;
+  className?: string;
+}) {
+  return (
+    <span
+      aria-label={complete ? "Resultado rellenado" : "Resultado pendiente"}
+      className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2 text-[11px] font-bold ${
+        complete
+          ? "border-[#ffe66d]/35 bg-[#ffdd44]/18 text-yellow-100"
+          : "border-white/15 bg-white/[0.06] text-zinc-400"
+      } ${className}`}
+    >
+      <span
+        className={`flex h-4 w-4 items-center justify-center rounded-full ${
+          complete ? "bg-[#ffdd44] text-black" : "bg-white/12"
+        }`}
+      >
+        {complete ? <CheckIcon className="h-3 w-3" /> : null}
+      </span>
+      {complete ? "Listo" : "Pendiente"}
+    </span>
+  );
+}
+
+function CheckIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      className={className}
+      fill="none"
+    >
+      <path
+        d="M3.4 8.2 6.5 11.1 12.8 4.8"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2.4"
+      />
+    </svg>
+  );
+}
+
 function ResultScoreStepper({
   label,
   value,
   disabled,
+  compact = false,
   onChange,
 }: {
   label: string;
   value: string;
   disabled: boolean;
+  compact?: boolean;
   onChange: (value: string) => void;
 }) {
   const numericValue = Number(value || 0);
@@ -2575,13 +2498,19 @@ function ResultScoreStepper({
   const decrement = () => onChange(String(Math.max(0, numericValue - 1)));
 
   return (
-    <div className="flex w-12 flex-col overflow-hidden rounded-md sm:w-14">
+    <div
+      className={`flex flex-col overflow-hidden rounded-md ${
+        compact ? "w-11" : "w-12 sm:w-14"
+      }`}
+    >
       <button
         type="button"
         tabIndex={-1}
         disabled={disabled}
         onClick={increment}
-        className="flex h-6 items-center justify-center bg-[#454545] text-base font-bold leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600 sm:h-7 sm:text-lg"
+        className={`flex items-center justify-center bg-[#454545] font-bold leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600 ${
+          compact ? "h-6 text-base" : "h-6 text-base sm:h-7 sm:text-lg"
+        }`}
         aria-label={`Subir ${label}`}
       >
         +
@@ -2595,7 +2524,9 @@ function ResultScoreStepper({
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="score-number-input h-9 w-12 appearance-none bg-[#222] text-center text-lg font-bold text-white outline-none placeholder:text-zinc-600 disabled:opacity-60 sm:h-10 sm:w-14 sm:text-xl"
+        className={`score-number-input appearance-none bg-[#222] text-center font-bold text-white outline-none placeholder:text-zinc-600 disabled:opacity-60 ${
+          compact ? "h-9 w-11 text-base" : "h-9 w-12 text-lg sm:h-10 sm:w-14 sm:text-xl"
+        }`}
         placeholder="?"
         aria-label={label}
       />
@@ -2604,7 +2535,9 @@ function ResultScoreStepper({
         tabIndex={-1}
         disabled={disabled}
         onClick={decrement}
-        className="flex h-6 items-center justify-center bg-[#454545] text-base font-bold leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600 sm:h-7 sm:text-lg"
+        className={`flex items-center justify-center bg-[#454545] font-bold leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600 ${
+          compact ? "h-6 text-base" : "h-6 text-base sm:h-7 sm:text-lg"
+        }`}
         aria-label={`Bajar ${label}`}
       >
         -
