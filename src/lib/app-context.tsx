@@ -285,24 +285,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [refreshData]);
 
   const saveSupabasePredictionForUser = useCallback(
-    async (userId: string, finalPrediction: Prediction) => {
+    async (finalPrediction: Prediction) => {
       const supabase = getSupabaseBrowserClient() as any;
       if (!supabase) {
         return { ok: false, message: "No se ha podido conectar con Supabase." };
       }
 
-      const { data: tournament, error: tournamentError } = await supabase.from("tournaments").select("id").eq("slug", "world-cup-2026").single();
-      if (tournamentError || !tournament?.id) {
-        return { ok: false, message: tournamentError?.message || "No se ha encontrado el torneo." };
-      }
-
-      const { error } = await supabase.from("predictions").upsert({
-        user_id: userId,
-        tournament_id: tournament.id,
-        selections: finalPrediction,
-        completion_percent: calculateCompletion(finalPrediction),
-        is_definitive: finalPrediction.isDefinitive,
-        updated_at: finalPrediction.updatedAt,
+      const { error } = await supabase.rpc("save_prediction", {
+        p_selections: finalPrediction,
+        p_completion: calculateCompletion(finalPrediction),
+        p_is_definitive: finalPrediction.isDefinitive,
       });
 
       if (error) {
@@ -328,7 +320,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ok: true, message: "Progreso guardado." };
       }
 
-      const result = await saveSupabasePredictionForUser(user.id, finalPrediction);
+      const result = await saveSupabasePredictionForUser(finalPrediction);
       if (!result.ok) return result;
 
       await refreshData();
@@ -545,7 +537,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         const signedInUserId = data?.session?.user?.id || "";
         if (finalPrediction && signedInUserId) {
-          const result = await saveSupabasePredictionForUser(signedInUserId, finalPrediction);
+          const result = await saveSupabasePredictionForUser(finalPrediction);
           if (!result.ok) {
             setAuthError(result.message);
             return false;
