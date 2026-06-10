@@ -8,7 +8,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
   const { leaderboard, playerName, ready } = useAppContext();
   const profile = leaderboard.find((candidate) => candidate.id === userId) || null;
   const rankingPosition = profile
-    ? leaderboard.findIndex((candidate) => candidate.id === profile.id) + 1
+    ? leaderboard.filter((candidate) => candidate.points > profile.points).length + 1
     : 0;
 
   if (!ready) {
