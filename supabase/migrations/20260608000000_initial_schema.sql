@@ -241,7 +241,6 @@ drop policy if exists "public score ledger read" on public.score_entries;
 drop policy if exists "owner prediction insert before lock" on public.predictions;
 drop policy if exists "owner prediction update before lock" on public.predictions;
 drop policy if exists "owner or locked prediction read" on public.predictions;
-drop policy if exists "public prediction read" on public.predictions;
 
 create policy "public tournament read" on public.tournaments for select using (true);
 create policy "public profile read" on public.profiles for select using (true);
@@ -269,7 +268,10 @@ create policy "owner prediction update before lock" on public.predictions for up
   auth.uid() = user_id
   and exists (select 1 from public.tournaments where tournaments.id = tournament_id and now() < predictions_lock_at)
 ) with check (auth.uid() = user_id);
-create policy "public prediction read" on public.predictions for select using (true);
+create policy "owner or locked prediction read" on public.predictions for select using (
+  auth.uid() = user_id
+  or exists (select 1 from public.tournaments where tournaments.id = tournament_id and now() >= predictions_lock_at)
+);
 
 create or replace function public.prevent_profile_score_or_admin_self_update()
 returns trigger
