@@ -19,8 +19,13 @@ import type {
   Position,
   Prediction,
   Scorecard,
+  Team,
   UserProfile,
 } from "@/lib/types";
+
+const teamsAlphabetically = [...data.teams].sort((a: Team, b: Team) =>
+  a.name.localeCompare(b.name, "es", { sensitivity: "base" }),
+);
 
 export function Card({
   children,
@@ -216,7 +221,7 @@ export function TeamPicker({
             >
               {placeholder}
             </button>
-            {data.teams.map((team) => (
+            {teamsAlphabetically.map((team) => (
               <button
                 key={team.id}
                 type="button"
