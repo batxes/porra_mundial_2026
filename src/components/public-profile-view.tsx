@@ -83,6 +83,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
         prediction={profile.prediction}
         matches={schedule}
         playerName={playerName}
+        showBracket={false}
       />
     </div>
   );

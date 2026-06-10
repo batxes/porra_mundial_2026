@@ -176,7 +176,8 @@ export function TeamPicker({
   controlClassName?: string;
   onChange: (value: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const open = !disabled && menuOpen;
   const selected = value ? teamsById.get(value) : null;
 
   return (
@@ -186,14 +187,16 @@ export function TeamPicker({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => setOpen((current) => !current)}
+          onClick={() => {
+            if (!disabled) setMenuOpen((current) => !current);
+          }}
           className="flex w-full min-w-0 items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#0f0f0f] px-4 py-3 text-left text-white transition hover:border-white/20 disabled:opacity-40"
         >
           {selected ? (
             <TeamBadge teamId={selected.id} />
           ) : (
             <span className="min-w-0 truncate text-sm text-zinc-500">
-              {placeholder}
+              {disabled ? "Sin elegir" : placeholder}
             </span>
           )}
           <span className="shrink-0 text-xs text-zinc-500">
@@ -207,7 +210,7 @@ export function TeamPicker({
               type="button"
               onClick={() => {
                 onChange("");
-                setOpen(false);
+                setMenuOpen(false);
               }}
               className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-300 hover:bg-white/5"
             >
@@ -219,7 +222,7 @@ export function TeamPicker({
                 type="button"
                 onClick={() => {
                   onChange(team.id);
-                  setOpen(false);
+                  setMenuOpen(false);
                 }}
                 className="flex w-full items-center rounded-xl px-3 py-2 text-left hover:bg-white/5"
               >
@@ -1329,6 +1332,7 @@ export function PredictionSnapshot({
   matches,
   playerName,
   profile,
+  showBracket = true,
 }: {
   bracketLayout?: "responsive" | "mobile";
   editHref?: string;
@@ -1336,11 +1340,14 @@ export function PredictionSnapshot({
   matches: Match[];
   playerName: (playerId: string) => string;
   profile?: UserProfile;
+  showBracket?: boolean;
 }) {
   const safePrediction = prediction || emptyPrediction();
   const [section, setSection] = useState<
     "summary" | "groups" | "knockout" | "results"
   >("summary");
+  const activeSection =
+    !showBracket && section === "knockout" ? "summary" : section;
 
   const teamValue = (teamId: string) =>
     teamId ? <TeamBadge teamId={teamId} /> : "Pendiente";
@@ -1366,28 +1373,30 @@ export function PredictionSnapshot({
           <button
             type="button"
             onClick={() => setSection("summary")}
-            className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "summary" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+            className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${activeSection === "summary" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
           >
             Resumen
           </button>
           <button
             type="button"
             onClick={() => setSection("groups")}
-            className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "groups" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+            className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${activeSection === "groups" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
           >
             Grupos
           </button>
-          <button
-            type="button"
-            onClick={() => setSection("knockout")}
-            className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "knockout" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
-          >
-            Cuadro
-          </button>
+          {showBracket ? (
+            <button
+              type="button"
+              onClick={() => setSection("knockout")}
+              className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${activeSection === "knockout" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+            >
+              Cuadro
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setSection("results")}
-            className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${section === "results" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+            className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${activeSection === "results" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
           >
             Resultados
           </button>
@@ -1402,7 +1411,7 @@ export function PredictionSnapshot({
         ) : null}
       </div>
 
-      {section === "summary" ? (
+      {activeSection === "summary" ? (
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <SummaryStat
@@ -1434,17 +1443,17 @@ export function PredictionSnapshot({
         </div>
       ) : null}
 
-      {section === "groups" ? (
+      {activeSection === "groups" ? (
         <GroupSummary prediction={safePrediction} />
       ) : null}
-      {section === "knockout" ? (
+      {showBracket && activeSection === "knockout" ? (
         <KnockoutBracket
           layout={bracketLayout}
           prediction={safePrediction}
           matches={matches.filter((match) => match.number >= 73)}
         />
       ) : null}
-      {section === "results" ? (
+      {activeSection === "results" ? (
         <ResultsSummary prediction={safePrediction} matches={matches} />
       ) : null}
     </Card>

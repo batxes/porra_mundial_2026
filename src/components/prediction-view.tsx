@@ -1095,7 +1095,9 @@ function ExtraPlayerField({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          if (!disabled) setIsOpen(true);
+        }}
         className="mt-4 grid min-h-14 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-white/10 bg-[#0f0f0f] px-3 py-2 text-left text-white outline-none ring-[#a7f600] transition hover:border-white/20 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {player ? (
@@ -1112,7 +1114,7 @@ function ExtraPlayerField({
           <span
             className={`block truncate text-sm font-bold ${player ? "text-white" : "text-zinc-500"}`}
           >
-            {player?.name || "Elige un jugador"}
+            {player?.name || (disabled ? "Sin elegir" : "Elige un jugador")}
           </span>
           <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs font-semibold text-zinc-500">
             {player ? (
@@ -1126,21 +1128,29 @@ function ExtraPlayerField({
           </span>
         </span>
         <span className="rounded-md bg-white/[0.06] px-2 py-1 text-[11px] font-bold text-zinc-300">
-          {player ? positionLabels[player.position] : "Elegir"}
+          {player
+            ? disabled
+              ? "Fijo"
+              : positionLabels[player.position]
+            : disabled
+              ? "Cerrado"
+              : "Elegir"}
         </span>
       </button>
 
-      {isOpen ? (
+      {isOpen && !disabled ? (
         <ExtraPlayerPickerModal
           title={label}
           currentPlayer={player || undefined}
           initialPosition={player?.position || initialPosition}
           onClose={() => setIsOpen(false)}
           onRemove={() => {
+            if (disabled) return;
             onChange("");
             setIsOpen(false);
           }}
           onSelect={(playerId) => {
+            if (disabled) return;
             onChange(playerId);
             setIsOpen(false);
           }}
@@ -1355,16 +1365,24 @@ function GroupStage({
   const thirdLimitReached = selectedThirdGroups.length >= 8;
 
   const handleGroupDragStart = (group: string, event: DragStartEvent) => {
+    if (disabled) return;
     setActiveGroupTeam({ group, teamId: String(event.active.id) });
   };
 
   const handleGroupDragOver = (group: string, event: DragOverEvent) => {
+    if (disabled) return;
     setOverGroupTeam(
       event.over ? { group, teamId: String(event.over.id) } : null,
     );
   };
 
   const handleGroupDragEnd = (group: string, event: DragEndEvent) => {
+    if (disabled) {
+      setActiveGroupTeam(null);
+      setOverGroupTeam(null);
+      return;
+    }
+
     const activeTeamId = String(event.active.id);
     const overTeamId = event.over ? String(event.over.id) : "";
     setActiveGroupTeam(null);
@@ -1402,8 +1420,9 @@ function GroupStage({
           </span>
         </p>
         <p className="text-sm text-zinc-500">
-          Arrastra desde el asa de la derecha para ordenar primero, segundo,
-          tercero y cuarto. Despues elige los 8 terceros que pasan.
+          {disabled
+            ? "La fase de grupos esta cerrada y queda solo como consulta."
+            : "Arrastra desde el asa de la derecha para ordenar primero, segundo, tercero y cuarto. Despues elige los 8 terceros que pasan."}
         </p>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
@@ -1448,6 +1467,7 @@ function GroupStage({
                         index={index}
                         disabled={disabled}
                         isDropTarget={
+                          !disabled &&
                           overGroupTeam?.group === group &&
                           overGroupTeam.teamId === team.id &&
                           activeGroupTeam?.teamId !== team.id
@@ -1469,7 +1489,9 @@ function GroupStage({
               Terceros clasificados
             </h3>
             <p className="text-sm text-zinc-400">
-              Elige los 8 terceros que pasan. El orden no cuenta.
+              {disabled
+                ? "Seleccion bloqueada. El orden no cuenta."
+                : "Elige los 8 terceros que pasan. El orden no cuenta."}
             </p>
           </div>
           <span
@@ -1578,8 +1600,8 @@ function SortableGroupTeamRow({
               ? "cursor-grabbing bg-white/10 text-white"
               : "cursor-grab hover:border-[#a7f600]/45 hover:bg-[#a7f600]/10 hover:text-white"
         }`}
-        {...attributes}
-        {...listeners}
+        {...(disabled ? {} : attributes)}
+        {...(disabled ? {} : listeners)}
       >
         ☰
       </span>
@@ -1608,11 +1630,15 @@ function ThirdQualifierButton({
   const toggle = () => {
     if (!isDisabled) onToggle(row.group);
   };
-  const actionLabel = row.selected
-    ? "Quitar"
-    : limitReached
-      ? "Completo"
-      : "Elegir";
+  const actionLabel = disabled
+    ? row.selected
+      ? "Fijo"
+      : "Cerrado"
+    : row.selected
+      ? "Quitar"
+      : limitReached
+        ? "Completo"
+        : "Elegir";
 
   return (
     <button
@@ -1733,7 +1759,9 @@ function LineupBuilder({
     () => assignPlayersToSlots(selectedPlayerIds, formation),
     [formation, selectedPlayerIds],
   );
-  const activeSlot = slots.find((slot) => slot.id === activeSlotId) || null;
+  const activeSlot = disabled
+    ? null
+    : slots.find((slot) => slot.id === activeSlotId) || null;
   const filledCount = slots.filter((slot) => slot.playerId).length;
   const rows = formationRows(formation);
   const [isFormationAnimating, setIsFormationAnimating] = useState(false);
@@ -1754,6 +1782,7 @@ function LineupBuilder({
   };
 
   const selectPlayer = (playerId: string) => {
+    if (disabled) return;
     if (!activeSlot) return;
     if (selectedPlayerIds.includes(playerId)) return;
     const nextAnimatedSlotId = activeSlot.id;
@@ -1776,6 +1805,7 @@ function LineupBuilder({
   };
 
   const removePlayer = () => {
+    if (disabled) return;
     if (!activeSlot) return;
     onSelectionChange(
       slotSelection(
@@ -1788,6 +1818,7 @@ function LineupBuilder({
   };
 
   const changeFormation = (nextFormation: string) => {
+    if (disabled) return;
     if (nextFormation === formation) return;
 
     const documentWithTransition = document as ViewTransitionDocument;
@@ -1893,7 +1924,7 @@ function LineupBuilder({
         </div>
       </div>
 
-      {activeSlot ? (
+      {activeSlot && !disabled ? (
         <PlayerPickerModal
           key={activeSlot.id}
           slot={activeSlot}
@@ -1952,7 +1983,9 @@ function LineupPlayerButton({
       disabled={disabled}
       onClick={onClick}
       style={transitionStyle}
-      className="lineup-slot-button mx-auto flex w-12 flex-col items-center gap-0.5 text-center transition hover:scale-105 disabled:opacity-60 sm:w-[4.5rem]"
+      className={`lineup-slot-button mx-auto flex w-12 flex-col items-center gap-0.5 text-center transition sm:w-[4.5rem] ${
+        disabled ? "cursor-default opacity-80" : "hover:scale-105"
+      }`}
     >
       <span className="relative inline-flex">
         {player ? (
@@ -1974,11 +2007,11 @@ function LineupPlayerButton({
               className="h-full w-full rounded-full"
             />
           </span>
-        ) : (
+        ) : !disabled ? (
           <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-sm font-bold leading-none text-white shadow">
             +
           </span>
-        )}
+        ) : null}
       </span>
       <span className="max-w-full truncate text-[10px] font-bold leading-tight text-white drop-shadow sm:text-xs">
         {player?.name || positionLabels[slot.position]}

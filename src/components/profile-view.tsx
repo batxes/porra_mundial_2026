@@ -69,6 +69,7 @@ export function ProfileView() {
         prediction={prediction}
         matches={schedule}
         playerName={playerName}
+        showBracket={false}
       />
     </div>
   );
