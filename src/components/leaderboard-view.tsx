@@ -41,7 +41,7 @@ export function LeaderboardView() {
               <LeaderboardRow
                 key={profile.id}
                 profile={profile}
-                position={index + 1}
+                position={rankFor(leaderboard, index)}
               />
             ))}
           </div>
@@ -99,6 +99,14 @@ function LeaderboardRow({
       </span>
     </Link>
   );
+}
+
+function rankFor(leaderboard: UserProfile[], index: number) {
+  let rank = index + 1;
+  while (rank > 1 && leaderboard[index].points === leaderboard[rank - 2].points) {
+    rank -= 1;
+  }
+  return rank;
 }
 
 function rankTextClass(position: number) {
