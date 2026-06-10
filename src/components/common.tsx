@@ -12,7 +12,11 @@ import {
   playerPhotoUrl,
   translateSlot,
 } from "@/lib/format";
-import { emptyPrediction, resolveSlot } from "@/lib/prediction";
+import {
+  emptyPrediction,
+  orderedGroupTeams,
+  resolveSlot,
+} from "@/lib/prediction";
 import type {
   Match,
   Player,
@@ -545,42 +549,125 @@ function LineupSnapshotSlot({ slot }: { slot: SnapshotLineupSlot }) {
 }
 
 function GroupSummary({ prediction }: { prediction: Prediction }) {
-  return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {Object.keys(prediction.groups).map((group) => {
-        const rows = Object.entries(prediction.groups[group])
-          .filter(([, value]) => value)
-          .sort((a, b) => Number(a[1]) - Number(b[1]));
+  const thirdRows = prediction.bracket.thirdQualifiers.map((group) => ({
+    group,
+    teamId: orderedGroupTeams(group, prediction)[2]?.id || "",
+  }));
 
-        return (
-          <div
-            key={group}
-            className="rounded-lg border border-white/10 bg-white/5 p-4"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="font-semibold text-white">Grupo {group}</h4>
-              <span className="text-xs text-slate-400">{rows.length}/4</span>
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {Object.keys(prediction.groups).map((group) => {
+          const ordered = orderedGroupTeams(group, prediction);
+          const completedCount = Object.values(prediction.groups[group]).filter(
+            Boolean,
+          ).length;
+          const rows = ordered.map((team, index) => [
+            team.id,
+            String(index + 1),
+          ] as const);
+
+          return (
+            <div
+              key={group}
+              className="space-y-2 rounded-lg border border-white/10 bg-white/[0.04] p-3"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-sm font-bold text-white">Grupo {group}</h4>
+                <span
+                  className={`text-xs font-semibold ${
+                    completedCount === 4 ? "text-[#a7f600]" : "text-zinc-500"
+                  }`}
+                >
+                  {completedCount}/4
+                </span>
+              </div>
+              <div className="space-y-2">
+                {rows.length ? (
+                  rows.map(([teamId, value]) => (
+                    <div
+                      key={teamId}
+                      className={`grid grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-2 rounded-lg border px-2 py-1.5 ${
+                        Number(value) <= 2
+                          ? "border-[#a7f600]/25 bg-[#a7f600]/10"
+                          : "border-white/10 bg-white/[0.06]"
+                      }`}
+                    >
+                      <span
+                        className={`text-xs font-bold ${
+                          Number(value) <= 2 ? "text-[#a7f600]" : "text-white"
+                        }`}
+                      >
+                        {value}
+                      </span>
+                      <TeamBadge
+                        teamId={teamId}
+                        className="text-xs sm:text-sm"
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-400">Pendiente.</p>
+                )}
+              </div>
             </div>
-            <div className="space-y-2">
-              {rows.length ? (
-                rows.map(([teamId, value]) => (
-                  <div
-                    key={teamId}
-                    className="flex items-center justify-between gap-3"
-                  >
-                    <TeamBadge teamId={teamId} />
-                    <span className="shrink-0 text-sm text-slate-300">
-                      {value}º
-                    </span>
-                  </div>
-                ))
+          );
+        })}
+      </div>
+
+      <ThirdQualifiersSummary rows={thirdRows} />
+    </div>
+  );
+}
+
+type ThirdQualifierSummaryRow = {
+  group: string;
+  teamId: string;
+};
+
+function ThirdQualifiersSummary({
+  rows,
+}: {
+  rows: ThirdQualifierSummaryRow[];
+}) {
+  return (
+    <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.04] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="text-sm font-bold text-white">Mejores terceros</h4>
+        <span
+          className={`text-xs font-semibold ${
+            rows.length === 8 ? "text-[#a7f600]" : "text-zinc-500"
+          }`}
+        >
+          {rows.length}/8
+        </span>
+      </div>
+
+      {rows.length ? (
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {rows.map((row) => (
+            <div
+              key={row.group}
+              className="grid grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-lg border border-[#a7f600]/35 bg-[#a7f600]/10 px-2 py-1.5"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#a7f600] text-xs font-bold text-black">
+                {row.group}
+              </span>
+              {row.teamId ? (
+                <TeamBadge teamId={row.teamId} className="text-xs sm:text-sm" />
               ) : (
-                <p className="text-sm text-slate-400">Pendiente.</p>
+                <span className="truncate text-xs font-medium text-zinc-500 sm:text-sm">
+                  Grupo pendiente
+                </span>
               )}
             </div>
-          </div>
-        );
-      })}
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-400">
+          Pendiente.
+        </p>
+      )}
     </div>
   );
 }
