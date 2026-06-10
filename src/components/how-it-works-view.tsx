@@ -1,75 +1,101 @@
 "use client";
 
-import { Card, SectionHeading } from "@/components/common";
+import {
+  Card,
+  ClockIcon,
+  ResultsOpenBanner,
+  SectionHeading,
+} from "@/components/common";
 
-const phases = [
+const playSteps = [
+  {
+    title: "Rellena tu porra",
+    description:
+      "Tus elecciones, tu once y la fase de grupos se cierran cuando empieza el Mundial.",
+  },
+  {
+    title: "Pronostica cada partido",
+    description:
+      "Los marcadores se pueden meter o cambiar hasta justo antes de cada partido.",
+  },
+  {
+    title: "Suma puntos y compite",
+    description:
+      "Con cada partido validado se recalculan los puntos y la clasificación se actualiza.",
+  },
+];
+
+type RulesSection = {
+  step: string;
+  title: string;
+  lock: string;
+  description: string;
+  rules: Array<[string, string]>;
+  highlight?: string;
+  note?: string;
+};
+
+const sections: RulesSection[] = [
   {
     step: "1",
     title: "Tus elecciones",
-    description: "Ganador del Mundial, equipos destacados, maximo goleador y MVP.",
     lock: "Hasta que empiece el Mundial",
+    description:
+      "Acierta el campeón, los equipos destacados, el máximo goleador y el MVP del torneo.",
+    rules: [
+      ["Ganador del Mundial", "+25"],
+      ["Máximo goleador", "+20"],
+      ["MVP del torneo", "+20"],
+      ["Equipo más goleador", "+10"],
+      ["Equipo más goleado (mayor diferencia en contra)", "+10"],
+      ["Equipo con más rojas", "+10"],
+    ],
+    highlight: "Ganador del Mundial",
   },
   {
     step: "2",
     title: "Tu once",
-    description:
-      "Elige 11 jugadores con formacion editable y suma por goles, penaltis, MVP y tarjetas.",
     lock: "Hasta que empiece el Mundial",
+    description:
+      "Elige a tus 11 con formación libre. Suman con sus goles, penaltis y MVPs en todos sus partidos del Mundial, y restan con sus fallos.",
+    rules: [
+      ["Gol de portero", "+35"],
+      ["Gol de defensa", "+11"],
+      ["Gol de centrocampista", "+6"],
+      ["Gol de delantero", "+2"],
+      ["MVP del partido", "+3"],
+      ["Penalti parado", "+2"],
+      ["Penalti marcado", "+1"],
+      ["Penalti fallado", "-1"],
+      ["Tarjeta roja", "-2"],
+    ],
+    highlight: "Gol de portero",
   },
   {
     step: "3",
     title: "Fase de grupos",
-    description: "Ordena cada grupo del 1 al 4 y marca tus terceros favoritos.",
     lock: "Hasta que empiece el Mundial",
+    description:
+      "Ordena cada grupo del 1 al 4 y marca los 8 mejores terceros que pasan de ronda.",
+    rules: [
+      ["Clavas el orden exacto de un grupo", "+3"],
+      ["Aciertas un clasificado (1º o 2º)", "+2"],
+      ["Aciertas un tercero que pasa", "+1"],
+    ],
+    highlight: "Clavas el orden exacto de un grupo",
   },
   {
     step: "4",
     title: "Resultados",
-    description: "Pronostica el marcador de cada partido cuando este disponible.",
-    lock: "Hasta que empiece cada partido",
-  },
-];
-
-const scoringGroups = [
-  {
-    title: "Tus elecciones",
+    lock: "Cada partido, hasta su inicio",
+    description:
+      "Pronostica el marcador de cada partido. Puedes volver y cambiarlo hasta justo antes de que empiece.",
     rules: [
-      ["Ganador del mundial", "+25"],
-      ["Equipo mas goleador", "+10"],
-      ["Equipo mas goleado: mayor diferencia negativa", "+10"],
-      ["Equipo con mas rojas", "+10"],
-      ["Maximo goleador", "+20"],
-      ["MVP", "+20"],
+      ["Aciertas quién gana o el empate", "+1"],
+      ["Clavas el resultado exacto", "+goles del partido"],
     ],
-  },
-  {
-    title: "Fase de grupos",
-    rules: [
-      ["Equipo clasificado acertado", "+2"],
-      ["Tercer clasificado acertado", "+1"],
-      ["Orden exacto de grupo", "+3"],
-    ],
-  },
-  {
-    title: "Resultados",
-    rules: [
-      ["Eleccion acertada", "+1"],
-      ["Resultado exacto", "goles del partido"],
-    ],
-  },
-  {
-    title: "Tu once",
-    rules: [
-      ["Gol delantero", "+2"],
-      ["Gol centrocampista", "+6"],
-      ["Gol defensa", "+11"],
-      ["Gol portero", "+35"],
-      ["Penalti marcado", "+1"],
-      ["MVP del partido", "+3"],
-      ["Penalti parado", "+2"],
-      ["Penalti fallado", "-1"],
-      ["Roja", "-2"],
-    ],
+    highlight: "Clavas el resultado exacto",
+    note: "El resultado exacto suma además tantos puntos como goles tenga el partido: un 3-2 clavado son 5 puntos extra.",
   },
 ];
 
@@ -79,43 +105,84 @@ export function HowItWorksView() {
       <SectionHeading
         eyebrow="Reglas claras"
         title="Como funciona TRILIPORRA"
-        description="Completa tus elecciones antes del Mundial. Los resultados se pueden cambiar partido a partido hasta el pitido inicial."
+        description="Tres pasos: rellena tu porra antes del Mundial, pronostica cada partido hasta su inicio y suma puntos con cada acierto."
       />
 
       <section className="space-y-3">
-        <h2 className="text-2xl font-black tracking-tight text-white">Fases</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {phases.map((phase) => (
-            <Card key={phase.title} className="grid grid-cols-[auto_minmax(0,1fr)] gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#a7f600] text-sm font-black text-black">
-                {phase.step}
+        <h2 className="text-2xl font-black tracking-tight text-white">
+          Cómo se juega
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {playSteps.map((step, index) => (
+            <Card key={step.title} className="space-y-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-sm font-black text-white">
+                {index + 1}
               </span>
-              <div className="min-w-0 space-y-2">
-                <h3 className="text-lg font-bold text-white">{phase.title}</h3>
-                <p className="text-sm leading-5 text-zinc-400">{phase.description}</p>
-                <span className="inline-flex rounded-md border border-white/10 bg-white/[0.06] px-2 py-1 text-xs font-black text-zinc-200">
-                  {phase.lock}
-                </span>
-              </div>
+              <h3 className="text-base font-bold text-white">{step.title}</h3>
+              <p className="text-sm leading-5 text-zinc-400">
+                {step.description}
+              </p>
             </Card>
           ))}
         </div>
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-2xl font-black tracking-tight text-white">Puntuacion</h2>
+        <h2 className="text-2xl font-black tracking-tight text-white">
+          Fases y puntuación
+        </h2>
+        <ResultsOpenBanner />
         <div className="grid gap-3 md:grid-cols-2">
-          {scoringGroups.map((group) => (
-            <Card key={group.title} className="space-y-4">
-              <h3 className="text-lg font-bold text-white">{group.title}</h3>
-              <div className="space-y-2">
-                {group.rules.map(([label, points]) => (
-                  <div key={`${group.title}-${label}`} className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.04] px-3 py-2">
-                    <span className="min-w-0 text-sm font-medium text-zinc-300">{label}</span>
-                    <ScoreValue value={points} />
-                  </div>
-                ))}
+          {sections.map((section) => (
+            <Card key={section.title} className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/[0.08] text-sm font-black text-white">
+                  {section.step}
+                </span>
+                <h3 className="min-w-0 flex-1 text-lg font-bold text-white">
+                  {section.title}
+                </h3>
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.06] px-2 py-1 text-xs font-bold text-zinc-300">
+                  <ClockIcon className="h-3.5 w-3.5 text-[#a7f600]" />
+                  {section.lock}
+                </span>
               </div>
+
+              <p className="text-sm leading-5 text-zinc-400">
+                {section.description}
+              </p>
+
+              <div className="space-y-2">
+                {section.rules.map(([label, points]) => {
+                  const highlighted = label === section.highlight;
+
+                  return (
+                    <div
+                      key={`${section.title}-${label}`}
+                      className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2 ${
+                        highlighted
+                          ? "border border-[#a7f600]/30 bg-[#a7f600]/10"
+                          : "bg-white/[0.04]"
+                      }`}
+                    >
+                      <span
+                        className={`min-w-0 text-sm font-medium ${
+                          highlighted ? "text-white" : "text-zinc-300"
+                        }`}
+                      >
+                        {label}
+                      </span>
+                      <ScoreValue value={points} />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {section.note ? (
+                <p className="text-xs leading-5 text-zinc-500">
+                  {section.note}
+                </p>
+              ) : null}
             </Card>
           ))}
         </div>
