@@ -987,10 +987,47 @@ function ResultsIntroModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#a7f600] text-sm font-black text-black">
+              +1
+            </span>
+            <div className="min-w-0 text-sm">
+              <p className="font-bold text-white">
+                Aciertas quién gana o el empate
+              </p>
+              <p className="mt-0.5 leading-5 text-zinc-400">Sumas 1 punto.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+            <span
+              aria-hidden="true"
+              className="block h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-[#a7f600] text-sm font-black text-black"
+            >
+              <span className="results-intro-counter flex flex-col">
+                {["+1", "+2", "+3", "+4", "+5", "+1"].map((label, index) => (
+                  <span
+                    key={`${label}-${index}`}
+                    className="flex h-10 w-10 items-center justify-center"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </span>
+            </span>
+            <div className="min-w-0 text-sm">
+              <p className="font-bold text-white">Clavas el resultado exacto</p>
+              <p className="mt-0.5 leading-5 text-zinc-400">
+                Sumas además tantos puntos como goles tenga el partido.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={onClose}
-          className="mt-2 w-full rounded-lg bg-white px-4 py-3 text-sm font-bold text-black transition hover:bg-zinc-200"
+          className="mt-4 w-full rounded-lg bg-white px-4 py-3 text-sm font-bold text-black transition hover:bg-zinc-200"
         >
           Entendido
         </button>
