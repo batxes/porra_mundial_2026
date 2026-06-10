@@ -89,6 +89,55 @@ const playerIdByPosition = (position: string) => data.players.find((player) => p
 }
 
 {
+  const miniData = {
+    teams: [
+      { id: "a", name: "A", code: "mx", group: "A" },
+      { id: "b", name: "B", code: "kr", group: "A" },
+      { id: "c", name: "C", code: "za", group: "A" },
+      { id: "d", name: "D", code: "cz", group: "A" },
+    ],
+    players: [],
+  } as any;
+  const miniSchedule = [
+    ["a", "c", 7, 4],
+    ["d", "a", 4, 0],
+    ["b", "c", 0, 3],
+    ["d", "b", 3, 0],
+  ].map(([home, away], index) => ({
+    number: index + 1,
+    date: "2026-06-11",
+    time: "12:00 p.m. UTC+0",
+    home,
+    away,
+    venue: "Test",
+    stage: "Test",
+  })) as any;
+  const results = Object.fromEntries(
+    miniSchedule.map((match: any, index: number) => {
+      const row = [
+        [7, 4],
+        [4, 0],
+        [0, 3],
+        [3, 0],
+      ][index];
+      return [String(match.number), { homeScore: row[0], awayScore: row[1], events: [] }];
+    }),
+  );
+  const miniEngine = createEngine({ data: miniData, schedule: miniSchedule });
+  const hitPrediction = { groups: {}, bracket: { winners: {} }, extras: { mostConcededTeam: "b" }, xi: [], matchPredictions: {} } as any;
+  const missPrediction = { groups: {}, bracket: { winners: {} }, extras: { mostConcededTeam: "a" }, xi: [], matchPredictions: {} } as any;
+
+  assert.equal(
+    miniEngine.calculateScorecard(hitPrediction, results as any).entries.some((entry) => entry.ruleCode === "tournament_most_conceded_team_hit"),
+    true,
+  );
+  assert.equal(
+    miniEngine.calculateScorecard(missPrediction, results as any).entries.some((entry) => entry.ruleCode === "tournament_most_conceded_team_hit"),
+    false,
+  );
+}
+
+{
   const prediction = {
     groups: { A: { mex: "1", kor: "2", rsa: "3", cze: "4" } },
     bracket: { winners: {} },

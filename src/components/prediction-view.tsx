@@ -114,6 +114,18 @@ const positionTabs: Array<{ id: Position; label: string }> = [
   { id: "DEL", label: "Delantero" },
 ];
 
+const xiScoringRules = [
+  ["Gol delantero", "+2"],
+  ["Gol centrocampista", "+6"],
+  ["Gol defensa", "+11"],
+  ["Gol portero", "+35"],
+  ["Penalti marcado", "+1"],
+  ["MVP del partido", "+3"],
+  ["Penalti parado", "+2"],
+  ["Penalti fallado", "-1"],
+  ["Roja", "-2"],
+] as const;
+
 const sortedPlayersByPosition = positionTabs.reduce(
   (acc, position) => {
     acc[position.id] = data.players
@@ -139,6 +151,7 @@ const playerSearchTextById = new Map(
 const initialPlayerRenderLimit = 80;
 const playerRenderBatchSize = 80;
 
+const xiIntroStorageKey = "porra26_xi_intro_seen";
 const groupsIntroStorageKey = "porra26_groups_intro_seen";
 const resultsIntroStorageKey = "porra26_results_intro_seen";
 
@@ -159,6 +172,7 @@ export function PredictionView() {
   const [section, setSection] = useState<SectionId>("extras");
   const [autoSaveState, setAutoSaveState] = useState<AutoSaveState>("idle");
   const [authOpen, setAuthOpen] = useState(false);
+  const [showXiIntroModal, setShowXiIntroModal] = useState(false);
   const [showGroupsIntroModal, setShowGroupsIntroModal] = useState(false);
   const [showResultsIntroModal, setShowResultsIntroModal] = useState(false);
   const savedSignatureRef = useRef("");
@@ -167,6 +181,7 @@ export function PredictionView() {
   const saveRunRef = useRef(0);
   const autoSaveTimerRef = useRef<number | null>(null);
   const hideSavedTimerRef = useRef<number | null>(null);
+  const xiIntroQueuedRef = useRef(false);
   const groupsIntroQueuedRef = useRef(false);
   const resultsIntroQueuedRef = useRef(false);
 
@@ -285,6 +300,25 @@ export function PredictionView() {
   }, [predictionSignature, ready, savePrediction, userId]);
 
   useEffect(() => {
+    if (section !== "xi" || xiIntroQueuedRef.current) return;
+
+    try {
+      if (window.localStorage.getItem(xiIntroStorageKey) === "1") {
+        return;
+      }
+    } catch {
+      // Ignore storage failures; the modal can still be shown this session.
+    }
+
+    xiIntroQueuedRef.current = true;
+    const frame = window.requestAnimationFrame(() => {
+      setShowXiIntroModal(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [section]);
+
+  useEffect(() => {
     if (section !== "groups" || groupsIntroQueuedRef.current) return;
 
     try {
@@ -330,6 +364,15 @@ export function PredictionView() {
       // Ignore storage failures.
     }
     setShowResultsIntroModal(false);
+  };
+  const dismissXiIntroModal = () => {
+    xiIntroQueuedRef.current = true;
+    try {
+      window.localStorage.setItem(xiIntroStorageKey, "1");
+    } catch {
+      // Ignore storage failures.
+    }
+    setShowXiIntroModal(false);
   };
   const dismissGroupsIntroModal = () => {
     groupsIntroQueuedRef.current = true;
@@ -418,6 +461,10 @@ export function PredictionView() {
 
       {showResultsIntroModal ? (
         <ResultsIntroModal onClose={dismissResultsIntroModal} />
+      ) : null}
+
+      {showXiIntroModal ? (
+        <XiIntroModal onClose={dismissXiIntroModal} />
       ) : null}
 
       {showGroupsIntroModal ? (
@@ -669,6 +716,64 @@ function StepActionBar({
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function XiIntroModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="xi-intro-title"
+    >
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#151515] p-5 text-white shadow-2xl shadow-black/50">
+        <div className="mb-4 flex items-start gap-3">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#a7f600]/15 text-[#a7f600]">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#a7f600]" />
+          </span>
+          <div>
+            <h3
+              id="xi-intro-title"
+              className="text-xl font-bold tracking-tight"
+            >
+              Tu once
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              Estos son los puntos que suman o restan los jugadores que elijas.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2 pb-2">
+          {xiScoringRules.map(([label, points]) => (
+            <div
+              key={label}
+              className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2"
+            >
+              <p className="min-w-0 text-sm font-bold text-zinc-200">
+                {label}
+              </p>
+              <p
+                className={`shrink-0 text-sm font-black ${
+                  points.startsWith("-") ? "text-rose-400" : "text-[#a7f600]"
+                }`}
+              >
+                {points}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-2 w-full rounded-lg bg-[#a7f600] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#c7ff43]"
+        >
+          Entendido
+        </button>
       </div>
     </div>
   );
@@ -1841,24 +1946,25 @@ function LineupBuilder({
         <h2 className="text-2xl font-bold tracking-tight text-white">
           Tu once
         </h2>
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-6 text-zinc-400">
-          <span>Gol delantero</span>
-          <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
-            +2 pts
-          </span>
-          <span>centrocampista</span>
-          <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
-            +6 pts
-          </span>
-          <span>defensa</span>
-          <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
-            +11 pts
-          </span>
-          <span>portero</span>
-          <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
-            +35 pts
-          </span>
-        </p>
+        <div className="grid gap-x-5 gap-y-1.5 text-sm leading-6 text-zinc-400 sm:grid-cols-2">
+          {xiScoringRules.map(([label, points]) => (
+            <div
+              key={label}
+              className="flex min-w-0 items-baseline justify-between gap-3 border-b border-white/[0.06] pb-1"
+            >
+              <span className="min-w-0 truncate font-medium">{label}</span>
+              <span
+                className={`shrink-0 text-sm font-black ${
+                  points.startsWith("-")
+                    ? "text-rose-300"
+                    : "text-[#a7f600]"
+                }`}
+              >
+                {points} pts
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-emerald-300/15 bg-emerald-600 shadow-2xl shadow-emerald-950/30 sm:rounded-3xl">

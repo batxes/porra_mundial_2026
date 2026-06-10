@@ -12,7 +12,8 @@ const phases = [
   {
     step: "2",
     title: "Tu once",
-    description: "Elige 11 jugadores con formacion editable.",
+    description:
+      "Elige 11 jugadores con formacion editable y suma por goles, penaltis, MVP y tarjetas.",
     lock: "Hasta que empiece el Mundial",
   },
   {
@@ -35,7 +36,7 @@ const scoringGroups = [
     rules: [
       ["Ganador del mundial", "+25"],
       ["Equipo mas goleador", "+10"],
-      ["Equipo mas goleado", "+10"],
+      ["Equipo mas goleado: mayor diferencia negativa", "+10"],
       ["Equipo con mas rojas", "+10"],
       ["Maximo goleador", "+20"],
       ["MVP", "+20"],

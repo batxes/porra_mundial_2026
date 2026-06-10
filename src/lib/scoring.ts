@@ -241,7 +241,7 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
 
     return {
       highestScoringTeams: leaders(teamStats, (row) => row.goals),
-      mostConcededTeams: leaders(teamStats, (row) => row.conceded),
+      mostConcededTeams: leaders(teamStats, (row) => row.conceded - row.goals),
       mostRedsTeams: leaders(teamStats, (row) => row.reds),
       topScorers: leaders(playerGoals.size ? playerGoals : new Map([["", 0]]), (value) => value),
       mvps: leaders(playerMvps.size ? playerMvps : new Map([["", 0]]), (value) => value),
