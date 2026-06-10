@@ -1492,7 +1492,7 @@ function GroupStage({
       activationConstraint: { distance: 6 },
     }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 160, tolerance: 8 },
+      activationConstraint: { delay: 220, tolerance: 10 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -1566,8 +1566,8 @@ function GroupStage({
           </span>
         </p>
         <p className="text-sm text-zinc-500">
-          Arrastra los equipos para ordenar primero, segundo, tercero y cuarto.
-          Despues elige los 8 terceros que pasan.
+          Arrastra desde el asa de la derecha para ordenar primero, segundo,
+          tercero y cuarto. Despues elige los 8 terceros que pasan.
         </p>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
@@ -1695,6 +1695,7 @@ function SortableGroupTeamRow({
     attributes,
     isDragging,
     listeners,
+    setActivatorNodeRef,
     setNodeRef,
     transform,
     transition,
@@ -1709,7 +1710,7 @@ function SortableGroupTeamRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`grid touch-none select-none grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
+      className={`grid touch-pan-y select-none grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
         isDropTarget
           ? "border-[#a7f600] bg-[#a7f600]/15 shadow-[0_0_0_1px_rgba(167,246,0,0.35),0_0_24px_rgba(167,246,0,0.12)]"
           : isDirectQualifier
@@ -1720,10 +1721,8 @@ function SortableGroupTeamRow({
           ? "cursor-not-allowed opacity-50"
           : isDragging
             ? "cursor-grabbing opacity-60"
-            : "cursor-grab"
+            : ""
       }`}
-      {...attributes}
-      {...listeners}
     >
       <span
         className={`text-sm font-bold ${
@@ -1734,8 +1733,17 @@ function SortableGroupTeamRow({
       </span>
       <TeamBadge teamId={team.id} />
       <span
-        aria-hidden="true"
-        className="rounded-md px-2 py-1 text-lg font-bold text-zinc-500"
+        ref={setActivatorNodeRef}
+        aria-label={`Mover ${team.name}`}
+        className={`flex h-9 w-9 touch-none items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-lg font-bold text-zinc-400 transition ${
+          disabled
+            ? "cursor-not-allowed opacity-50"
+            : isDragging
+              ? "cursor-grabbing bg-white/10 text-white"
+              : "cursor-grab hover:border-[#a7f600]/45 hover:bg-[#a7f600]/10 hover:text-white"
+        }`}
+        {...attributes}
+        {...listeners}
       >
         ☰
       </span>
