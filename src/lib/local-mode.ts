@@ -16,6 +16,7 @@ export const localKeys = {
   currentEmail: "porra26_current_email",
   predictions: "porra26_predictions",
   adminMatches: "porra26_admin_matches",
+  pendingPrediction: "porra26_pending_prediction",
 } as const;
 
 export type LocalUser = {
@@ -102,6 +103,19 @@ export function saveLocalPrediction(userId: string, prediction: Prediction) {
   const predictions = getLocalPredictions();
   predictions[userId] = prediction;
   setLocalPredictions(predictions);
+}
+
+export function getPendingPrediction() {
+  return getLocalJson<Prediction | null>(localKeys.pendingPrediction, null);
+}
+
+export function setPendingPrediction(prediction: Prediction) {
+  setLocalJson(localKeys.pendingPrediction, prediction);
+}
+
+export function clearPendingPrediction() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(localKeys.pendingPrediction);
 }
 
 export async function ensureLocalAdminUser() {

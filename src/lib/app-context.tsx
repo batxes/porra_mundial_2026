@@ -8,6 +8,7 @@ import { data, playersById, schedule, teamsById } from "@/lib/data";
 import { formatDate } from "@/lib/format";
 import {
   avatarPresets,
+  clearPendingPrediction,
   currentLocalUser,
   defaultAdminEmail,
   digest,
@@ -15,6 +16,7 @@ import {
   getLocalAdminResults,
   getLocalPredictions,
   getLocalUsers,
+  getPendingPrediction,
   LocalUser,
   localKeys,
   saveLocalPrediction,
@@ -22,6 +24,7 @@ import {
   setLocalAdminResults,
   setLocalJson,
   setLocalUsers,
+  setPendingPrediction,
 } from "@/lib/local-mode";
 import {
   calculateCompletion,
@@ -151,7 +154,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const syncLocalState = useCallback(
     async (nextUserId?: string | null, nextPrediction?: Prediction) => {
       const sessionUser = currentLocalUser();
-      const currentPrediction = normalizePrediction(nextPrediction || (sessionUser ? getLocalPredictions()[sessionUser.id] : null));
+      const currentPrediction = normalizePrediction(
+        nextPrediction || (sessionUser ? getLocalPredictions()[sessionUser.id] : getPendingPrediction()),
+      );
       const currentResults = getLocalAdminResults();
 
       setUser(
@@ -170,6 +175,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setPrediction(currentPrediction);
       setAdminResults(currentResults);
       setLeaderboard(buildLeaderboard(getLocalUsers(), nextUserId ?? sessionUser?.id ?? null, currentPrediction, currentResults));
+    },
+    [],
+  );
+
+  const saveSupabasePredictionForUser = useCallback(
+    async (finalPrediction: Prediction) => {
+      const supabase = getSupabaseBrowserClient() as any;
+      if (!supabase) {
+        return { ok: false, message: "No se ha podido conectar con Supabase." };
+      }
+
+      const { error } = await supabase.rpc("save_prediction", {
+        p_selections: finalPrediction,
+        p_completion: calculateCompletion(finalPrediction),
+        p_is_definitive: finalPrediction.isDefinitive,
+      });
+
+      if (error) {
+        return { ok: false, message: error.message };
+      }
+
+      return { ok: true, message: "Progreso guardado." };
     },
     [],
   );
@@ -241,8 +268,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       entriesByUser.set(entry.user_id, userEntries);
     });
 
-    const currentProfile = ((profiles || []) as any[]).find((profile: any) => profile.id === session?.user?.id) || null;
-    const currentPrediction = normalizePrediction(session?.user?.id ? predictionByUser.get(session.user.id) || null : null);
+    const sessionUserId = session?.user?.id || "";
+    const pendingPrediction = getPendingPrediction();
+    if (sessionUserId && pendingPrediction) {
+      if (!predictionByUser.has(sessionUserId)) {
+        const pushed = await saveSupabasePredictionForUser(preparePredictionForSave(pendingPrediction));
+        if (pushed.ok) {
+          predictionByUser.set(sessionUserId, normalizePrediction(pendingPrediction));
+          clearPendingPrediction();
+        }
+      } else {
+        clearPendingPrediction();
+      }
+    }
+
+    const currentProfile = ((profiles || []) as any[]).find((profile: any) => profile.id === sessionUserId) || null;
+    const currentPrediction = normalizePrediction(
+      sessionUserId ? predictionByUser.get(sessionUserId) || null : pendingPrediction,
+    );
 
     setUser(
       currentProfile
@@ -281,7 +324,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name)),
     );
     setReady(true);
-  }, [syncLocalState, usingSupabase]);
+  }, [saveSupabasePredictionForUser, syncLocalState, usingSupabase]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -289,28 +332,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [refreshData]);
-
-  const saveSupabasePredictionForUser = useCallback(
-    async (finalPrediction: Prediction) => {
-      const supabase = getSupabaseBrowserClient() as any;
-      if (!supabase) {
-        return { ok: false, message: "No se ha podido conectar con Supabase." };
-      }
-
-      const { error } = await supabase.rpc("save_prediction", {
-        p_selections: finalPrediction,
-        p_completion: calculateCompletion(finalPrediction),
-        p_is_definitive: finalPrediction.isDefinitive,
-      });
-
-      if (error) {
-        return { ok: false, message: error.message };
-      }
-
-      return { ok: true, message: "Progreso guardado." };
-    },
-    [],
-  );
 
   const persistPrediction = useCallback(
     async (nextPrediction: Prediction, makeDefinitive = false) => {
@@ -342,9 +363,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [persistPrediction, prediction],
   );
 
-  const replacePrediction = useCallback((next: Prediction) => {
-    setPrediction(next);
-  }, []);
+  const replacePrediction = useCallback(
+    (next: Prediction) => {
+      setPrediction(next);
+      if (!user) {
+        setPendingPrediction(next);
+      }
+    },
+    [user],
+  );
 
   const setUserPro = useCallback(
     async (userId: string, isPro: boolean) => {
@@ -492,6 +519,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             return false;
           }
           setCurrentLocalEmail(user.email);
+          const pendingPrediction = getPendingPrediction();
+          if (pendingPrediction) {
+            if (!getLocalPredictions()[user.id]) {
+              saveLocalPrediction(user.id, preparePredictionForSave(pendingPrediction));
+            }
+            clearPendingPrediction();
+          }
           await syncLocalState(user.id);
           return true;
         }
@@ -517,7 +551,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setAuthBusy(true);
       setAuthError("");
       try {
-        const finalPrediction = predictionToSave ? preparePredictionForSave(predictionToSave) : null;
+        const draftPrediction = predictionToSave || getPendingPrediction();
+        const finalPrediction = draftPrediction ? preparePredictionForSave(draftPrediction) : null;
 
         if (!usingSupabase) {
           await ensureLocalAdminUser();
@@ -540,6 +575,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setLocalUsers(users);
           if (finalPrediction) {
             saveLocalPrediction(nextUser.id, finalPrediction);
+            clearPendingPrediction();
           }
           setCurrentLocalEmail(normalizedEmail);
           await syncLocalState(nextUser.id, finalPrediction || undefined);
@@ -548,7 +584,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         const supabase = getSupabaseBrowserClient() as any;
         if (!supabase) return false;
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -563,13 +599,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return false;
         }
 
-        const signedInUserId = data?.session?.user?.id || "";
-        if (finalPrediction && signedInUserId) {
-          const result = await saveSupabasePredictionForUser(finalPrediction);
-          if (!result.ok) {
-            setAuthError(result.message);
-            return false;
-          }
+        // Con confirmacion de email activa, signUp no devuelve sesion: la porra
+        // queda pendiente en localStorage y refreshData la sube en cuanto haya sesion.
+        if (finalPrediction) {
+          setPendingPrediction(finalPrediction);
         }
 
         await refreshData();
@@ -578,7 +611,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setAuthBusy(false);
       }
     },
-    [refreshData, saveSupabasePredictionForUser, syncLocalState, usingSupabase],
+    [refreshData, syncLocalState, usingSupabase],
   );
 
   const signOut = useCallback(async () => {
