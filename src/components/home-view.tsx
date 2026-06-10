@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
-import { Avatar, Card, PrimaryLink, TeamBadge, TeamFlag } from "@/components/common";
+import { Avatar, Card, PrimaryLink, ProBadge, TeamBadge, TeamFlag } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { extraPredictionFields, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
@@ -359,8 +359,9 @@ function LeaderboardRow({
           className="size-10"
         />
         <span className="min-w-0">
-          <strong className="block truncate text-sm text-white">
-            {profile.name}
+          <strong className="flex min-w-0 items-center gap-1.5 text-sm text-white">
+            <span className="truncate">{profile.name}</span>
+            {profile.isPro ? <ProBadge /> : null}
           </strong>
           <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-zinc-500">
             {profile.champion ? (
