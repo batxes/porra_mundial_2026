@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { data, playersById, teamsById } from "@/lib/data";
 import {
@@ -30,6 +30,13 @@ import type {
 const teamsAlphabetically = [...data.teams].sort((a: Team, b: Team) =>
   a.name.localeCompare(b.name, "es", { sensitivity: "base" }),
 );
+
+function normalizeTeamSearch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
 
 export function Card({
   children,
@@ -186,18 +193,69 @@ export function TeamPicker({
   onChange: (value: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [teamQuery, setTeamQuery] = useState("");
+  const pickerRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
   const open = !disabled && menuOpen;
   const selected = value ? teamsById.get(value) : null;
+  const filteredTeams = useMemo(() => {
+    const normalizedQuery = normalizeTeamSearch(teamQuery.trim());
+    if (!normalizedQuery) return teamsAlphabetically;
+
+    return teamsAlphabetically.filter((team) =>
+      normalizeTeamSearch(`${team.name} ${team.code}`).includes(
+        normalizedQuery,
+      ),
+    );
+  }, [teamQuery]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      searchRef.current?.focus();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const closeFromOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && pickerRef.current?.contains(target)) {
+        return;
+      }
+      setMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeFromOutside);
+    document.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeFromOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
 
   return (
     <div>
       <span className="text-sm text-zinc-300">{label}</span>
-      <div className={`relative ${controlClassName}`}>
+      <div ref={pickerRef} className={`relative ${controlClassName}`}>
         <button
           type="button"
           disabled={disabled}
           onClick={() => {
-            if (!disabled) setMenuOpen((current) => !current);
+            if (disabled) return;
+            setMenuOpen((current) => {
+              const next = !current;
+              if (next) setTeamQuery("");
+              return next;
+            });
           }}
           className="flex w-full min-w-0 items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#0f0f0f] px-4 py-3 text-left text-white transition hover:border-white/20 disabled:opacity-40"
         >
@@ -214,30 +272,46 @@ export function TeamPicker({
         </button>
 
         {open && !disabled ? (
-          <div className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-lg border border-white/10 bg-[#111] p-2 shadow-2xl shadow-black/30 backdrop-blur">
-            <button
-              type="button"
-              onClick={() => {
-                onChange("");
-                setMenuOpen(false);
-              }}
-              className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-300 hover:bg-white/5"
-            >
-              {placeholder}
-            </button>
-            {teamsAlphabetically.map((team) => (
+          <div className="absolute z-30 mt-2 w-full rounded-lg border border-white/10 bg-[#111] p-2 shadow-2xl shadow-black/30 backdrop-blur">
+            <label className="mb-2 flex items-center rounded-lg border border-white/10 bg-black/25 px-3 py-2">
+              <input
+                ref={searchRef}
+                value={teamQuery}
+                onChange={(event) => setTeamQuery(event.target.value)}
+                placeholder="Buscar pais"
+                className="min-w-0 flex-1 bg-transparent text-sm font-medium text-white outline-none placeholder:text-zinc-500"
+              />
+            </label>
+            <div className="team-picker-scroll max-h-64 overflow-y-auto pr-1">
               <button
-                key={team.id}
                 type="button"
                 onClick={() => {
-                  onChange(team.id);
+                  onChange("");
                   setMenuOpen(false);
                 }}
-                className="flex w-full items-center rounded-xl px-3 py-2 text-left hover:bg-white/5"
+                className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-300 hover:bg-white/5"
               >
-                <TeamBadge teamId={team.id} />
+                {placeholder}
               </button>
-            ))}
+              {filteredTeams.map((team) => (
+                <button
+                  key={team.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(team.id);
+                    setMenuOpen(false);
+                  }}
+                  className="flex w-full items-center rounded-xl px-3 py-2 text-left hover:bg-white/5"
+                >
+                  <TeamBadge teamId={team.id} />
+                </button>
+              ))}
+              {!filteredTeams.length ? (
+                <p className="px-3 py-4 text-sm text-zinc-500">
+                  No hay paises para esa busqueda.
+                </p>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>
