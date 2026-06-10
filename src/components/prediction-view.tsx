@@ -2416,10 +2416,32 @@ function ResultsSchedule({
             goles del partido
           </span>
         </p>
-        <p className="text-sm font-medium text-yellow-100">
-          Puedes meter o cambiar cada resultado hasta justo antes de que
-          comience ese partido.
-        </p>
+        <div className="results-open-banner mt-4">
+          <div className="flex items-center gap-3 rounded-[11px] bg-[#131313] px-3.5 py-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#a7f600]/15 text-[#a7f600]">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </span>
+            <p className="text-sm font-medium leading-5 text-zinc-200">
+              Puedes meter o cambiar cada resultado{" "}
+              <strong className="font-bold text-[#a7f600]">
+                hasta justo antes de que comience ese partido
+              </strong>
+              .
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="space-y-3">

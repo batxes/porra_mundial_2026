@@ -109,6 +109,18 @@ body {
   background: rgba(167, 246, 0, 0.7);
 }
 
+@property --results-banner-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.results-open-banner {
+  border-radius: 0.75rem;
+  padding: 1px;
+  background: rgba(167, 246, 0, 0.35);
+}
+
 * {
   border-color: rgba(255, 255, 255, 0.08);
 }
@@ -201,6 +213,18 @@ body {
 
   .results-intro-counter {
     animation: results-intro-count 5000ms ease-in-out infinite;
+  }
+
+  .results-open-banner {
+    background: conic-gradient(
+      from var(--results-banner-angle, 0deg),
+      rgba(167, 246, 0, 0.18) 0deg,
+      rgba(167, 246, 0, 0.18) 290deg,
+      rgba(199, 255, 67, 0.95) 330deg,
+      rgba(255, 255, 255, 0.55) 345deg,
+      rgba(167, 246, 0, 0.18) 360deg
+    );
+    animation: results-banner-spin 3200ms linear infinite;
   }
 }
 
@@ -477,6 +501,12 @@ body {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes results-banner-spin {
+  to {
+    --results-banner-angle: 360deg;
   }
 }
 
