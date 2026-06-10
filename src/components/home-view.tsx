@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
-import { Avatar, Card, PrimaryLink, ProBadge, TeamBadge, TeamFlag } from "@/components/common";
+import { Avatar, Card, matchStageLabel, PrimaryLink, ProBadge, TeamBadge, TeamFlag } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { extraPredictionFields, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
@@ -481,9 +481,7 @@ function UpcomingMatchCard({
       }}
     >
       <div className="flex items-center justify-between gap-3 px-3 pb-0 pt-3 sm:justify-center sm:px-4 sm:pt-4">
-        <span>
-          Partido {match.number} - {match.stage}
-        </span>
+        <span>{matchStageLabel(match)}</span>
         <time className="inline-flex items-center text-sm font-semibold text-zinc-200">
           {formatResultTime(match)}
         </time>

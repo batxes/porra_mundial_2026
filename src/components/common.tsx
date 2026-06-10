@@ -14,8 +14,11 @@ import {
 } from "@/lib/format";
 import {
   emptyPrediction,
+  hasMatchStarted,
+  hasTournamentStarted,
   orderedGroupTeams,
   resolveSlot,
+  scheduleUtc,
 } from "@/lib/prediction";
 import type {
   Match,
@@ -87,6 +90,13 @@ export function SectionHeading({
   );
 }
 
+export function matchStageLabel(match: Match) {
+  if (match.stage !== "Grupos") return match.stage;
+  const group =
+    teamsById.get(match.home)?.group || teamsById.get(match.away)?.group;
+  return group ? `Grupo ${group}` : match.stage;
+}
+
 export function ProBadge({
   size = "sm",
   className = "",
@@ -100,7 +110,7 @@ export function ProBadge({
   return (
     <span
       title="Usuario PRO"
-      className={`inline-flex shrink-0 select-none items-center rounded-full bg-amber-400 font-black uppercase leading-none tracking-[0.08em] text-amber-950 ${sizeClasses} ${className}`}
+      className={`inline-flex shrink-0 select-none items-center rounded-full bg-amber-400 font-semibold uppercase leading-none tracking-[0.08em] text-amber-950 ${sizeClasses} ${className}`}
     >
       PRO
     </span>
@@ -391,12 +401,13 @@ export function Notice({
   tone = "default",
 }: {
   children: React.ReactNode;
-  tone?: "default" | "warm" | "danger";
+  tone?: "default" | "warm" | "danger" | "neutral";
 }) {
   const toneClasses = {
     default: "border-cyan-400/20 bg-cyan-400/10 text-cyan-100",
     warm: "border-amber-400/20 bg-amber-400/10 text-amber-100",
     danger: "border-rose-400/20 bg-rose-400/10 text-rose-100",
+    neutral: "border-white/10 bg-white/[0.06] text-zinc-300",
   };
 
   return (
@@ -1445,9 +1456,11 @@ function formatBracketDate(match: Match) {
 function ResultsSummary({
   prediction,
   matches,
+  maskUnstarted = false,
 }: {
   prediction: Prediction;
   matches: Match[];
+  maskUnstarted?: boolean;
 }) {
   const completedMatches = matches.filter((match) => {
     const score = prediction.matchPredictions[String(match.number)];
@@ -1458,6 +1471,18 @@ function ResultsSummary({
       score?.awayScore != null
     );
   });
+  const isHidden = (match: Match) => maskUnstarted && !hasMatchStarted(match);
+  const hiddenCount = completedMatches.filter(isHidden).length;
+  const matchesByDate = completedMatches.reduce<Record<string, Match[]>>(
+    (grouped, match) => {
+      const dateKey = snapshotResultDateKey(match);
+      grouped[dateKey] ||= [];
+      grouped[dateKey].push(match);
+      return grouped;
+    },
+    {},
+  );
+  const dateKeys = Object.keys(matchesByDate).sort();
 
   if (!completedMatches.length) {
     return (
@@ -1469,44 +1494,190 @@ function ResultsSummary({
 
   return (
     <div className="space-y-3">
+      {hiddenCount ? (
+        <Notice tone="neutral">
+          Los resultados elegidos se irán revelando a medida que empiece cada
+          partido.
+        </Notice>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h4 className="font-semibold text-white">Resultados elegidos</h4>
         <span className="text-sm font-semibold text-[#a7f600]">
           {completedMatches.length}/{matches.length}
         </span>
       </div>
-      <div className="grid gap-3 lg:grid-cols-2">
-        {completedMatches.map((match) => {
-          const score = prediction.matchPredictions[String(match.number)];
-          const home = resolveSlot(match.home, match.number, prediction);
-          const away = resolveSlot(match.away, match.number, prediction);
+      <div className="space-y-4">
+        {dateKeys.map((dateKey) => (
+          <section key={dateKey} className="space-y-2">
+            <h5 className="pt-1 text-base font-semibold text-white first-letter:capitalize">
+              {snapshotFormatResultsDay(dateKey)}
+            </h5>
+            <div className="grid gap-3 lg:grid-cols-2">
+              {(matchesByDate[dateKey] || []).map((match) => {
+                const score = prediction.matchPredictions[String(match.number)];
+                const home = resolveSlot(match.home, match.number, prediction);
+                const away = resolveSlot(match.away, match.number, prediction);
+                const hidden = isHidden(match);
 
-          return (
-            <div
-              key={match.number}
-              className="rounded-lg border border-white/10 bg-white/5 p-4"
-            >
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-                <span>
-                  Partido {match.number} · {match.stage}
-                </span>
-                <span>{formatScheduleDate(match)}</span>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
-                <TeamBadge teamId={home} fallback={translateSlot(match.home)} />
-                <span className="justify-self-center rounded-md bg-[#0f0f0f] px-3 py-2 text-center text-xl font-black text-white">
-                  {score.homeScore} - {score.awayScore}
-                </span>
-                <TeamBadge
-                  teamId={away}
-                  fallback={translateSlot(match.away)}
-                  className="sm:justify-end sm:text-right"
-                />
-              </div>
+                return (
+                  <article
+                    key={match.number}
+                    className="overflow-hidden rounded-[22px] text-white"
+                    style={{
+                      background:
+                        "radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), rgb(47, 47, 47)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2 px-3 pb-0 pt-3 sm:px-4 sm:pt-4">
+                      <span className="text-sm">{matchStageLabel(match)}</span>
+                      <time className="inline-flex items-center text-sm font-semibold text-zinc-200">
+                        {snapshotFormatResultTime(match)}
+                      </time>
+                    </div>
+
+                    <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start py-2 pb-4">
+                      <SnapshotResultTeam
+                        teamId={home}
+                        fallback={translateSlot(match.home)}
+                      />
+                      <div className="flex h-full items-center justify-center pt-5">
+                        <span
+                          className={`rounded-lg bg-black/25 px-3 py-2 text-center text-xl font-black text-white ${
+                            hidden ? "select-none blur-sm" : ""
+                          }`}
+                          aria-label={
+                            hidden
+                              ? "Resultado oculto hasta el inicio del partido"
+                              : undefined
+                          }
+                        >
+                          {hidden
+                            ? "? - ?"
+                            : `${score.homeScore} - ${score.awayScore}`}
+                        </span>
+                      </div>
+                      <SnapshotResultTeam
+                        teamId={away}
+                        fallback={translateSlot(match.away)}
+                      />
+                    </div>
+
+                    <div className="border-t border-white/10 px-3 py-2 sm:px-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="min-w-0 truncate text-xs text-zinc-400">
+                          {match.venue}
+                        </p>
+                        {hidden ? (
+                          <span className="text-xs font-medium text-zinc-500">
+                            Se revelará cuando empiece el partido
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
-          );
-        })}
+          </section>
+        ))}
       </div>
+    </div>
+  );
+}
+
+function snapshotResultDateKey(match: Match) {
+  return new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+  }).format(new Date(scheduleUtc(match)));
+}
+
+function snapshotFormatResultsDay(dateKey: string) {
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "numeric",
+    month: "long",
+    timeZone: "Europe/Madrid",
+    weekday: "long",
+  }).format(new Date(`${dateKey}T12:00:00Z`));
+}
+
+function snapshotFormatResultTime(match: Match) {
+  return new Intl.DateTimeFormat("es-ES", {
+    hour: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+    minute: "2-digit",
+    timeZone: "Europe/Madrid",
+  }).format(new Date(scheduleUtc(match)));
+}
+
+function SnapshotResultTeam({
+  teamId,
+  fallback,
+}: {
+  teamId?: string;
+  fallback: string;
+}) {
+  const team = teamId ? teamsById.get(teamId) : null;
+
+  return (
+    <div className="flex h-full w-full min-w-0 flex-col items-center justify-start gap-2 px-2 pt-4 sm:gap-3 sm:px-3">
+      {team ? (
+        <TeamFlag
+          teamId={team.id}
+          className="h-7 w-7 rounded-full border border-white/15 object-cover sm:h-8 sm:w-8"
+        />
+      ) : (
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[9px] font-bold text-zinc-300 sm:h-8 sm:w-8 sm:text-[10px]">
+          TBD
+        </span>
+      )}
+      <span className="line-clamp-2 w-full min-w-0 text-center text-[11px] font-bold leading-4 text-white sm:text-xs">
+        {team?.name || fallback}
+      </span>
+    </div>
+  );
+}
+
+function EyeOffIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+      <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+      <line x1="2" y1="2" x2="22" y2="22" />
+    </svg>
+  );
+}
+
+function MaskableSection({
+  masked,
+  message,
+  children,
+}: {
+  masked: boolean;
+  message: string;
+  children: React.ReactNode;
+}) {
+  if (!masked) return <>{children}</>;
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-white/10 bg-white/[0.04] px-6 py-16 text-center">
+      <span className="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-400">
+        <EyeOffIcon className="h-6 w-6" />
+      </span>
+      <p className="max-w-md text-sm font-semibold text-zinc-300">{message}</p>
     </div>
   );
 }
@@ -1519,6 +1690,7 @@ export function PredictionSnapshot({
   playerName,
   profile,
   showBracket = true,
+  maskUnstarted = false,
 }: {
   bracketLayout?: "responsive" | "mobile";
   editHref?: string;
@@ -1527,7 +1699,9 @@ export function PredictionSnapshot({
   playerName: (playerId: string) => string;
   profile?: UserProfile;
   showBracket?: boolean;
+  maskUnstarted?: boolean;
 }) {
+  const maskedUntilTournament = maskUnstarted && !hasTournamentStarted();
   const safePrediction = prediction || emptyPrediction();
   const [section, setSection] = useState<
     "summary" | "groups" | "knockout" | "results"
@@ -1537,8 +1711,17 @@ export function PredictionSnapshot({
 
   const teamValue = (teamId: string) =>
     teamId ? <TeamBadge teamId={teamId} /> : "Pendiente";
-  const playerValue = (playerId: string) =>
-    playerId ? playerName(playerId) : "Pendiente";
+  const playerValue = (playerId: string) => {
+    if (!playerId) return "Pendiente";
+    const player = playersById.get(playerId);
+    if (!player) return playerName(playerId);
+    return (
+      <span className="flex min-w-0 max-w-full items-center gap-2">
+        <PlayerAvatar player={player} className="h-6! w-6! text-[9px]!" />
+        <span className="truncate">{player.name}</span>
+      </span>
+    );
+  };
 
   return (
     <Card className="space-y-5">
@@ -1601,39 +1784,49 @@ export function PredictionSnapshot({
       </div>
 
       {activeSection === "summary" ? (
-        <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <SummaryStat
-              title="Campeon"
-              value={teamValue(safePrediction.extras.worldChampion)}
-            />
-            <SummaryStat
-              title="Equipo mas goleador"
-              value={teamValue(safePrediction.extras.highestScoringTeam)}
-            />
-            <SummaryStat
-              title="Equipo mas goleado"
-              value={teamValue(safePrediction.extras.mostConcededTeam)}
-            />
-            <SummaryStat
-              title="Equipo con mas rojas"
-              value={teamValue(safePrediction.extras.mostRedsTeam)}
-            />
-            <SummaryStat
-              title="Maximo goleador"
-              value={playerValue(safePrediction.extras.topScorer)}
-            />
-            <SummaryStat
-              title="MVP"
-              value={playerValue(safePrediction.extras.mvp)}
-            />
+        <MaskableSection
+          masked={maskedUntilTournament}
+          message="Las elecciones se revelarán cuando empiece el torneo."
+        >
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <SummaryStat
+                title="Campeon"
+                value={teamValue(safePrediction.extras.worldChampion)}
+              />
+              <SummaryStat
+                title="Equipo mas goleador"
+                value={teamValue(safePrediction.extras.highestScoringTeam)}
+              />
+              <SummaryStat
+                title="Equipo mas goleado"
+                value={teamValue(safePrediction.extras.mostConcededTeam)}
+              />
+              <SummaryStat
+                title="Equipo con mas rojas"
+                value={teamValue(safePrediction.extras.mostRedsTeam)}
+              />
+              <SummaryStat
+                title="Maximo goleador"
+                value={playerValue(safePrediction.extras.topScorer)}
+              />
+              <SummaryStat
+                title="MVP"
+                value={playerValue(safePrediction.extras.mvp)}
+              />
+            </div>
+            <LineupSnapshot prediction={safePrediction} />
           </div>
-          <LineupSnapshot prediction={safePrediction} />
-        </div>
+        </MaskableSection>
       ) : null}
 
       {activeSection === "groups" ? (
-        <GroupSummary prediction={safePrediction} />
+        <MaskableSection
+          masked={maskedUntilTournament}
+          message="Los grupos se revelarán cuando empiece el torneo."
+        >
+          <GroupSummary prediction={safePrediction} />
+        </MaskableSection>
       ) : null}
       {showBracket && activeSection === "knockout" ? (
         <KnockoutBracket
@@ -1643,7 +1836,11 @@ export function PredictionSnapshot({
         />
       ) : null}
       {activeSection === "results" ? (
-        <ResultsSummary prediction={safePrediction} matches={matches} />
+        <ResultsSummary
+          prediction={safePrediction}
+          matches={matches}
+          maskUnstarted={maskUnstarted}
+        />
       ) : null}
     </Card>
   );

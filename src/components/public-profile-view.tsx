@@ -5,7 +5,7 @@ import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
 
 export function PublicProfileView({ userId }: { userId: string }) {
-  const { leaderboard, playerName, ready } = useAppContext();
+  const { leaderboard, playerName, ready, user } = useAppContext();
   const profile = leaderboard.find((candidate) => candidate.id === userId) || null;
   const rankingPosition = profile
     ? leaderboard.filter((candidate) => candidate.points > profile.points).length + 1
@@ -85,6 +85,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
         matches={schedule}
         playerName={playerName}
         showBracket={false}
+        maskUnstarted={!user || (user.id !== profile.id && !user.isAdmin)}
       />
     </div>
   );

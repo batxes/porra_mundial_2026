@@ -34,6 +34,7 @@ import { CSS } from "@dnd-kit/utilities";
 
 import {
   Card,
+  matchStageLabel,
   Notice,
   PlayerAvatar,
   SectionHeading,
@@ -2450,6 +2451,7 @@ function ResultMatchCard({
       }}
     >
       <div className="flex items-center justify-between gap-3 px-3 pb-0 pt-3 sm:justify-center sm:px-4 sm:pt-4">
+        <span>{matchStageLabel(match)}</span>
         <time className="inline-flex items-center text-sm font-semibold text-zinc-200">
           {formatResultTime(match)}
         </time>
@@ -2520,6 +2522,19 @@ function ResultMatchCard({
           />
         </div>
         <ResultTeamColumn teamId={away} fallback={translateSlot(match.away)} />
+      </div>
+
+      <div className="border-t border-white/10 px-3 py-2 sm:px-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="min-w-0 truncate text-xs text-zinc-400">{match.venue}</p>
+          <span className="text-xs font-medium text-zinc-500">
+            {locked
+              ? complete
+                ? "Prediccion cerrada"
+                : "No rellenaste este resultado"
+              : "Editable hasta el inicio"}
+          </span>
+        </div>
       </div>
     </article>
   );
