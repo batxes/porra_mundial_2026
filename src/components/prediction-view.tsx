@@ -114,6 +114,13 @@ const positionTabs: Array<{ id: Position; label: string }> = [
   { id: "DEL", label: "Delantero" },
 ];
 
+type ExtraPlayerPositionFilter = Position | "all";
+
+const extraPlayerPositionTabs: Array<{
+  id: ExtraPlayerPositionFilter;
+  label: string;
+}> = [{ id: "all", label: "Todos" }, ...positionTabs];
+
 const xiScoringRules = [
   ["Gol delantero", "+2"],
   ["Gol centrocampista", "+6"],
@@ -125,6 +132,13 @@ const xiScoringRules = [
   ["Penalti fallado", "-1"],
   ["Roja", "-2"],
 ] as const;
+
+function normalizeSearch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
 
 const sortedPlayersByPosition = positionTabs.reduce(
   (acc, position) => {
@@ -1144,7 +1158,6 @@ function TusElecciones({
             value={prediction.extras.topScorer}
             disabled={disabled}
             onChange={(value) => onExtraChange("topScorer", value)}
-            initialPosition="DEL"
           />
         </ChoiceBlock>
         <ChoiceBlock points={20}>
@@ -1153,7 +1166,6 @@ function TusElecciones({
             value={prediction.extras.mvp}
             disabled={disabled}
             onChange={(value) => onExtraChange("mvp", value)}
-            initialPosition="MED"
           />
         </ChoiceBlock>
       </div>
@@ -1182,13 +1194,11 @@ function ExtraPlayerField({
   label,
   value,
   disabled,
-  initialPosition,
   onChange,
 }: {
   label: string;
   value: string;
   disabled: boolean;
-  initialPosition: Position;
   onChange: (value: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -1247,7 +1257,6 @@ function ExtraPlayerField({
         <ExtraPlayerPickerModal
           title={label}
           currentPlayer={player || undefined}
-          initialPosition={player?.position || initialPosition}
           onClose={() => setIsOpen(false)}
           onRemove={() => {
             if (disabled) return;
@@ -1268,31 +1277,32 @@ function ExtraPlayerField({
 function ExtraPlayerPickerModal({
   title,
   currentPlayer,
-  initialPosition,
   onClose,
   onRemove,
   onSelect,
 }: {
   title: string;
   currentPlayer?: Player;
-  initialPosition: Position;
   onClose: () => void;
   onRemove: () => void;
   onSelect: (playerId: string) => void;
 }) {
   const [activePosition, setActivePosition] =
-    useState<Position>(initialPosition);
+    useState<ExtraPlayerPositionFilter>("all");
   const [query, setQuery] = useState("");
 
   const visiblePlayers = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = normalizeSearch(query.trim());
 
     return data.players
-      .filter((player) => player.position === activePosition)
+      .filter(
+        (player) =>
+          activePosition === "all" || player.position === activePosition,
+      )
       .filter((player) => {
         if (!normalized) return true;
         const team = teamsById.get(player.team)?.name || "";
-        return `${player.name} ${team}`.toLowerCase().includes(normalized);
+        return normalizeSearch(`${player.name} ${team}`).includes(normalized);
       })
       .sort((a, b) => {
         const teamCompare = (teamsById.get(a.team)?.name || "").localeCompare(
@@ -1322,8 +1332,8 @@ function ExtraPlayerPickerModal({
     >
       <div className="flex max-h-[78vh] w-full max-w-[440px] flex-col overflow-hidden rounded-2xl bg-white text-slate-950 shadow-2xl">
         <div className="border-b border-slate-100 p-3">
-          <div className="grid grid-cols-4 rounded-xl bg-slate-100 p-1">
-            {positionTabs.map((position) => (
+          <div className="grid grid-cols-5 rounded-xl bg-slate-100 p-1">
+            {extraPlayerPositionTabs.map((position) => (
               <button
                 key={position.id}
                 type="button"
@@ -1345,7 +1355,11 @@ function ExtraPlayerPickerModal({
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={`Buscar ${positionLabels[activePosition].toLowerCase()}`}
+                placeholder={
+                  activePosition === "all"
+                    ? "Buscar jugador"
+                    : `Buscar ${positionLabels[activePosition].toLowerCase()}`
+                }
                 className="min-w-0 flex-1 bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
               />
             </label>
