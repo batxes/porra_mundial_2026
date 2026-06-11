@@ -704,7 +704,6 @@ type Jornada = {
   date: string;
   matches: JornadaMatch[];
   matchNumbers: number[];
-  hasLive: boolean;
 };
 
 // Margen desde el inicio en el que damos un partido por "en juego". Pasado
@@ -781,7 +780,6 @@ function buildJornadas(results: AdminResults): Jornada[] {
         date,
         matches: sorted,
         matchNumbers: sorted.map((item) => item.match.number),
-        hasLive: sorted.some((item) => item.status === "live"),
       };
     })
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -811,10 +809,10 @@ function jornadaScorers(
       return { profile, points, breakdown };
     })
     .filter((row) => row.points !== 0)
-    .sort(
-      (a, b) =>
-        b.points - a.points || a.profile.name.localeCompare(b.profile.name),
-    );
+    // Orden estable: `profiles` ya viene ordenado por la clasificacion
+    // general, asi que los empates a puntos de jornada se desempatan por
+    // puesto en la clasificacion.
+    .sort((a, b) => b.points - a.points);
 }
 
 const scorerBreakdownLabels: Array<{ key: keyof ScorerBreakdown; label: string }> = [
@@ -822,6 +820,9 @@ const scorerBreakdownLabels: Array<{ key: keyof ScorerBreakdown; label: string }
   { key: "outcome", label: "Acierto" },
   { key: "xi", label: "Tu once" },
 ];
+
+// Cuantos puntuadores se ven antes de "Mostrar mas".
+const jornadaScorersCollapsed = 3;
 
 function HomeFeedSection({
   currentUserId,
@@ -1008,18 +1009,17 @@ function JornadaCard({
   jornada: Jornada;
   scorers: JornadaScorer[];
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleScorers = expanded
+    ? scorers
+    : scorers.slice(0, jornadaScorersCollapsed);
+
   return (
     <Card className="overflow-hidden p-0">
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+      <div className="border-b border-white/10 px-4 py-3">
         <h3 className="truncate text-sm font-bold text-white first-letter:capitalize">
           {formatDate(jornada.date)}
         </h3>
-        {jornada.hasLive ? (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-2.5 py-1 text-[11px] font-bold text-rose-200">
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
-            En juego
-          </span>
-        ) : null}
       </div>
 
       <div className="divide-y divide-white/10">
@@ -1031,10 +1031,11 @@ function JornadaCard({
       {scorers.length ? (
         <div className="border-t border-white/10 bg-white/[0.015] px-4 py-3">
           <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
-            Han puntuado
+            Han puntuado{" "}
+            <span className="text-zinc-400">· {scorers.length}</span>
           </p>
           <div className="space-y-2.5">
-            {scorers.map(({ breakdown, points, profile }, index) => {
+            {visibleScorers.map(({ breakdown, points, profile }, index) => {
               const parts = scorerBreakdownLabels
                 .map((part) => ({ label: part.label, value: breakdown[part.key] }))
                 .filter((part) => part.value !== 0);
@@ -1109,6 +1110,33 @@ function JornadaCard({
               );
             })}
           </div>
+
+          {scorers.length > jornadaScorersCollapsed ? (
+            <button
+              type="button"
+              onClick={() => setExpanded((value) => !value)}
+              aria-expanded={expanded}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] py-2 text-xs font-bold text-zinc-300 transition hover:bg-white/[0.06] hover:text-white"
+            >
+              {expanded
+                ? "Mostrar menos"
+                : `Ver ${scorers.length - jornadaScorersCollapsed} mas`}
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 16 16"
+                className={`h-3.5 w-3.5 transition-transform ${
+                  expanded ? "rotate-180" : ""
+                }`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 6l4 4 4-4" />
+              </svg>
+            </button>
+          ) : null}
         </div>
       ) : (
         <div className="border-t border-white/10 px-4 py-3 text-xs text-zinc-500">
