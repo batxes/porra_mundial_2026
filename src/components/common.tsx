@@ -613,11 +613,102 @@ function PitchLines() {
   );
 }
 
-function LineupSnapshot({ prediction }: { prediction: Prediction }) {
+const lineupGoalPointsByPosition: Record<Position, number> = {
+  DEL: 2,
+  MED: 6,
+  DEF: 11,
+  POR: 35,
+};
+
+type LineupPlayerStats = {
+  goals: number;
+  saves: number;
+  mvps: number;
+  reds: number;
+  missedPens: number;
+};
+
+function lineupEventStats(playerIds: string[], results?: AdminResults) {
+  const selected = new Set(playerIds.filter(Boolean));
+  const stats = new Map<string, LineupPlayerStats>();
+  let totalPoints = 0;
+
+  Object.values(results || {}).forEach((result) => {
+    (result.events || []).forEach((event) => {
+      if (!selected.has(event.playerId)) return;
+      const entry = stats.get(event.playerId) || {
+        goals: 0,
+        saves: 0,
+        mvps: 0,
+        reds: 0,
+        missedPens: 0,
+      };
+      const position = playersById.get(event.playerId)?.position;
+
+      switch (String(event.type)) {
+        case "gol":
+        case "goal":
+          entry.goals += 1;
+          totalPoints += position ? lineupGoalPointsByPosition[position] : 2;
+          break;
+        case "penalti marcado":
+        case "penalty_goal":
+          entry.goals += 1;
+          totalPoints += 1;
+          break;
+        case "penalti parado":
+        case "penalty_save":
+          entry.saves += 1;
+          totalPoints += 2;
+          break;
+        case "MVP":
+        case "mvp":
+          entry.mvps += 1;
+          totalPoints += 3;
+          break;
+        case "roja":
+        case "red_card":
+          entry.reds += 1;
+          totalPoints -= 2;
+          break;
+        case "penalti fallado":
+        case "penalty_miss":
+          entry.missedPens += 1;
+          totalPoints -= 1;
+          break;
+        default:
+          break;
+      }
+      stats.set(event.playerId, entry);
+    });
+  });
+
+  return { stats, totalPoints, hasEvents: stats.size > 0 };
+}
+
+const lineupLegendItems = [
+  { icon: "⚽", label: "Gol" },
+  { icon: "🧤", label: "Penalti parado" },
+  { icon: "⭐", label: "MVP" },
+  { icon: "❌", label: "Penalti fallado" },
+  { icon: "🟥", label: "Roja" },
+] as const;
+
+function LineupSnapshot({
+  prediction,
+  results,
+}: {
+  prediction: Prediction;
+  results?: AdminResults;
+}) {
   const formation = prediction.xiFormation || "4-3-3";
   const slots = assignPlayersToSlots(prediction.xi, formation);
   const rows = formationRows(formation);
   const filledCount = slots.filter((slot) => slot.playerId).length;
+  const { stats, totalPoints, hasEvents } = lineupEventStats(
+    prediction.xi,
+    results,
+  );
 
   return (
     <div className="overflow-hidden rounded-lg border border-emerald-300/15 bg-emerald-700 shadow-lg shadow-emerald-950/20">
@@ -626,6 +717,17 @@ function LineupSnapshot({ prediction }: { prediction: Prediction }) {
           Once elegido
         </p>
         <div className="flex items-center gap-2">
+          {hasEvents ? (
+            <span
+              className={`rounded-md px-3 py-1 text-xs font-black ${
+                totalPoints >= 0
+                  ? "bg-[#a7f600] text-black"
+                  : "bg-rose-400 text-black"
+              }`}
+            >
+              {totalPoints > 0 ? `+${totalPoints}` : totalPoints} pts
+            </span>
+          ) : null}
           <span className="rounded-md bg-emerald-950/35 px-3 py-1 text-xs font-semibold text-emerald-50">
             {formation}
           </span>
@@ -634,6 +736,20 @@ function LineupSnapshot({ prediction }: { prediction: Prediction }) {
           </span>
         </div>
       </div>
+
+      {hasEvents ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-emerald-950/15 px-4 py-2">
+          {lineupLegendItems.map((item) => (
+            <span
+              key={item.label}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-white"
+            >
+              <span aria-hidden="true">{item.icon}</span>
+              {item.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       <div className="relative mx-auto my-4 aspect-[7/8] w-full max-w-[560px] overflow-hidden rounded-lg border border-emerald-200/20 bg-emerald-600">
         <PitchLines />
@@ -649,7 +765,11 @@ function LineupSnapshot({ prediction }: { prediction: Prediction }) {
                 }}
               >
                 {rowSlots.map((slot) => (
-                  <LineupSnapshotSlot key={slot.id} slot={slot} />
+                  <LineupSnapshotSlot
+                    key={slot.id}
+                    slot={slot}
+                    stats={slot.playerId ? stats.get(slot.playerId) : undefined}
+                  />
                 ))}
               </div>
             );
@@ -660,8 +780,22 @@ function LineupSnapshot({ prediction }: { prediction: Prediction }) {
   );
 }
 
-function LineupSnapshotSlot({ slot }: { slot: SnapshotLineupSlot }) {
+function LineupSnapshotSlot({
+  slot,
+  stats,
+}: {
+  slot: SnapshotLineupSlot;
+  stats?: LineupPlayerStats;
+}) {
   const player = slot.playerId ? playersById.get(slot.playerId) : null;
+  const hasStats = Boolean(
+    stats &&
+      (stats.goals ||
+        stats.saves ||
+        stats.mvps ||
+        stats.reds ||
+        stats.missedPens),
+  );
 
   return (
     <div className="mx-auto flex w-12 flex-col items-center gap-0.5 text-center sm:w-[4.5rem]">
@@ -688,7 +822,35 @@ function LineupSnapshotSlot({ slot }: { slot: SnapshotLineupSlot }) {
       <span className="max-w-full truncate text-[10px] font-bold leading-tight text-white drop-shadow sm:text-xs">
         {player?.name || lineupPositionLabels[slot.position]}
       </span>
+      {hasStats && stats ? (
+        <span className="flex flex-wrap items-center justify-center gap-0.5">
+          {stats.goals ? (
+            <LineupEventPill icon="⚽" value={String(stats.goals)} />
+          ) : null}
+          {stats.saves ? (
+            <LineupEventPill icon="🧤" value={String(stats.saves)} />
+          ) : null}
+          {stats.mvps ? (
+            <LineupEventPill icon="⭐" value={String(stats.mvps)} />
+          ) : null}
+          {stats.missedPens ? (
+            <LineupEventPill icon="❌" value={`-${stats.missedPens}`} />
+          ) : null}
+          {stats.reds ? (
+            <LineupEventPill icon="🟥" value={`-${stats.reds * 2}`} />
+          ) : null}
+        </span>
+      ) : null}
     </div>
+  );
+}
+
+function LineupEventPill({ icon, value }: { icon: string; value: string }) {
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[9px] font-black leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)] sm:text-[10px]">
+      <span aria-hidden="true">{icon}</span>
+      {value}
+    </span>
   );
 }
 
@@ -2063,7 +2225,7 @@ export function PredictionSnapshot({
                 value={playerValue(safePrediction.extras.mvp)}
               />
             </div>
-            <LineupSnapshot prediction={safePrediction} />
+            <LineupSnapshot prediction={safePrediction} results={results} />
           </div>
         </MaskableSection>
       ) : null}
