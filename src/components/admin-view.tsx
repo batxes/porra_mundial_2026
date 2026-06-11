@@ -590,6 +590,18 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
 
     setSaving(true);
     try {
+      // El partido se guarda primero: en Supabase, `match_events.match_id` tiene
+      // foreign key a `matches`, así que la fila del partido debe existir antes
+      // de insertar sus eventos.
+      await saveAdminResult(matchNumber, {
+        homeScore,
+        awayScore,
+        homeTeamId,
+        awayTeamId,
+        events: mergedEvents,
+        source: "manual",
+      });
+
       if (usingSupabase) {
         for (const stale of pool) {
           await deleteAdminEvent(matchNumber, stale.id);
@@ -599,15 +611,6 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
           await addAdminEvent(matchNumber, added);
         }
       }
-
-      await saveAdminResult(matchNumber, {
-        homeScore,
-        awayScore,
-        homeTeamId,
-        awayTeamId,
-        events: mergedEvents,
-        source: "manual",
-      });
       toast.success(`Partido ${matchNumber} guardado`, {
         description: `${resolvedHomeId ? teamName(resolvedHomeId) : "Local"} ${homeScore} - ${awayScore} ${resolvedAwayId ? teamName(resolvedAwayId) : "Visitante"} · ${mergedEvents.length} evento${mergedEvents.length === 1 ? "" : "s"} · puntos recalculados`,
       });

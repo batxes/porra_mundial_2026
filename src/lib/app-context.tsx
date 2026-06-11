@@ -529,7 +529,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { data: tournament } = await supabase.from("tournaments").select("id").eq("slug", "world-cup-2026").single();
       const match = schedule.find((candidate) => String(candidate.number) === String(matchNumber));
 
-      await supabase.from("matches").upsert({
+      const { error: matchError } = await supabase.from("matches").upsert({
         id: `wc26-${matchNumber}`,
         tournament_id: tournament?.id,
         stage: match?.stage || "Grupos",
@@ -541,6 +541,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         status: "validated",
         validated_at: new Date().toISOString(),
       });
+      if (matchError) {
+        throw new Error(`No se pudo guardar el partido: ${matchError.message}`);
+      }
 
       await refreshData();
     },
@@ -564,13 +567,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const supabase = getSupabaseBrowserClient() as any;
       if (!supabase) return;
 
-      await supabase.from("match_events").insert({
+      const { error: eventError } = await supabase.from("match_events").insert({
         match_id: `wc26-${matchNumber}`,
         player_id: event.playerId,
         team_id: event.teamId || playersById.get(event.playerId)?.team || null,
         event_type: toDbEventType(event.type),
         minute: Number(event.minute) || 0,
       });
+      if (eventError) {
+        throw new Error(`No se pudo guardar el evento: ${eventError.message}`);
+      }
 
       await refreshData();
     },
@@ -592,7 +598,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const supabase = getSupabaseBrowserClient() as any;
       if (!supabase) return;
-      await supabase.from("match_events").delete().eq("id", eventId);
+      const { error: deleteError } = await supabase.from("match_events").delete().eq("id", eventId);
+      if (deleteError) {
+        throw new Error(`No se pudo eliminar el evento: ${deleteError.message}`);
+      }
       await refreshData();
     },
     [adminResults, prediction, refreshData, user?.id, usingSupabase],
