@@ -410,7 +410,7 @@ export function PredictionView() {
 
   if (!ready) {
     return (
-      <div className="mx-auto max-w-3xl pb-44 sm:pb-32">
+      <div className="pb-44 sm:pb-32">
         <SectionHeading eyebrow="Porra" title="Juega el Mundial" />
         <div role="status" aria-label="Cargando porra" className="space-y-4">
           <Skeleton className="h-14 rounded-xl" />
@@ -426,7 +426,7 @@ export function PredictionView() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl pb-44 sm:pb-32">
+    <div className="pb-44 sm:pb-32">
       <SectionHeading eyebrow="Porra" title="Juega el Mundial" />
 
       <div className="space-y-4">
@@ -649,7 +649,7 @@ function StepTabs({
 }) {
   return (
     <div className="-mx-4 overflow-x-auto px-4 py-2 sm:-mx-6 sm:px-6 md:mx-0 md:overflow-visible md:px-0">
-      <div className="flex w-max max-w-none gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:relative md:left-1/2 md:grid md:w-[calc(100vw-3rem)] md:max-w-5xl md:-translate-x-1/2 md:grid-cols-4">
+      <div className="flex w-max max-w-none gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:grid md:w-full md:grid-cols-4">
         {playSections.map((tab) => {
           const active = section === tab.id;
           const complete = progresses[tab.id].status === "complete";
@@ -2019,7 +2019,7 @@ function LineupBuilder({
   };
 
   return (
-    <div className="mx-auto w-full max-w-[620px] space-y-5">
+    <div className="space-y-5">
       <div className="space-y-2">
         <h2 className="text-2xl font-bold tracking-tight text-white">
           Tu once
@@ -2050,7 +2050,7 @@ function LineupBuilder({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-emerald-300/15 bg-emerald-600 shadow-2xl shadow-emerald-950/30 sm:rounded-3xl">
+      <div className="mx-auto w-full max-w-[620px] overflow-hidden rounded-2xl border border-emerald-300/15 bg-emerald-600 shadow-2xl shadow-emerald-950/30 sm:rounded-3xl">
         <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-950/20 px-4 py-3">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-50/75">
             Alineacion
@@ -2452,7 +2452,7 @@ function ResultsSchedule({
         <ResultsOpenBanner className="mt-4" />
       </div>
 
-      <div className="space-y-3">
+      <div className="mx-auto w-full max-w-[620px] space-y-3">
         {dateKeys.map((dateKey) => {
           const dayMatches = matchesByDate[dateKey] || [];
 
