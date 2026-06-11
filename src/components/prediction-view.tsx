@@ -126,15 +126,15 @@ const extraPlayerPositionTabs: Array<{
 }> = [{ id: "all", label: "Todos" }, ...positionTabs];
 
 const xiScoringRules = [
-  ["Gol delantero", "+2"],
-  ["Gol centrocampista", "+6"],
-  ["Gol defensa", "+11"],
-  ["Gol portero", "+35"],
-  ["Penalti marcado", "+1"],
-  ["MVP del partido", "+3"],
-  ["Penalti parado", "+2"],
-  ["Penalti fallado", "-1"],
-  ["Roja", "-2"],
+  ["⚽", "Gol delantero", "+2"],
+  ["⚽", "Gol centrocampista", "+6"],
+  ["⚽", "Gol defensa", "+11"],
+  ["⚽", "Gol portero", "+35"],
+  ["⚽", "Penalti marcado", "+1"],
+  ["⭐", "MVP del partido", "+3"],
+  ["🧤", "Penalti parado", "+2"],
+  ["❌", "Penalti fallado", "-1"],
+  ["🟥", "Roja", "-2"],
 ] as const;
 
 function normalizeSearch(value: string) {
@@ -768,13 +768,16 @@ function XiIntroModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="space-y-2 pb-2">
-          {xiScoringRules.map(([label, points]) => (
+          {xiScoringRules.map(([icon, label, points]) => (
             <div
               key={label}
               className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2"
             >
-              <p className="min-w-0 text-sm font-bold text-zinc-200">
-                {label}
+              <p className="flex min-w-0 items-center gap-2 text-sm font-bold text-zinc-200">
+                <span aria-hidden="true" className="shrink-0">
+                  {icon}
+                </span>
+                <span className="min-w-0 truncate">{label}</span>
               </p>
               <p
                 className={`shrink-0 text-sm font-black ${
@@ -2004,20 +2007,25 @@ function LineupBuilder({
           Tu once
         </h2>
         <div className="grid gap-x-5 gap-y-1.5 text-sm leading-6 text-zinc-400 sm:grid-cols-2">
-          {xiScoringRules.map(([label, points]) => (
+          {xiScoringRules.map(([icon, label, points]) => (
             <div
               key={label}
               className="flex min-w-0 items-baseline justify-between gap-3 border-b border-white/[0.06] pb-1"
             >
-              <span className="min-w-0 truncate font-medium">{label}</span>
+              <span className="flex min-w-0 items-baseline gap-1.5 font-medium">
+                <span aria-hidden="true" className="shrink-0">
+                  {icon}
+                </span>
+                <span className="min-w-0 truncate">{label}</span>
+              </span>
               <span
-                className={`shrink-0 text-sm font-black ${
+                className={`shrink-0 text-sm font-semibold ${
                   points.startsWith("-")
                     ? "text-rose-300"
                     : "text-[#a7f600]"
                 }`}
               >
-                {points} pts
+                {points}
               </span>
             </div>
           ))}
