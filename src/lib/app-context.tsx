@@ -56,6 +56,42 @@ type SessionUser = {
   isPro: boolean;
 };
 
+// Copia del ultimo usuario con sesion para pintar la cabecera al instante
+// mientras refreshData carga los datos reales.
+const sessionUserCacheKey = "porra26_session_user";
+
+function readCachedSessionUser(): SessionUser | null {
+  try {
+    const raw = window.localStorage.getItem(sessionUserCacheKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SessionUser> | null;
+    if (!parsed || typeof parsed.id !== "string" || !parsed.id) return null;
+    return {
+      id: parsed.id,
+      name: typeof parsed.name === "string" ? parsed.name : "",
+      email: typeof parsed.email === "string" ? parsed.email : "",
+      avatarUrl: typeof parsed.avatarUrl === "string" ? parsed.avatarUrl : "",
+      points: typeof parsed.points === "number" ? parsed.points : 0,
+      isAdmin: Boolean(parsed.isAdmin),
+      isPro: Boolean(parsed.isPro),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedSessionUser(user: SessionUser | null) {
+  try {
+    if (user) {
+      window.localStorage.setItem(sessionUserCacheKey, JSON.stringify(user));
+    } else {
+      window.localStorage.removeItem(sessionUserCacheKey);
+    }
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
 type AppContextValue = {
   ready: boolean;
   usingSupabase: boolean;
@@ -221,6 +257,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       data: { session },
     } = await supabase.auth.getSession();
 
+    // La sesion se resuelve mucho antes que los datos: adelanta un usuario
+    // provisional para que la cabecera no muestre "Entrar" mientras carga.
+    if (session?.user) {
+      const metadataName = (session.user.user_metadata as Record<string, unknown> | null)?.display_name;
+      setUser((current) =>
+        current ?? {
+          id: session.user.id,
+          name: typeof metadataName === "string" && metadataName ? metadataName : session.user.email?.split("@")[0] || "Jugador",
+          email: session.user.email || "",
+          avatarUrl: "",
+          points: 0,
+          isAdmin: false,
+          isPro: false,
+        },
+      );
+    } else {
+      writeCachedSessionUser(null);
+      setUser(null);
+    }
+
     const tournamentResponse = await supabase.from("tournaments").select("id, slug").eq("slug", "world-cup-2026").maybeSingle();
     const tournamentId = tournamentResponse.data?.id;
 
@@ -330,11 +386,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [saveSupabasePredictionForUser, syncLocalState, usingSupabase]);
 
   useEffect(() => {
+    const cached = readCachedSessionUser();
+    if (cached) {
+      setUser((current) => current ?? cached);
+    }
     const timer = window.setTimeout(() => {
       void refreshData();
     }, 0);
     return () => window.clearTimeout(timer);
   }, [refreshData]);
+
+  useEffect(() => {
+    if (!ready) return;
+    writeCachedSessionUser(user);
+  }, [ready, user]);
 
   const persistPrediction = useCallback(
     async (nextPrediction: Prediction, makeDefinitive = false) => {

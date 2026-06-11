@@ -82,7 +82,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
             </nav>
 
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-              {ready && user ? (
+              {user ? (
                 <>
                   <Link
                     href="/perfil"
@@ -128,7 +128,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                     </svg>
                   </Link>
                 </>
-              ) : (
+              ) : ready ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -139,6 +139,11 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                 >
                   Entrar
                 </button>
+              ) : (
+                <div aria-hidden="true" className="flex items-center gap-1.5 sm:gap-2">
+                  <div className="h-10 w-12 animate-pulse rounded-lg border border-white/10 bg-white/[0.06] sm:w-28" />
+                  <div className="h-10 w-10 animate-pulse rounded-lg border border-white/10 bg-white/[0.06]" />
+                </div>
               )}
             </div>
           </div>
