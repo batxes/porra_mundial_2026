@@ -21,6 +21,7 @@ import { formatDate, translateSlot } from "@/lib/format";
 import {
   isMatchPredictionComplete,
   isMatchVisibleForPrediction,
+  resolveSlot,
   scheduleUtc,
   xiCounts,
   xiRequirements,
@@ -49,17 +50,65 @@ function madridTodayKey() {
   return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
+const resultsReminderKey = "porra26_results_reminder_date";
+
 export function HomeView() {
   const {
     adminResults,
     leaderboard,
     prediction,
+    ready,
     savePrediction,
     setPredictionScore,
     user,
   } = useAppContext();
   const [homeSaveState, setHomeSaveState] =
     useState<HomeSaveState>("idle");
+  const [reminderMatches, setReminderMatches] = useState<Match[]>([]);
+
+  useEffect(() => {
+    if (!ready || !user) return;
+
+    const todayKey = madridTodayKey();
+    let lastShown = "";
+    try {
+      lastShown = window.localStorage.getItem(resultsReminderKey) || "";
+    } catch {
+      lastShown = "";
+    }
+    if (lastShown === todayKey) return;
+
+    const now = Date.now();
+    const horizon = now + 24 * 60 * 60 * 1000;
+    const pending = schedule
+      .filter((match) => {
+        const kickoff = new Date(scheduleUtc(match)).getTime();
+        return (
+          kickoff > now &&
+          kickoff <= horizon &&
+          isMatchVisibleForPrediction(match, prediction) &&
+          !isMatchPredictionComplete(match, prediction)
+        );
+      })
+      .sort(
+        (a, b) =>
+          new Date(scheduleUtc(a)).getTime() -
+          new Date(scheduleUtc(b)).getTime(),
+      )
+      .slice(0, 2);
+
+    if (!pending.length) return;
+
+    try {
+      window.localStorage.setItem(resultsReminderKey, todayKey);
+    } catch {
+      // Ignore storage failures.
+    }
+    const frame = window.requestAnimationFrame(() =>
+      setReminderMatches(pending),
+    );
+    return () => window.cancelAnimationFrame(frame);
+  }, [prediction, ready, user]);
   const homeEditPendingRef = useRef(false);
   const homeSaveTimerRef = useRef<number | null>(null);
   const homeSaveRunRef = useRef(0);
@@ -263,8 +312,140 @@ export function HomeView() {
           </Card>
         )}
       </section>
+
+      {reminderMatches.length ? (
+        <ResultsReminderModal
+          matches={reminderMatches}
+          prediction={prediction}
+          onClose={() => setReminderMatches([])}
+        />
+      ) : null}
     </div>
   );
+}
+
+function ResultsReminderModal({
+  matches,
+  prediction,
+  onClose,
+}: {
+  matches: Match[];
+  prediction: Prediction;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="results-reminder-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#151515] p-5 text-white shadow-2xl shadow-black/50">
+        <div className="mb-4 flex items-start gap-3">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#a7f600]/15 text-[#a7f600]">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </span>
+          <div>
+            <h3
+              id="results-reminder-title"
+              className="text-xl font-bold tracking-tight"
+            >
+              {matches.length === 1
+                ? "Tienes un partido pronto"
+                : "Tienes partidos pronto"}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              Empiezan en menos de 24 horas y aún no has puesto tu resultado.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {matches.map((match) => {
+            const home = resolveSlot(match.home, match.number, prediction);
+            const away = resolveSlot(match.away, match.number, prediction);
+            return (
+              <div
+                key={match.number}
+                className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <TeamFlag
+                    teamId={home}
+                    className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
+                  />
+                  <span className="shrink-0 text-xs font-bold text-zinc-400">
+                    vs
+                  </span>
+                  <TeamFlag
+                    teamId={away}
+                    className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
+                  />
+                  <span className="min-w-0 truncate text-sm font-semibold text-white">
+                    {teamsById.get(home)?.name || translateSlot(match.home)} ·{" "}
+                    {teamsById.get(away)?.name || translateSlot(match.away)}
+                  </span>
+                </div>
+                <span className="shrink-0 text-xs font-bold text-zinc-300">
+                  {reminderMatchWhen(match)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-white/12 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+          >
+            Ahora no
+          </button>
+          <Link
+            href="/porra?section=results"
+            onClick={onClose}
+            className="inline-flex items-center justify-center rounded-lg bg-[#a7f600] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#c7ff43]"
+          >
+            Pronosticar
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function reminderMatchWhen(match: Match) {
+  const kickoff = new Date(scheduleUtc(match));
+  const time = new Intl.DateTimeFormat("es-ES", {
+    hour: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+    minute: "2-digit",
+    timeZone: "Europe/Madrid",
+  }).format(kickoff);
+  const dayKey = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+  }).format(kickoff);
+  return dayKey === madridTodayKey() ? `Hoy ${time}` : `Mañana ${time}`;
 }
 
 function getMissingSections(prediction: Prediction, todayKey: string) {
