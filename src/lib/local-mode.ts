@@ -27,6 +27,7 @@ export type LocalUser = {
   points: number;
   isAdmin: boolean;
   isPro?: boolean;
+  isHidden?: boolean;
   avatarUrl: string;
 };
 

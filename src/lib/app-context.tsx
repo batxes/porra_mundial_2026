@@ -86,6 +86,7 @@ type AppContextValue = {
   setXiFormation: (formation: string) => void;
   setXiSelection: (playerIds: string[]) => void;
   setUserPro: (userId: string, isPro: boolean) => Promise<void>;
+  setUserHidden: (userId: string, isHidden: boolean) => Promise<void>;
   saveAdminResult: (matchNumber: string, payload: AdminResults[string]) => Promise<void>;
   addAdminEvent: (matchNumber: string, event: AdminResults[string]["events"][number]) => Promise<void>;
   deleteAdminEvent: (matchNumber: string, eventId: string) => Promise<void>;
@@ -120,6 +121,7 @@ function buildLeaderboard(localUsers: LocalUser[], currentUserId: string | null,
         points: scorecard.total,
         isAdmin: Boolean(user.isAdmin),
         isPro: Boolean(user.isPro),
+        isHidden: Boolean(user.isHidden),
         complete: calculateCompletion(userPrediction),
         champion: userPrediction.extras.worldChampion || userPrediction.bracket.winners["104"] || "",
         prediction: userPrediction,
@@ -223,7 +225,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const tournamentId = tournamentResponse.data?.id;
 
     const [{ data: profiles }, { data: predictions }, { data: matches }, { data: events }, { data: scoreEntries }] = await Promise.all([
-      supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro"),
+      supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_hidden"),
       tournamentId
         ? supabase.from("predictions").select("user_id, selections, completion_percent, is_definitive").eq("tournament_id", tournamentId)
         : Promise.resolve({ data: [] as any[], error: null }),
@@ -315,6 +317,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             points: scorecard.entries.length ? scorecard.total : profile.total_points || 0,
             isAdmin: Boolean(profile.is_admin),
             isPro: Boolean(profile.is_pro),
+            isHidden: Boolean(profile.is_hidden),
             complete: calculateCompletion(profilePrediction),
             champion: profilePrediction.extras.worldChampion || profilePrediction.bracket.winners["104"] || "",
             prediction: profilePrediction,
@@ -397,6 +400,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const supabase = getSupabaseBrowserClient() as any;
       if (!supabase) return;
       await supabase.rpc("admin_set_user_pro", { target_user_id: userId, next_is_pro: isPro });
+      await refreshData();
+    },
+    [refreshData, syncLocalState, user, usingSupabase],
+  );
+
+  const setUserHidden = useCallback(
+    async (userId: string, isHidden: boolean) => {
+      if (!user?.isAdmin) return;
+
+      if (!usingSupabase) {
+        const users = getLocalUsers();
+        const target = users.find((candidate) => candidate.id === userId);
+        if (!target) return;
+        target.isHidden = isHidden;
+        setLocalUsers(users);
+        await syncLocalState(user.id);
+        return;
+      }
+
+      const supabase = getSupabaseBrowserClient() as any;
+      if (!supabase) return;
+      await supabase.rpc("admin_set_user_hidden", { target_user_id: userId, next_is_hidden: isHidden });
       await refreshData();
     },
     [refreshData, syncLocalState, user, usingSupabase],
@@ -723,6 +748,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         replacePrediction(setXiSelection(prediction, playerIds));
       },
       setUserPro,
+      setUserHidden,
       saveAdminResult,
       addAdminEvent,
       deleteAdminEvent,
@@ -749,6 +775,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveAdminResult,
       savePrediction,
       setUserPro,
+      setUserHidden,
       signIn,
       signOut,
       updateProfile,

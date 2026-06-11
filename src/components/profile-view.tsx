@@ -38,8 +38,9 @@ export function ProfileView() {
   if (!user) return <UnauthenticatedProfile />;
 
   const rankingPosition =
-    leaderboard.filter((candidate) => candidate.points > currentScorecard.total)
-      .length + 1;
+    leaderboard.filter(
+      (candidate) => !candidate.isHidden && candidate.points > currentScorecard.total,
+    ).length + 1;
 
   return (
     <div className="space-y-6">

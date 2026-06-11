@@ -15,7 +15,8 @@ import { useAppContext } from "@/lib/app-context";
 import type { UserProfile } from "@/lib/types";
 
 export function LeaderboardView() {
-  const { leaderboard, ready } = useAppContext();
+  const { leaderboard: fullLeaderboard, ready } = useAppContext();
+  const leaderboard = fullLeaderboard.filter((profile) => !profile.isHidden);
 
   return (
     <div className="space-y-8">

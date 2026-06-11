@@ -56,13 +56,14 @@ const resultsReminderKey = "porra26_results_reminder_date";
 export function HomeView() {
   const {
     adminResults,
-    leaderboard,
+    leaderboard: fullLeaderboard,
     prediction,
     ready,
     savePrediction,
     setPredictionScore,
     user,
   } = useAppContext();
+  const leaderboard = fullLeaderboard.filter((profile) => !profile.isHidden);
   const [homeSaveState, setHomeSaveState] =
     useState<HomeSaveState>("idle");
   const [reminderMatches, setReminderMatches] = useState<Match[]>([]);

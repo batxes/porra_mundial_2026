@@ -19,6 +19,7 @@ export function AdminView() {
     playerName,
     ready,
     saveAdminResult,
+    setUserHidden,
     setUserPro,
     teamName,
     user,
@@ -295,42 +296,72 @@ export function AdminView() {
 
       <Card className="space-y-4">
         <div>
-          <h3 className="text-xl font-semibold text-white">Badge PRO</h3>
+          <h3 className="text-xl font-semibold text-white">Usuarios</h3>
           <p className="text-sm text-slate-400">
-            Concede o retira el distintivo PRO a los participantes que hayan pagado. El badge se muestra en la clasificación y en su perfil.
+            Concede el badge PRO a quien haya pagado u oculta cuentas (duplicadas, de prueba...) de la clasificación. Ocultar es reversible y no borra su porra.
           </p>
         </div>
         <div className="space-y-3">
           {leaderboard.length ? (
             leaderboard.map((profile) => (
-              <div key={profile.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm">
+              <div
+                key={profile.id}
+                className={`flex flex-col gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${
+                  profile.isHidden ? "opacity-60" : ""
+                }`}
+              >
                 <span className="min-w-0">
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="min-w-0 truncate text-slate-200">{profile.name}</span>
                     {profile.isPro ? <ProBadge /> : null}
+                    {profile.isHidden ? (
+                      <span className="shrink-0 rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-zinc-400">
+                        Oculto
+                      </span>
+                    ) : null}
                   </span>
                   {emailFor(profile) ? (
                     <span className="block truncate text-xs text-zinc-500">{emailFor(profile)}</span>
                   ) : null}
                 </span>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await setUserPro(profile.id, !profile.isPro);
-                    setAdminMessage(
+                <span className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await setUserPro(profile.id, !profile.isPro);
+                      setAdminMessage(
+                        profile.isPro
+                          ? `Badge PRO retirado a ${profile.name}.`
+                          : `Badge PRO concedido a ${profile.name}.`,
+                      );
+                    }}
+                    className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                       profile.isPro
-                        ? `Badge PRO retirado a ${profile.name}.`
-                        : `Badge PRO concedido a ${profile.name}.`,
-                    );
-                  }}
-                  className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                    profile.isPro
-                      ? "border border-white/15 text-white hover:bg-white/10"
-                      : "bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-500 text-amber-950 hover:brightness-110"
-                  }`}
-                >
-                  {profile.isPro ? "Quitar PRO" : "Hacer PRO"}
-                </button>
+                        ? "border border-white/15 text-white hover:bg-white/10"
+                        : "bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-500 text-amber-950 hover:brightness-110"
+                    }`}
+                  >
+                    {profile.isPro ? "Quitar PRO" : "Hacer PRO"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await setUserHidden(profile.id, !profile.isHidden);
+                      setAdminMessage(
+                        profile.isHidden
+                          ? `${profile.name} vuelve a aparecer en la clasificación.`
+                          : `${profile.name} ocultado de la clasificación.`,
+                      );
+                    }}
+                    className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                      profile.isHidden
+                        ? "bg-white text-black hover:bg-zinc-200"
+                        : "border border-rose-400/40 text-rose-200 hover:bg-rose-400/10"
+                    }`}
+                  >
+                    {profile.isHidden ? "Mostrar" : "Ocultar"}
+                  </button>
+                </span>
               </div>
             ))
           ) : (
