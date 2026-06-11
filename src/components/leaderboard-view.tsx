@@ -6,6 +6,7 @@ import {
   Avatar,
   Card,
   EmptyState,
+  LoadingState,
   ProBadge,
   SectionHeading,
   TeamBadge,
@@ -14,7 +15,7 @@ import { useAppContext } from "@/lib/app-context";
 import type { UserProfile } from "@/lib/types";
 
 export function LeaderboardView() {
-  const { leaderboard } = useAppContext();
+  const { leaderboard, ready } = useAppContext();
 
   return (
     <div className="space-y-8">
@@ -24,7 +25,12 @@ export function LeaderboardView() {
         description="La tabla se ordena por puntos y muestra el campeon elegido por cada participante."
       />
 
-      {!leaderboard.length ? (
+      {!ready ? (
+        <LoadingState
+          title="Cargando clasificacion"
+          description="Estamos calculando los puntos de cada participante."
+        />
+      ) : !leaderboard.length ? (
         <EmptyState
           icon="0"
           title="Aun no hay participantes"

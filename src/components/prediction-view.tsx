@@ -36,6 +36,7 @@ import {
   Card,
   FinishedMatchCard,
   hasFinishedScore,
+  LoadingState,
   matchStageLabel,
   Notice,
   PlayerAvatar,
@@ -406,6 +407,18 @@ export function PredictionView() {
     setAuthMode("register");
     setAuthOpen(true);
   };
+
+  if (!ready) {
+    return (
+      <div className="mx-auto max-w-3xl pb-44 sm:pb-32">
+        <SectionHeading eyebrow="Porra" title="Juega el Mundial" />
+        <LoadingState
+          title="Cargando tu porra"
+          description="Estamos recuperando tus elecciones guardadas."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl pb-44 sm:pb-32">

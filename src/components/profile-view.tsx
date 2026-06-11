@@ -6,6 +6,7 @@ import { AuthModal } from "@/components/auth-modal";
 import {
   Avatar,
   Card,
+  LoadingState,
   Notice,
   PredictionSnapshot,
   ProfileScoreCard,
@@ -28,8 +29,10 @@ function customAvatarFromUrl(avatarUrl?: string) {
 }
 
 export function ProfileView() {
-  const { adminResults, currentScorecard, leaderboard, prediction, playerName, user } = useAppContext();
+  const { adminResults, currentScorecard, leaderboard, prediction, playerName, ready, user } =
+    useAppContext();
 
+  if (!ready) return <ProfileLoading />;
   if (!user) return <UnauthenticatedProfile />;
 
   const rankingPosition =
@@ -68,7 +71,8 @@ export function ProfileView() {
 }
 
 export function ProfileOptionsView() {
-  const { avatarPresets, signOut, updateProfile, user } = useAppContext();
+  const { avatarPresets, ready, signOut, updateProfile, user } =
+    useAppContext();
 
   const persistedAvatarUrl = user?.avatarUrl || "";
   const [profileMessage, setProfileMessage] = useState("");
@@ -92,6 +96,7 @@ export function ProfileOptionsView() {
     [avatarPresets],
   );
 
+  if (!ready) return <ProfileLoading />;
   if (!user) return <UnauthenticatedProfile />;
 
   const onProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -234,6 +239,17 @@ export function ProfileOptionsView() {
           </div>
         </form>
       </Card>
+    </div>
+  );
+}
+
+function ProfileLoading() {
+  return (
+    <div className="space-y-6">
+      <LoadingState
+        title="Cargando tu perfil"
+        description="Estamos recuperando tus puntos y tu porra."
+      />
     </div>
   );
 }
