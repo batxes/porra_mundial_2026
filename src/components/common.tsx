@@ -971,11 +971,29 @@ function LineupEventPill({ icon, value }: { icon: string; value: string }) {
   );
 }
 
-function GroupSummary({ prediction }: { prediction: Prediction }) {
+function groupPointsByGroup(scorecard?: Scorecard) {
+  const map = new Map<string, number>();
+  scorecard?.entries.forEach((entry) => {
+    if (!entry.ruleCode.startsWith("group_")) return;
+    const group = entry.sourceRef.match(/-([A-L])-/)?.[1];
+    if (!group) return;
+    map.set(group, (map.get(group) || 0) + entry.points);
+  });
+  return map;
+}
+
+function GroupSummary({
+  prediction,
+  scorecard,
+}: {
+  prediction: Prediction;
+  scorecard?: Scorecard;
+}) {
   const thirdRows = prediction.bracket.thirdQualifiers.map((group) => ({
     group,
     teamId: orderedGroupTeams(group, prediction)[2]?.id || "",
   }));
+  const groupPoints = groupPointsByGroup(scorecard);
 
   return (
     <div className="space-y-3">
@@ -985,6 +1003,7 @@ function GroupSummary({ prediction }: { prediction: Prediction }) {
           const completedCount = Object.values(prediction.groups[group]).filter(
             Boolean,
           ).length;
+          const points = groupPoints.get(group);
           const rows = ordered.map((team, index) => [
             team.id,
             String(index + 1),
@@ -997,13 +1016,19 @@ function GroupSummary({ prediction }: { prediction: Prediction }) {
             >
               <div className="flex items-center justify-between gap-3">
                 <h4 className="text-sm font-bold text-white">Grupo {group}</h4>
-                <span
-                  className={`text-xs font-semibold ${
-                    completedCount === 4 ? "text-[#a7f600]" : "text-zinc-500"
-                  }`}
-                >
-                  {completedCount}/4
-                </span>
+                {points != null ? (
+                  <span className="shrink-0 rounded-full border border-[#a7f600]/40 bg-[#a7f600]/12 px-2 py-0.5 text-[11px] font-black text-[#a7f600]">
+                    {formatPoints(points)} pts
+                  </span>
+                ) : (
+                  <span
+                    className={`text-xs font-semibold ${
+                      completedCount === 4 ? "text-[#a7f600]" : "text-zinc-500"
+                    }`}
+                  >
+                    {completedCount}/4
+                  </span>
+                )}
               </div>
               <div className="space-y-2">
                 {rows.length ? (
@@ -2364,7 +2389,7 @@ export function PredictionSnapshot({
           masked={maskedUntilTournament}
           message="Los grupos se revelarán cuando empiece el torneo."
         >
-          <GroupSummary prediction={safePrediction} />
+          <GroupSummary prediction={safePrediction} scorecard={scorecard} />
         </MaskableSection>
       ) : null}
       {showBracket && activeSection === "knockout" ? (
