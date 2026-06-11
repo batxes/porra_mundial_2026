@@ -8,7 +8,7 @@ import {
   Card,
   Notice,
   PredictionSnapshot,
-  ProBadge,
+  ProfileScoreCard,
   SectionHeading,
 } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
@@ -28,9 +28,13 @@ function customAvatarFromUrl(avatarUrl?: string) {
 }
 
 export function ProfileView() {
-  const { adminResults, currentScorecard, prediction, playerName, user } = useAppContext();
+  const { adminResults, currentScorecard, leaderboard, prediction, playerName, user } = useAppContext();
 
   if (!user) return <UnauthenticatedProfile />;
+
+  const rankingPosition =
+    leaderboard.filter((candidate) => candidate.points > currentScorecard.total)
+      .length + 1;
 
   return (
     <div className="space-y-6">
@@ -40,30 +44,14 @@ export function ProfileView() {
         description="Consulta tus puntos y tu porra completa."
       />
 
-      <Card className="space-y-0 p-0">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-4 p-4 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:gap-5 sm:p-5">
-          <Avatar
-            name={user.name}
-            avatarUrl={user.avatarUrl}
-            className="h-16 w-16 rounded-xl sm:h-20 sm:w-20"
-          />
-          <div className="min-w-0">
-            <h2 className="flex min-w-0 items-center gap-2 text-xl font-semibold text-white sm:text-2xl">
-              <span className="truncate">{user.name}</span>
-              {user.isPro ? <ProBadge size="md" /> : null}
-            </h2>
-            <p className="truncate text-sm text-slate-400">{user.email}</p>
-          </div>
-          <div className="col-span-2 rounded-lg border border-[#a7f600]/30 bg-[#a7f600]/10 px-4 py-3 sm:col-auto sm:min-w-40 sm:px-5 sm:py-4 sm:text-right">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#a7f600]">
-              Puntos
-            </p>
-            <p className="text-3xl font-black leading-none text-white sm:text-4xl">
-              {currentScorecard.total}
-            </p>
-          </div>
-        </div>
-      </Card>
+      <ProfileScoreCard
+        name={user.name}
+        avatarUrl={user.avatarUrl}
+        isPro={user.isPro}
+        subtitle={user.email}
+        scorecard={currentScorecard}
+        rank={rankingPosition}
+      />
 
       <PredictionSnapshot
         bracketLayout="mobile"
@@ -72,6 +60,7 @@ export function ProfileView() {
         matches={schedule}
         playerName={playerName}
         results={adminResults}
+        scorecard={currentScorecard}
         showBracket={false}
       />
     </div>

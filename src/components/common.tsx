@@ -456,6 +456,123 @@ export function Notice({
   );
 }
 
+const scoreSections = [
+  { label: "Tus elecciones", category: "Tus elecciones" },
+  { label: "Tu once", category: "Tu once" },
+  { label: "Fase de grupos", category: "Grupos y cuadro" },
+  { label: "Resultados", category: "Marcadores" },
+] as const;
+
+const electionRuleByField: Record<string, string> = {
+  worldChampion: "tournament_champion_hit",
+  highestScoringTeam: "tournament_highest_scoring_team_hit",
+  mostConcededTeam: "tournament_most_conceded_team_hit",
+  mostRedsTeam: "tournament_most_reds_team_hit",
+  topScorer: "tournament_top_scorer_hit",
+  mvp: "tournament_mvp_hit",
+};
+
+function formatPoints(value: number) {
+  return value > 0 ? `+${value}` : String(value);
+}
+
+export function ProfileScoreCard({
+  name,
+  avatarUrl,
+  isPro = false,
+  eyebrow,
+  subtitle,
+  scorecard,
+  rank,
+}: {
+  name: string;
+  avatarUrl?: string;
+  isPro?: boolean;
+  eyebrow?: string;
+  subtitle?: string;
+  scorecard: Scorecard;
+  rank?: number;
+}) {
+  const categoryTotal = (category: string) =>
+    scorecard.categories.find((entry) => entry.label === category)?.total ?? 0;
+
+  return (
+    <Card className="space-y-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar
+            name={name}
+            avatarUrl={avatarUrl}
+            className="h-12 w-12 rounded-xl sm:h-14 sm:w-14"
+          />
+          <div className="min-w-0">
+            {eyebrow ? (
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#a7f600]">
+                {eyebrow}
+              </p>
+            ) : null}
+            <h2 className="flex min-w-0 items-center gap-2 text-lg font-semibold text-white sm:text-xl">
+              <span className="truncate">{name}</span>
+              {isPro ? <ProBadge size="md" /> : null}
+            </h2>
+            {subtitle ? (
+              <p className="truncate text-sm text-slate-400">{subtitle}</p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-stretch gap-2">
+          <div className="flex-1 rounded-lg border border-[#a7f600]/30 bg-[#a7f600]/10 px-4 py-2 sm:flex-none sm:text-right">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a7f600]">
+              Puntos
+            </p>
+            <p className="text-2xl font-black leading-none text-white sm:text-3xl">
+              {scorecard.total}
+            </p>
+          </div>
+          {rank ? (
+            <div className="rounded-lg border border-white/10 bg-white/[0.06] px-4 py-2 sm:text-right">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+                Puesto
+              </p>
+              <p className="text-2xl font-black leading-none text-white sm:text-3xl">
+                {rank}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {scoreSections.map((section) => {
+          const total = categoryTotal(section.category);
+          return (
+            <div
+              key={section.label}
+              className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2"
+            >
+              <span className="truncate text-[11px] font-semibold text-zinc-400">
+                {section.label}
+              </span>
+              <span
+                className={`shrink-0 text-sm font-black ${
+                  total < 0
+                    ? "text-rose-300"
+                    : total > 0
+                      ? "text-[#a7f600]"
+                      : "text-zinc-500"
+                }`}
+              >
+                {formatPoints(total)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 export function ScoreBreakdown({
   scorecard,
   title,
@@ -2100,6 +2217,7 @@ export function PredictionSnapshot({
   showBracket = true,
   maskUnstarted = false,
   results,
+  scorecard,
 }: {
   bracketLayout?: "responsive" | "mobile";
   editHref?: string;
@@ -2110,6 +2228,7 @@ export function PredictionSnapshot({
   showBracket?: boolean;
   maskUnstarted?: boolean;
   results?: AdminResults;
+  scorecard?: Scorecard;
 }) {
   const maskedUntilTournament = maskUnstarted && !hasTournamentStarted();
   const safePrediction = prediction || emptyPrediction();
@@ -2132,6 +2251,10 @@ export function PredictionSnapshot({
       </span>
     );
   };
+  const electionPoints = (field: string) =>
+    scorecard?.entries.find(
+      (entry) => entry.ruleCode === electionRuleByField[field],
+    )?.points;
 
   return (
     <Card className="space-y-5">
@@ -2203,26 +2326,32 @@ export function PredictionSnapshot({
               <SummaryStat
                 title="Campeon"
                 value={teamValue(safePrediction.extras.worldChampion)}
+                points={electionPoints("worldChampion")}
               />
               <SummaryStat
                 title="Equipo mas goleador"
                 value={teamValue(safePrediction.extras.highestScoringTeam)}
+                points={electionPoints("highestScoringTeam")}
               />
               <SummaryStat
                 title="Equipo mas goleado"
                 value={teamValue(safePrediction.extras.mostConcededTeam)}
+                points={electionPoints("mostConcededTeam")}
               />
               <SummaryStat
                 title="Equipo con mas rojas"
                 value={teamValue(safePrediction.extras.mostRedsTeam)}
+                points={electionPoints("mostRedsTeam")}
               />
               <SummaryStat
                 title="Maximo goleador"
                 value={playerValue(safePrediction.extras.topScorer)}
+                points={electionPoints("topScorer")}
               />
               <SummaryStat
                 title="MVP"
                 value={playerValue(safePrediction.extras.mvp)}
+                points={electionPoints("mvp")}
               />
             </div>
             <LineupSnapshot prediction={safePrediction} results={results} />
@@ -2260,15 +2389,30 @@ export function PredictionSnapshot({
 function SummaryStat({
   title,
   value,
+  points,
 }: {
   title: string;
   value: React.ReactNode;
+  points?: number;
 }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-      <p className="text-xs uppercase leading-4 tracking-[0.16em] text-slate-400">
-        {title}
-      </p>
+    <div
+      className={`rounded-lg border bg-white/5 p-4 ${
+        points != null
+          ? "border-[#a7f600]/30 bg-[#a7f600]/[0.06]"
+          : "border-white/10"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs uppercase leading-4 tracking-[0.16em] text-slate-400">
+          {title}
+        </p>
+        {points != null ? (
+          <span className="shrink-0 rounded-full border border-[#a7f600]/40 bg-[#a7f600]/12 px-2 py-0.5 text-[11px] font-bold text-[#a7f600]">
+            {formatPoints(points)}
+          </span>
+        ) : null}
+      </div>
       <div className="mt-2 text-base font-semibold text-white">{value}</div>
     </div>
   );
