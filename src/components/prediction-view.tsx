@@ -131,7 +131,7 @@ const xiScoringRules = [
   ["⚽", "Gol centrocampista", "+6"],
   ["⚽", "Gol defensa", "+11"],
   ["⚽", "Gol portero", "+35"],
-  ["⚽", "Penalti marcado", "+1"],
+  ["🥅", "Penalti marcado", "+1"],
   ["⭐", "MVP del partido", "+3"],
   ["🧤", "Penalti parado", "+2"],
   ["❌", "Penalti fallado", "-1"],
@@ -2050,7 +2050,7 @@ function LineupBuilder({
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-[620px] overflow-hidden rounded-2xl border border-emerald-300/15 bg-emerald-600 shadow-2xl shadow-emerald-950/30 sm:rounded-3xl">
+      <div className="overflow-hidden rounded-2xl border border-emerald-300/15 bg-emerald-700 shadow-2xl shadow-emerald-950/30 sm:rounded-3xl">
         <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-950/20 px-4 py-3">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-50/75">
             Alineacion
@@ -2081,7 +2081,7 @@ function LineupBuilder({
         </div>
 
         <div
-          className={`relative mx-2 my-4 aspect-[7/8] overflow-hidden rounded-2xl border border-emerald-200/20 bg-emerald-600 sm:mx-3 sm:my-6 sm:rounded-3xl ${isFormationAnimating ? "lineup-field-animating" : ""}`}
+          className={`relative mx-auto my-4 aspect-[7/8] w-full max-w-[560px] overflow-hidden rounded-2xl border border-emerald-200/20 bg-emerald-600 sm:my-6 sm:rounded-3xl ${isFormationAnimating ? "lineup-field-animating" : ""}`}
         >
           <PitchLines />
           <div className="relative z-10 flex h-full flex-col justify-between px-2 py-4 sm:px-5 sm:py-5">

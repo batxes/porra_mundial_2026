@@ -739,6 +739,7 @@ const lineupGoalPointsByPosition: Record<Position, number> = {
 
 type LineupPlayerStats = {
   goals: number;
+  penaltyGoals: number;
   saves: number;
   mvps: number;
   reds: number;
@@ -755,6 +756,7 @@ function lineupEventStats(playerIds: string[], results?: AdminResults) {
       if (!selected.has(event.playerId)) return;
       const entry = stats.get(event.playerId) || {
         goals: 0,
+        penaltyGoals: 0,
         saves: 0,
         mvps: 0,
         reds: 0,
@@ -770,7 +772,7 @@ function lineupEventStats(playerIds: string[], results?: AdminResults) {
           break;
         case "penalti marcado":
         case "penalty_goal":
-          entry.goals += 1;
+          entry.penaltyGoals += 1;
           totalPoints += 1;
           break;
         case "penalti parado":
@@ -805,6 +807,7 @@ function lineupEventStats(playerIds: string[], results?: AdminResults) {
 
 const lineupLegendItems = [
   { icon: "⚽", label: "Gol" },
+  { icon: "🥅", label: "Penalti marcado" },
   { icon: "🧤", label: "Penalti parado" },
   { icon: "⭐", label: "MVP" },
   { icon: "❌", label: "Penalti fallado" },
@@ -908,6 +911,7 @@ function LineupSnapshotSlot({
   const hasStats = Boolean(
     stats &&
       (stats.goals ||
+        stats.penaltyGoals ||
         stats.saves ||
         stats.mvps ||
         stats.reds ||
@@ -943,6 +947,9 @@ function LineupSnapshotSlot({
         <span className="flex flex-wrap items-center justify-center gap-0.5">
           {stats.goals ? (
             <LineupEventPill icon="⚽" value={String(stats.goals)} />
+          ) : null}
+          {stats.penaltyGoals ? (
+            <LineupEventPill icon="🥅" value={String(stats.penaltyGoals)} />
           ) : null}
           {stats.saves ? (
             <LineupEventPill icon="🧤" value={String(stats.saves)} />
