@@ -3,7 +3,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-import { Card, EmptyState, LoadingState, Notice, ProBadge, SectionHeading, TeamBadge, TeamPicker } from "@/components/common";
+import { Card, CardSkeleton, EmptyState, Notice, ProBadge, SectionHeading, TeamBadge, TeamPicker } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { data, schedule, teamsById } from "@/lib/data";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
@@ -55,10 +55,10 @@ export function AdminView() {
 
   if (!ready) {
     return (
-      <LoadingState
-        title="Cargando panel"
-        description="Estamos comprobando tus permisos de administrador."
-      />
+      <div className="grid gap-6 xl:grid-cols-2">
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
     );
   }
 

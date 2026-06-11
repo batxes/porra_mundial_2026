@@ -36,12 +36,12 @@ import {
   Card,
   FinishedMatchCard,
   hasFinishedScore,
-  LoadingState,
   matchStageLabel,
   Notice,
   PlayerAvatar,
   ResultsOpenBanner,
   SectionHeading,
+  Skeleton,
   TeamBadge,
   TeamFlag,
   TeamPicker,
@@ -412,10 +412,15 @@ export function PredictionView() {
     return (
       <div className="mx-auto max-w-3xl pb-44 sm:pb-32">
         <SectionHeading eyebrow="Porra" title="Juega el Mundial" />
-        <LoadingState
-          title="Cargando tu porra"
-          description="Estamos recuperando tus elecciones guardadas."
-        />
+        <div role="status" aria-label="Cargando porra" className="space-y-4">
+          <Skeleton className="h-14 rounded-xl" />
+          <Card className="space-y-4">
+            <Skeleton className="h-6 w-44" />
+            {Array.from({ length: 3 }, (_, index) => (
+              <Skeleton key={index} className="h-24 rounded-lg" />
+            ))}
+          </Card>
+        </div>
       </div>
     );
   }

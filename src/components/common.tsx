@@ -2443,48 +2443,104 @@ function SummaryStat({
   );
 }
 
-export function Spinner({ className = "" }: { className?: string }) {
+export function Skeleton({ className = "" }: { className?: string }) {
   return (
     <span
-      role="status"
-      aria-label="Cargando"
-      className={`inline-block animate-spin rounded-full border-2 border-white/15 border-t-[#a7f600] ${
-        className || "h-6 w-6"
-      }`}
+      aria-hidden="true"
+      className={`block animate-pulse rounded-md bg-white/[0.08] ${className}`}
     />
   );
 }
 
-// Avoids spinner flashes on fast loads: only flips true once the loading
-// state has lasted longer than `delayMs`. If loading finishes first, the
-// component unmounts before the timer fires and the spinner never shows.
-export function useDelayedFlag(delayMs = 300) {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setVisible(true), delayMs);
-    return () => window.clearTimeout(timer);
-  }, [delayMs]);
-
-  return visible;
+export function LeaderboardRowsSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div
+      role="status"
+      aria-label="Cargando clasificacion"
+      className="divide-y divide-white/10"
+    >
+      {Array.from({ length: rows }, (_, index) => (
+        <div
+          key={index}
+          className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3"
+        >
+          <Skeleton className="h-8 w-8 rounded-full" />
+          <span className="flex min-w-0 items-center gap-3">
+            <Skeleton className="size-10 shrink-0 rounded-full" />
+            <span className="min-w-0 flex-1 space-y-1.5">
+              <Skeleton className="h-3.5 w-28 max-w-full" />
+              <Skeleton className="h-3 w-20 max-w-full" />
+            </span>
+          </span>
+          <span className="space-y-1.5">
+            <Skeleton className="ml-auto h-4 w-10" />
+            <Skeleton className="ml-auto h-3 w-6" />
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
-export function LoadingState({
-  title = "Cargando",
-  description = "Estamos preparando los datos.",
-}: {
-  title?: string;
-  description?: string;
-}) {
-  const visible = useDelayedFlag();
-  if (!visible) return null;
-
+export function ProfileScoreCardSkeleton() {
   return (
-    <Card className="flex flex-col items-center justify-center gap-4 py-14 text-center">
-      <Spinner className="h-10 w-10" />
-      <div className="space-y-2">
-        <h3 className="text-xl font-semibold text-white">{title}</h3>
-        <p className="max-w-xl text-sm text-slate-400">{description}</p>
+    <Card className="space-y-3">
+      <div
+        role="status"
+        aria-label="Cargando perfil"
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <Skeleton className="h-12 w-12 shrink-0 rounded-xl sm:h-14 sm:w-14" />
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-3.5 w-44" />
+          </div>
+        </div>
+        <div className="flex shrink-0 items-stretch gap-2">
+          <Skeleton className="h-14 w-24 rounded-lg" />
+          <Skeleton className="h-14 w-20 rounded-lg" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <Skeleton key={index} className="h-9 rounded-lg" />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+export function PredictionSnapshotSkeleton() {
+  return (
+    <Card className="space-y-5">
+      <div
+        role="status"
+        aria-label="Cargando porra"
+        className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"
+      >
+        {Array.from({ length: 3 }, (_, index) => (
+          <Skeleton key={index} className="h-9 w-full rounded-lg sm:w-28" />
+        ))}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 6 }, (_, index) => (
+          <Skeleton key={index} className="h-20 rounded-lg" />
+        ))}
+      </div>
+      <Skeleton className="h-64 rounded-lg" />
+    </Card>
+  );
+}
+
+export function CardSkeleton({ className = "" }: { className?: string }) {
+  return (
+    <Card className={`space-y-3 ${className}`}>
+      <div role="status" aria-label="Cargando" className="space-y-3">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-24 rounded-lg" />
       </div>
     </Card>
   );

@@ -9,13 +9,12 @@ import {
   Card,
   FinishedMatchCard,
   hasFinishedScore,
+  LeaderboardRowsSkeleton,
   matchStageLabel,
   PrimaryLink,
   ProBadge,
-  Spinner,
   TeamBadge,
   TeamFlag,
-  useDelayedFlag,
 } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { extraPredictionFields, schedule, teamsById } from "@/lib/data";
@@ -251,7 +250,7 @@ export function HomeView() {
 
         <Card className="overflow-hidden p-0">
           {!ready ? (
-            <HomeLeaderboardLoading />
+            <LeaderboardRowsSkeleton rows={5} />
           ) : leaderboard.length ? (
             <div className="divide-y divide-white/10">
               {leaderboard.slice(0, 5).map((profile, index) => (
@@ -527,18 +526,6 @@ function formatMissingSections(sections: string[]) {
         }`;
 
   return `Te falta completar: ${label}.`;
-}
-
-function HomeLeaderboardLoading() {
-  const visible = useDelayedFlag();
-  if (!visible) return null;
-
-  return (
-    <div className="flex items-center justify-center gap-3 px-4 py-8 text-sm text-zinc-400">
-      <Spinner className="h-5 w-5" />
-      <span>Cargando clasificacion...</span>
-    </div>
-  );
 }
 
 function LeaderboardRow({

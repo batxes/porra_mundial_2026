@@ -6,7 +6,7 @@ import {
   Avatar,
   Card,
   EmptyState,
-  LoadingState,
+  LeaderboardRowsSkeleton,
   ProBadge,
   SectionHeading,
   TeamBadge,
@@ -26,10 +26,14 @@ export function LeaderboardView() {
       />
 
       {!ready ? (
-        <LoadingState
-          title="Cargando clasificacion"
-          description="Estamos calculando los puntos de cada participante."
-        />
+        <Card className="overflow-hidden p-0">
+          <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-white/10 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+            <span>#</span>
+            <span>Jugador</span>
+            <span className="text-right">Puntos</span>
+          </div>
+          <LeaderboardRowsSkeleton rows={8} />
+        </Card>
       ) : !leaderboard.length ? (
         <EmptyState
           icon="0"

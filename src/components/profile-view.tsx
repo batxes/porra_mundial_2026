@@ -6,10 +6,12 @@ import { AuthModal } from "@/components/auth-modal";
 import {
   Avatar,
   Card,
-  LoadingState,
+  CardSkeleton,
   Notice,
   PredictionSnapshot,
+  PredictionSnapshotSkeleton,
   ProfileScoreCard,
+  ProfileScoreCardSkeleton,
   SectionHeading,
 } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
@@ -96,7 +98,7 @@ export function ProfileOptionsView() {
     [avatarPresets],
   );
 
-  if (!ready) return <ProfileLoading />;
+  if (!ready) return <ProfileLoading showSnapshot={false} />;
   if (!user) return <UnauthenticatedProfile />;
 
   const onProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -243,13 +245,11 @@ export function ProfileOptionsView() {
   );
 }
 
-function ProfileLoading() {
+function ProfileLoading({ showSnapshot = true }: { showSnapshot?: boolean }) {
   return (
     <div className="space-y-6">
-      <LoadingState
-        title="Cargando tu perfil"
-        description="Estamos recuperando tus puntos y tu porra."
-      />
+      <ProfileScoreCardSkeleton />
+      {showSnapshot ? <PredictionSnapshotSkeleton /> : <CardSkeleton />}
     </div>
   );
 }
