@@ -21,6 +21,8 @@ import {
   scheduleUtc,
 } from "@/lib/prediction";
 import type {
+  AdminResult,
+  AdminResults,
   Match,
   Player,
   Position,
@@ -1493,10 +1495,12 @@ function formatBracketDate(match: Match) {
 function ResultsSummary({
   prediction,
   matches,
+  results,
   maskUnstarted = false,
 }: {
   prediction: Prediction;
   matches: Match[];
+  results?: AdminResults;
   maskUnstarted?: boolean;
 }) {
   const completedMatches = matches.filter((match) => {
@@ -1555,6 +1559,22 @@ function ResultsSummary({
                 const home = resolveSlot(match.home, match.number, prediction);
                 const away = resolveSlot(match.away, match.number, prediction);
                 const hidden = isHidden(match);
+                const matchResult = results?.[String(match.number)];
+
+                if (hasFinishedScore(matchResult)) {
+                  return (
+                    <FinishedMatchCard
+                      key={match.number}
+                      match={match}
+                      result={matchResult as AdminResult}
+                      pickHome={String(score.homeScore)}
+                      pickAway={String(score.awayScore)}
+                      hasPick
+                      homeTeamId={home || undefined}
+                      awayTeamId={away || undefined}
+                    />
+                  );
+                }
 
                 return (
                   <article
@@ -1650,6 +1670,195 @@ function snapshotFormatResultTime(match: Match) {
   }).format(new Date(scheduleUtc(match)));
 }
 
+export function hasFinishedScore(result?: AdminResult) {
+  return (
+    result != null &&
+    result.homeScore !== "" &&
+    result.homeScore != null &&
+    result.awayScore !== "" &&
+    result.awayScore != null
+  );
+}
+
+function FinishedPointsChip({
+  hasPick,
+  exact,
+  outcomeHit,
+  points,
+}: {
+  hasPick: boolean;
+  exact: boolean;
+  outcomeHit: boolean;
+  points: number;
+}) {
+  if (!hasPick) {
+    return (
+      <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-bold text-zinc-500">
+        Sin pronostico
+      </span>
+    );
+  }
+
+  const tone =
+    exact || outcomeHit
+      ? "border-[#a7f600]/40 bg-[#a7f600]/12 text-[#a7f600]"
+      : "border-rose-400/30 bg-rose-400/10 text-rose-200";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${tone}`}
+    >
+      {exact ? <span aria-hidden="true">⚽</span> : null}
+      {points > 0 ? `+${points} ${points === 1 ? "punto" : "puntos"}` : "0 puntos"}
+    </span>
+  );
+}
+
+export function FinishedMatchCard({
+  match,
+  result,
+  pickHome = "",
+  pickAway = "",
+  hasPick = false,
+  showPick = true,
+  homeTeamId,
+  awayTeamId,
+}: {
+  match: Match;
+  result: AdminResult;
+  pickHome?: string;
+  pickAway?: string;
+  hasPick?: boolean;
+  showPick?: boolean;
+  homeTeamId?: string;
+  awayTeamId?: string;
+}) {
+  const realHome = Number(result.homeScore);
+  const realAway = Number(result.awayScore);
+  const exact =
+    showPick &&
+    hasPick &&
+    Number(pickHome) === realHome &&
+    Number(pickAway) === realAway;
+  const outcomeHit =
+    showPick &&
+    hasPick &&
+    Math.sign(Number(pickHome) - Number(pickAway)) ===
+      Math.sign(realHome - realAway);
+  const missed = showPick && hasPick && !outcomeHit && !exact;
+  const points = exact ? 1 + realHome + realAway : outcomeHit ? 1 : 0;
+  const cardGlow =
+    outcomeHit || exact
+      ? "radial-gradient(340px at 50% 0%, rgba(167, 246, 0, 0.1) 0%, rgba(47, 47, 47, 0) 70%), "
+      : missed
+        ? "radial-gradient(340px at 50% 0%, rgba(251, 113, 133, 0.12) 0%, rgba(47, 47, 47, 0) 70%), "
+        : "";
+  const cardRing =
+    outcomeHit || exact
+      ? "shadow-[inset_0_0_0_1px_rgba(167,246,0,0.28)]"
+      : missed
+        ? "shadow-[inset_0_0_0_1px_rgba(251,113,133,0.25)]"
+        : "";
+
+  return (
+    <article
+      className={`overflow-hidden rounded-[22px] text-white ${cardRing}`}
+      style={{
+        background: `${cardGlow}radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), rgb(47, 47, 47)`,
+      }}
+    >
+      <div className="flex items-center justify-between gap-3 px-3 pb-0 pt-3 sm:px-4 sm:pt-4">
+        <span>{matchStageLabel(match)}</span>
+        {showPick ? (
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/25 px-2.5 py-1">
+            <span className="text-[10px] font-black uppercase leading-none tracking-[0.14em] text-zinc-400">
+              Final
+            </span>
+            <span className="text-sm font-black leading-none text-white">
+              {realHome} - {realAway}
+            </span>
+          </span>
+        ) : null}
+      </div>
+
+      <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start py-2 pb-3">
+        <SnapshotResultTeam
+          teamId={homeTeamId}
+          fallback={translateSlot(match.home)}
+        />
+        <div className="flex h-full flex-col items-center justify-start gap-1.5 pt-3">
+          {showPick ? (
+            <>
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+                Tu pronostico
+              </span>
+              {hasPick ? (
+                <span
+                  className={`rounded-lg px-4 py-1.5 text-2xl font-black leading-none sm:text-3xl ${
+                    exact
+                      ? "border border-[#a7f600]/40 bg-[#a7f600]/15 text-[#a7f600]"
+                      : "bg-black/30 text-white"
+                  }`}
+                >
+                  {pickHome} - {pickAway}
+                </span>
+              ) : (
+                <span className="rounded-lg bg-black/30 px-4 py-1.5 text-2xl font-black leading-none text-zinc-600 sm:text-3xl">
+                  ? - ?
+                </span>
+              )}
+              <FinishedPointsChip
+                hasPick={hasPick}
+                exact={exact}
+                outcomeHit={outcomeHit}
+                points={points}
+              />
+            </>
+          ) : (
+            <>
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+                Resultado final
+              </span>
+              <span className="rounded-lg bg-black/30 px-4 py-1.5 text-2xl font-black leading-none text-white sm:text-3xl">
+                {realHome} - {realAway}
+              </span>
+            </>
+          )}
+        </div>
+        <SnapshotResultTeam
+          teamId={awayTeamId}
+          fallback={translateSlot(match.away)}
+        />
+      </div>
+
+      <div className="border-t border-white/10 px-3 py-2 sm:px-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="min-w-0 truncate text-xs text-zinc-400">{match.venue}</p>
+          {showPick ? (
+            <span
+              className={`text-xs font-bold ${
+                exact
+                  ? "text-[#a7f600]"
+                  : outcomeHit
+                    ? "text-[#a7f600]/85"
+                    : "text-zinc-500"
+              }`}
+            >
+              {hasPick
+                ? exact
+                  ? "¡Marcador exacto!"
+                  : outcomeHit
+                    ? "Acertaste la eleccion"
+                    : "Esta vez no sumaste"
+                : "No rellenaste este resultado"}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function SnapshotResultTeam({
   teamId,
   fallback,
@@ -1728,6 +1937,7 @@ export function PredictionSnapshot({
   profile,
   showBracket = true,
   maskUnstarted = false,
+  results,
 }: {
   bracketLayout?: "responsive" | "mobile";
   editHref?: string;
@@ -1737,6 +1947,7 @@ export function PredictionSnapshot({
   profile?: UserProfile;
   showBracket?: boolean;
   maskUnstarted?: boolean;
+  results?: AdminResults;
 }) {
   const maskedUntilTournament = maskUnstarted && !hasTournamentStarted();
   const safePrediction = prediction || emptyPrediction();
@@ -1876,6 +2087,7 @@ export function PredictionSnapshot({
         <ResultsSummary
           prediction={safePrediction}
           matches={matches}
+          results={results}
           maskUnstarted={maskUnstarted}
         />
       ) : null}

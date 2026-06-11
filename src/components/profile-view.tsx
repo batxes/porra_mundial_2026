@@ -28,7 +28,7 @@ function customAvatarFromUrl(avatarUrl?: string) {
 }
 
 export function ProfileView() {
-  const { currentScorecard, prediction, playerName, user } = useAppContext();
+  const { adminResults, currentScorecard, prediction, playerName, user } = useAppContext();
 
   if (!user) return <UnauthenticatedProfile />;
 
@@ -71,6 +71,7 @@ export function ProfileView() {
         prediction={prediction}
         matches={schedule}
         playerName={playerName}
+        results={adminResults}
         showBracket={false}
       />
     </div>

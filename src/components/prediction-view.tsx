@@ -34,6 +34,8 @@ import { CSS } from "@dnd-kit/utilities";
 
 import {
   Card,
+  FinishedMatchCard,
+  hasFinishedScore,
   matchStageLabel,
   Notice,
   PlayerAvatar,
@@ -66,7 +68,7 @@ import {
   xiCounts,
   xiRequirements,
 } from "@/lib/prediction";
-import type { Match, Player, Position, Prediction, Team } from "@/lib/types";
+import type { AdminResult, AdminResults, Match, Player, Position, Prediction, Team } from "@/lib/types";
 
 type LineupRow = {
   count: number;
@@ -173,6 +175,7 @@ const resultsIntroStorageKey = "porra26_results_intro_seen";
 
 export function PredictionView() {
   const {
+    adminResults,
     prediction,
     ready,
     replaceGroupOrder,
@@ -460,6 +463,7 @@ export function PredictionView() {
             <ResultsSchedule
               matches={visibleMatches}
               prediction={prediction}
+              results={adminResults}
               onScoreChange={setPredictionScore}
             />
           ) : null}
@@ -2370,10 +2374,12 @@ function PlayerPickerModal({
 function ResultsSchedule({
   matches,
   prediction,
+  results,
   onScoreChange,
 }: {
   matches: Match[];
   prediction: Prediction;
+  results: AdminResults;
   onScoreChange: (
     matchNumber: number,
     side: "homeScore" | "awayScore",
@@ -2437,6 +2443,7 @@ function ResultsSchedule({
                     key={match.number}
                     match={match}
                     prediction={prediction}
+                    result={results[String(match.number)]}
                     onScoreChange={onScoreChange}
                   />
                 ))}
@@ -2458,10 +2465,12 @@ function ResultsSchedule({
 function ResultMatchCard({
   match,
   prediction,
+  result,
   onScoreChange,
 }: {
   match: Match;
   prediction: Prediction;
+  result?: AdminResult;
   onScoreChange: (
     matchNumber: number,
     side: "homeScore" | "awayScore",
@@ -2476,6 +2485,20 @@ function ResultMatchCard({
   const home = resolveSlot(match.home, match.number, prediction);
   const away = resolveSlot(match.away, match.number, prediction);
   const complete = isMatchPredictionComplete(match, prediction);
+
+  if (hasFinishedScore(result)) {
+    return (
+      <FinishedMatchCard
+        match={match}
+        result={result as AdminResult}
+        pickHome={current.homeScore}
+        pickAway={current.awayScore}
+        hasPick={complete}
+        homeTeamId={home || undefined}
+        awayTeamId={away || undefined}
+      />
+    );
+  }
 
   return (
     <article

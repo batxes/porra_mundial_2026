@@ -4,7 +4,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
-import { Avatar, Card, matchStageLabel, PrimaryLink, ProBadge, TeamBadge, TeamFlag } from "@/components/common";
+import {
+  Avatar,
+  Card,
+  FinishedMatchCard,
+  hasFinishedScore,
+  matchStageLabel,
+  PrimaryLink,
+  ProBadge,
+  TeamBadge,
+  TeamFlag,
+} from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { extraPredictionFields, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
@@ -471,6 +481,21 @@ function UpcomingMatchCard({
   const locked = hasMatchStarted(match);
   const predictionComplete = isMatchPredictionComplete(match, prediction);
   const hasLiveScore = hasAdminScore(result);
+
+  if (result && isFinishedResult(result) && hasFinishedScore(result)) {
+    return (
+      <FinishedMatchCard
+        match={match}
+        result={result}
+        pickHome={matchPrediction.homeScore}
+        pickAway={matchPrediction.awayScore}
+        hasPick={predictionComplete}
+        showPick={hasUser}
+        homeTeamId={result.homeTeamId || (teamsById.has(match.home) ? match.home : undefined)}
+        awayTeamId={result.awayTeamId || (teamsById.has(match.away) ? match.away : undefined)}
+      />
+    );
+  }
 
   return (
     <article
