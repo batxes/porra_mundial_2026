@@ -3,7 +3,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-import { Card, EmptyState, Notice, ProBadge, SectionHeading, TeamBadge, TeamPicker } from "@/components/common";
+import { Card, EmptyState, LoadingState, Notice, ProBadge, SectionHeading, TeamBadge, TeamPicker } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { data, schedule, teamsById } from "@/lib/data";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
@@ -17,6 +17,7 @@ export function AdminView() {
     deleteAdminEvent,
     leaderboard,
     playerName,
+    ready,
     saveAdminResult,
     setUserPro,
     teamName,
@@ -51,6 +52,15 @@ export function AdminView() {
 
   const emailFor = (profile: UserProfile) =>
     profile.email || emailsById[profile.id] || "";
+
+  if (!ready) {
+    return (
+      <LoadingState
+        title="Cargando panel"
+        description="Estamos comprobando tus permisos de administrador."
+      />
+    );
+  }
 
   if (!user?.isAdmin) {
     return (

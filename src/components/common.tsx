@@ -2443,6 +2443,53 @@ function SummaryStat({
   );
 }
 
+export function Spinner({ className = "" }: { className?: string }) {
+  return (
+    <span
+      role="status"
+      aria-label="Cargando"
+      className={`inline-block animate-spin rounded-full border-2 border-white/15 border-t-[#a7f600] ${
+        className || "h-6 w-6"
+      }`}
+    />
+  );
+}
+
+// Avoids spinner flashes on fast loads: only flips true once the loading
+// state has lasted longer than `delayMs`. If loading finishes first, the
+// component unmounts before the timer fires and the spinner never shows.
+export function useDelayedFlag(delayMs = 300) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVisible(true), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [delayMs]);
+
+  return visible;
+}
+
+export function LoadingState({
+  title = "Cargando",
+  description = "Estamos preparando los datos.",
+}: {
+  title?: string;
+  description?: string;
+}) {
+  const visible = useDelayedFlag();
+  if (!visible) return null;
+
+  return (
+    <Card className="flex flex-col items-center justify-center gap-4 py-14 text-center">
+      <Spinner className="h-10 w-10" />
+      <div className="space-y-2">
+        <h3 className="text-xl font-semibold text-white">{title}</h3>
+        <p className="max-w-xl text-sm text-slate-400">{description}</p>
+      </div>
+    </Card>
+  );
+}
+
 export function EmptyState({
   icon,
   title,

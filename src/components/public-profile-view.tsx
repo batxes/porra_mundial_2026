@@ -1,22 +1,25 @@
 "use client";
 
-import { EmptyState, PredictionSnapshot, PrimaryLink, ProfileScoreCard, SectionHeading } from "@/components/common";
+import { EmptyState, PredictionSnapshot, PrimaryLink, ProfileScoreCard, SectionHeading, Spinner, useDelayedFlag } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
 
 export function PublicProfileView({ userId }: { userId: string }) {
   const { adminResults, leaderboard, playerName, ready, user } = useAppContext();
+  const showLoader = useDelayedFlag();
   const profile = leaderboard.find((candidate) => candidate.id === userId) || null;
   const rankingPosition = profile
     ? leaderboard.filter((candidate) => candidate.points > profile.points).length + 1
     : 0;
 
   if (!ready) {
+    if (!showLoader) return null;
     return (
       <div className="space-y-6">
         <SectionHeading eyebrow="Perfil publico" title="Cargando perfil" />
-        <div className="rounded-lg border border-white/10 bg-white/[0.04] p-6 text-sm text-zinc-400">
-          Cargando elecciones...
+        <div className="flex items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-6 text-sm text-zinc-400">
+          <Spinner className="h-5 w-5" />
+          <span>Cargando elecciones...</span>
         </div>
       </div>
     );
