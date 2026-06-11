@@ -343,14 +343,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (!usingSupabase) {
         saveLocalPrediction(user.id, finalPrediction);
-        await syncLocalState(user.id, finalPrediction);
+        // El autoguardado solo persiste: refrescar aquí haría setPrediction con
+        // la version recien guardada y pisaria ediciones hechas mientras se
+        // guardaba. Solo el guardado definitivo recarga el estado completo.
+        if (makeDefinitive) {
+          await syncLocalState(user.id, finalPrediction);
+        }
         return { ok: true, message: "Progreso guardado." };
       }
 
       const result = await saveSupabasePredictionForUser(finalPrediction);
       if (!result.ok) return result;
 
-      await refreshData();
+      if (makeDefinitive) {
+        await refreshData();
+      }
       return result;
     },
     [refreshData, saveSupabasePredictionForUser, syncLocalState, user, usingSupabase],
