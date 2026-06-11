@@ -29,7 +29,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         </div>
       ) : null}
       <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#0d0d0d]/86 backdrop-blur">
-        <div className="mx-auto w-full max-w-5xl px-4 py-3 sm:px-6">
+        <div className="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between gap-3">
             <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
               <Image
@@ -169,7 +169,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-24 sm:px-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-24 sm:px-6">
         <main className="flex-1 pt-4">{children}</main>
       </div>
       <AuthModal defaultMode="login" open={authOpen} onOpenChange={setAuthOpen} />

@@ -710,7 +710,7 @@ function StepActionBar({
 
   return (
     <div className="fixed bottom-2 left-2 right-2 z-40 sm:bottom-4 sm:left-4 sm:right-4">
-      <div className="mx-auto flex max-w-5xl flex-col gap-2 rounded-2xl border border-white/10 bg-[#101010]/94 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.42)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto flex max-w-6xl flex-col gap-2 rounded-2xl border border-white/10 bg-[#101010]/94 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.42)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           {autoSaveState ? <AutoSaveStatus state={autoSaveState} /> : null}
           <SectionProgressStatus progress={progress} />

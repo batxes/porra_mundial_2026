@@ -9,35 +9,33 @@ import {
   Card,
   FinishedMatchCard,
   hasFinishedScore,
-  LeaderboardRowsSkeleton,
   matchStageLabel,
   PrimaryLink,
   ProBadge,
-  TeamBadge,
+  Skeleton,
   TeamFlag,
 } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
-import { extraPredictionFields, schedule, teamsById } from "@/lib/data";
+import { playersById, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
 import {
   isMatchPredictionComplete,
   isMatchVisibleForPrediction,
   resolveSlot,
   scheduleUtc,
-  xiCounts,
-  xiRequirements,
 } from "@/lib/prediction";
 import type {
+  AdminEvent,
   AdminResult,
+  AdminResults,
   Match,
   Position,
   Prediction,
+  ScoreEntry,
   UserProfile,
 } from "@/lib/types";
 
 type HomeSaveState = "idle" | "pending" | "saving" | "saved" | "error";
-
-const matchdayVisibleAfterLastStartMs = 3 * 60 * 60 * 1000;
 
 function madridTodayKey() {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -52,10 +50,49 @@ function madridTodayKey() {
 }
 
 const resultsReminderKey = "porra26_results_reminder_date";
+const resultsRecapKey = "porra26_results_recap_seen";
+const resultsRecapRankKey = "porra26_results_recap_rank";
+
+type RecapRank = { current: number; previous: number | null; total: number };
+type RecapBreakdownPart = { label: string; points: number };
+type RecapItem = {
+  match: Match;
+  result: AdminResult;
+  points: number;
+  breakdown: RecapBreakdownPart[];
+};
+
+const matchPointCategories: Array<{
+  label: string;
+  match: (ruleCode: string) => boolean;
+}> = [
+  { label: "Resultado exacto", match: (rc) => rc === "match_exact_score" },
+  { label: "Resultado acertado", match: (rc) => rc === "match_outcome_hit" },
+  { label: "Tu once", match: (rc) => rc.startsWith("player_") },
+  { label: "Pasa de ronda", match: (rc) => rc === "team_progression_hit" },
+  { label: "Campeon", match: (rc) => rc === "tournament_champion_hit" },
+];
+
+function matchPointBreakdown(entries: ScoreEntry[]): RecapBreakdownPart[] {
+  const totals = new Map<string, number>();
+  entries.forEach((entry) => {
+    const category = matchPointCategories.find((item) =>
+      item.match(entry.ruleCode),
+    );
+    const label = category ? category.label : "Otros";
+    totals.set(label, (totals.get(label) || 0) + entry.points);
+  });
+
+  const order = [...matchPointCategories.map((item) => item.label), "Otros"];
+  return order
+    .map((label) => ({ label, points: totals.get(label) || 0 }))
+    .filter((part) => part.points !== 0);
+}
 
 export function HomeView() {
   const {
     adminResults,
+    currentScorecard,
     leaderboard: fullLeaderboard,
     prediction,
     ready,
@@ -63,10 +100,15 @@ export function HomeView() {
     setPredictionScore,
     user,
   } = useAppContext();
-  const leaderboard = fullLeaderboard.filter((profile) => !profile.isHidden);
+  const leaderboard = useMemo(
+    () => fullLeaderboard.filter((profile) => !profile.isHidden),
+    [fullLeaderboard],
+  );
   const [homeSaveState, setHomeSaveState] =
     useState<HomeSaveState>("idle");
   const [reminderMatches, setReminderMatches] = useState<Match[]>([]);
+  const [recapMatches, setRecapMatches] = useState<RecapItem[]>([]);
+  const [recapRank, setRecapRank] = useState<RecapRank | null>(null);
 
   useEffect(() => {
     if (!ready || !user) return;
@@ -111,25 +153,146 @@ export function HomeView() {
     );
     return () => window.cancelAnimationFrame(frame);
   }, [prediction, ready, user]);
+
+  useEffect(() => {
+    if (!ready || !user) return;
+
+    const finished = schedule
+      .map((match) => ({ match, result: adminResults[String(match.number)] }))
+      .filter(
+        (item): item is { match: Match; result: AdminResult } =>
+          Boolean(
+            item.result &&
+              isFinishedResult(item.result) &&
+              hasFinishedScore(item.result),
+          ),
+      );
+    if (!finished.length) return;
+
+    const storageKey = `${resultsRecapKey}_${user.id}`;
+    const rankKey = `${resultsRecapRankKey}_${user.id}`;
+    let raw: string | null = null;
+    try {
+      raw = window.localStorage.getItem(storageKey);
+    } catch {
+      raw = null;
+    }
+
+    const currentRank =
+      leaderboard.findIndex((profile) => profile.id === user.id) + 1;
+
+    const persistSeen = () => {
+      try {
+        window.localStorage.setItem(
+          storageKey,
+          JSON.stringify(finished.map((item) => item.match.number)),
+        );
+        if (currentRank > 0) {
+          window.localStorage.setItem(rankKey, String(currentRank));
+        }
+      } catch {
+        // Ignore storage failures.
+      }
+    };
+
+    // Primera visita: fijar la linea base sin enseñar el historico entero.
+    if (raw === null) {
+      persistSeen();
+      return;
+    }
+
+    let previousRank: number | null = null;
+    try {
+      const storedRank = window.localStorage.getItem(rankKey);
+      previousRank = storedRank ? Number(storedRank) : null;
+      if (previousRank !== null && !Number.isFinite(previousRank)) {
+        previousRank = null;
+      }
+    } catch {
+      previousRank = null;
+    }
+
+    let seen: number[] = [];
+    try {
+      seen = JSON.parse(raw) as number[];
+    } catch {
+      seen = [];
+    }
+    const seenSet = new Set(seen);
+
+    const entriesByMatch = new Map<number, ScoreEntry[]>();
+    currentScorecard.entries.forEach((entry) => {
+      if (!entry.matchNumber) return;
+      const list = entriesByMatch.get(entry.matchNumber) || [];
+      list.push(entry);
+      entriesByMatch.set(entry.matchNumber, list);
+    });
+    const matchPoints = (matchNumber: number) =>
+      (entriesByMatch.get(matchNumber) || []).reduce(
+        (total, entry) => total + entry.points,
+        0,
+      );
+
+    const fresh = finished.filter(({ match }) => {
+      if (seenSet.has(match.number)) return false;
+      const pick = prediction.matchPredictions[String(match.number)];
+      const hasPick = Boolean(
+        pick && pick.homeScore !== "" && pick.awayScore !== "",
+      );
+      return hasPick || matchPoints(match.number) !== 0;
+    });
+
+    if (!fresh.length) {
+      persistSeen();
+      return;
+    }
+
+    const items = fresh
+      .map(({ match, result }) => {
+        const entries = entriesByMatch.get(match.number) || [];
+        return {
+          match,
+          result,
+          points: matchPoints(match.number),
+          breakdown: matchPointBreakdown(entries),
+        };
+      })
+      .sort((a, b) => b.match.number - a.match.number);
+
+    const frame = window.requestAnimationFrame(() => {
+      persistSeen();
+      setRecapMatches(items);
+      if (currentRank > 0) {
+        setRecapRank({
+          current: currentRank,
+          previous: previousRank,
+          total: leaderboard.length,
+        });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [adminResults, currentScorecard, leaderboard, prediction, ready, user]);
   const homeEditPendingRef = useRef(false);
   const homeSaveTimerRef = useRef<number | null>(null);
   const homeSaveRunRef = useRef(0);
   const hideHomeSaveTimerRef = useRef<number | null>(null);
-  const todayKey = madridTodayKey();
-  const nextMatchdayKey = getNextMatchdayKey();
+  const nextMatchdayKey = getNextMatchdayKey(adminResults);
   const upcomingMatches = nextMatchdayKey
     ? schedule
-        .filter((match) => match.date === nextMatchdayKey)
+        .filter(
+          (match) =>
+            match.date === nextMatchdayKey &&
+            isMatchPending(match, adminResults),
+        )
         .sort(
           (a, b) =>
             new Date(scheduleUtc(a)).getTime() -
               new Date(scheduleUtc(b)).getTime() || a.number - b.number,
         )
     : [];
-  const missingSections = useMemo(
-    () => getMissingSections(prediction, todayKey),
-    [prediction, todayKey],
-  );
+  const userRank = user
+    ? leaderboard.findIndex((profile) => profile.id === user.id) + 1
+    : 0;
   const changeHomePredictionScore = (
     matchNumber: number,
     side: "homeScore" | "awayScore",
@@ -194,47 +357,84 @@ export function HomeView() {
   }, []);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-8 py-6 sm:py-8">
-      <section className="flex flex-col items-center text-center">
-        <Image
-          src="/logo.png"
-          alt=""
-          width={88}
-          height={88}
-          className="mb-4 h-16 w-16 object-contain sm:h-20 sm:w-20"
-          priority
-        />
-        <h1 className="text-4xl font-black tracking-tight text-white sm:text-6xl">
-          Triliporra
-        </h1>
-        <p className="mt-3 max-w-xl text-base text-zinc-400 sm:text-lg">
-          Adivina el Mundial 2026 y compite con tus amigos.
-        </p>
-        <div className="mt-5 flex flex-wrap justify-center gap-3">
-          <PrimaryLink href="/porra">Jugar</PrimaryLink>
-          <Link
-            href="/como-funciona"
-            className="inline-flex items-center justify-center rounded-lg border border-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-          >
-            Ver reglas
-          </Link>
-        </div>
-      </section>
+    <div className="flex flex-col gap-6 py-6 sm:py-8">
+      {user ? (
+        <section className="flex items-center justify-between gap-3 border-b border-white/[0.07] pb-7 pt-1 sm:gap-5 sm:pb-8">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            <Avatar
+              name={user.name}
+              avatarUrl={user.avatarUrl}
+              className="size-12 shrink-0 ring-2 ring-white/10 sm:size-16"
+            />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                Bienvenido
+              </p>
+              <h1 className="mt-0.5 truncate text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                {user.name}
+              </h1>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+            {ready && userRank ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm text-zinc-300 sm:px-3.5 sm:py-1.5">
+                <span className="text-zinc-500">Puesto</span>
+                <span className="font-semibold text-white">{userRank}º</span>
+              </span>
+            ) : null}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#a7f600]/20 bg-[#a7f600]/[0.08] px-3 py-1 text-sm text-[#a7f600] sm:px-3.5 sm:py-1.5">
+              <span className="font-semibold">{user.points}</span>
+              <span className="text-[#a7f600]/70">pts</span>
+            </span>
+          </div>
+        </section>
+      ) : (
+        <section className="flex flex-col items-center py-2 text-center">
+          <Image
+            src="/logo.png"
+            alt=""
+            width={88}
+            height={88}
+            className="mb-4 h-16 w-16 object-contain sm:h-20 sm:w-20"
+            priority
+          />
+          <h1 className="text-4xl font-black tracking-tight text-white sm:text-6xl">
+            Triliporra
+          </h1>
+          <p className="mt-3 max-w-xl text-base text-zinc-400 sm:text-lg">
+            Adivina el Mundial 2026 y compite con tus amigos.
+          </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <PrimaryLink href="/porra">Jugar</PrimaryLink>
+            <Link
+              href="/como-funciona"
+              className="inline-flex items-center justify-center rounded-lg border border-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+            >
+              Ver reglas
+            </Link>
+          </div>
+        </section>
+      )}
 
-      {missingSections.length ? (
-        <div className="home-missing-alert flex items-start gap-3 rounded-lg border border-yellow-300/25 bg-yellow-300/10 px-4 py-3 text-sm font-medium leading-5 text-yellow-100">
-          <span className="relative mt-1.5 flex h-2.5 w-2.5 shrink-0">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-yellow-300 opacity-60 animate-ping" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-yellow-300" />
-          </span>
-          <span>{formatMissingSections(missingSections)}</span>
-        </div>
-      ) : null}
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:gap-10">
+      <HomeFeedSection
+        currentUserId={user?.id || ""}
+        hasUser={Boolean(user)}
+        leaderboard={leaderboard}
+        nextMatchdayKey={nextMatchdayKey}
+        onScoreChange={changeHomePredictionScore}
+        prediction={prediction}
+        ready={ready}
+        results={adminResults}
+        saveState={user && homeSaveState !== "idle" ? homeSaveState : null}
+        upcomingMatches={upcomingMatches}
+      />
 
+      <aside className="grid grid-cols-1 gap-6">
       <section className="space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-black tracking-tight text-white">
+            <h2 className="text-xl font-black tracking-tight text-white">
               Clasificacion
             </h2>
             <p className="mt-1 text-sm text-zinc-500">
@@ -249,81 +449,851 @@ export function HomeView() {
           </Link>
         </div>
 
-        <Card className="overflow-hidden p-0">
-          {!ready ? (
-            <LeaderboardRowsSkeleton rows={5} />
-          ) : leaderboard.length ? (
-            <div className="divide-y divide-white/10">
-              {leaderboard.slice(0, 5).map((profile, index) => (
-                <LeaderboardRow
-                  key={profile.id}
-                  profile={profile}
-                  position={index + 1}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="px-4 py-8 text-center text-sm text-zinc-400">
-              Aun no hay participantes.
-            </div>
-          )}
-        </Card>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-black tracking-tight text-white">
-              Proxima jornada
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              {nextMatchdayKey
-                ? `${formatDate(nextMatchdayKey)} - ${upcomingMatches.length} ${upcomingMatches.length === 1 ? "partido" : "partidos"}`
-                : "No quedan partidos programados"}
-            </p>
+        {!ready ? (
+          <div className="space-y-2 py-1">
+            {Array.from({ length: 10 }, (_, index) => (
+              <Skeleton key={index} className="h-10 rounded-lg" />
+            ))}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {user && homeSaveState !== "idle" ? (
-              <HomeSaveStatus state={homeSaveState} />
-            ) : null}
-            <Link
-              href="/porra?section=results"
-              className="w-fit shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10"
-            >
-              Ver todos
-            </Link>
-          </div>
-        </div>
-
-        {upcomingMatches.length ? (
-          <div className="grid gap-3">
-            {upcomingMatches.map((match) => (
-              <UpcomingMatchCard
-                key={match.number}
-                match={match}
-                hasUser={Boolean(user)}
-                prediction={prediction}
-                result={adminResults[String(match.number)]}
-                onScoreChange={changeHomePredictionScore}
+        ) : leaderboard.length ? (
+          <div className="divide-y divide-white/[0.06]">
+            {leaderboard.slice(0, 10).map((profile, index) => (
+              <LeaderboardRow
+                key={profile.id}
+                profile={profile}
+                position={index + 1}
               />
             ))}
           </div>
         ) : (
-          <Card className="space-y-2 text-sm">
-            <p className="font-semibold text-white">
-              No quedan partidos programados.
-            </p>
-          </Card>
+          <div className="py-6 text-center text-sm text-zinc-400">
+            Aun no hay participantes.
+          </div>
         )}
       </section>
+      </aside>
+      </div>
 
-      {reminderMatches.length ? (
+      {recapMatches.length ? (
+        <MatchResultsRecapModal
+          items={recapMatches}
+          rank={recapRank}
+          onClose={() => {
+            setRecapMatches([]);
+            setRecapRank(null);
+          }}
+        />
+      ) : reminderMatches.length ? (
         <ResultsReminderModal
           matches={reminderMatches}
           prediction={prediction}
           onClose={() => setReminderMatches([])}
         />
       ) : null}
+    </div>
+  );
+}
+
+function MatchResultsRecapModal({
+  items,
+  onClose,
+  rank,
+}: {
+  items: RecapItem[];
+  onClose: () => void;
+  rank: RecapRank | null;
+}) {
+  const totalPoints = items.reduce((total, item) => total + item.points, 0);
+  const rankDelta =
+    rank && rank.previous !== null ? rank.previous - rank.current : null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="results-recap-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#151515] p-5 text-white shadow-2xl shadow-black/50">
+        <div className="mb-4 flex items-start gap-3">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#a7f600]/15 text-lg">
+            🏆
+          </span>
+          <div>
+            <h3
+              id="results-recap-title"
+              className="text-xl font-bold tracking-tight"
+            >
+              {items.length === 1
+                ? "Ha terminado un partido"
+                : `Han terminado ${items.length} partidos`}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              Esto es lo que has sumado desde tu ultima visita.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {items.map((item) => (
+            <RecapMatchRow key={item.match.number} item={item} />
+          ))}
+        </div>
+
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+          <span className="text-sm font-semibold text-zinc-300">
+            {totalPoints > 0
+              ? "Has sumado"
+              : totalPoints < 0
+                ? "Balance"
+                : "Esta vez"}
+          </span>
+          <span
+            className={`rounded-md px-2.5 py-1 text-sm font-black ${
+              totalPoints > 0
+                ? "bg-[#a7f600]/15 text-[#a7f600]"
+                : totalPoints < 0
+                  ? "bg-rose-400/15 text-rose-300"
+                  : "bg-white/[0.06] text-zinc-300"
+            }`}
+          >
+            {totalPoints > 0
+              ? `+${totalPoints} pts`
+              : totalPoints < 0
+                ? `${totalPoints} pts`
+                : "0 pts"}
+          </span>
+        </div>
+
+        {rank ? (
+          <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white">
+                Tu puesto en la clasificacion
+              </p>
+              {rankDelta !== null ? (
+                <p
+                  className={`mt-0.5 text-xs font-bold ${
+                    rankDelta > 0
+                      ? "text-[#a7f600]"
+                      : rankDelta < 0
+                        ? "text-rose-300"
+                        : "text-zinc-500"
+                  }`}
+                >
+                  {rankDelta > 0
+                    ? `Subes ${rankDelta} ${rankDelta === 1 ? "puesto" : "puestos"}`
+                    : rankDelta < 0
+                      ? `Bajas ${Math.abs(rankDelta)} ${
+                          Math.abs(rankDelta) === 1 ? "puesto" : "puestos"
+                        }`
+                      : "Mantienes tu puesto"}
+                </p>
+              ) : (
+                <p className="mt-0.5 text-xs font-medium text-zinc-500">
+                  de {rank.total} participantes
+                </p>
+              )}
+            </div>
+            <span className="shrink-0 rounded-md bg-white/[0.08] px-2.5 py-1 text-sm font-black text-white">
+              {rank.current}º
+              <span className="font-semibold text-zinc-500">
+                {" "}
+                / {rank.total}
+              </span>
+            </span>
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-4 w-full rounded-lg bg-[#a7f600] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#c7ff43]"
+        >
+          Entendido
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RecapMatchRow({ item }: { item: RecapItem }) {
+  const { match, points, result } = item;
+  const homeTeamId =
+    result.homeTeamId || (teamsById.has(match.home) ? match.home : "");
+  const awayTeamId =
+    result.awayTeamId || (teamsById.has(match.away) ? match.away : "");
+  const homeName = homeTeamId
+    ? teamsById.get(homeTeamId)?.name || translateSlot(match.home)
+    : translateSlot(match.home);
+  const awayName = awayTeamId
+    ? teamsById.get(awayTeamId)?.name || translateSlot(match.away)
+    : translateSlot(match.away);
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <TeamFlag
+            teamId={homeTeamId}
+            className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
+          />
+          <span className="shrink-0 rounded-md bg-white/[0.07] px-2 py-0.5 text-sm font-black text-white">
+            {result.homeScore}-{result.awayScore}
+          </span>
+          <TeamFlag
+            teamId={awayTeamId}
+            className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
+          />
+          <span className="min-w-0 truncate text-sm font-semibold text-white">
+            {homeName} · {awayName}
+          </span>
+        </div>
+        <span
+          className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-black ${
+            points > 0
+              ? "bg-[#a7f600]/12 text-[#a7f600]"
+              : points < 0
+                ? "bg-rose-400/12 text-rose-300"
+                : "bg-white/[0.06] text-zinc-400"
+          }`}
+        >
+          {points > 0 ? `+${points}` : points < 0 ? points : "0"}
+        </span>
+      </div>
+
+      {item.breakdown.length ? (
+        <div className="mt-2 flex flex-wrap items-center gap-1">
+          {item.breakdown.map((part) => (
+            <span
+              key={part.label}
+              className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400"
+            >
+              {part.label}
+              <span
+                className={
+                  part.points >= 0 ? "text-[#a7f600]" : "text-rose-300"
+                }
+              >
+                {part.points > 0 ? `+${part.points}` : part.points}
+              </span>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-2 text-[11px] font-medium text-zinc-500">
+          No has puntuado en este partido.
+        </p>
+      )}
+    </div>
+  );
+}
+
+type MatchFeedStatus = "finished" | "live" | "awaiting";
+
+type JornadaMatch = {
+  match: Match;
+  result?: AdminResult;
+  status: MatchFeedStatus;
+};
+
+type Jornada = {
+  date: string;
+  matches: JornadaMatch[];
+  matchNumbers: number[];
+  hasLive: boolean;
+};
+
+// Margen desde el inicio en el que damos un partido por "en juego". Pasado
+// ese tiempo sin resultado final, queda "esperando resultado".
+const matchLiveWindowMs = 2.5 * 60 * 60 * 1000;
+
+function getMatchFeedStatus(
+  match: Match,
+  result: AdminResult | undefined,
+  now: number,
+): MatchFeedStatus | null {
+  if (result && isFinishedResult(result) && hasFinishedScore(result)) {
+    return "finished";
+  }
+
+  // Marcado como terminado por el proveedor/admin pero sin marcador valido.
+  if (result && isFinishedResult(result) && !hasFinishedScore(result)) {
+    return "awaiting";
+  }
+
+  const kickoff = new Date(scheduleUtc(match)).getTime();
+  const started = now >= kickoff;
+  if (started && now >= kickoff + matchLiveWindowMs) {
+    return "awaiting";
+  }
+
+  const statusText = String(result?.status || "").toLowerCase();
+  const liveByStatus =
+    statusText.includes("live") ||
+    statusText.includes("play") ||
+    statusText.includes("1h") ||
+    statusText.includes("2h") ||
+    statusText.includes("ht");
+  if (started || liveByStatus || (result && hasAdminScore(result))) {
+    return "live";
+  }
+
+  return null;
+}
+
+function readMatchScore(result: AdminResult | undefined) {
+  if (!result) return null;
+  const { homeScore, awayScore } = result;
+  const empty = (value: number | string | undefined | null) =>
+    value === "" || value === undefined || value === null;
+  if (empty(homeScore) || empty(awayScore)) return null;
+  return { home: homeScore, away: awayScore };
+}
+
+type ScorerBreakdown = { exact: number; outcome: number; xi: number };
+type JornadaScorer = {
+  profile: UserProfile;
+  points: number;
+  breakdown: ScorerBreakdown;
+};
+
+function buildJornadas(results: AdminResults): Jornada[] {
+  const now = Date.now();
+  const byDate = new Map<string, JornadaMatch[]>();
+
+  schedule.forEach((match) => {
+    const result = results[String(match.number)];
+    const status = getMatchFeedStatus(match, result, now);
+    if (!status) return;
+    const list = byDate.get(match.date) || [];
+    list.push({ match, result, status });
+    byDate.set(match.date, list);
+  });
+
+  return Array.from(byDate.entries())
+    .map(([date, matches]) => {
+      const sorted = matches.sort((a, b) => a.match.number - b.match.number);
+      return {
+        date,
+        matches: sorted,
+        matchNumbers: sorted.map((item) => item.match.number),
+        hasLive: sorted.some((item) => item.status === "live"),
+      };
+    })
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 8);
+}
+
+function jornadaScorers(
+  profiles: UserProfile[],
+  matchNumbers: number[],
+): JornadaScorer[] {
+  const numbers = new Set(matchNumbers);
+  return profiles
+    .map((profile) => {
+      let points = 0;
+      const breakdown: ScorerBreakdown = { exact: 0, outcome: 0, xi: 0 };
+      profile.scorecard.entries.forEach((entry) => {
+        if (!entry.matchNumber || !numbers.has(entry.matchNumber)) return;
+        points += entry.points;
+        if (entry.ruleCode === "match_exact_score") {
+          breakdown.exact += entry.points;
+        } else if (entry.ruleCode === "match_outcome_hit") {
+          breakdown.outcome += entry.points;
+        } else if (entry.ruleCode.startsWith("player_")) {
+          breakdown.xi += entry.points;
+        }
+      });
+      return { profile, points, breakdown };
+    })
+    .filter((row) => row.points !== 0)
+    .sort(
+      (a, b) =>
+        b.points - a.points || a.profile.name.localeCompare(b.profile.name),
+    );
+}
+
+const scorerBreakdownLabels: Array<{ key: keyof ScorerBreakdown; label: string }> = [
+  { key: "exact", label: "Exacto" },
+  { key: "outcome", label: "Acierto" },
+  { key: "xi", label: "Tu once" },
+];
+
+function HomeFeedSection({
+  currentUserId,
+  hasUser,
+  leaderboard,
+  nextMatchdayKey,
+  onScoreChange,
+  prediction,
+  ready,
+  results,
+  saveState,
+  upcomingMatches,
+}: {
+  currentUserId: string;
+  hasUser: boolean;
+  leaderboard: UserProfile[];
+  nextMatchdayKey: string;
+  onScoreChange: (
+    matchNumber: number,
+    side: "homeScore" | "awayScore",
+    value: string,
+  ) => void;
+  prediction: Prediction;
+  ready: boolean;
+  results: AdminResults;
+  saveState: HomeSaveState | null;
+  upcomingMatches: Match[];
+}) {
+  const jornadas = useMemo(() => buildJornadas(results), [results]);
+  const hasContent = upcomingMatches.length > 0 || jornadas.length > 0;
+
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-white">
+            Novedades
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Tus proximos partidos y los resultados de cada jornada
+          </p>
+        </div>
+        <Link
+          href="/partidos"
+          className="w-fit shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+        >
+          Ver partidos
+        </Link>
+      </div>
+
+      {!ready ? (
+        <Card className="overflow-hidden p-0">
+          <div className="space-y-3 p-4">
+            {Array.from({ length: 4 }, (_, index) => (
+              <Skeleton key={index} className="h-12 rounded-lg" />
+            ))}
+          </div>
+        </Card>
+      ) : hasContent ? (
+        <div className="space-y-4">
+          {upcomingMatches.length ? (
+            <UpcomingJornadaCard
+              dateKey={nextMatchdayKey}
+              hasUser={hasUser}
+              matches={upcomingMatches}
+              onScoreChange={onScoreChange}
+              prediction={prediction}
+              results={results}
+              saveState={saveState}
+            />
+          ) : null}
+          {jornadas.map((jornada) => (
+            <JornadaCard
+              key={jornada.date}
+              jornada={jornada}
+              scorers={jornadaScorers(leaderboard, jornada.matchNumbers)}
+              currentUserId={currentUserId}
+            />
+          ))}
+        </div>
+      ) : (
+        <Card className="px-4 py-10 text-center text-sm leading-6 text-zinc-400">
+          <p className="font-semibold text-white">
+            Aun no hay nada que contar.
+          </p>
+          <p className="mt-1">
+            En cuanto haya partidos veras aqui tus proximos encuentros y los
+            resultados de cada jornada.
+          </p>
+        </Card>
+      )}
+    </section>
+  );
+}
+
+function UpcomingJornadaCard({
+  dateKey,
+  hasUser,
+  matches,
+  onScoreChange,
+  prediction,
+  results,
+  saveState,
+}: {
+  dateKey: string;
+  hasUser: boolean;
+  matches: Match[];
+  onScoreChange: (
+    matchNumber: number,
+    side: "homeScore" | "awayScore",
+    value: string,
+  ) => void;
+  prediction: Prediction;
+  results: AdminResults;
+  saveState: HomeSaveState | null;
+}) {
+  const pendingCount = matches.filter(
+    (match) => !isMatchPredictionComplete(match, prediction),
+  ).length;
+
+  return (
+    <div className="space-y-3 rounded-2xl border border-[#a7f600]/20 bg-[#a7f600]/[0.04] p-3 sm:p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#a7f600]/15 text-[#a7f600]">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <path d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold text-white">Proxima jornada</h3>
+            <p className="truncate text-xs font-medium text-zinc-400 first-letter:capitalize">
+              {formatDate(dateKey)}
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {saveState ? <HomeSaveStatus state={saveState} /> : null}
+          {hasUser && pendingCount > 0 ? (
+            <span className="rounded-full border border-yellow-300/25 bg-yellow-300/10 px-2.5 py-1 text-[11px] font-bold text-yellow-100">
+              {pendingCount} sin rellenar
+            </span>
+          ) : hasUser ? (
+            <span className="rounded-full border border-[#a7f600]/30 bg-[#a7f600]/12 px-2.5 py-1 text-[11px] font-bold text-[#a7f600]">
+              Rellenada
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="grid gap-3">
+        {matches.map((match) => (
+          <UpcomingMatchCard
+            key={match.number}
+            compact
+            match={match}
+            hasUser={hasUser}
+            prediction={prediction}
+            result={results[String(match.number)]}
+            onScoreChange={onScoreChange}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function JornadaCard({
+  currentUserId,
+  jornada,
+  scorers,
+}: {
+  currentUserId: string;
+  jornada: Jornada;
+  scorers: JornadaScorer[];
+}) {
+  return (
+    <Card className="overflow-hidden p-0">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+        <h3 className="truncate text-sm font-bold text-white first-letter:capitalize">
+          {formatDate(jornada.date)}
+        </h3>
+        {jornada.hasLive ? (
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-2.5 py-1 text-[11px] font-bold text-rose-200">
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
+            En juego
+          </span>
+        ) : null}
+      </div>
+
+      <div className="divide-y divide-white/10">
+        {jornada.matches.map((item) => (
+          <JornadaMatchRow key={item.match.number} item={item} />
+        ))}
+      </div>
+
+      {scorers.length ? (
+        <div className="border-t border-white/10 bg-white/[0.015] px-4 py-3">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+            Han puntuado
+          </p>
+          <div className="space-y-2.5">
+            {scorers.map(({ breakdown, points, profile }, index) => {
+              const parts = scorerBreakdownLabels
+                .map((part) => ({ label: part.label, value: breakdown[part.key] }))
+                .filter((part) => part.value !== 0);
+              const position = index + 1;
+
+              return (
+                <div
+                  key={profile.id}
+                  className="flex items-start justify-between gap-3"
+                >
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    {position <= 3 ? (
+                      <span
+                        className="mt-0.5 flex h-8 w-7 shrink-0 items-center justify-center text-lg leading-none"
+                        aria-label={`Puesto ${position}`}
+                      >
+                        {rankLabel(position)}
+                      </span>
+                    ) : (
+                      <span
+                        className="mt-0.5 flex h-8 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-xs font-black text-zinc-300"
+                        aria-label={`Puesto ${position}`}
+                      >
+                        {position}
+                      </span>
+                    )}
+                    <Avatar
+                      name={profile.name}
+                      avatarUrl={profile.avatarUrl}
+                      className="size-9"
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-white">
+                        {profile.name}
+                        {profile.id === currentUserId ? (
+                          <span className="text-zinc-500"> · tú</span>
+                        ) : null}
+                      </p>
+                      {parts.length ? (
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          {parts.map((part) => (
+                            <span
+                              key={part.label}
+                              className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400"
+                            >
+                              {part.label}
+                              <span
+                                className={
+                                  part.value >= 0
+                                    ? "text-[#a7f600]"
+                                    : "text-rose-300"
+                                }
+                              >
+                                {part.value > 0 ? `+${part.value}` : part.value}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  <span
+                    className={`mt-0.5 shrink-0 rounded-md px-2 py-0.5 text-xs font-black ${
+                      points >= 0
+                        ? "bg-[#a7f600]/12 text-[#a7f600]"
+                        : "bg-rose-400/12 text-rose-300"
+                    }`}
+                  >
+                    {points > 0 ? `+${points}` : points}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="border-t border-white/10 px-4 py-3 text-xs text-zinc-500">
+          Aun nadie ha puntuado en esta jornada.
+        </div>
+      )}
+    </Card>
+  );
+}
+
+const matchEventIcons: Record<string, string> = {
+  goal: "⚽",
+  gol: "⚽",
+  penalty_goal: "🥅",
+  "penalti marcado": "🥅",
+  mvp: "⭐",
+  MVP: "⭐",
+  penalty_save: "🧤",
+  "penalti parado": "🧤",
+  penalty_miss: "❌",
+  "penalti fallado": "❌",
+  red_card: "🟥",
+  roja: "🟥",
+};
+
+const goalPointsByPosition: Record<Position, number> = {
+  DEL: 2,
+  MED: 6,
+  DEF: 11,
+  POR: 35,
+};
+
+function matchEventValue(type: string, playerId: string): number {
+  const key = String(type);
+  if (key === "gol" || key === "goal") {
+    const position = playersById.get(playerId)?.position;
+    return position ? goalPointsByPosition[position] : 2;
+  }
+  if (key === "penalti marcado" || key === "penalty_goal") return 1;
+  if (key === "mvp" || key === "MVP") return 3;
+  if (key === "penalti parado" || key === "penalty_save") return 2;
+  if (key === "penalti fallado" || key === "penalty_miss") return -1;
+  if (key === "roja" || key === "red_card") return -2;
+  return 0;
+}
+
+function JornadaMatchRow({ item }: { item: JornadaMatch }) {
+  const { match, result, status } = item;
+  const homeTeamId =
+    result?.homeTeamId || (teamsById.has(match.home) ? match.home : "");
+  const awayTeamId =
+    result?.awayTeamId || (teamsById.has(match.away) ? match.away : "");
+  const homeName = homeTeamId
+    ? teamsById.get(homeTeamId)?.name || translateSlot(match.home)
+    : translateSlot(match.home);
+  const awayName = awayTeamId
+    ? teamsById.get(awayTeamId)?.name || translateSlot(match.away)
+    : translateSlot(match.away);
+  const score = readMatchScore(result);
+  const events = (result?.events || []).filter(
+    (event) => event.playerId && matchEventIcons[String(event.type)],
+  );
+  const homeEvents = events.filter((event) => {
+    const team = playersById.get(event.playerId)?.team || event.teamId || "";
+    return team !== awayTeamId;
+  });
+  const awayEvents = events.filter((event) => {
+    const team = playersById.get(event.playerId)?.team || event.teamId || "";
+    return team === awayTeamId;
+  });
+
+  return (
+    <div className="px-4 py-4">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-2.5">
+          <span className="min-w-0 truncate text-right text-sm font-bold leading-tight text-white sm:text-base">
+            {homeName}
+          </span>
+          <TeamFlag
+            teamId={homeTeamId}
+            className="h-6 w-6 shrink-0 rounded-full border border-white/15 object-cover sm:h-7 sm:w-7"
+          />
+        </div>
+        <span
+          className={`shrink-0 rounded-lg px-3 py-1 text-lg font-black tabular-nums tracking-wide sm:px-3.5 sm:text-xl ${
+            score ? "bg-white/[0.08] text-white" : "bg-white/[0.04] text-zinc-500"
+          }`}
+        >
+          {score ? `${score.home} - ${score.away}` : "– - –"}
+        </span>
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+          <TeamFlag
+            teamId={awayTeamId}
+            className="h-6 w-6 shrink-0 rounded-full border border-white/15 object-cover sm:h-7 sm:w-7"
+          />
+          <span className="min-w-0 truncate text-sm font-bold leading-tight text-white sm:text-base">
+            {awayName}
+          </span>
+        </div>
+        <div className="ml-1 flex w-[104px] shrink-0 justify-end">
+          {status === "live" ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-2 py-0.5 text-[11px] font-bold text-rose-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
+              En juego
+            </span>
+          ) : status === "awaiting" ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-0.5 text-[11px] font-bold text-amber-200">
+              Falta resultado
+            </span>
+          ) : (
+            <span className="text-xs font-semibold text-zinc-500">
+              {formatResultTime(match)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {events.length ? (
+        <div className="mt-2.5 grid grid-cols-2 gap-x-4 border-t border-white/[0.06] pt-2.5">
+          <div className="space-y-1">
+            {homeEvents.map((event, index) => (
+              <MatchEventLine key={event.id || `h${index}`} event={event} />
+            ))}
+          </div>
+          <div className="space-y-1">
+            {awayEvents.map((event, index) => (
+              <MatchEventLine
+                key={event.id || `a${index}`}
+                event={event}
+                align="right"
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MatchEventLine({
+  align = "left",
+  event,
+}: {
+  align?: "left" | "right";
+  event: AdminEvent;
+}) {
+  const playerName =
+    (event.playerId ? playersById.get(event.playerId)?.name : "") || "Jugador";
+  const icon = matchEventIcons[String(event.type)] || "";
+  const points = matchEventValue(String(event.type), event.playerId);
+  const pointsNode =
+    points !== 0 ? (
+      <span
+        className={`shrink-0 font-black ${
+          points > 0 ? "text-[#a7f600]" : "text-rose-300"
+        }`}
+      >
+        {points > 0 ? `+${points}` : points}
+      </span>
+    ) : null;
+  const iconNode = (
+    <span aria-hidden="true" className="shrink-0 text-[13px]">
+      {icon}
+    </span>
+  );
+
+  return (
+    <div
+      className={`flex items-center gap-1.5 text-[12px] font-medium text-zinc-400 ${
+        align === "right" ? "justify-end text-right" : ""
+      }`}
+    >
+      {align === "right" ? (
+        <>
+          {pointsNode}
+          <span className="min-w-0 truncate">{playerName}</span>
+          {iconNode}
+        </>
+      ) : (
+        <>
+          {iconNode}
+          <span className="min-w-0 truncate">{playerName}</span>
+          {pointsNode}
+        </>
+      )}
     </div>
   );
 }
@@ -452,83 +1422,6 @@ function reminderMatchWhen(match: Match) {
   return dayKey === madridTodayKey() ? `Hoy ${time}` : `Mañana ${time}`;
 }
 
-function getMissingSections(prediction: Prediction, todayKey: string) {
-  const missing: string[] = [];
-  const extrasDone = extraPredictionFields.filter((key) =>
-    Boolean(prediction.extras[key]),
-  ).length;
-  if (extrasDone < extraPredictionFields.length) {
-    missing.push("Tus elecciones");
-  }
-
-  const counts = xiCounts(prediction);
-  const requirements = xiRequirements(prediction.xiFormation);
-  const requiredPlayers = Object.values(requirements).reduce(
-    (total, count) => total + count,
-    0,
-  );
-  const selectedPlayers = Math.min(
-    requiredPlayers,
-    Object.entries(requirements).reduce(
-      (total, [position, limit]) =>
-        total + Math.min(counts[position as Position], limit),
-      0,
-    ),
-  );
-  if (selectedPlayers < requiredPlayers) {
-    missing.push("Tu once");
-  }
-
-  const completedGroups = Object.values(prediction.groups).filter((group) => {
-    const positions = Object.values(group).filter(Boolean);
-    return positions.length === 4 && new Set(positions).size === 4;
-  }).length;
-  const thirdDone = Math.min(prediction.bracket.thirdQualifiers.length, 8);
-  const groupTotal = Object.keys(prediction.groups).length + 8;
-  if (completedGroups + thirdDone < groupTotal) {
-    missing.push("Fase de grupos");
-  }
-
-  if (hasMissingNextMatchdayResults(prediction, todayKey)) {
-    missing.push("Resultados");
-  }
-
-  return missing;
-}
-
-function hasMissingNextMatchdayResults(
-  prediction: Prediction,
-  todayKey: string,
-) {
-  const nextDate = schedule
-    .filter((match) => match.number < 73 && match.date >= todayKey)
-    .filter((match) => isMatchVisibleForPrediction(match, prediction))
-    .sort(
-      (a, b) => a.date.localeCompare(b.date) || a.number - b.number,
-    )[0]?.date;
-
-  if (!nextDate) return false;
-
-  return schedule
-    .filter((match) => match.number < 73 && match.date === nextDate)
-    .filter((match) => isMatchVisibleForPrediction(match, prediction))
-    .some((match) => !isMatchPredictionComplete(match, prediction));
-}
-
-function formatMissingSections(sections: string[]) {
-  const displaySections = sections.map((section) =>
-    section === "Resultados" ? "Resultados de la proxima jornada" : section,
-  );
-  const label =
-    displaySections.length === 1
-      ? displaySections[0]
-      : `${displaySections.slice(0, -1).join(", ")} y ${
-          displaySections[displaySections.length - 1]
-        }`;
-
-  return `Te falta completar: ${label}.`;
-}
-
 function LeaderboardRow({
   profile,
   position,
@@ -539,42 +1432,26 @@ function LeaderboardRow({
   return (
     <Link
       href={`/perfil/${encodeURIComponent(profile.id)}`}
-      className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition hover:bg-white/5"
+      className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-white/[0.04]"
     >
       <span
-        className={`flex h-8 w-8 items-center justify-center text-sm font-black ${rankTextClass(position)}`}
+        className={`flex w-6 shrink-0 items-center justify-center text-sm font-black ${rankTextClass(position)}`}
         aria-label={`Puesto ${position}`}
       >
         {rankLabel(position)}
       </span>
-      <span className="flex min-w-0 items-center gap-3">
-        <Avatar
-          name={profile.name}
-          avatarUrl={profile.avatarUrl}
-          className="size-10"
-        />
-        <span className="min-w-0">
-          <strong className="flex min-w-0 items-center gap-1.5 text-sm text-white">
-            <span className="truncate">{profile.name}</span>
-            {profile.isPro ? <ProBadge /> : null}
-          </strong>
-          <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-zinc-500">
-            {profile.champion ? (
-              <TeamBadge
-                teamId={profile.champion}
-                className="text-xs text-zinc-400"
-              />
-            ) : (
-              <span>Pendiente</span>
-            )}
-          </span>
-        </span>
-      </span>
-      <span className="text-right">
-        <strong className="block text-lg font-black text-white">
-          {profile.points}
-        </strong>
-        <span className="text-xs font-semibold text-zinc-500">pts</span>
+      <Avatar
+        name={profile.name}
+        avatarUrl={profile.avatarUrl}
+        className="size-8 shrink-0"
+      />
+      <strong className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-semibold text-white">
+        <span className="truncate">{profile.name}</span>
+        {profile.isPro ? <ProBadge /> : null}
+      </strong>
+      <span className="shrink-0 text-sm font-black text-white">
+        {profile.points}
+        <span className="ml-0.5 text-xs font-semibold text-zinc-500">pts</span>
       </span>
     </Link>
   );
@@ -627,28 +1504,36 @@ function HomeSaveStatus({ state }: { state: HomeSaveState }) {
   );
 }
 
-function getNextMatchdayKey() {
-  const now = Date.now();
-  const dateKeys = Array.from(new Set(schedule.map((match) => match.date))).sort();
-  const nextMatchday = dateKeys.find((dateKey) => {
-    const dayMatches = schedule.filter((match) => match.date === dateKey);
-    const lastStart = Math.max(
-      ...dayMatches.map((match) => new Date(scheduleUtc(match)).getTime()),
-    );
+function isMatchPending(match: Match, results: AdminResults) {
+  // Un partido esta "pendiente" (Proxima jornada) solo si no ha empezado y no
+  // tiene ningun dato: asi nunca se solapa con el feed (en juego / falta
+  // resultado / terminado), que son justo los estados con feed status != null.
+  return getMatchFeedStatus(match, results[String(match.number)], Date.now()) === null;
+}
 
-    return lastStart + matchdayVisibleAfterLastStartMs >= now;
-  });
+function getNextMatchdayKey(results: AdminResults) {
+  const dateKeys = Array.from(new Set(schedule.map((match) => match.date))).sort();
+  // La proxima jornada es la primera fecha que aun tiene algun partido
+  // pendiente (sin empezar y sin resultado), asi en cuanto terminan todos
+  // los partidos de una jornada se pasa a mostrar la siguiente.
+  const nextMatchday = dateKeys.find((dateKey) =>
+    schedule.some(
+      (match) => match.date === dateKey && isMatchPending(match, results),
+    ),
+  );
 
   return nextMatchday || "";
 }
 
 function UpcomingMatchCard({
+  compact = false,
   hasUser,
   match,
   prediction,
   result,
   onScoreChange,
 }: {
+  compact?: boolean;
   hasUser: boolean;
   match: Match;
   prediction: Prediction;
@@ -690,8 +1575,14 @@ function UpcomingMatchCard({
           "radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), rgb(47, 47, 47)",
       }}
     >
-      <div className="flex items-center justify-between gap-3 px-3 pb-0 pt-3 sm:justify-center sm:px-4 sm:pt-4">
-        <span>{matchStageLabel(match)}</span>
+      <div
+        className={`flex items-center justify-between gap-3 px-3 pb-0 ${
+          compact ? "pt-2.5" : "pt-3 sm:justify-center sm:px-4 sm:pt-4"
+        }`}
+      >
+        <span className={compact ? "text-xs font-semibold text-zinc-400" : ""}>
+          {matchStageLabel(match)}
+        </span>
         <time className="inline-flex items-center text-sm font-semibold text-zinc-200">
           {formatResultTime(match)}
         </time>
@@ -699,50 +1590,89 @@ function UpcomingMatchCard({
           <HomeResultStatusBadge
             complete={predictionComplete}
             locked={locked}
-            className="sm:hidden"
+            className={compact ? "" : "sm:hidden"}
           />
         ) : null}
       </div>
 
-      <div className="space-y-2 px-3 py-3 sm:hidden">
-        <HomeResultTeamScoreRow
-          teamId={match.home}
-          fallback={translateSlot(match.home)}
-          scoreControl={
-            hasUser ? (
+      {compact ? (
+        <div className="flex items-center justify-center gap-2.5 px-3 pb-3 pt-2">
+          <CompactTeamSide
+            teamId={match.home}
+            fallback={translateSlot(match.home)}
+          />
+          {hasUser ? (
+            <div className="flex shrink-0 items-center gap-1">
               <HomeResultScoreStepper
                 label="Goles local"
                 value={matchPrediction.homeScore}
                 disabled={locked}
-                compact
+                horizontal
                 onChange={(value) =>
                   onScoreChange(match.number, "homeScore", value)
                 }
               />
-            ) : (
-              <HomeVsPill />
-            )
-          }
-        />
-        <HomeResultTeamScoreRow
-          teamId={match.away}
-          fallback={translateSlot(match.away)}
-          scoreControl={
-            hasUser ? (
+              <span className="px-0.5 text-sm font-black text-zinc-500">-</span>
               <HomeResultScoreStepper
                 label="Goles visitante"
                 value={matchPrediction.awayScore}
                 disabled={locked}
-                compact
+                horizontal
                 onChange={(value) =>
                   onScoreChange(match.number, "awayScore", value)
                 }
               />
-            ) : null
-          }
-        />
-      </div>
+            </div>
+          ) : (
+            <HomeVsPill />
+          )}
+          <CompactTeamSide
+            teamId={match.away}
+            fallback={translateSlot(match.away)}
+          />
+        </div>
+      ) : (
+        <div className="space-y-2 px-3 py-3 sm:hidden">
+          <HomeResultTeamScoreRow
+            teamId={match.home}
+            fallback={translateSlot(match.home)}
+            scoreControl={
+              hasUser ? (
+                <HomeResultScoreStepper
+                  label="Goles local"
+                  value={matchPrediction.homeScore}
+                  disabled={locked}
+                  compact
+                  onChange={(value) =>
+                    onScoreChange(match.number, "homeScore", value)
+                  }
+                />
+              ) : (
+                <HomeVsPill />
+              )
+            }
+          />
+          <HomeResultTeamScoreRow
+            teamId={match.away}
+            fallback={translateSlot(match.away)}
+            scoreControl={
+              hasUser ? (
+                <HomeResultScoreStepper
+                  label="Goles visitante"
+                  value={matchPrediction.awayScore}
+                  disabled={locked}
+                  compact
+                  onChange={(value) =>
+                    onScoreChange(match.number, "awayScore", value)
+                  }
+                />
+              ) : null
+            }
+          />
+        </div>
+      )}
 
+      {compact ? null : (
       <div className="hidden min-h-[124px] w-full grid-cols-[minmax(0,1fr)_104px_minmax(0,1fr)] items-start py-2 pb-4 sm:grid sm:min-h-[128px] sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)]">
         <HomeResultTeamColumn
           teamId={match.home}
@@ -791,8 +1721,13 @@ function UpcomingMatchCard({
           fallback={translateSlot(match.away)}
         />
       </div>
+      )}
 
-      <div className="border-t border-white/10 px-3 py-2 sm:px-4">
+      <div
+        className={`border-t border-white/10 px-3 py-2 sm:px-4 ${
+          compact && !hasLiveScore ? "hidden" : ""
+        }`}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="min-w-0 truncate text-xs text-zinc-400">{match.venue}</p>
           {hasLiveScore ? (
@@ -816,6 +1751,35 @@ function UpcomingMatchCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function CompactTeamSide({
+  fallback,
+  teamId,
+}: {
+  fallback: string;
+  teamId?: string;
+}) {
+  const teamName = (teamId ? teamsById.get(teamId)?.name : "") || fallback;
+
+  return (
+    <span
+      title={teamName}
+      aria-label={teamName}
+      className="flex flex-1 justify-center"
+    >
+      {teamId && teamsById.has(teamId) ? (
+        <TeamFlag
+          teamId={teamId}
+          className="h-7 w-7 rounded-full border border-white/15 object-cover"
+        />
+      ) : (
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[8px] font-bold text-zinc-300">
+          TBD
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -913,12 +1877,14 @@ function HomeResultStatusBadge({
 function HomeResultScoreStepper({
   compact = false,
   disabled,
+  horizontal = false,
   label,
   onChange,
   value,
 }: {
   compact?: boolean;
   disabled: boolean;
+  horizontal?: boolean;
   label: string;
   onChange: (value: string) => void;
   value: string;
@@ -926,6 +1892,46 @@ function HomeResultScoreStepper({
   const numericValue = Number(value || 0);
   const increment = () => onChange(String(Math.min(99, numericValue + 1)));
   const decrement = () => onChange(String(Math.max(0, numericValue - 1)));
+
+  if (horizontal) {
+    return (
+      <div className="flex h-8 items-center overflow-hidden rounded-md">
+        <button
+          type="button"
+          tabIndex={-1}
+          disabled={disabled}
+          onClick={decrement}
+          className="flex h-8 w-6 items-center justify-center bg-[#454545] text-base font-bold leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600"
+          aria-label={`Bajar ${label}`}
+        >
+          -
+        </button>
+        <input
+          name={label}
+          type="number"
+          inputMode="numeric"
+          min="0"
+          max="99"
+          value={value}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+          className="score-number-input h-8 w-8 appearance-none bg-[#222] text-center text-sm font-bold text-white outline-none placeholder:text-zinc-600 disabled:opacity-60"
+          placeholder="?"
+          aria-label={label}
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          disabled={disabled}
+          onClick={increment}
+          className="flex h-8 w-6 items-center justify-center bg-[#454545] text-base font-bold leading-none text-zinc-100 transition hover:bg-[#555] disabled:text-zinc-600"
+          aria-label={`Subir ${label}`}
+        >
+          +
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
