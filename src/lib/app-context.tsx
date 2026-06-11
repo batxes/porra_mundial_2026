@@ -133,6 +133,21 @@ type AppContextValue = {
   scheduleLabel: (matchNumber: number) => string;
 };
 
+// La función SQL `recalculate_scores` solo puntúa tipos de evento en inglés;
+// el panel de admin trabaja en español, así que se traduce al escribir en Supabase.
+const dbEventTypes: Record<string, string> = {
+  gol: "goal",
+  "penalti marcado": "penalty_goal",
+  MVP: "mvp",
+  "penalti parado": "penalty_save",
+  "penalti fallado": "penalty_miss",
+  roja: "red_card",
+};
+
+export function toDbEventType(type: string) {
+  return dbEventTypes[type] || type;
+}
+
 const AppContext = createContext<AppContextValue | null>(null);
 
 const scoring = createEngine({ data, schedule });
@@ -553,7 +568,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         match_id: `wc26-${matchNumber}`,
         player_id: event.playerId,
         team_id: event.teamId || playersById.get(event.playerId)?.team || null,
-        event_type: event.type,
+        event_type: toDbEventType(event.type),
         minute: Number(event.minute) || 0,
       });
 

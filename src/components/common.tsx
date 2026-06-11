@@ -21,6 +21,7 @@ import {
   scheduleUtc,
 } from "@/lib/prediction";
 import type {
+  AdminEvent,
   AdminResult,
   AdminResults,
   Match,
@@ -2600,6 +2601,92 @@ export function ScheduleMeta({ match }: { match: Match }) {
     <div className="text-xs text-slate-400">
       <p>{formatScheduleDate(match)}</p>
       <p>{match.venue}</p>
+    </div>
+  );
+}
+
+export const matchEventIcons: Record<string, string> = {
+  goal: "⚽",
+  gol: "⚽",
+  penalty_goal: "🥅",
+  "penalti marcado": "🥅",
+  mvp: "⭐",
+  MVP: "⭐",
+  penalty_save: "🧤",
+  "penalti parado": "🧤",
+  penalty_miss: "❌",
+  "penalti fallado": "❌",
+  red_card: "🟥",
+  roja: "🟥",
+};
+
+const eventGoalPointsByPosition: Record<Position, number> = {
+  DEL: 2,
+  MED: 6,
+  DEF: 11,
+  POR: 35,
+};
+
+export function matchEventValue(type: string, playerId: string): number {
+  const key = String(type);
+  if (key === "gol" || key === "goal") {
+    const position = playersById.get(playerId)?.position;
+    return position ? eventGoalPointsByPosition[position] : 2;
+  }
+  if (key === "penalti marcado" || key === "penalty_goal") return 1;
+  if (key === "mvp" || key === "MVP") return 3;
+  if (key === "penalti parado" || key === "penalty_save") return 2;
+  if (key === "penalti fallado" || key === "penalty_miss") return -1;
+  if (key === "roja" || key === "red_card") return -2;
+  return 0;
+}
+
+export function MatchEventLine({
+  align = "left",
+  event,
+}: {
+  align?: "left" | "right";
+  event: AdminEvent;
+}) {
+  const playerName =
+    (event.playerId ? playersById.get(event.playerId)?.name : "") || "Jugador";
+  const icon = matchEventIcons[String(event.type)] || "";
+  const points = matchEventValue(String(event.type), event.playerId);
+  const pointsNode =
+    points !== 0 ? (
+      <span
+        className={`shrink-0 font-semibold ${
+          points > 0 ? "text-[#a7f600]" : "text-rose-300"
+        }`}
+      >
+        {points > 0 ? `+${points}` : points}
+      </span>
+    ) : null;
+  const iconNode = (
+    <span aria-hidden="true" className="shrink-0 text-[13px]">
+      {icon}
+    </span>
+  );
+
+  return (
+    <div
+      className={`flex items-center gap-1.5 text-[12px] font-medium text-zinc-400 ${
+        align === "right" ? "justify-end text-right" : ""
+      }`}
+    >
+      {align === "right" ? (
+        <>
+          {pointsNode}
+          <span className="min-w-0 truncate">{playerName}</span>
+          {iconNode}
+        </>
+      ) : (
+        <>
+          {iconNode}
+          <span className="min-w-0 truncate">{playerName}</span>
+          {pointsNode}
+        </>
+      )}
     </div>
   );
 }

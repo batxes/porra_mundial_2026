@@ -2,35 +2,41 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { FormEvent, useEffect, useState } from "react";
+import { toast } from "sonner";
 
-import { Card, CardSkeleton, EmptyState, Notice, ProBadge, SectionHeading, TeamBadge, TeamPicker } from "@/components/common";
-import { useAppContext } from "@/lib/app-context";
-import { data, schedule, teamsById } from "@/lib/data";
+import { Card, CardSkeleton, EmptyState, MatchEventLine, matchEventIcons, Notice, PlayerAvatar, ProBadge, SectionHeading, TeamFlag, TeamPicker } from "@/components/common";
+import { PlayerSearchModal } from "@/components/player-search-modal";
+import { toDbEventType, useAppContext } from "@/lib/app-context";
+import { playersById, schedule, teamsById } from "@/lib/data";
+import { translateSlot } from "@/lib/format";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
-import type { ProviderSummary, UserProfile } from "@/lib/types";
+import type { AdminEvent, ProviderSummary, UserProfile } from "@/lib/types";
+
+type AdminTab = "partidos" | "usuarios" | "proveedor";
+
+const adminTabs: Array<{ id: AdminTab; label: string }> = [
+  { id: "partidos", label: "Resultados y eventos" },
+  { id: "usuarios", label: "Usuarios" },
+  { id: "proveedor", label: "API externa" },
+];
 
 export function AdminView() {
   const {
     adminResults,
-    addAdminEvent,
     clearAdminResults,
-    deleteAdminEvent,
     leaderboard,
-    playerName,
     ready,
-    saveAdminResult,
     setUserHidden,
     setUserPro,
-    teamName,
     user,
     usingSupabase,
   } = useAppContext();
+  const [activeTab, setActiveTab] = useState<AdminTab>("partidos");
   const [providerBusy, setProviderBusy] = useState(false);
   const [providerError, setProviderError] = useState("");
   const [providerSummary, setProviderSummary] = useState<ProviderSummary | null>(null);
   const [adminMessage, setAdminMessage] = useState("");
-  const [homeTeamId, setHomeTeamId] = useState("");
-  const [awayTeamId, setAwayTeamId] = useState("");
+  const [matchNumber, setMatchNumber] = useState(String(schedule[0]?.number ?? ""));
   const [emailsById, setEmailsById] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -89,51 +95,249 @@ export function AdminView() {
     }
   };
 
-  const submitResult = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const matchNumber = String(form.get("matchNumber") || "");
-    await saveAdminResult(matchNumber, {
-      homeScore: String(form.get("homeScore") || ""),
-      awayScore: String(form.get("awayScore") || ""),
-      homeTeamId,
-      awayTeamId,
-      events: adminResults[matchNumber]?.events || [],
-      source: "manual",
-    });
-    setAdminMessage(`Resultado del partido ${matchNumber} guardado.`);
-  };
-
-  const submitEvent = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const matchNumber = String(form.get("matchNumber") || "");
-    const playerId = String(form.get("playerId") || "");
-    await addAdminEvent(matchNumber, {
-      id: crypto.randomUUID(),
-      playerId,
-      teamId: teamsById.get(playersTeam(playerId)) ? playersTeam(playerId) : undefined,
-      type: String(form.get("type") || ""),
-      minute: Number(form.get("minute") || 0),
-      source: "manual",
-    });
-    setAdminMessage(`Evento añadido al partido ${matchNumber}.`);
-  };
-
   const savedEntries = Object.entries(adminResults).sort((a, b) => Number(a[0]) - Number(b[0]));
+
+  const openMatchEditor = (number: string) => {
+    setMatchNumber(number);
+    document.getElementById("match-editor")?.scrollIntoView({ behavior: "smooth" });
+  };
 
   return (
     <div className="space-y-8">
       <SectionHeading
         eyebrow="Zona privada"
         title="Administración"
-        description="Publica resultados, añade eventos y consulta la API externa desde servidor. La clave nunca toca el navegador."
+        description="Publica resultados, añade eventos, gestiona usuarios y consulta la API externa desde servidor. La clave nunca toca el navegador."
       />
 
       <Notice>{usingSupabase ? "Modo Supabase activo." : "Modo demo local activo."}</Notice>
       {adminMessage ? <Notice>{adminMessage}</Notice> : null}
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="flex flex-wrap gap-2">
+        {adminTabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            aria-pressed={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
+              activeTab === tab.id
+                ? "bg-cyan-400 text-slate-950"
+                : "border border-white/15 text-slate-300 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "partidos" ? (
+        <>
+          <Card className="space-y-4">
+            <div id="match-editor">
+              <h3 className="text-xl font-semibold text-white">Editar partido</h3>
+              <p className="text-sm text-slate-400">
+                Elige un partido y publica todo en un sitio: marcador, goles, penaltis, tarjetas y MVP.
+              </p>
+            </div>
+            <label className="block space-y-2 text-sm text-slate-300">
+              <span>Partido</span>
+              <select
+                value={matchNumber}
+                onChange={(event) => setMatchNumber(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+              >
+                {schedule.map((match) => (
+                  <option key={match.number} value={match.number}>
+                    Partido {match.number} · {matchSideName(match.home)} vs {matchSideName(match.away)} · {match.date}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <MatchEditor key={matchNumber} matchNumber={matchNumber} />
+          </Card>
+
+          <Card className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-xl font-semibold text-white">Partidos publicados</h3>
+              {savedEntries.length ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const confirmed = window.confirm(
+                      usingSupabase
+                        ? "Esto borra TODOS los resultados y eventos publicados de la base de datos real y pone los puntos de todos a cero. ¿Seguro?"
+                        : "Esto borra todos los resultados y eventos de la demo local. ¿Seguro?",
+                    );
+                    if (confirmed) void clearAdminResults();
+                  }}
+                  className="w-full rounded-full border border-rose-400/40 px-4 py-2 text-sm text-rose-200 hover:bg-rose-400/10 sm:w-auto"
+                >
+                  {usingSupabase ? "Borrar todos los resultados" : "Vaciar demo"}
+                </button>
+              ) : null}
+            </div>
+            {savedEntries.length ? (
+              <div className="space-y-4">
+                {savedEntries.map(([savedMatchNumber, result]) => {
+                  const savedMatch = schedule.find((candidate) => String(candidate.number) === savedMatchNumber);
+                  const homeTeamId = result.homeTeamId || (savedMatch && teamsById.has(savedMatch.home) ? savedMatch.home : "");
+                  const awayTeamId = result.awayTeamId || (savedMatch && teamsById.has(savedMatch.away) ? savedMatch.away : "");
+                  const homeName =
+                    (homeTeamId && teamsById.get(homeTeamId)?.name) || (savedMatch ? translateSlot(savedMatch.home) : "Local");
+                  const awayName =
+                    (awayTeamId && teamsById.get(awayTeamId)?.name) || (savedMatch ? translateSlot(savedMatch.away) : "Visitante");
+                  const events = (result.events || []).filter((event) => event.playerId && matchEventIcons[String(event.type)]);
+                  const awayEvents = events.filter(
+                    (event) => (playersById.get(event.playerId)?.team || event.teamId || "") === awayTeamId,
+                  );
+                  const homeEvents = events.filter((event) => !awayEvents.includes(event));
+
+                  return (
+                    <div key={savedMatchNumber} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-400">
+                          Partido {savedMatchNumber}
+                          {savedMatch ? ` · ${savedMatch.stage}` : ""}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => openMatchEditor(savedMatchNumber)}
+                          className="shrink-0 rounded-full border border-white/15 px-4 py-1.5 text-xs text-white hover:bg-white/10"
+                        >
+                          Editar
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-2.5">
+                          <span className="min-w-0 truncate text-right text-sm font-bold leading-tight text-white sm:text-base">
+                            {homeName}
+                          </span>
+                          <TeamFlag
+                            teamId={homeTeamId}
+                            className="h-6 w-6 shrink-0 rounded-full border border-white/15 object-cover sm:h-7 sm:w-7"
+                          />
+                        </div>
+                        <span className="shrink-0 rounded-lg bg-white/[0.08] px-3 py-1 text-lg font-black tabular-nums tracking-wide text-white sm:px-3.5 sm:text-xl">
+                          {result.homeScore} - {result.awayScore}
+                        </span>
+                        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                          <TeamFlag
+                            teamId={awayTeamId}
+                            className="h-6 w-6 shrink-0 rounded-full border border-white/15 object-cover sm:h-7 sm:w-7"
+                          />
+                          <span className="min-w-0 truncate text-sm font-bold leading-tight text-white sm:text-base">
+                            {awayName}
+                          </span>
+                        </div>
+                      </div>
+                      {events.length ? (
+                        <div className="mt-2.5 grid grid-cols-2 gap-x-4 border-t border-white/[0.06] pt-2.5">
+                          <div className="space-y-1">
+                            {homeEvents.map((event, index) => (
+                              <MatchEventLine key={event.id || `h${index}`} event={event} />
+                            ))}
+                          </div>
+                          <div className="space-y-1">
+                            {awayEvents.map((event, index) => (
+                              <MatchEventLine key={event.id || `a${index}`} event={event} align="right" />
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="mt-2.5 border-t border-white/[0.06] pt-2.5 text-sm text-slate-400">Sin eventos publicados.</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">Todavía no has publicado resultados.</p>
+            )}
+          </Card>
+        </>
+      ) : null}
+
+      {activeTab === "usuarios" ? (
+        <Card className="space-y-4">
+          <div>
+            <h3 className="text-xl font-semibold text-white">Usuarios</h3>
+            <p className="text-sm text-slate-400">
+              Concede el badge PRO a quien haya pagado u oculta cuentas (duplicadas, de prueba...) de la clasificación. Ocultar es reversible y no borra su porra. Los puntos se recalculan al publicar resultados.
+            </p>
+          </div>
+          <div className="space-y-3">
+            {leaderboard.length ? (
+              leaderboard.map((profile) => (
+                <div
+                  key={profile.id}
+                  className={`flex flex-col gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${
+                    profile.isHidden ? "opacity-60" : ""
+                  }`}
+                >
+                  <span className="min-w-0">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="min-w-0 truncate text-slate-200">{profile.name}</span>
+                      {profile.isPro ? <ProBadge /> : null}
+                      {profile.isHidden ? (
+                        <span className="shrink-0 rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-zinc-400">
+                          Oculto
+                        </span>
+                      ) : null}
+                    </span>
+                    {emailFor(profile) ? (
+                      <span className="block truncate text-xs text-zinc-500">{emailFor(profile)}</span>
+                    ) : null}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-3">
+                    <strong className="shrink-0 text-cyan-300">{profile.points} pts</strong>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await setUserPro(profile.id, !profile.isPro);
+                        setAdminMessage(
+                          profile.isPro
+                            ? `Badge PRO retirado a ${profile.name}.`
+                            : `Badge PRO concedido a ${profile.name}.`,
+                        );
+                      }}
+                      className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                        profile.isPro
+                          ? "border border-white/15 text-white hover:bg-white/10"
+                          : "bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-500 text-amber-950 hover:brightness-110"
+                      }`}
+                    >
+                      {profile.isPro ? "Quitar PRO" : "Hacer PRO"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await setUserHidden(profile.id, !profile.isHidden);
+                        setAdminMessage(
+                          profile.isHidden
+                            ? `${profile.name} vuelve a aparecer en la clasificación.`
+                            : `${profile.name} ocultado de la clasificación.`,
+                        );
+                      }}
+                      className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                        profile.isHidden
+                          ? "bg-white text-black hover:bg-zinc-200"
+                          : "border border-rose-400/40 text-rose-200 hover:bg-rose-400/10"
+                      }`}
+                    >
+                      {profile.isHidden ? "Mostrar" : "Ocultar"}
+                    </button>
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-slate-400">Aún no hay participantes.</p>
+            )}
+          </div>
+        </Card>
+      ) : null}
+
+      {activeTab === "proveedor" ? (
         <Card className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -194,269 +398,426 @@ export function AdminView() {
             <p className="text-sm text-slate-400">Pulsa “Consultar API” para cargar cobertura, resultados, goleadores y tarjetas.</p>
           )}
         </Card>
-
-        <Card className="space-y-4">
-          <h3 className="text-xl font-semibold text-white">Guardar o corregir resultado</h3>
-          <form className="space-y-4" onSubmit={submitResult}>
-            <label className="space-y-2 text-sm text-slate-300">
-              <span>Partido</span>
-              <select name="matchNumber" required className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white">
-                {schedule.map((match) => (
-                  <option key={match.number} value={match.number}>
-                    Partido {match.number} · {match.home} vs {match.away} · {match.date}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="grid gap-4 md:grid-cols-2">
-              <TeamPicker label="Equipo local real, opcional" value={homeTeamId} onChange={setHomeTeamId} placeholder="Según calendario" />
-              <TeamPicker label="Equipo visitante real, opcional" value={awayTeamId} onChange={setAwayTeamId} placeholder="Según calendario" />
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <FieldInput name="homeScore" label="Goles local" />
-              <FieldInput name="awayScore" label="Goles visitante" />
-            </div>
-            <button type="submit" className="w-full rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 sm:w-auto">
-              Guardar resultado y recalcular
-            </button>
-          </form>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card className="space-y-4">
-          <h3 className="text-xl font-semibold text-white">Añadir evento</h3>
-          <form className="space-y-4" onSubmit={submitEvent}>
-            <label className="space-y-2 text-sm text-slate-300">
-              <span>Partido</span>
-              <select name="matchNumber" required className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white">
-                {schedule.map((match) => (
-                  <option key={match.number} value={match.number}>
-                    Partido {match.number}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <FieldSelect
-              name="playerId"
-              label="Jugador"
-              options={data.players.map((player) => ({ value: player.id, label: `${player.name} · ${teamName(player.team)}` }))}
-            />
-            <FieldSelect
-              name="type"
-              label="Tipo"
-              options={[
-                { value: "gol", label: "Gol" },
-                { value: "penalti marcado", label: "Penalti marcado" },
-                { value: "penalti fallado", label: "Penalti fallado" },
-                { value: "penalti parado", label: "Penalti parado" },
-                { value: "roja", label: "Tarjeta roja" },
-                { value: "MVP", label: "MVP del partido" },
-              ]}
-            />
-            <FieldInput name="minute" label="Minuto" />
-            <button type="submit" className="w-full rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 sm:w-auto">
-              Añadir evento
-            </button>
-          </form>
-        </Card>
-
-        <Card className="space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h3 className="text-xl font-semibold text-white">Puntuaciones recalculadas</h3>
-            {savedEntries.length ? (
-              <button
-                type="button"
-                onClick={() => void clearAdminResults()}
-                className="w-full rounded-full border border-white/15 px-4 py-2 text-sm text-white sm:w-auto"
-              >
-                Vaciar demo
-              </button>
-            ) : null}
-          </div>
-          <div className="space-y-3">
-            {leaderboard.length ? (
-              leaderboard.map((profile) => (
-                <div key={profile.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm">
-                  <span className="min-w-0">
-                    <span className="block truncate text-slate-200">{profile.name}</span>
-                    {emailFor(profile) ? (
-                      <span className="block truncate text-xs text-zinc-500">{emailFor(profile)}</span>
-                    ) : null}
-                  </span>
-                  <strong className="shrink-0 text-cyan-300">{profile.points} pts</strong>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-slate-400">Aún no hay participantes.</p>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      <Card className="space-y-4">
-        <div>
-          <h3 className="text-xl font-semibold text-white">Usuarios</h3>
-          <p className="text-sm text-slate-400">
-            Concede el badge PRO a quien haya pagado u oculta cuentas (duplicadas, de prueba...) de la clasificación. Ocultar es reversible y no borra su porra.
-          </p>
-        </div>
-        <div className="space-y-3">
-          {leaderboard.length ? (
-            leaderboard.map((profile) => (
-              <div
-                key={profile.id}
-                className={`flex flex-col gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${
-                  profile.isHidden ? "opacity-60" : ""
-                }`}
-              >
-                <span className="min-w-0">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="min-w-0 truncate text-slate-200">{profile.name}</span>
-                    {profile.isPro ? <ProBadge /> : null}
-                    {profile.isHidden ? (
-                      <span className="shrink-0 rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-zinc-400">
-                        Oculto
-                      </span>
-                    ) : null}
-                  </span>
-                  {emailFor(profile) ? (
-                    <span className="block truncate text-xs text-zinc-500">{emailFor(profile)}</span>
-                  ) : null}
-                </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await setUserPro(profile.id, !profile.isPro);
-                      setAdminMessage(
-                        profile.isPro
-                          ? `Badge PRO retirado a ${profile.name}.`
-                          : `Badge PRO concedido a ${profile.name}.`,
-                      );
-                    }}
-                    className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                      profile.isPro
-                        ? "border border-white/15 text-white hover:bg-white/10"
-                        : "bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-500 text-amber-950 hover:brightness-110"
-                    }`}
-                  >
-                    {profile.isPro ? "Quitar PRO" : "Hacer PRO"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await setUserHidden(profile.id, !profile.isHidden);
-                      setAdminMessage(
-                        profile.isHidden
-                          ? `${profile.name} vuelve a aparecer en la clasificación.`
-                          : `${profile.name} ocultado de la clasificación.`,
-                      );
-                    }}
-                    className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                      profile.isHidden
-                        ? "bg-white text-black hover:bg-zinc-200"
-                        : "border border-rose-400/40 text-rose-200 hover:bg-rose-400/10"
-                    }`}
-                  >
-                    {profile.isHidden ? "Mostrar" : "Ocultar"}
-                  </button>
-                </span>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-slate-400">Aún no hay participantes.</p>
-          )}
-        </div>
-      </Card>
-
-      <Card className="space-y-4">
-        <h3 className="text-xl font-semibold text-white">Partidos publicados</h3>
-        {savedEntries.length ? (
-          <div className="space-y-4">
-            {savedEntries.map(([matchNumber, result]) => (
-              <div key={matchNumber} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-semibold text-white">
-                      Partido {matchNumber} · {result.homeScore} - {result.awayScore}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
-                      {result.homeTeamId ? <TeamBadge teamId={result.homeTeamId} /> : <span>Local</span>}
-                      <span>vs</span>
-                      {result.awayTeamId ? <TeamBadge teamId={result.awayTeamId} /> : <span>Visitante</span>}
-                    </div>
-                  </div>
-                </div>
-                {result.events?.length ? (
-                  <div className="space-y-2">
-                    {result.events.map((event) => (
-                      <div key={event.id} className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-xl bg-slate-950/40 px-4 py-3 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
-                        <span className="text-slate-400">{event.minute}&apos;</span>
-                        <span className="min-w-0 text-slate-200">
-                          {playerName(event.playerId)} · {event.type}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => void deleteAdminEvent(matchNumber, event.id)}
-                          className="col-span-2 rounded-full border border-white/15 px-3 py-1.5 text-xs text-white sm:col-auto"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-400">Sin eventos publicados.</p>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-slate-400">Todavía no has publicado resultados.</p>
-        )}
-      </Card>
+      ) : null}
     </div>
   );
 }
 
-function FieldInput({ name, label }: { name: string; label: string }) {
-  return (
-    <label className="space-y-2 text-sm text-slate-300">
-      <span>{label}</span>
-      <input
-        name={name}
-        type="text"
-        inputMode="numeric"
-        pattern="\d+"
-        required
-        className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-      />
-    </label>
-  );
+type GoalSlot = { playerId: string; minute: string; penalty: boolean };
+type ExtraRow = { playerId: string; type: string; minute: string };
+type PickerTarget =
+  | { kind: "goal"; side: "home" | "away"; index: number }
+  | { kind: "mvp" }
+  | { kind: "extra"; index: number };
+
+const goalEventTypes = new Set(["gol", "goal", "penalti marcado", "penalty_goal"]);
+const mvpEventTypes = new Set(["MVP", "mvp"]);
+
+const extraEventOptions = [
+  { value: "penalti fallado", label: "Penalti fallado" },
+  { value: "penalti parado", label: "Penalti parado" },
+  { value: "roja", label: "Tarjeta roja" },
+];
+
+// Supabase devuelve los tipos en inglés; el selector de "Otros eventos" trabaja en español.
+const extraTypeAliases: Record<string, string> = {
+  penalty_miss: "penalti fallado",
+  penalty_save: "penalti parado",
+  red_card: "roja",
+};
+
+function splitSavedEvents(events: AdminEvent[], homeId: string, awayId: string) {
+  const byMinute = (a: { minute: string }, b: { minute: string }) => (Number(a.minute) || 0) - (Number(b.minute) || 0);
+  const home: GoalSlot[] = [];
+  const away: GoalSlot[] = [];
+  const extras: ExtraRow[] = [];
+  let mvpPlayerId = "";
+
+  for (const event of events) {
+    const type = String(event.type || "");
+    const minute = event.minute ? String(event.minute) : "";
+    if (goalEventTypes.has(type)) {
+      const teamId = event.teamId || playersById.get(event.playerId)?.team || "";
+      const slot = { playerId: event.playerId, minute, penalty: type === "penalti marcado" || type === "penalty_goal" };
+      if (teamId && teamId === awayId) {
+        away.push(slot);
+      } else {
+        home.push(slot);
+      }
+    } else if (mvpEventTypes.has(type)) {
+      mvpPlayerId = event.playerId;
+    } else {
+      extras.push({ playerId: event.playerId, type: extraTypeAliases[type] || type, minute });
+    }
+  }
+
+  home.sort(byMinute);
+  away.sort(byMinute);
+  return { home, away, extras, mvpPlayerId };
 }
 
-function FieldSelect({
-  name,
-  label,
-  options,
-}: {
-  name: string;
-  label: string;
-  options: Array<{ value: string; label: string }>;
-}) {
+function goalCount(score: string) {
+  return Math.min(Math.max(parseInt(score, 10) || 0, 0), 15);
+}
+
+function MatchEditor({ matchNumber }: { matchNumber: string }) {
+  const { adminResults, addAdminEvent, deleteAdminEvent, saveAdminResult, teamName, usingSupabase } = useAppContext();
+
+  const match = schedule.find((candidate) => String(candidate.number) === matchNumber);
+  const saved = adminResults[matchNumber];
+  const scheduledHomeId = match && teamsById.has(match.home) ? match.home : "";
+  const scheduledAwayId = match && teamsById.has(match.away) ? match.away : "";
+
+  const [initial] = useState(() =>
+    splitSavedEvents(saved?.events || [], saved?.homeTeamId || scheduledHomeId, saved?.awayTeamId || scheduledAwayId),
+  );
+  const [homeScore, setHomeScore] = useState(saved == null ? "" : String(saved.homeScore ?? ""));
+  const [awayScore, setAwayScore] = useState(saved == null ? "" : String(saved.awayScore ?? ""));
+  const [homeTeamId, setHomeTeamId] = useState(saved?.homeTeamId || "");
+  const [awayTeamId, setAwayTeamId] = useState(saved?.awayTeamId || "");
+  const [homeGoals, setHomeGoals] = useState<GoalSlot[]>(initial.home);
+  const [awayGoals, setAwayGoals] = useState<GoalSlot[]>(initial.away);
+  const [mvpPlayerId, setMvpPlayerId] = useState(initial.mvpPlayerId);
+  const [extras, setExtras] = useState<ExtraRow[]>(initial.extras);
+  const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const resolvedHomeId = homeTeamId || scheduledHomeId;
+  const resolvedAwayId = awayTeamId || scheduledAwayId;
+  const bothTeamIds = [resolvedHomeId, resolvedAwayId].filter(Boolean);
+  const homeCount = goalCount(homeScore);
+  const awayCount = goalCount(awayScore);
+
+  const updateGoal = (side: "home" | "away", index: number, patch: Partial<GoalSlot>) => {
+    const setter = side === "home" ? setHomeGoals : setAwayGoals;
+    setter((current) => {
+      const next = [...current];
+      while (next.length <= index) next.push({ playerId: "", minute: "", penalty: false });
+      next[index] = { ...next[index], ...patch };
+      return next;
+    });
+  };
+
+  const updateExtra = (index: number, patch: Partial<ExtraRow>) => {
+    setExtras((current) => current.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  };
+
+  const pickerPlayerId = pickerTarget
+    ? pickerTarget.kind === "goal"
+      ? (pickerTarget.side === "home" ? homeGoals : awayGoals)[pickerTarget.index]?.playerId || ""
+      : pickerTarget.kind === "mvp"
+        ? mvpPlayerId
+        : extras[pickerTarget.index]?.playerId || ""
+    : "";
+
+  const setPickerPlayerId = (playerId: string) => {
+    if (!pickerTarget) return;
+    if (pickerTarget.kind === "goal") {
+      updateGoal(pickerTarget.side, pickerTarget.index, { playerId });
+    } else if (pickerTarget.kind === "mvp") {
+      setMvpPlayerId(playerId);
+    } else {
+      updateExtra(pickerTarget.index, { playerId });
+    }
+  };
+
+  const pickerTeamIds = !pickerTarget
+    ? bothTeamIds
+    : pickerTarget.kind === "goal"
+      ? [pickerTarget.side === "home" ? resolvedHomeId : resolvedAwayId].filter(Boolean)
+      : bothTeamIds;
+
+  const pickerTitle = !pickerTarget
+    ? ""
+    : pickerTarget.kind === "goal"
+      ? `Goleador ${pickerTarget.side === "home" ? (resolvedHomeId ? `de ${teamName(resolvedHomeId)}` : "local") : resolvedAwayId ? `de ${teamName(resolvedAwayId)}` : "visitante"}`
+      : pickerTarget.kind === "mvp"
+        ? "MVP del partido"
+        : "Jugador del evento";
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (saving) return;
+
+    const goalEvent = (slot: GoalSlot, teamId: string): AdminEvent => ({
+      id: crypto.randomUUID(),
+      playerId: slot.playerId,
+      teamId: teamId || playersById.get(slot.playerId)?.team,
+      type: slot.penalty ? "penalti marcado" : "gol",
+      minute: Number(slot.minute) || 0,
+      source: "manual",
+    });
+
+    const finalEvents: AdminEvent[] = [
+      ...homeGoals.slice(0, homeCount).filter((slot) => slot.playerId).map((slot) => goalEvent(slot, resolvedHomeId)),
+      ...awayGoals.slice(0, awayCount).filter((slot) => slot.playerId).map((slot) => goalEvent(slot, resolvedAwayId)),
+      ...(mvpPlayerId
+        ? [{
+            id: crypto.randomUUID(),
+            playerId: mvpPlayerId,
+            teamId: playersById.get(mvpPlayerId)?.team,
+            type: "MVP",
+            minute: 0,
+            source: "manual",
+          }]
+        : []),
+      ...extras
+        .filter((row) => row.playerId && row.type)
+        .map((row) => ({
+          id: crypto.randomUUID(),
+          playerId: row.playerId,
+          teamId: playersById.get(row.playerId)?.team,
+          type: row.type,
+          minute: Number(row.minute) || 0,
+          source: "manual",
+        })),
+    ];
+
+    // Reutiliza los ids de los eventos guardados idénticos para que el diff de Supabase
+    // solo toque lo que de verdad cambió.
+    const savedEvents = saved?.events || [];
+    const keyOf = (candidate: { playerId: string; type: string; minute: number | string }) =>
+      `${candidate.playerId}|${toDbEventType(candidate.type)}|${Number(candidate.minute) || 0}`;
+    const pool = [...savedEvents];
+    const mergedEvents = finalEvents.map((candidate) => {
+      const matchIndex = pool.findIndex((savedEvent) => keyOf(savedEvent) === keyOf(candidate));
+      if (matchIndex >= 0) {
+        const [matched] = pool.splice(matchIndex, 1);
+        return { ...candidate, id: matched.id };
+      }
+      return candidate;
+    });
+
+    setSaving(true);
+    try {
+      if (usingSupabase) {
+        for (const stale of pool) {
+          await deleteAdminEvent(matchNumber, stale.id);
+        }
+        const savedIds = new Set(savedEvents.map((savedEvent) => savedEvent.id));
+        for (const added of mergedEvents.filter((candidate) => !savedIds.has(candidate.id))) {
+          await addAdminEvent(matchNumber, added);
+        }
+      }
+
+      await saveAdminResult(matchNumber, {
+        homeScore,
+        awayScore,
+        homeTeamId,
+        awayTeamId,
+        events: mergedEvents,
+        source: "manual",
+      });
+      toast.success(`Partido ${matchNumber} guardado`, {
+        description: `${resolvedHomeId ? teamName(resolvedHomeId) : "Local"} ${homeScore} - ${awayScore} ${resolvedAwayId ? teamName(resolvedAwayId) : "Visitante"} · ${mergedEvents.length} evento${mergedEvents.length === 1 ? "" : "s"} · puntos recalculados`,
+      });
+    } catch (error) {
+      toast.error("No se ha podido guardar el partido", {
+        description: error instanceof Error ? error.message : "Inténtalo de nuevo.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const playerButton = (playerId: string, placeholder: string, target: PickerTarget) => {
+    const player = playersById.get(playerId);
+    return (
+      <button
+        type="button"
+        onClick={() => setPickerTarget(target)}
+        className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-left text-sm text-white"
+      >
+        {player ? (
+          <>
+            <PlayerAvatar player={player} className="h-7 w-7 shrink-0 rounded-full bg-white/10 text-[10px]" />
+            <span className="min-w-0">
+              <span className="block truncate font-semibold">{player.name}</span>
+              <span className="block truncate text-xs text-slate-400">
+                {player.position} · {teamName(player.team)}
+              </span>
+            </span>
+          </>
+        ) : (
+          <span className="text-slate-400">{placeholder}</span>
+        )}
+      </button>
+    );
+  };
+
+  const goalSlots = (side: "home" | "away", teamId: string, count: number, slots: GoalSlot[]) => (
+    <div className="space-y-2">
+      <p className="flex items-center gap-2 text-sm font-semibold text-slate-200">
+        {teamId ? <TeamFlag teamId={teamId} className="h-4 w-5 rounded-sm" /> : null}
+        Goles {teamId ? `de ${teamName(teamId)}` : side === "home" ? "del local" : "del visitante"}
+      </p>
+      {Array.from({ length: count }, (_, index) => {
+        const slot = slots[index] || { playerId: "", minute: "", penalty: false };
+        return (
+          <div key={index} className="flex flex-wrap items-center gap-2">
+            {playerButton(slot.playerId, `Goleador ${index + 1}`, { kind: "goal", side, index })}
+            <input
+              value={slot.minute}
+              onChange={(event) => updateGoal(side, index, { minute: event.target.value.replace(/\D/g, "") })}
+              placeholder="Min"
+              inputMode="numeric"
+              className="w-20 rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white"
+            />
+            <label className="flex items-center gap-1.5 text-xs text-slate-300">
+              <input
+                type="checkbox"
+                checked={slot.penalty}
+                onChange={(event) => updateGoal(side, index, { penalty: event.target.checked })}
+                className="accent-cyan-400"
+              />
+              Penalti
+            </label>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
-    <label className="space-y-2 text-sm text-slate-300">
-      <span>{label}</span>
-      <select name={name} className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white">
-        <option value="">Sin seleccionar</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
+    <form className="space-y-6" onSubmit={submit}>
+      {!scheduledHomeId || !scheduledAwayId ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <TeamPicker label="Equipo local real" value={homeTeamId} onChange={setHomeTeamId} placeholder="Por confirmar" />
+          <TeamPicker label="Equipo visitante real" value={awayTeamId} onChange={setAwayTeamId} placeholder="Por confirmar" />
+        </div>
+      ) : null}
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <label className="space-y-2 text-sm text-slate-300">
+          <span className="flex items-center gap-2">
+            {resolvedHomeId ? <TeamFlag teamId={resolvedHomeId} className="h-4 w-5 rounded-sm" /> : null}
+            Goles {resolvedHomeId ? teamName(resolvedHomeId) : "local"}
+          </span>
+          <input
+            value={homeScore}
+            onChange={(event) => setHomeScore(event.target.value.replace(/\D/g, ""))}
+            required
+            inputMode="numeric"
+            pattern="\d+"
+            className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+          />
+        </label>
+        <label className="space-y-2 text-sm text-slate-300">
+          <span className="flex items-center gap-2">
+            {resolvedAwayId ? <TeamFlag teamId={resolvedAwayId} className="h-4 w-5 rounded-sm" /> : null}
+            Goles {resolvedAwayId ? teamName(resolvedAwayId) : "visitante"}
+          </span>
+          <input
+            value={awayScore}
+            onChange={(event) => setAwayScore(event.target.value.replace(/\D/g, ""))}
+            required
+            inputMode="numeric"
+            pattern="\d+"
+            className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+          />
+        </label>
+      </div>
+
+      {bothTeamIds.length < 2 ? (
+        <Notice>Confirma los dos equipos del partido para filtrar los jugadores en cada hueco.</Notice>
+      ) : null}
+
+      {homeCount || awayCount ? (
+        <div className="space-y-4">
+          <div>
+            <h4 className="font-semibold text-white">Goleadores</h4>
+            <p className="text-sm text-slate-400">
+              Un hueco por gol según el marcador. Deja el hueco vacío si fue gol en propia puerta. Marca «Penalti» si el gol fue de penalti.
+            </p>
+          </div>
+          {homeCount ? goalSlots("home", resolvedHomeId, homeCount, homeGoals) : null}
+          {awayCount ? goalSlots("away", resolvedAwayId, awayCount, awayGoals) : null}
+        </div>
+      ) : (
+        <p className="text-sm text-slate-400">Indica el marcador y aparecerá un hueco por cada gol para asignar el goleador.</p>
+      )}
+
+      <div className="space-y-2">
+        <h4 className="flex items-center gap-2 font-semibold text-white">
+          <span aria-hidden>⭐</span>
+          MVP del partido
+        </h4>
+        <div className="flex">{playerButton(mvpPlayerId, "Sin MVP elegido", { kind: "mvp" })}</div>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <h4 className="font-semibold text-white">Otros eventos</h4>
+          <p className="text-sm text-slate-400">Penaltis fallados o parados y tarjetas rojas.</p>
+        </div>
+        {extras.map((row, index) => (
+          <div key={index} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {playerButton(row.playerId, "Elige jugador", { kind: "extra", index })}
+            <div className="flex items-center gap-2">
+              <select
+                value={row.type}
+                onChange={(event) => updateExtra(index, { type: event.target.value })}
+                className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white sm:flex-none"
+              >
+                <option value="">Tipo</option>
+                {extraEventOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={row.minute}
+                onChange={(event) => updateExtra(index, { minute: event.target.value.replace(/\D/g, "") })}
+                placeholder="Min"
+                inputMode="numeric"
+                className="w-20 shrink-0 rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white"
+              />
+              <button
+                type="button"
+                onClick={() => setExtras((current) => current.filter((_, i) => i !== index))}
+                className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-xs text-white"
+              >
+                Quitar
+              </button>
+            </div>
+          </div>
         ))}
-      </select>
-    </label>
+        <button
+          type="button"
+          onClick={() => setExtras((current) => [...current, { playerId: "", type: "", minute: "" }])}
+          className="rounded-full border border-white/15 px-4 py-2 text-sm text-white"
+        >
+          + Añadir evento
+        </button>
+      </div>
+
+      <button
+        type="submit"
+        disabled={saving}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60 sm:w-auto"
+      >
+        {saving ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/25 border-t-slate-950" /> : null}
+        {saving ? "Guardando…" : "Guardar partido y recalcular"}
+      </button>
+
+      {pickerTarget ? (
+        <PlayerSearchModal
+          title={pickerTitle}
+          currentPlayer={playersById.get(pickerPlayerId)}
+          teamIds={pickerTeamIds}
+          onClose={() => setPickerTarget(null)}
+          onRemove={() => {
+            setPickerPlayerId("");
+            setPickerTarget(null);
+          }}
+          onSelect={(playerId) => {
+            setPickerPlayerId(playerId);
+            setPickerTarget(null);
+          }}
+        />
+      ) : null}
+    </form>
   );
 }
 
@@ -479,6 +840,6 @@ function ProviderList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function playersTeam(playerId: string) {
-  return data.players.find((player) => player.id === playerId)?.team || "";
+function matchSideName(value: string) {
+  return teamsById.get(value)?.name || value;
 }

@@ -47,6 +47,7 @@ import {
   TeamPicker,
 } from "@/components/common";
 import { AuthModal } from "@/components/auth-modal";
+import { PlayerSearchModal } from "@/components/player-search-modal";
 import { useAppContext } from "@/lib/app-context";
 import {
   data,
@@ -100,6 +101,7 @@ const playSections = [
 ] as const;
 
 type SectionId = (typeof playSections)[number]["id"];
+type PlaySection = (typeof playSections)[number];
 
 function isSectionId(value: string | null): value is SectionId {
   return playSections.some((section) => section.id === value);
@@ -119,13 +121,6 @@ const positionTabs: Array<{ id: Position; label: string }> = [
   { id: "DEL", label: "Delantero" },
 ];
 
-type ExtraPlayerPositionFilter = Position | "all";
-
-const extraPlayerPositionTabs: Array<{
-  id: ExtraPlayerPositionFilter;
-  label: string;
-}> = [{ id: "all", label: "Todos" }, ...positionTabs];
-
 const xiScoringRules = [
   ["⚽", "Gol delantero", "+2"],
   ["⚽", "Gol centrocampista", "+6"],
@@ -137,13 +132,6 @@ const xiScoringRules = [
   ["❌", "Penalti fallado", "-1"],
   ["🟥", "Roja", "-2"],
 ] as const;
-
-function normalizeSearch(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
 
 const sortedPlayersByPosition = positionTabs.reduce(
   (acc, position) => {
@@ -189,7 +177,9 @@ export function PredictionView() {
     toggleThirdQualifier,
     user,
   } = useAppContext();
-  const [section, setSection] = useState<SectionId>("extras");
+  const [section, setSection] = useState<SectionId>(() =>
+    hasTournamentStarted() ? "results" : "extras",
+  );
   const [autoSaveState, setAutoSaveState] = useState<AutoSaveState>("idle");
   const [authOpen, setAuthOpen] = useState(false);
   const [showXiIntroModal, setShowXiIntroModal] = useState(false);
@@ -218,6 +208,14 @@ export function PredictionView() {
     [prediction, visibleMatches],
   );
   const tournamentLocked = hasTournamentStarted();
+  // Con el torneo cerrado solo se rellenan los resultados, asi que esa
+  // pestana pasa a ser la primera (y la que se abre por defecto).
+  const orderedSections: readonly PlaySection[] = tournamentLocked
+    ? [
+        ...playSections.filter((tab) => tab.id === "results"),
+        ...playSections.filter((tab) => tab.id !== "results"),
+      ]
+    : playSections;
   const userId = user?.id || "";
   const changeSection = (nextSection: SectionId) => {
     if (nextSection === section) return;
@@ -444,6 +442,7 @@ export function PredictionView() {
         ) : null}
 
         <StepTabs
+          sections={orderedSections}
           section={section}
           progresses={sectionProgresses}
           onSectionChange={changeSection}
@@ -490,6 +489,7 @@ export function PredictionView() {
 
       <StepActionBar
         autoSaveState={autoSaveState === "idle" ? null : autoSaveState}
+        sections={orderedSections}
         section={section}
         progresses={sectionProgresses}
         onSectionChange={changeSection}
@@ -639,10 +639,12 @@ function AutoSaveStatus({ state }: { state: AutoSaveState }) {
 }
 
 function StepTabs({
+  sections,
   section,
   progresses,
   onSectionChange,
 }: {
+  sections: readonly PlaySection[];
   section: SectionId;
   progresses: Record<SectionId, SectionProgress>;
   onSectionChange: (section: SectionId) => void;
@@ -650,7 +652,7 @@ function StepTabs({
   return (
     <div className="-mx-4 overflow-x-auto px-4 py-2 sm:-mx-6 sm:px-6 md:mx-0 md:overflow-visible md:px-0">
       <div className="flex w-max max-w-none gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:grid md:w-full md:grid-cols-4">
-        {playSections.map((tab) => {
+        {sections.map((tab, index) => {
           const active = section === tab.id;
           const complete = progresses[tab.id].status === "complete";
 
@@ -676,7 +678,7 @@ function StepTabs({
                       : "bg-white/10 text-zinc-400"
                 }`}
               >
-                {tab.step}
+                {index + 1}
               </span>
               <span className="min-w-0 truncate">{tab.label}</span>
               <StepStatusBadge progress={progresses[tab.id]} active={active} />
@@ -692,6 +694,7 @@ function StepActionBar({
   autoSaveState,
   hasUser,
   onCreateAccount,
+  sections,
   section,
   progresses,
   onSectionChange,
@@ -699,13 +702,14 @@ function StepActionBar({
   autoSaveState: AutoSaveState | null;
   hasUser: boolean;
   onCreateAccount: () => void;
+  sections: readonly PlaySection[];
   section: SectionId;
   progresses: Record<SectionId, SectionProgress>;
   onSectionChange: (section: SectionId) => void;
 }) {
-  const currentIndex = playSections.findIndex((tab) => tab.id === section);
-  const previous = playSections[currentIndex - 1];
-  const next = playSections[currentIndex + 1];
+  const currentIndex = sections.findIndex((tab) => tab.id === section);
+  const previous = sections[currentIndex - 1];
+  const next = sections[currentIndex + 1];
   const progress = progresses[section];
 
   return (
@@ -1318,7 +1322,7 @@ function ExtraPlayerField({
       </button>
 
       {isOpen && !disabled ? (
-        <ExtraPlayerPickerModal
+        <PlayerSearchModal
           title={label}
           currentPlayer={player || undefined}
           onClose={() => setIsOpen(false)}
@@ -1334,173 +1338,6 @@ function ExtraPlayerField({
           }}
         />
       ) : null}
-    </div>
-  );
-}
-
-function ExtraPlayerPickerModal({
-  title,
-  currentPlayer,
-  onClose,
-  onRemove,
-  onSelect,
-}: {
-  title: string;
-  currentPlayer?: Player;
-  onClose: () => void;
-  onRemove: () => void;
-  onSelect: (playerId: string) => void;
-}) {
-  const [activePosition, setActivePosition] =
-    useState<ExtraPlayerPositionFilter>("all");
-  const [query, setQuery] = useState("");
-
-  const visiblePlayers = useMemo(() => {
-    const normalized = normalizeSearch(query.trim());
-
-    return data.players
-      .filter(
-        (player) =>
-          activePosition === "all" || player.position === activePosition,
-      )
-      .filter((player) => {
-        if (!normalized) return true;
-        const team = teamsById.get(player.team)?.name || "";
-        return normalizeSearch(`${player.name} ${team}`).includes(normalized);
-      })
-      .sort((a, b) => {
-        const teamCompare = (teamsById.get(a.team)?.name || "").localeCompare(
-          teamsById.get(b.team)?.name || "",
-        );
-        return teamCompare || a.name.localeCompare(b.name);
-      });
-  }, [activePosition, query]);
-
-  const groupedPlayers = useMemo(() => {
-    const groups = new Map<string, Player[]>();
-
-    visiblePlayers.forEach((player) => {
-      const country = teamsById.get(player.team)?.name || "Sin pais";
-      groups.set(country, [...(groups.get(country) || []), player]);
-    });
-
-    return Array.from(groups.entries());
-  }, [visiblePlayers]);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-3 py-5 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-    >
-      <div className="flex max-h-[78vh] w-full max-w-[440px] flex-col overflow-hidden rounded-2xl bg-white text-slate-950 shadow-2xl">
-        <div className="border-b border-slate-100 p-3">
-          <div className="grid grid-cols-5 rounded-xl bg-slate-100 p-1">
-            {extraPlayerPositionTabs.map((position) => (
-              <button
-                key={position.id}
-                type="button"
-                aria-pressed={activePosition === position.id}
-                onClick={() => setActivePosition(position.id)}
-                className={`h-9 rounded-lg px-1 text-[11px] font-bold transition sm:text-xs ${
-                  activePosition === position.id
-                    ? "bg-white text-emerald-700 shadow-sm"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                {position.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-3 flex items-center gap-2">
-            <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-slate-100 px-3 py-2">
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={
-                  activePosition === "all"
-                    ? "Buscar jugador"
-                    : `Buscar ${positionLabels[activePosition].toLowerCase()}`
-                }
-                className="min-w-0 flex-1 bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-full px-2 py-1 text-sm font-semibold text-emerald-700"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-3 pb-3 pt-2">
-          {currentPlayer ? (
-            <button
-              type="button"
-              onClick={onRemove}
-              className="mb-3 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700"
-            >
-              Quitar jugador
-            </button>
-          ) : null}
-
-          <div className="space-y-2">
-            {groupedPlayers.map(([country, countryPlayers]) => (
-              <div key={country} className="space-y-1">
-                <div className="flex items-center gap-2 py-1 text-xs font-bold uppercase text-slate-500">
-                  <TeamFlag
-                    teamId={countryPlayers[0]?.team}
-                    className="h-4 w-5 rounded-sm"
-                  />
-                  <span>{country}</span>
-                </div>
-                {countryPlayers.map((player) => {
-                  const selected = player.id === currentPlayer?.id;
-
-                  return (
-                    <button
-                      key={player.id}
-                      type="button"
-                      onClick={() => onSelect(player.id)}
-                      className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl px-2 py-1.5 text-left transition ${
-                        selected ? "bg-emerald-50" : "hover:bg-slate-100"
-                      }`}
-                    >
-                      <PlayerAvatar
-                        player={player}
-                        className="h-8 w-8 rounded-full bg-slate-100 text-[10px] text-emerald-900"
-                      />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold leading-4 text-slate-950">
-                          {player.name}
-                        </p>
-                        <p className="text-xs leading-4 text-slate-500">
-                          {teamsById.get(player.team)?.name || "Sin pais"}
-                        </p>
-                      </div>
-                      {selected ? (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                          Elegido
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-
-            {!visiblePlayers.length ? (
-              <p className="rounded-xl bg-slate-100 px-3 py-4 text-sm text-slate-500">
-                No hay jugadores para esa busqueda.
-              </p>
-            ) : null}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -2427,6 +2264,43 @@ function ResultsSchedule({
   const completedMatches = matches.filter((match) =>
     isMatchPredictionComplete(match, prediction),
   ).length;
+  const nextMatchNumber = useMemo(() => {
+    const upcoming = matches
+      .filter((match) => !hasMatchStarted(match))
+      .sort(
+        (a, b) =>
+          new Date(scheduleUtc(a)).getTime() -
+            new Date(scheduleUtc(b)).getTime() || a.number - b.number,
+      );
+    return upcoming[0]?.number ?? null;
+  }, [matches]);
+
+  // Al llegar desde "Ver partidos" del inicio (?goto=next) hacemos scroll
+  // hasta el proximo partido por jugar.
+  useEffect(() => {
+    if (nextMatchNumber == null) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("goto") !== "next") return;
+
+    const timer = window.setTimeout(() => {
+      document
+        .getElementById("proximo-partido")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+      // Limpiamos el flag tras hacer scroll (dentro del timeout para que el
+      // doble render de dev no cancele el scroll).
+      const current = new URLSearchParams(window.location.search);
+      current.delete("goto");
+      const query = current.toString();
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
+      );
+    }, 140);
+
+    return () => window.clearTimeout(timer);
+  }, [nextMatchNumber]);
 
   return (
     <div className="space-y-3">
@@ -2465,13 +2339,22 @@ function ResultsSchedule({
               </h4>
               <div className="space-y-3">
                 {dayMatches.map((match) => (
-                  <ResultMatchCard
+                  <div
                     key={match.number}
-                    match={match}
-                    prediction={prediction}
-                    result={results[String(match.number)]}
-                    onScoreChange={onScoreChange}
-                  />
+                    id={
+                      match.number === nextMatchNumber
+                        ? "proximo-partido"
+                        : undefined
+                    }
+                    className="scroll-mt-24"
+                  >
+                    <ResultMatchCard
+                      match={match}
+                      prediction={prediction}
+                      result={results[String(match.number)]}
+                      onScoreChange={onScoreChange}
+                    />
+                  </div>
                 ))}
               </div>
             </section>
