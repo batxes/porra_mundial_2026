@@ -1,12 +1,13 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import { Card, EmptyState, Notice, ProBadge, SectionHeading, TeamBadge, TeamPicker } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { data, schedule, teamsById } from "@/lib/data";
-import type { ProviderSummary } from "@/lib/types";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
+import type { ProviderSummary, UserProfile } from "@/lib/types";
 
 export function AdminView() {
   const {
@@ -28,6 +29,28 @@ export function AdminView() {
   const [adminMessage, setAdminMessage] = useState("");
   const [homeTeamId, setHomeTeamId] = useState("");
   const [awayTeamId, setAwayTeamId] = useState("");
+  const [emailsById, setEmailsById] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!user?.isAdmin || !usingSupabase) return;
+    const supabase = getSupabaseBrowserClient() as any;
+    if (!supabase) return;
+
+    let cancelled = false;
+    supabase
+      .rpc("admin_list_user_emails")
+      .then(({ data: rows }: { data: Array<{ user_id: string; email: string }> | null }) => {
+        if (cancelled || !rows) return;
+        setEmailsById(Object.fromEntries(rows.map((row) => [row.user_id, row.email])));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.isAdmin, usingSupabase]);
+
+  const emailFor = (profile: UserProfile) =>
+    profile.email || emailsById[profile.id] || "";
 
   if (!user?.isAdmin) {
     return (
@@ -244,7 +267,12 @@ export function AdminView() {
             {leaderboard.length ? (
               leaderboard.map((profile) => (
                 <div key={profile.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm">
-                  <span className="min-w-0 truncate text-slate-200">{profile.name}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-slate-200">{profile.name}</span>
+                    {emailFor(profile) ? (
+                      <span className="block truncate text-xs text-zinc-500">{emailFor(profile)}</span>
+                    ) : null}
+                  </span>
                   <strong className="shrink-0 text-cyan-300">{profile.points} pts</strong>
                 </div>
               ))
@@ -266,9 +294,14 @@ export function AdminView() {
           {leaderboard.length ? (
             leaderboard.map((profile) => (
               <div key={profile.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm">
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="min-w-0 truncate text-slate-200">{profile.name}</span>
-                  {profile.isPro ? <ProBadge /> : null}
+                <span className="min-w-0">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="min-w-0 truncate text-slate-200">{profile.name}</span>
+                    {profile.isPro ? <ProBadge /> : null}
+                  </span>
+                  {emailFor(profile) ? (
+                    <span className="block truncate text-xs text-zinc-500">{emailFor(profile)}</span>
+                  ) : null}
                 </span>
                 <button
                   type="button"
