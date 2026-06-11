@@ -1068,10 +1068,11 @@ function JornadaCard({
                       className="size-9"
                     />
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-white">
-                        {profile.name}
+                      <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-white">
+                        <span className="truncate">{profile.name}</span>
+                        {profile.isPro ? <ProBadge /> : null}
                         {profile.id === currentUserId ? (
-                          <span className="text-zinc-500"> · tú</span>
+                          <span className="shrink-0 text-zinc-500">· tú</span>
                         ) : null}
                       </p>
                       {parts.length ? (
@@ -1540,6 +1541,7 @@ function UpcomingMatchCard({
       {compact ? (
         <div className="flex items-center justify-center gap-2.5 px-3 pb-3 pt-2">
           <CompactTeamSide
+            reversed
             teamId={match.home}
             fallback={translateSlot(match.home)}
           />
@@ -1698,9 +1700,11 @@ function UpcomingMatchCard({
 
 function CompactTeamSide({
   fallback,
+  reversed = false,
   teamId,
 }: {
   fallback: string;
+  reversed?: boolean;
   teamId?: string;
 }) {
   const teamName = (teamId ? teamsById.get(teamId)?.name : "") || fallback;
@@ -1709,18 +1713,24 @@ function CompactTeamSide({
     <span
       title={teamName}
       aria-label={teamName}
-      className="flex flex-1 justify-center"
+      className={`flex min-w-0 flex-1 items-center justify-center gap-2 ${
+        reversed ? "flex-row-reverse" : ""
+      }`}
     >
       {teamId && teamsById.has(teamId) ? (
         <TeamFlag
           teamId={teamId}
-          className="h-7 w-7 rounded-full border border-white/15 object-cover"
+          className="h-7 w-7 shrink-0 rounded-full border border-white/15 object-cover"
         />
       ) : (
-        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[8px] font-bold text-zinc-300">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[8px] font-bold text-zinc-300">
           TBD
         </span>
       )}
+      {/* En escritorio hay sitio para el nombre; en movil solo la bandera. */}
+      <span className="hidden min-w-0 truncate text-sm font-semibold text-white sm:inline">
+        {teamName}
+      </span>
     </span>
   );
 }
