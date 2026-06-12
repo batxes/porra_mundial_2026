@@ -12,14 +12,19 @@ import {
   MatchEventLine,
   matchEventIcons,
   matchStageLabel,
+  PlayerAvatar,
   PrimaryLink,
   ProBadge,
   Skeleton,
   TeamFlag,
 } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
-import { playersById, schedule, teamsById } from "@/lib/data";
+import { data, playersById, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
+import {
+  calculatePlayerStandings,
+  type PlayerStandingRow,
+} from "@/lib/scoring";
 import {
   isMatchPredictionComplete,
   isMatchVisibleForPrediction,
@@ -104,8 +109,11 @@ export function HomeView() {
     () => fullLeaderboard.filter((profile) => !profile.isHidden),
     [fullLeaderboard],
   );
-  const [homeSaveState, setHomeSaveState] =
-    useState<HomeSaveState>("idle");
+  const topPlayers = useMemo(
+    () => calculatePlayerStandings(adminResults, data.players).slice(0, 10),
+    [adminResults],
+  );
+  const [homeSaveState, setHomeSaveState] = useState<HomeSaveState>("idle");
   const [reminderMatches, setReminderMatches] = useState<Match[]>([]);
   const [recapMatches, setRecapMatches] = useState<RecapItem[]>([]);
   const [recapRank, setRecapRank] = useState<RecapRank | null>(null);
@@ -159,13 +167,12 @@ export function HomeView() {
 
     const finished = schedule
       .map((match) => ({ match, result: adminResults[String(match.number)] }))
-      .filter(
-        (item): item is { match: Match; result: AdminResult } =>
-          Boolean(
-            item.result &&
-              isFinishedResult(item.result) &&
-              hasFinishedScore(item.result),
-          ),
+      .filter((item): item is { match: Match; result: AdminResult } =>
+        Boolean(
+          item.result &&
+          isFinishedResult(item.result) &&
+          hasFinishedScore(item.result),
+        ),
       );
     if (!finished.length) return;
 
@@ -398,7 +405,7 @@ export function HomeView() {
             className="mb-4 h-16 w-16 object-contain sm:h-20 sm:w-20"
             priority
           />
-          <h1 className="text-4xl font-black tracking-tight text-white sm:text-6xl">
+          <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl">
             Triliporra
           </h1>
           <p className="mt-3 max-w-xl text-base text-zinc-400 sm:text-lg">
@@ -417,61 +424,92 @@ export function HomeView() {
       )}
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:gap-10">
-      <HomeFeedSection
-        currentUserId={user?.id || ""}
-        hasUser={Boolean(user)}
-        leaderboard={leaderboard}
-        nextMatchdayKey={nextMatchdayKey}
-        onScoreChange={changeHomePredictionScore}
-        prediction={prediction}
-        ready={ready}
-        results={adminResults}
-        saveState={user && homeSaveState !== "idle" ? homeSaveState : null}
-        upcomingMatches={upcomingMatches}
-      />
+        <HomeFeedSection
+          currentUserId={user?.id || ""}
+          hasUser={Boolean(user)}
+          leaderboard={leaderboard}
+          nextMatchdayKey={nextMatchdayKey}
+          onScoreChange={changeHomePredictionScore}
+          prediction={prediction}
+          ready={ready}
+          results={adminResults}
+          saveState={user && homeSaveState !== "idle" ? homeSaveState : null}
+          upcomingMatches={upcomingMatches}
+        />
 
-      <aside className="grid grid-cols-1 gap-6">
-      <section className="space-y-3">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-black tracking-tight text-white">
-              Clasificacion
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              {ready ? `${leaderboard.length} participantes` : " "}
-            </p>
-          </div>
-          <Link
-            href="/clasificacion"
-            className="w-fit shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10"
-          >
-            Ver mas
-          </Link>
-        </div>
+        <aside className="grid grid-cols-1 gap-6">
+          <section className="space-y-3">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight text-white">
+                  Clasificacion
+                </h2>
+                <p className="mt-1 text-sm text-zinc-500">
+                  {ready ? `${leaderboard.length} participantes` : " "}
+                </p>
+              </div>
+              <Link
+                href="/clasificacion"
+                className="w-fit shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+              >
+                Ver mas
+              </Link>
+            </div>
 
-        {!ready ? (
-          <div className="space-y-2 py-1">
-            {Array.from({ length: 10 }, (_, index) => (
-              <Skeleton key={index} className="h-10 rounded-lg" />
-            ))}
-          </div>
-        ) : leaderboard.length ? (
-          <div className="divide-y divide-white/[0.06]">
-            {leaderboard.slice(0, 10).map((profile, index) => (
-              <LeaderboardRow
-                key={profile.id}
-                profile={profile}
-                position={index + 1}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="py-6 text-center text-sm text-zinc-400">
-            Aun no hay participantes.
-          </div>
-        )}
-      </section>
-      </aside>
+            {!ready ? (
+              <div className="space-y-2 py-1">
+                {Array.from({ length: 10 }, (_, index) => (
+                  <Skeleton key={index} className="h-10 rounded-lg" />
+                ))}
+              </div>
+            ) : leaderboard.length ? (
+              <div className="divide-y divide-white/[0.06]">
+                {leaderboard.slice(0, 10).map((profile, index) => (
+                  <LeaderboardRow
+                    key={profile.id}
+                    profile={profile}
+                    position={index + 1}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="py-6 text-center text-sm text-zinc-400">
+                Aun no hay participantes.
+              </div>
+            )}
+          </section>
+
+          {ready && topPlayers.length ? (
+            <section className="space-y-3">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight text-white">
+                    Jugadores
+                  </h2>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    Los futbolistas que mas puntos suman
+                  </p>
+                </div>
+                <Link
+                  href="/clasificacion?tab=jugadores"
+                  className="w-fit shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+                >
+                  Ver mas
+                </Link>
+              </div>
+
+              <div className="divide-y divide-white/[0.06]">
+                {topPlayers.map((row, index) => (
+                  <TopPlayerRow
+                    key={row.player.id}
+                    row={row}
+                    position={index + 1}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </aside>
       </div>
 
       {recapMatches.length ? (
@@ -552,7 +590,7 @@ function MatchResultsRecapModal({
                 : "Esta vez"}
           </span>
           <span
-            className={`rounded-md px-2.5 py-1 text-sm font-black ${
+            className={`rounded-md px-2.5 py-1 text-sm font-bold ${
               totalPoints > 0
                 ? "bg-[#a7f600]/15 text-[#a7f600]"
                 : totalPoints < 0
@@ -598,7 +636,7 @@ function MatchResultsRecapModal({
                 </p>
               )}
             </div>
-            <span className="shrink-0 rounded-md bg-white/[0.08] px-2.5 py-1 text-sm font-black text-white">
+            <span className="shrink-0 rounded-md bg-white/[0.08] px-2.5 py-1 text-sm font-bold text-white">
               {rank.current}º
               <span className="font-semibold text-zinc-500">
                 {" "}
@@ -641,7 +679,7 @@ function RecapMatchRow({ item }: { item: RecapItem }) {
             teamId={homeTeamId}
             className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
           />
-          <span className="shrink-0 rounded-md bg-white/[0.07] px-2 py-0.5 text-sm font-black text-white">
+          <span className="shrink-0 rounded-md bg-white/[0.07] px-2 py-0.5 text-sm font-bold text-white">
             {result.homeScore}-{result.awayScore}
           </span>
           <TeamFlag
@@ -653,7 +691,7 @@ function RecapMatchRow({ item }: { item: RecapItem }) {
           </span>
         </div>
         <span
-          className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-black ${
+          className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${
             points > 0
               ? "bg-[#a7f600]/12 text-[#a7f600]"
               : points < 0
@@ -791,31 +829,36 @@ function jornadaScorers(
   matchNumbers: number[],
 ): JornadaScorer[] {
   const numbers = new Set(matchNumbers);
-  return profiles
-    .map((profile) => {
-      let points = 0;
-      const breakdown: ScorerBreakdown = { exact: 0, outcome: 0, xi: 0 };
-      profile.scorecard.entries.forEach((entry) => {
-        if (!entry.matchNumber || !numbers.has(entry.matchNumber)) return;
-        points += entry.points;
-        if (entry.ruleCode === "match_exact_score") {
-          breakdown.exact += entry.points;
-        } else if (entry.ruleCode === "match_outcome_hit") {
-          breakdown.outcome += entry.points;
-        } else if (entry.ruleCode.startsWith("player_")) {
-          breakdown.xi += entry.points;
-        }
-      });
-      return { profile, points, breakdown };
-    })
-    .filter((row) => row.points !== 0)
-    // Orden estable: `profiles` ya viene ordenado por la clasificacion
-    // general, asi que los empates a puntos de jornada se desempatan por
-    // puesto en la clasificacion.
-    .sort((a, b) => b.points - a.points);
+  return (
+    profiles
+      .map((profile) => {
+        let points = 0;
+        const breakdown: ScorerBreakdown = { exact: 0, outcome: 0, xi: 0 };
+        profile.scorecard.entries.forEach((entry) => {
+          if (!entry.matchNumber || !numbers.has(entry.matchNumber)) return;
+          points += entry.points;
+          if (entry.ruleCode === "match_exact_score") {
+            breakdown.exact += entry.points;
+          } else if (entry.ruleCode === "match_outcome_hit") {
+            breakdown.outcome += entry.points;
+          } else if (entry.ruleCode.startsWith("player_")) {
+            breakdown.xi += entry.points;
+          }
+        });
+        return { profile, points, breakdown };
+      })
+      .filter((row) => row.points !== 0)
+      // Orden estable: `profiles` ya viene ordenado por la clasificacion
+      // general, asi que los empates a puntos de jornada se desempatan por
+      // puesto en la clasificacion.
+      .sort((a, b) => b.points - a.points)
+  );
 }
 
-const scorerBreakdownLabels: Array<{ key: keyof ScorerBreakdown; label: string }> = [
+const scorerBreakdownLabels: Array<{
+  key: keyof ScorerBreakdown;
+  label: string;
+}> = [
   { key: "exact", label: "Exacto" },
   { key: "outcome", label: "Acierto" },
   { key: "xi", label: "Tu once" },
@@ -858,7 +901,7 @@ function HomeFeedSection({
     <section className="space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-white">
+          <h2 className="text-2xl font-bold tracking-tight text-white">
             Novedades
           </h2>
           <p className="mt-1 text-sm text-zinc-500">
@@ -1037,7 +1080,10 @@ function JornadaCard({
           <div className="space-y-2.5">
             {visibleScorers.map(({ breakdown, points, profile }, index) => {
               const parts = scorerBreakdownLabels
-                .map((part) => ({ label: part.label, value: breakdown[part.key] }))
+                .map((part) => ({
+                  label: part.label,
+                  value: breakdown[part.key],
+                }))
                 .filter((part) => part.value !== 0);
               const position = index + 1;
 
@@ -1056,7 +1102,7 @@ function JornadaCard({
                       </span>
                     ) : (
                       <span
-                        className="mt-0.5 flex h-8 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-xs font-black text-zinc-300"
+                        className="mt-0.5 flex h-8 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-xs font-bold text-zinc-300"
                         aria-label={`Puesto ${position}`}
                       >
                         {position}
@@ -1186,8 +1232,10 @@ function JornadaMatchRow({ item }: { item: JornadaMatch }) {
           />
         </div>
         <span
-          className={`shrink-0 rounded-lg px-3 py-1 text-lg font-black tabular-nums tracking-wide sm:px-3.5 sm:text-xl ${
-            score ? "bg-white/[0.08] text-white" : "bg-white/[0.04] text-zinc-500"
+          className={`shrink-0 rounded-lg px-3 py-1 text-lg font-bold tabular-nums tracking-wide sm:px-3.5 sm:text-xl ${
+            score
+              ? "bg-white/[0.08] text-white"
+              : "bg-white/[0.04] text-zinc-500"
           }`}
         >
           {score ? `${score.home} - ${score.away}` : "– - –"}
@@ -1378,7 +1426,7 @@ function LeaderboardRow({
       className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-white/[0.04]"
     >
       <span
-        className={`flex w-6 shrink-0 items-center justify-center text-sm font-black ${rankTextClass(position)}`}
+        className={`flex w-6 shrink-0 items-center justify-center text-sm font-bold ${rankTextClass(position)}`}
         aria-label={`Puesto ${position}`}
       >
         {rankLabel(position)}
@@ -1392,11 +1440,47 @@ function LeaderboardRow({
         <span className="truncate">{profile.name}</span>
         {profile.isPro ? <ProBadge /> : null}
       </strong>
-      <span className="shrink-0 text-sm font-black text-white">
+      <span className="shrink-0 text-sm font-bold text-white">
         {profile.points}
         <span className="ml-0.5 text-xs font-semibold text-zinc-500">pts</span>
       </span>
     </Link>
+  );
+}
+
+function TopPlayerRow({
+  row,
+  position,
+}: {
+  row: PlayerStandingRow;
+  position: number;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+      <span
+        className={`flex w-6 shrink-0 items-center justify-center text-sm font-bold ${rankTextClass(position)}`}
+        aria-label={`Puesto ${position}`}
+      >
+        {rankLabel(position)}
+      </span>
+      <PlayerAvatar
+        player={row.player}
+        className="size-8! shrink-0 text-[10px]"
+      />
+      <span className="flex min-w-0 flex-1 items-center gap-1.5">
+        <strong className="truncate text-sm font-semibold text-white">
+          {row.player.name}
+        </strong>
+        <TeamFlag
+          teamId={row.player.team}
+          className="h-3 w-4 shrink-0 rounded-[2px]"
+        />
+      </span>
+      <span className="shrink-0 text-sm font-bold text-white">
+        {row.points}
+        <span className="ml-0.5 text-xs font-semibold text-zinc-500">pts</span>
+      </span>
+    </div>
   );
 }
 
@@ -1451,11 +1535,16 @@ function isMatchPending(match: Match, results: AdminResults) {
   // Un partido esta "pendiente" (Proxima jornada) solo si no ha empezado y no
   // tiene ningun dato: asi nunca se solapa con el feed (en juego / falta
   // resultado / terminado), que son justo los estados con feed status != null.
-  return getMatchFeedStatus(match, results[String(match.number)], Date.now()) === null;
+  return (
+    getMatchFeedStatus(match, results[String(match.number)], Date.now()) ===
+    null
+  );
 }
 
 function getNextMatchdayKey(results: AdminResults) {
-  const dateKeys = Array.from(new Set(schedule.map((match) => match.date))).sort();
+  const dateKeys = Array.from(
+    new Set(schedule.map((match) => match.date)),
+  ).sort();
   // La proxima jornada es la primera fecha que aun tiene algun partido
   // pendiente (sin empezar y sin resultado), asi en cuanto terminan todos
   // los partidos de una jornada se pasa a mostrar la siguiente.
@@ -1504,8 +1593,14 @@ function UpcomingMatchCard({
         pickAway={matchPrediction.awayScore}
         hasPick={predictionComplete}
         showPick={hasUser}
-        homeTeamId={result.homeTeamId || (teamsById.has(match.home) ? match.home : undefined)}
-        awayTeamId={result.awayTeamId || (teamsById.has(match.away) ? match.away : undefined)}
+        homeTeamId={
+          result.homeTeamId ||
+          (teamsById.has(match.home) ? match.home : undefined)
+        }
+        awayTeamId={
+          result.awayTeamId ||
+          (teamsById.has(match.away) ? match.away : undefined)
+        }
       />
     );
   }
@@ -1556,7 +1651,7 @@ function UpcomingMatchCard({
                   onScoreChange(match.number, "homeScore", value)
                 }
               />
-              <span className="px-0.5 text-sm font-black text-zinc-500">-</span>
+              <span className="px-0.5 text-sm font-bold text-zinc-500">-</span>
               <HomeResultScoreStepper
                 label="Goles visitante"
                 value={matchPrediction.awayScore}
@@ -1617,54 +1712,56 @@ function UpcomingMatchCard({
       )}
 
       {compact ? null : (
-      <div className="hidden min-h-[124px] w-full grid-cols-[minmax(0,1fr)_104px_minmax(0,1fr)] items-start py-2 pb-4 sm:grid sm:min-h-[128px] sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)]">
-        <HomeResultTeamColumn
-          teamId={match.home}
-          fallback={translateSlot(match.home)}
-        />
-        {hasUser ? (
-          <div className="relative flex items-center justify-center gap-2 pt-2">
-            <HomeResultScoreStepper
-              label="Goles local"
-              value={matchPrediction.homeScore}
-              disabled={locked}
-              onChange={(value) =>
-                onScoreChange(match.number, "homeScore", value)
-              }
-            />
-            <span
-              aria-label={
-                predictionComplete
-                  ? "Resultado rellenado"
-                  : "Resultado pendiente"
-              }
-              className={`absolute left-1/2 top-10 z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border text-sm font-bold ${
-                predictionComplete
-                  ? "result-pending-check border-[#ffe66d] bg-[#ffdd44] text-black"
-                  : "border-white/20 bg-[#3a3a3a] text-zinc-500"
-              }`}
-            >
-              {predictionComplete ? <CheckIcon className="h-3.5 w-3.5" /> : null}
-            </span>
-            <HomeResultScoreStepper
-              label="Goles visitante"
-              value={matchPrediction.awayScore}
-              disabled={locked}
-              onChange={(value) =>
-                onScoreChange(match.number, "awayScore", value)
-              }
-            />
-          </div>
-        ) : (
-          <div className="flex h-full items-center justify-center pt-7">
-            <HomeVsPill />
-          </div>
-        )}
-        <HomeResultTeamColumn
-          teamId={match.away}
-          fallback={translateSlot(match.away)}
-        />
-      </div>
+        <div className="hidden min-h-[124px] w-full grid-cols-[minmax(0,1fr)_104px_minmax(0,1fr)] items-start py-2 pb-4 sm:grid sm:min-h-[128px] sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)]">
+          <HomeResultTeamColumn
+            teamId={match.home}
+            fallback={translateSlot(match.home)}
+          />
+          {hasUser ? (
+            <div className="relative flex items-center justify-center gap-2 pt-2">
+              <HomeResultScoreStepper
+                label="Goles local"
+                value={matchPrediction.homeScore}
+                disabled={locked}
+                onChange={(value) =>
+                  onScoreChange(match.number, "homeScore", value)
+                }
+              />
+              <span
+                aria-label={
+                  predictionComplete
+                    ? "Resultado rellenado"
+                    : "Resultado pendiente"
+                }
+                className={`absolute left-1/2 top-10 z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border text-sm font-bold ${
+                  predictionComplete
+                    ? "result-pending-check border-[#ffe66d] bg-[#ffdd44] text-black"
+                    : "border-white/20 bg-[#3a3a3a] text-zinc-500"
+                }`}
+              >
+                {predictionComplete ? (
+                  <CheckIcon className="h-3.5 w-3.5" />
+                ) : null}
+              </span>
+              <HomeResultScoreStepper
+                label="Goles visitante"
+                value={matchPrediction.awayScore}
+                disabled={locked}
+                onChange={(value) =>
+                  onScoreChange(match.number, "awayScore", value)
+                }
+              />
+            </div>
+          ) : (
+            <div className="flex h-full items-center justify-center pt-7">
+              <HomeVsPill />
+            </div>
+          )}
+          <HomeResultTeamColumn
+            teamId={match.away}
+            fallback={translateSlot(match.away)}
+          />
+        </div>
       )}
 
       <div
@@ -1673,7 +1770,9 @@ function UpcomingMatchCard({
         }`}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="min-w-0 truncate text-xs text-zinc-400">{match.venue}</p>
+          <p className="min-w-0 truncate text-xs text-zinc-400">
+            {match.venue}
+          </p>
           {hasLiveScore ? (
             <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-xs font-bold text-white">
               {matchStatusLabel(result)}: {result?.homeScore ?? "-"} -{" "}
@@ -1938,7 +2037,7 @@ function HomeResultScoreStepper({
 
 function HomeVsPill() {
   return (
-    <span className="rounded-lg bg-white/10 px-3 py-2 text-sm font-black text-white">
+    <span className="rounded-lg bg-white/10 px-3 py-2 text-sm font-bold text-white">
       vs
     </span>
   );

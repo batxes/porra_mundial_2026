@@ -1,4 +1,4 @@
-import type { AdminResults, Match, PorraData, Prediction, Scorecard, ScoreEntry } from "@/lib/types";
+import type { AdminResults, Match, Player, PorraData, Prediction, Scorecard, ScoreEntry } from "@/lib/types";
 
 const ruleMeta = {
   match_outcome_hit: { label: "Eleccion acertada", category: "Marcadores" },
@@ -475,3 +475,35 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
 }
 
 export const scoringRules = ruleMeta;
+
+export type PlayerStandingRow = {
+  player: Player;
+  points: number;
+  goals: number;
+  mvps: number;
+};
+
+export function calculatePlayerStandings(adminResults: AdminResults, allPlayers: Player[]): PlayerStandingRow[] {
+  const playersById = new Map(allPlayers.map((player) => [player.id, player]));
+  const rows = new Map<string, PlayerStandingRow>();
+
+  Object.values(adminResults || {}).forEach((result) => {
+    (result.events || []).forEach((event) => {
+      const player = playersById.get(event.playerId);
+      if (!player) return;
+      const rule = eventRules[String(event.type) as keyof typeof eventRules];
+      if (!rule) return;
+
+      const points = rule.ruleCode === "player_goal" ? goalPointsByPosition[player.position] : rule.points;
+      const row = rows.get(player.id) || { player, points: 0, goals: 0, mvps: 0 };
+      row.points += points;
+      if (rule.ruleCode === "player_goal" || rule.ruleCode === "player_penalty_goal") row.goals += 1;
+      if (rule.ruleCode === "player_match_mvp") row.mvps += 1;
+      rows.set(player.id, row);
+    });
+  });
+
+  return Array.from(rows.values()).sort(
+    (a, b) => b.points - a.points || b.goals - a.goals || a.player.name.localeCompare(b.player.name),
+  );
+}

@@ -111,7 +111,7 @@ export function AuthModal({
                 className="h-11 w-11 shrink-0 object-contain"
               />
               <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#a7f600]">
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#a7f600]">
                   Triliporra
                 </p>
                 <h2

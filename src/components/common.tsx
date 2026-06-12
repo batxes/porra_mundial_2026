@@ -527,7 +527,7 @@ export function ProfileScoreCard({
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a7f600]">
               Puntos
             </p>
-            <p className="text-2xl font-black leading-none text-white sm:text-3xl">
+            <p className="text-2xl font-bold leading-none text-white sm:text-3xl">
               {scorecard.total}
             </p>
           </div>
@@ -536,7 +536,7 @@ export function ProfileScoreCard({
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
                 Puesto
               </p>
-              <p className="text-2xl font-black leading-none text-white sm:text-3xl">
+              <p className="text-2xl font-bold leading-none text-white sm:text-3xl">
                 {rank}
               </p>
             </div>
@@ -556,7 +556,7 @@ export function ProfileScoreCard({
                 {section.label}
               </span>
               <span
-                className={`shrink-0 text-sm font-black ${
+                className={`shrink-0 text-sm font-bold ${
                   total < 0
                     ? "text-rose-300"
                     : total > 0
@@ -834,13 +834,13 @@ function LineupSnapshot({
   return (
     <div className="overflow-hidden rounded-lg border border-emerald-300/15 bg-emerald-700 shadow-lg shadow-emerald-950/20">
       <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-950/25 px-4 py-3">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-50/75">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-50/75">
           Once elegido
         </p>
         <div className="flex items-center gap-2">
           {hasEvents ? (
             <span
-              className={`rounded-md px-3 py-1 text-xs font-black ${
+              className={`rounded-md px-3 py-1 text-xs font-bold ${
                 totalPoints >= 0
                   ? "bg-[#a7f600] text-black"
                   : "bg-rose-400 text-black"
@@ -911,12 +911,12 @@ function LineupSnapshotSlot({
   const player = slot.playerId ? playersById.get(slot.playerId) : null;
   const hasStats = Boolean(
     stats &&
-      (stats.goals ||
-        stats.penaltyGoals ||
-        stats.saves ||
-        stats.mvps ||
-        stats.reds ||
-        stats.missedPens),
+    (stats.goals ||
+      stats.penaltyGoals ||
+      stats.saves ||
+      stats.mvps ||
+      stats.reds ||
+      stats.missedPens),
   );
 
   return (
@@ -972,7 +972,7 @@ function LineupSnapshotSlot({
 
 function LineupEventPill({ icon, value }: { icon: string; value: string }) {
   return (
-    <span className="inline-flex items-center gap-0.5 text-[9px] font-black leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)] sm:text-[10px]">
+    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)] sm:text-[10px]">
       <span aria-hidden="true">{icon}</span>
       {value}
     </span>
@@ -1012,10 +1012,9 @@ function GroupSummary({
             Boolean,
           ).length;
           const points = groupPoints.get(group);
-          const rows = ordered.map((team, index) => [
-            team.id,
-            String(index + 1),
-          ] as const);
+          const rows = ordered.map(
+            (team, index) => [team.id, String(index + 1)] as const,
+          );
 
           return (
             <div
@@ -1025,7 +1024,7 @@ function GroupSummary({
               <div className="flex items-center justify-between gap-3">
                 <h4 className="text-sm font-bold text-white">Grupo {group}</h4>
                 {points != null ? (
-                  <span className="shrink-0 rounded-full border border-[#a7f600]/40 bg-[#a7f600]/12 px-2 py-0.5 text-[11px] font-black text-[#a7f600]">
+                  <span className="shrink-0 rounded-full border border-[#a7f600]/40 bg-[#a7f600]/12 px-2 py-0.5 text-[11px] font-bold text-[#a7f600]">
                     {formatPoints(points)} pts
                   </span>
                 ) : (
@@ -1186,7 +1185,7 @@ export function KnockoutBracket({
             <div className="flex h-[670px] flex-col items-center justify-center gap-5">
               <div className="text-center">
                 <ChampionTrophyIcon />
-                <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#a7f600]">
+                <p className="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-[#a7f600]">
                   Campeón
                 </p>
                 <div className="mt-2 flex justify-center">
@@ -1412,7 +1411,7 @@ function MobileKnockoutBracket({
           </div>
           <div className="text-center">
             <ChampionTrophyIcon />
-            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#a7f600]">
+            <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#a7f600]">
               Campeón
             </p>
             <div className="mt-1 flex justify-center">
@@ -1542,7 +1541,7 @@ function BracketTree({
     <div className="grid h-[670px] grid-cols-4 gap-4">
       {orderedRounds.map((round, roundIndex) => (
         <div key={labels[roundIndex]} className="flex min-w-0 flex-col">
-          <p className="mb-3 text-center text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+          <p className="mb-3 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
             {labels[roundIndex]}
           </p>
           <div
@@ -1680,7 +1679,7 @@ function BracketMatchCard({
       current?.awayScore !== "" &&
       current?.homeScore != null &&
       current?.awayScore != null ? (
-        <div className="mt-1 rounded bg-white/10 px-1 py-0.5 text-[10px] font-black text-white">
+        <div className="mt-1 rounded bg-white/10 px-1 py-0.5 text-[10px] font-bold text-white">
           {current.homeScore} - {current.awayScore}
         </div>
       ) : null}
@@ -1691,7 +1690,7 @@ function BracketMatchCard({
       </p>
       {label ? (
         <span
-          className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase leading-none text-black ${tagTone === "blue" ? "bg-cyan-400" : "bg-white"}`}
+          className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none text-black ${tagTone === "blue" ? "bg-cyan-400" : "bg-white"}`}
         >
           {label}
         </span>
@@ -1741,7 +1740,7 @@ function BracketTeamToken({
         />
       )}
       <span
-        className={`${compact ? "max-w-[24px] text-[10px]" : "max-w-[34px] text-[11px]"} truncate font-black leading-none ${
+        className={`${compact ? "max-w-[24px] text-[10px]" : "max-w-[34px] text-[11px]"} truncate font-bold leading-none ${
           selected ? "text-black" : "text-white"
         }`}
       >
@@ -1911,7 +1910,7 @@ function ResultsSummary({
                       />
                       <div className="flex h-full items-center justify-center pt-5">
                         <span
-                          className={`rounded-lg bg-black/25 px-3 py-2 text-center text-xl font-black text-white ${
+                          className={`rounded-lg bg-black/25 px-3 py-2 text-center text-xl font-bold text-white ${
                             hidden ? "select-none blur-sm" : ""
                           }`}
                           aria-label={
@@ -2021,7 +2020,9 @@ function FinishedPointsChip({
       className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${tone}`}
     >
       {exact ? <span aria-hidden="true">⚽</span> : null}
-      {points > 0 ? `+${points} ${points === 1 ? "punto" : "puntos"}` : "0 puntos"}
+      {points > 0
+        ? `+${points} ${points === 1 ? "punto" : "puntos"}`
+        : "0 puntos"}
     </span>
   );
 }
@@ -2083,10 +2084,10 @@ export function FinishedMatchCard({
         <span>{matchStageLabel(match)}</span>
         {showPick ? (
           <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/25 px-2.5 py-1">
-            <span className="text-[10px] font-black uppercase leading-none tracking-[0.14em] text-zinc-400">
+            <span className="text-[10px] font-bold uppercase leading-none tracking-[0.14em] text-zinc-400">
               Final
             </span>
-            <span className="text-sm font-black leading-none text-white">
+            <span className="text-sm font-bold leading-none text-white">
               {realHome} - {realAway}
             </span>
           </span>
@@ -2101,12 +2102,12 @@ export function FinishedMatchCard({
         <div className="flex h-full flex-col items-center justify-start gap-1.5 pt-3">
           {showPick ? (
             <>
-              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
                 Tu pronostico
               </span>
               {hasPick ? (
                 <span
-                  className={`rounded-lg px-4 py-1.5 text-2xl font-black leading-none sm:text-3xl ${
+                  className={`rounded-lg px-4 py-1.5 text-2xl font-bold leading-none sm:text-3xl ${
                     exact
                       ? "border border-[#a7f600]/40 bg-[#a7f600]/15 text-[#a7f600]"
                       : "bg-black/30 text-white"
@@ -2115,7 +2116,7 @@ export function FinishedMatchCard({
                   {pickHome} - {pickAway}
                 </span>
               ) : (
-                <span className="rounded-lg bg-black/30 px-4 py-1.5 text-2xl font-black leading-none text-zinc-600 sm:text-3xl">
+                <span className="rounded-lg bg-black/30 px-4 py-1.5 text-2xl font-bold leading-none text-zinc-600 sm:text-3xl">
                   ? - ?
                 </span>
               )}
@@ -2128,10 +2129,10 @@ export function FinishedMatchCard({
             </>
           ) : (
             <>
-              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
                 Resultado final
               </span>
-              <span className="rounded-lg bg-black/30 px-4 py-1.5 text-2xl font-black leading-none text-white sm:text-3xl">
+              <span className="rounded-lg bg-black/30 px-4 py-1.5 text-2xl font-bold leading-none text-white sm:text-3xl">
                 {realHome} - {realAway}
               </span>
             </>
@@ -2145,7 +2146,9 @@ export function FinishedMatchCard({
 
       <div className="border-t border-white/10 px-3 py-2 sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="min-w-0 truncate text-xs text-zinc-400">{match.venue}</p>
+          <p className="min-w-0 truncate text-xs text-zinc-400">
+            {match.venue}
+          </p>
           {showPick ? (
             <span
               className={`text-xs font-bold ${

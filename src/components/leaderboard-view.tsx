@@ -1,27 +1,57 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Avatar,
   Card,
   EmptyState,
   LeaderboardRowsSkeleton,
+  PlayerAvatar,
   ProBadge,
   SectionHeading,
   TeamBadge,
+  TeamFlag,
 } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
-import type { UserProfile } from "@/lib/types";
+import { data, teamsById } from "@/lib/data";
+import {
+  calculatePlayerStandings,
+  type PlayerStandingRow,
+} from "@/lib/scoring";
+import type { Position, UserProfile } from "@/lib/types";
 
-type LeaderboardFilter = "all" | "pro";
+type LeaderboardFilter = "all" | "pro" | "players";
+
+const PLAYERS_PAGE_SIZE = 25;
+
+const positionLabels: Record<Position, string> = {
+  POR: "Portero",
+  DEF: "Defensa",
+  MED: "Centrocampista",
+  DEL: "Delantero",
+};
+
+function normalizeSearch(value: string) {
+  return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
 
 export function LeaderboardView() {
-  const { leaderboard: fullLeaderboard, ready } = useAppContext();
+  const { leaderboard: fullLeaderboard, adminResults, ready } = useAppContext();
   const [filter, setFilter] = useState<LeaderboardFilter>("all");
+
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab === "jugadores") setFilter("players");
+  }, []);
+
   const leaderboard = fullLeaderboard.filter((profile) => !profile.isHidden);
   const proCount = leaderboard.filter((profile) => profile.isPro).length;
+  const playerStandings = useMemo(
+    () => calculatePlayerStandings(adminResults, data.players),
+    [adminResults],
+  );
   const visible =
     filter === "pro"
       ? leaderboard.filter((profile) => profile.isPro)
@@ -32,10 +62,14 @@ export function LeaderboardView() {
       <SectionHeading
         eyebrow="Todos los participantes"
         title="Clasificacion"
-        description="La tabla se ordena por puntos y muestra el campeon elegido por cada participante."
+        description={
+          filter === "players"
+            ? "Los futbolistas que mas puntos han sumado con goles, MVP, penaltis y tarjetas."
+            : "La tabla se ordena por puntos y muestra el campeon elegido por cada participante."
+        }
       />
 
-      {ready && proCount > 0 ? (
+      {ready ? (
         <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] p-1">
           <FilterTab
             active={filter === "all"}
@@ -43,12 +77,20 @@ export function LeaderboardView() {
             count={leaderboard.length}
             onClick={() => setFilter("all")}
           />
+          {proCount > 0 ? (
+            <FilterTab
+              active={filter === "pro"}
+              label="PRO"
+              count={proCount}
+              tone="pro"
+              onClick={() => setFilter("pro")}
+            />
+          ) : null}
           <FilterTab
-            active={filter === "pro"}
-            label="PRO"
-            count={proCount}
-            tone="pro"
-            onClick={() => setFilter("pro")}
+            active={filter === "players"}
+            label="Jugadores"
+            count={playerStandings.length}
+            onClick={() => setFilter("players")}
           />
         </div>
       ) : null}
@@ -58,6 +100,8 @@ export function LeaderboardView() {
           <LeaderboardHeaderRow />
           <LeaderboardRowsSkeleton rows={8} />
         </Card>
+      ) : filter === "players" ? (
+        <PlayerLeaderboard standings={playerStandings} />
       ) : !leaderboard.length ? (
         <EmptyState
           icon="0"
@@ -88,6 +132,148 @@ export function LeaderboardView() {
   );
 }
 
+function PlayerLeaderboard({ standings }: { standings: PlayerStandingRow[] }) {
+  const [query, setQuery] = useState("");
+  const [limit, setLimit] = useState(PLAYERS_PAGE_SIZE);
+
+  const normalized = normalizeSearch(query.trim());
+  const filtered = normalized
+    ? standings.filter(({ player }) => {
+        const team = teamsById.get(player.team)?.name || "";
+        return normalizeSearch(`${player.name} ${team}`).includes(normalized);
+      })
+    : standings;
+  const visible = filtered.slice(0, limit);
+
+  if (!standings.length) {
+    return (
+      <EmptyState
+        icon="0"
+        title="Aun no hay puntos de jugadores"
+        description="Cuando se registren goles, MVP, penaltis o tarjetas en los partidos, los futbolistas apareceran aqui."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <label className="flex w-full max-w-sm items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+        <input
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setLimit(PLAYERS_PAGE_SIZE);
+          }}
+          placeholder="Buscar jugador o pais"
+          className="min-w-0 flex-1 bg-transparent text-sm font-medium text-white outline-none placeholder:text-zinc-500"
+        />
+        {query ? (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery("");
+              setLimit(PLAYERS_PAGE_SIZE);
+            }}
+            className="text-xs font-semibold text-zinc-400 hover:text-white"
+          >
+            Borrar
+          </button>
+        ) : null}
+      </label>
+
+      {!filtered.length ? (
+        <EmptyState
+          icon="0"
+          title="Sin resultados"
+          description="Ningun jugador con puntos coincide con esa busqueda."
+        />
+      ) : (
+        <Card className="overflow-hidden p-0">
+          <LeaderboardHeaderRow />
+          <div className="divide-y divide-white/10">
+            {visible.map((row, index) => (
+              <PlayerRankRow
+                key={row.player.id}
+                row={row}
+                position={rankFor(filtered, index)}
+              />
+            ))}
+          </div>
+          {filtered.length > limit ? (
+            <button
+              type="button"
+              onClick={() => setLimit((current) => current + PLAYERS_PAGE_SIZE)}
+              className="w-full border-t border-white/10 px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/5 hover:text-white"
+            >
+              Mostrar mas ({filtered.length - limit} restantes)
+            </button>
+          ) : null}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function PlayerRankRow({
+  row,
+  position,
+}: {
+  row: PlayerStandingRow;
+  position: number;
+}) {
+  const teamName = teamsById.get(row.player.team)?.name || "Sin pais";
+
+  return (
+    <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
+      <span
+        className={`flex h-8 w-8 items-center justify-center text-sm font-bold ${rankTextClass(position)}`}
+        aria-label={`Puesto ${position}`}
+      >
+        {rankLabel(position)}
+      </span>
+      <span className="flex min-w-0 items-center gap-3">
+        <PlayerAvatar player={row.player} className="size-10! text-xs" />
+        <span className="min-w-0">
+          <strong className="block truncate text-sm text-white">
+            {row.player.name}
+          </strong>
+          <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-zinc-500">
+            <TeamFlag
+              teamId={row.player.team}
+              className="h-3.5 w-[18px] rounded-sm"
+            />
+            <span className="truncate">{teamName}</span>
+            <span>·</span>
+            <span className="whitespace-nowrap">
+              {positionLabels[row.player.position]}
+            </span>
+            {row.goals > 0 ? (
+              <>
+                <span>·</span>
+                <span className="whitespace-nowrap">
+                  {row.goals} {row.goals === 1 ? "gol" : "goles"}
+                </span>
+              </>
+            ) : null}
+            {row.mvps > 0 ? (
+              <>
+                <span>·</span>
+                <span className="whitespace-nowrap">{row.mvps} MVP</span>
+              </>
+            ) : null}
+          </span>
+        </span>
+      </span>
+      <span className="text-right">
+        <strong className="block text-lg font-bold text-white">
+          {row.points}
+        </strong>
+        <span className="text-xs font-semibold text-zinc-500">pts</span>
+      </span>
+    </div>
+  );
+}
+
 function FilterTab({
   active,
   count,
@@ -102,9 +288,13 @@ function FilterTab({
   tone?: "default" | "pro";
 }) {
   const activeClass =
-    tone === "pro" ? "bg-amber-400 text-amber-950" : "bg-zinc-200 text-zinc-900";
+    tone === "pro"
+      ? "bg-amber-400 text-amber-950"
+      : "bg-zinc-200 text-zinc-900";
   const activeCountClass =
-    tone === "pro" ? "bg-amber-950/15 text-amber-950" : "bg-black/10 text-zinc-900";
+    tone === "pro"
+      ? "bg-amber-950/15 text-amber-950"
+      : "bg-black/10 text-zinc-900";
 
   return (
     <button
@@ -152,7 +342,7 @@ function LeaderboardRow({
       className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition hover:bg-white/5"
     >
       <span
-        className={`flex h-8 w-8 items-center justify-center text-sm font-black ${rankTextClass(position)}`}
+        className={`flex h-8 w-8 items-center justify-center text-sm font-bold ${rankTextClass(position)}`}
         aria-label={`Puesto ${position}`}
       >
         {rankLabel(position)}
@@ -181,7 +371,7 @@ function LeaderboardRow({
         </span>
       </span>
       <span className="text-right">
-        <strong className="block text-lg font-black text-white">
+        <strong className="block text-lg font-bold text-white">
           {profile.points}
         </strong>
         <span className="text-xs font-semibold text-zinc-500">pts</span>
@@ -190,9 +380,12 @@ function LeaderboardRow({
   );
 }
 
-function rankFor(leaderboard: UserProfile[], index: number) {
+function rankFor(leaderboard: Array<{ points: number }>, index: number) {
   let rank = index + 1;
-  while (rank > 1 && leaderboard[index].points === leaderboard[rank - 2].points) {
+  while (
+    rank > 1 &&
+    leaderboard[index].points === leaderboard[rank - 2].points
+  ) {
     rank -= 1;
   }
   return rank;

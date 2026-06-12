@@ -70,7 +70,15 @@ import {
   xiCounts,
   xiRequirements,
 } from "@/lib/prediction";
-import type { AdminResult, AdminResults, Match, Player, Position, Prediction, Team } from "@/lib/types";
+import type {
+  AdminResult,
+  AdminResults,
+  Match,
+  Player,
+  Position,
+  Prediction,
+  Team,
+} from "@/lib/types";
 
 type LineupRow = {
   count: number;
@@ -501,9 +509,7 @@ export function PredictionView() {
         <ResultsIntroModal onClose={dismissResultsIntroModal} />
       ) : null}
 
-      {showXiIntroModal ? (
-        <XiIntroModal onClose={dismissXiIntroModal} />
-      ) : null}
+      {showXiIntroModal ? <XiIntroModal onClose={dismissXiIntroModal} /> : null}
 
       {showGroupsIntroModal ? (
         <GroupsIntroModal onClose={dismissGroupsIntroModal} />
@@ -802,7 +808,7 @@ function XiIntroModal({ onClose }: { onClose: () => void }) {
                 <span className="min-w-0 truncate">{label}</span>
               </p>
               <p
-                className={`shrink-0 text-sm font-black ${
+                className={`shrink-0 text-sm font-bold ${
                   points.startsWith("-") ? "text-rose-400" : "text-[#a7f600]"
                 }`}
               >
@@ -936,11 +942,7 @@ function GroupIntroDemoRow({
   nextRank?: number;
   orderIndex: number;
   rank: number;
-  tone:
-    | "black-red-gold"
-    | "blue-white-red"
-    | "green-white-red"
-    | "white-red";
+  tone: "black-red-gold" | "blue-white-red" | "green-white-red" | "white-red";
 }) {
   return (
     <div
@@ -948,9 +950,7 @@ function GroupIntroDemoRow({
       style={{ top: 8 + orderIndex * 42 }}
     >
       <span className="relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-md bg-white/[0.08] text-xs font-bold text-[#a7f600]">
-        <span className={nextRank ? "groups-demo-rank-from" : ""}>
-          {rank}
-        </span>
+        <span className={nextRank ? "groups-demo-rank-from" : ""}>{rank}</span>
         {nextRank ? (
           <span className="groups-demo-rank-to absolute inset-0 flex items-center justify-center">
             {nextRank}
@@ -1019,7 +1019,7 @@ function ResultsIntroModal({ onClose }: { onClose: () => void }) {
 
         <div className="space-y-2">
           <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#a7f600] text-sm font-black text-black">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#a7f600] text-sm font-bold text-black">
               +1
             </span>
             <div className="min-w-0 text-sm">
@@ -1032,7 +1032,7 @@ function ResultsIntroModal({ onClose }: { onClose: () => void }) {
           <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
             <span
               aria-hidden="true"
-              className="block h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-[#a7f600] text-sm font-black text-black"
+              className="block h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-[#a7f600] text-sm font-bold text-black"
             >
               <span className="results-intro-counter flex flex-col">
                 {["+1", "+2", "+3", "+4", "+5", "+1"].map((label, index) => (
@@ -1875,9 +1875,7 @@ function LineupBuilder({
               </span>
               <span
                 className={`shrink-0 text-sm font-semibold ${
-                  points.startsWith("-")
-                    ? "text-rose-300"
-                    : "text-[#a7f600]"
+                  points.startsWith("-") ? "text-rose-300" : "text-[#a7f600]"
                 }`}
               >
                 {points}
@@ -2493,7 +2491,9 @@ function ResultMatchCard({
 
       <div className="border-t border-white/10 px-3 py-2 sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="min-w-0 truncate text-xs text-zinc-400">{match.venue}</p>
+          <p className="min-w-0 truncate text-xs text-zinc-400">
+            {match.venue}
+          </p>
           <span className="text-xs font-medium text-zinc-500">
             {locked
               ? complete
@@ -2660,7 +2660,9 @@ function ResultScoreStepper({
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         className={`score-number-input appearance-none bg-[#222] text-center font-bold text-white outline-none placeholder:text-zinc-600 disabled:opacity-60 ${
-          compact ? "h-9 w-11 text-base" : "h-9 w-12 text-lg sm:h-10 sm:w-14 sm:text-xl"
+          compact
+            ? "h-9 w-11 text-base"
+            : "h-9 w-12 text-lg sm:h-10 sm:w-14 sm:text-xl"
         }`}
         placeholder="?"
         aria-label={label}

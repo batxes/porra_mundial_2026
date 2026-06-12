@@ -4,7 +4,19 @@
 import { FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { Card, CardSkeleton, EmptyState, MatchEventLine, matchEventIcons, Notice, PlayerAvatar, ProBadge, SectionHeading, TeamFlag, TeamPicker } from "@/components/common";
+import {
+  Card,
+  CardSkeleton,
+  EmptyState,
+  MatchEventLine,
+  matchEventIcons,
+  Notice,
+  PlayerAvatar,
+  ProBadge,
+  SectionHeading,
+  TeamFlag,
+  TeamPicker,
+} from "@/components/common";
 import { PlayerSearchModal } from "@/components/player-search-modal";
 import { toDbEventType, useAppContext } from "@/lib/app-context";
 import { playersById, schedule, teamsById } from "@/lib/data";
@@ -34,9 +46,12 @@ export function AdminView() {
   const [activeTab, setActiveTab] = useState<AdminTab>("partidos");
   const [providerBusy, setProviderBusy] = useState(false);
   const [providerError, setProviderError] = useState("");
-  const [providerSummary, setProviderSummary] = useState<ProviderSummary | null>(null);
+  const [providerSummary, setProviderSummary] =
+    useState<ProviderSummary | null>(null);
   const [adminMessage, setAdminMessage] = useState("");
-  const [matchNumber, setMatchNumber] = useState(String(schedule[0]?.number ?? ""));
+  const [matchNumber, setMatchNumber] = useState(
+    String(schedule[0]?.number ?? ""),
+  );
   const [emailsById, setEmailsById] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -47,10 +62,18 @@ export function AdminView() {
     let cancelled = false;
     supabase
       .rpc("admin_list_user_emails")
-      .then(({ data: rows }: { data: Array<{ user_id: string; email: string }> | null }) => {
-        if (cancelled || !rows) return;
-        setEmailsById(Object.fromEntries(rows.map((row) => [row.user_id, row.email])));
-      });
+      .then(
+        ({
+          data: rows,
+        }: {
+          data: Array<{ user_id: string; email: string }> | null;
+        }) => {
+          if (cancelled || !rows) return;
+          setEmailsById(
+            Object.fromEntries(rows.map((row) => [row.user_id, row.email])),
+          );
+        },
+      );
 
     return () => {
       cancelled = true;
@@ -83,8 +106,12 @@ export function AdminView() {
     setProviderBusy(true);
     setProviderError("");
     try {
-      const response = await fetch("/api/provider/world-cup", { cache: "no-store" });
-      const payload = (await response.json()) as ProviderSummary & { error?: string };
+      const response = await fetch("/api/provider/world-cup", {
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as ProviderSummary & {
+        error?: string;
+      };
       if (!response.ok) {
         setProviderError(payload.error || "No se ha podido consultar la API.");
         return;
@@ -95,11 +122,15 @@ export function AdminView() {
     }
   };
 
-  const savedEntries = Object.entries(adminResults).sort((a, b) => Number(a[0]) - Number(b[0]));
+  const savedEntries = Object.entries(adminResults).sort(
+    (a, b) => Number(a[0]) - Number(b[0]),
+  );
 
   const openMatchEditor = (number: string) => {
     setMatchNumber(number);
-    document.getElementById("match-editor")?.scrollIntoView({ behavior: "smooth" });
+    document
+      .getElementById("match-editor")
+      ?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
@@ -110,7 +141,9 @@ export function AdminView() {
         description="Publica resultados, añade eventos, gestiona usuarios y consulta la API externa desde servidor. La clave nunca toca el navegador."
       />
 
-      <Notice>{usingSupabase ? "Modo Supabase activo." : "Modo demo local activo."}</Notice>
+      <Notice>
+        {usingSupabase ? "Modo Supabase activo." : "Modo demo local activo."}
+      </Notice>
       {adminMessage ? <Notice>{adminMessage}</Notice> : null}
 
       <div className="flex flex-wrap gap-2">
@@ -135,9 +168,12 @@ export function AdminView() {
         <>
           <Card className="space-y-4">
             <div id="match-editor">
-              <h3 className="text-xl font-semibold text-white">Editar partido</h3>
+              <h3 className="text-xl font-semibold text-white">
+                Editar partido
+              </h3>
               <p className="text-sm text-slate-400">
-                Elige un partido y publica todo en un sitio: marcador, goles, penaltis, tarjetas y MVP.
+                Elige un partido y publica todo en un sitio: marcador, goles,
+                penaltis, tarjetas y MVP.
               </p>
             </div>
             <label className="block space-y-2 text-sm text-slate-300">
@@ -149,7 +185,8 @@ export function AdminView() {
               >
                 {schedule.map((match) => (
                   <option key={match.number} value={match.number}>
-                    Partido {match.number} · {matchSideName(match.home)} vs {matchSideName(match.away)} · {match.date}
+                    Partido {match.number} · {matchSideName(match.home)} vs{" "}
+                    {matchSideName(match.away)} · {match.date}
                   </option>
                 ))}
               </select>
@@ -159,7 +196,9 @@ export function AdminView() {
 
           <Card className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="text-xl font-semibold text-white">Partidos publicados</h3>
+              <h3 className="text-xl font-semibold text-white">
+                Partidos publicados
+              </h3>
               {savedEntries.length ? (
                 <button
                   type="button"
@@ -173,28 +212,54 @@ export function AdminView() {
                   }}
                   className="w-full rounded-full border border-rose-400/40 px-4 py-2 text-sm text-rose-200 hover:bg-rose-400/10 sm:w-auto"
                 >
-                  {usingSupabase ? "Borrar todos los resultados" : "Vaciar demo"}
+                  {usingSupabase
+                    ? "Borrar todos los resultados"
+                    : "Vaciar demo"}
                 </button>
               ) : null}
             </div>
             {savedEntries.length ? (
               <div className="space-y-4">
                 {savedEntries.map(([savedMatchNumber, result]) => {
-                  const savedMatch = schedule.find((candidate) => String(candidate.number) === savedMatchNumber);
-                  const homeTeamId = result.homeTeamId || (savedMatch && teamsById.has(savedMatch.home) ? savedMatch.home : "");
-                  const awayTeamId = result.awayTeamId || (savedMatch && teamsById.has(savedMatch.away) ? savedMatch.away : "");
-                  const homeName =
-                    (homeTeamId && teamsById.get(homeTeamId)?.name) || (savedMatch ? translateSlot(savedMatch.home) : "Local");
-                  const awayName =
-                    (awayTeamId && teamsById.get(awayTeamId)?.name) || (savedMatch ? translateSlot(savedMatch.away) : "Visitante");
-                  const events = (result.events || []).filter((event) => event.playerId && matchEventIcons[String(event.type)]);
-                  const awayEvents = events.filter(
-                    (event) => (playersById.get(event.playerId)?.team || event.teamId || "") === awayTeamId,
+                  const savedMatch = schedule.find(
+                    (candidate) =>
+                      String(candidate.number) === savedMatchNumber,
                   );
-                  const homeEvents = events.filter((event) => !awayEvents.includes(event));
+                  const homeTeamId =
+                    result.homeTeamId ||
+                    (savedMatch && teamsById.has(savedMatch.home)
+                      ? savedMatch.home
+                      : "");
+                  const awayTeamId =
+                    result.awayTeamId ||
+                    (savedMatch && teamsById.has(savedMatch.away)
+                      ? savedMatch.away
+                      : "");
+                  const homeName =
+                    (homeTeamId && teamsById.get(homeTeamId)?.name) ||
+                    (savedMatch ? translateSlot(savedMatch.home) : "Local");
+                  const awayName =
+                    (awayTeamId && teamsById.get(awayTeamId)?.name) ||
+                    (savedMatch ? translateSlot(savedMatch.away) : "Visitante");
+                  const events = (result.events || []).filter(
+                    (event) =>
+                      event.playerId && matchEventIcons[String(event.type)],
+                  );
+                  const awayEvents = events.filter(
+                    (event) =>
+                      (playersById.get(event.playerId)?.team ||
+                        event.teamId ||
+                        "") === awayTeamId,
+                  );
+                  const homeEvents = events.filter(
+                    (event) => !awayEvents.includes(event),
+                  );
 
                   return (
-                    <div key={savedMatchNumber} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div
+                      key={savedMatchNumber}
+                      className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                    >
                       <div className="mb-3 flex items-center justify-between gap-3">
                         <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-400">
                           Partido {savedMatchNumber}
@@ -218,7 +283,7 @@ export function AdminView() {
                             className="h-6 w-6 shrink-0 rounded-full border border-white/15 object-cover sm:h-7 sm:w-7"
                           />
                         </div>
-                        <span className="shrink-0 rounded-lg bg-white/[0.08] px-3 py-1 text-lg font-black tabular-nums tracking-wide text-white sm:px-3.5 sm:text-xl">
+                        <span className="shrink-0 rounded-lg bg-white/[0.08] px-3 py-1 text-lg font-bold tabular-nums tracking-wide text-white sm:px-3.5 sm:text-xl">
                           {result.homeScore} - {result.awayScore}
                         </span>
                         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
@@ -235,24 +300,35 @@ export function AdminView() {
                         <div className="mt-2.5 grid grid-cols-2 gap-x-4 border-t border-white/[0.06] pt-2.5">
                           <div className="space-y-1">
                             {homeEvents.map((event, index) => (
-                              <MatchEventLine key={event.id || `h${index}`} event={event} />
+                              <MatchEventLine
+                                key={event.id || `h${index}`}
+                                event={event}
+                              />
                             ))}
                           </div>
                           <div className="space-y-1">
                             {awayEvents.map((event, index) => (
-                              <MatchEventLine key={event.id || `a${index}`} event={event} align="right" />
+                              <MatchEventLine
+                                key={event.id || `a${index}`}
+                                event={event}
+                                align="right"
+                              />
                             ))}
                           </div>
                         </div>
                       ) : (
-                        <p className="mt-2.5 border-t border-white/[0.06] pt-2.5 text-sm text-slate-400">Sin eventos publicados.</p>
+                        <p className="mt-2.5 border-t border-white/[0.06] pt-2.5 text-sm text-slate-400">
+                          Sin eventos publicados.
+                        </p>
                       )}
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <p className="text-sm text-slate-400">Todavía no has publicado resultados.</p>
+              <p className="text-sm text-slate-400">
+                Todavía no has publicado resultados.
+              </p>
             )}
           </Card>
         </>
@@ -263,7 +339,10 @@ export function AdminView() {
           <div>
             <h3 className="text-xl font-semibold text-white">Usuarios</h3>
             <p className="text-sm text-slate-400">
-              Concede el badge PRO a quien haya pagado u oculta cuentas (duplicadas, de prueba...) de la clasificación. Ocultar es reversible y no borra su porra. Los puntos se recalculan al publicar resultados.
+              Concede el badge PRO a quien haya pagado u oculta cuentas
+              (duplicadas, de prueba...) de la clasificación. Ocultar es
+              reversible y no borra su porra. Los puntos se recalculan al
+              publicar resultados.
             </p>
           </div>
           <div className="space-y-3">
@@ -277,7 +356,9 @@ export function AdminView() {
                 >
                   <span className="min-w-0">
                     <span className="flex min-w-0 items-center gap-2">
-                      <span className="min-w-0 truncate text-slate-200">{profile.name}</span>
+                      <span className="min-w-0 truncate text-slate-200">
+                        {profile.name}
+                      </span>
                       {profile.isPro ? <ProBadge /> : null}
                       {profile.isHidden ? (
                         <span className="shrink-0 rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-zinc-400">
@@ -286,11 +367,15 @@ export function AdminView() {
                       ) : null}
                     </span>
                     {emailFor(profile) ? (
-                      <span className="block truncate text-xs text-zinc-500">{emailFor(profile)}</span>
+                      <span className="block truncate text-xs text-zinc-500">
+                        {emailFor(profile)}
+                      </span>
                     ) : null}
                   </span>
                   <span className="flex shrink-0 items-center gap-3">
-                    <strong className="shrink-0 text-cyan-300">{profile.points} pts</strong>
+                    <strong className="shrink-0 text-cyan-300">
+                      {profile.points} pts
+                    </strong>
                     <button
                       type="button"
                       onClick={async () => {
@@ -331,7 +416,9 @@ export function AdminView() {
                 </div>
               ))
             ) : (
-              <p className="text-sm text-slate-400">Aún no hay participantes.</p>
+              <p className="text-sm text-slate-400">
+                Aún no hay participantes.
+              </p>
             )}
           </div>
         </Card>
@@ -341,8 +428,12 @@ export function AdminView() {
         <Card className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-xl font-semibold text-white">Proveedor externo</h3>
-              <p className="text-sm text-slate-400">API-Football vía ruta server-side.</p>
+              <h3 className="text-xl font-semibold text-white">
+                Proveedor externo
+              </h3>
+              <p className="text-sm text-slate-400">
+                API-Football vía ruta server-side.
+              </p>
             </div>
             <button
               type="button"
@@ -354,26 +445,54 @@ export function AdminView() {
             </button>
           </div>
 
-          {providerError ? <Notice tone="danger">{providerError}</Notice> : null}
+          {providerError ? (
+            <Notice tone="danger">{providerError}</Notice>
+          ) : null}
 
           {providerSummary ? (
             <div className="space-y-4">
               <div className="grid gap-3 md:grid-cols-2">
-                <ProviderFlag label="Eventos" active={Boolean(providerSummary.coverage?.fixtures.events)} />
-                <ProviderFlag label="Lineups" active={Boolean(providerSummary.coverage?.fixtures.lineups)} />
-                <ProviderFlag label="Stats de partido" active={Boolean(providerSummary.coverage?.fixtures.statistics_fixtures)} />
-                <ProviderFlag label="Stats de jugador" active={Boolean(providerSummary.coverage?.fixtures.statistics_players)} />
-                <ProviderFlag label="Top scorers" active={Boolean(providerSummary.coverage?.top_scorers)} />
-                <ProviderFlag label="Top cards" active={Boolean(providerSummary.coverage?.top_cards)} />
+                <ProviderFlag
+                  label="Eventos"
+                  active={Boolean(providerSummary.coverage?.fixtures.events)}
+                />
+                <ProviderFlag
+                  label="Lineups"
+                  active={Boolean(providerSummary.coverage?.fixtures.lineups)}
+                />
+                <ProviderFlag
+                  label="Stats de partido"
+                  active={Boolean(
+                    providerSummary.coverage?.fixtures.statistics_fixtures,
+                  )}
+                />
+                <ProviderFlag
+                  label="Stats de jugador"
+                  active={Boolean(
+                    providerSummary.coverage?.fixtures.statistics_players,
+                  )}
+                />
+                <ProviderFlag
+                  label="Top scorers"
+                  active={Boolean(providerSummary.coverage?.top_scorers)}
+                />
+                <ProviderFlag
+                  label="Top cards"
+                  active={Boolean(providerSummary.coverage?.top_cards)}
+                />
               </div>
 
               <div className="space-y-3">
                 <h4 className="font-semibold text-white">Últimos fixtures</h4>
                 <div className="space-y-2">
                   {providerSummary.fixtures.slice(0, 8).map((fixture: any) => (
-                    <div key={fixture.fixture.id} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+                    <div
+                      key={fixture.fixture.id}
+                      className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
+                    >
                       <p className="font-medium text-white">
-                        {fixture.teams.home.name} {fixture.goals.home ?? "-"} · {fixture.goals.away ?? "-"} {fixture.teams.away.name}
+                        {fixture.teams.home.name} {fixture.goals.home ?? "-"} ·{" "}
+                        {fixture.goals.away ?? "-"} {fixture.teams.away.name}
                       </p>
                       <p className="text-slate-400">
                         {fixture.league.round} · {fixture.fixture.status.short}
@@ -386,16 +505,29 @@ export function AdminView() {
               <div className="grid gap-4 md:grid-cols-2">
                 <ProviderList
                   title="Top goleadores"
-                  items={providerSummary.topScorers.slice(0, 5).map((item: any) => `${item.player?.name || "Jugador"} · ${item.statistics?.[0]?.goals?.total ?? 0}`)}
+                  items={providerSummary.topScorers
+                    .slice(0, 5)
+                    .map(
+                      (item: any) =>
+                        `${item.player?.name || "Jugador"} · ${item.statistics?.[0]?.goals?.total ?? 0}`,
+                    )}
                 />
                 <ProviderList
                   title="Top tarjetas"
-                  items={providerSummary.topCards.slice(0, 5).map((item: any) => `${item.player?.name || "Jugador"} · ${item.statistics?.[0]?.cards?.yellow ?? 0}A / ${item.statistics?.[0]?.cards?.red ?? 0}R`)}
+                  items={providerSummary.topCards
+                    .slice(0, 5)
+                    .map(
+                      (item: any) =>
+                        `${item.player?.name || "Jugador"} · ${item.statistics?.[0]?.cards?.yellow ?? 0}A / ${item.statistics?.[0]?.cards?.red ?? 0}R`,
+                    )}
                 />
               </div>
             </div>
           ) : (
-            <p className="text-sm text-slate-400">Pulsa “Consultar API” para cargar cobertura, resultados, goleadores y tarjetas.</p>
+            <p className="text-sm text-slate-400">
+              Pulsa “Consultar API” para cargar cobertura, resultados,
+              goleadores y tarjetas.
+            </p>
           )}
         </Card>
       ) : null}
@@ -410,7 +542,12 @@ type PickerTarget =
   | { kind: "mvp" }
   | { kind: "extra"; index: number };
 
-const goalEventTypes = new Set(["gol", "goal", "penalti marcado", "penalty_goal"]);
+const goalEventTypes = new Set([
+  "gol",
+  "goal",
+  "penalti marcado",
+  "penalty_goal",
+]);
 const mvpEventTypes = new Set(["MVP", "mvp"]);
 
 const extraEventOptions = [
@@ -426,8 +563,13 @@ const extraTypeAliases: Record<string, string> = {
   red_card: "roja",
 };
 
-function splitSavedEvents(events: AdminEvent[], homeId: string, awayId: string) {
-  const byMinute = (a: { minute: string }, b: { minute: string }) => (Number(a.minute) || 0) - (Number(b.minute) || 0);
+function splitSavedEvents(
+  events: AdminEvent[],
+  homeId: string,
+  awayId: string,
+) {
+  const byMinute = (a: { minute: string }, b: { minute: string }) =>
+    (Number(a.minute) || 0) - (Number(b.minute) || 0);
   const home: GoalSlot[] = [];
   const away: GoalSlot[] = [];
   const extras: ExtraRow[] = [];
@@ -437,8 +579,13 @@ function splitSavedEvents(events: AdminEvent[], homeId: string, awayId: string) 
     const type = String(event.type || "");
     const minute = event.minute ? String(event.minute) : "";
     if (goalEventTypes.has(type)) {
-      const teamId = event.teamId || playersById.get(event.playerId)?.team || "";
-      const slot = { playerId: event.playerId, minute, penalty: type === "penalti marcado" || type === "penalty_goal" };
+      const teamId =
+        event.teamId || playersById.get(event.playerId)?.team || "";
+      const slot = {
+        playerId: event.playerId,
+        minute,
+        penalty: type === "penalti marcado" || type === "penalty_goal",
+      };
       if (teamId && teamId === awayId) {
         away.push(slot);
       } else {
@@ -447,7 +594,11 @@ function splitSavedEvents(events: AdminEvent[], homeId: string, awayId: string) 
     } else if (mvpEventTypes.has(type)) {
       mvpPlayerId = event.playerId;
     } else {
-      extras.push({ playerId: event.playerId, type: extraTypeAliases[type] || type, minute });
+      extras.push({
+        playerId: event.playerId,
+        type: extraTypeAliases[type] || type,
+        minute,
+      });
     }
   }
 
@@ -461,18 +612,35 @@ function goalCount(score: string) {
 }
 
 function MatchEditor({ matchNumber }: { matchNumber: string }) {
-  const { adminResults, addAdminEvent, deleteAdminEvent, saveAdminResult, teamName, usingSupabase } = useAppContext();
+  const {
+    adminResults,
+    addAdminEvent,
+    deleteAdminEvent,
+    saveAdminResult,
+    teamName,
+    usingSupabase,
+  } = useAppContext();
 
-  const match = schedule.find((candidate) => String(candidate.number) === matchNumber);
+  const match = schedule.find(
+    (candidate) => String(candidate.number) === matchNumber,
+  );
   const saved = adminResults[matchNumber];
   const scheduledHomeId = match && teamsById.has(match.home) ? match.home : "";
   const scheduledAwayId = match && teamsById.has(match.away) ? match.away : "";
 
   const [initial] = useState(() =>
-    splitSavedEvents(saved?.events || [], saved?.homeTeamId || scheduledHomeId, saved?.awayTeamId || scheduledAwayId),
+    splitSavedEvents(
+      saved?.events || [],
+      saved?.homeTeamId || scheduledHomeId,
+      saved?.awayTeamId || scheduledAwayId,
+    ),
   );
-  const [homeScore, setHomeScore] = useState(saved == null ? "" : String(saved.homeScore ?? ""));
-  const [awayScore, setAwayScore] = useState(saved == null ? "" : String(saved.awayScore ?? ""));
+  const [homeScore, setHomeScore] = useState(
+    saved == null ? "" : String(saved.homeScore ?? ""),
+  );
+  const [awayScore, setAwayScore] = useState(
+    saved == null ? "" : String(saved.awayScore ?? ""),
+  );
   const [homeTeamId, setHomeTeamId] = useState(saved?.homeTeamId || "");
   const [awayTeamId, setAwayTeamId] = useState(saved?.awayTeamId || "");
   const [homeGoals, setHomeGoals] = useState<GoalSlot[]>(initial.home);
@@ -488,23 +656,32 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
   const homeCount = goalCount(homeScore);
   const awayCount = goalCount(awayScore);
 
-  const updateGoal = (side: "home" | "away", index: number, patch: Partial<GoalSlot>) => {
+  const updateGoal = (
+    side: "home" | "away",
+    index: number,
+    patch: Partial<GoalSlot>,
+  ) => {
     const setter = side === "home" ? setHomeGoals : setAwayGoals;
     setter((current) => {
       const next = [...current];
-      while (next.length <= index) next.push({ playerId: "", minute: "", penalty: false });
+      while (next.length <= index)
+        next.push({ playerId: "", minute: "", penalty: false });
       next[index] = { ...next[index], ...patch };
       return next;
     });
   };
 
   const updateExtra = (index: number, patch: Partial<ExtraRow>) => {
-    setExtras((current) => current.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+    setExtras((current) =>
+      current.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    );
   };
 
   const pickerPlayerId = pickerTarget
     ? pickerTarget.kind === "goal"
-      ? (pickerTarget.side === "home" ? homeGoals : awayGoals)[pickerTarget.index]?.playerId || ""
+      ? (pickerTarget.side === "home" ? homeGoals : awayGoals)[
+          pickerTarget.index
+        ]?.playerId || ""
       : pickerTarget.kind === "mvp"
         ? mvpPlayerId
         : extras[pickerTarget.index]?.playerId || ""
@@ -524,7 +701,9 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
   const pickerTeamIds = !pickerTarget
     ? bothTeamIds
     : pickerTarget.kind === "goal"
-      ? [pickerTarget.side === "home" ? resolvedHomeId : resolvedAwayId].filter(Boolean)
+      ? [pickerTarget.side === "home" ? resolvedHomeId : resolvedAwayId].filter(
+          Boolean,
+        )
       : bothTeamIds;
 
   const pickerTitle = !pickerTarget
@@ -549,17 +728,25 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
     });
 
     const finalEvents: AdminEvent[] = [
-      ...homeGoals.slice(0, homeCount).filter((slot) => slot.playerId).map((slot) => goalEvent(slot, resolvedHomeId)),
-      ...awayGoals.slice(0, awayCount).filter((slot) => slot.playerId).map((slot) => goalEvent(slot, resolvedAwayId)),
+      ...homeGoals
+        .slice(0, homeCount)
+        .filter((slot) => slot.playerId)
+        .map((slot) => goalEvent(slot, resolvedHomeId)),
+      ...awayGoals
+        .slice(0, awayCount)
+        .filter((slot) => slot.playerId)
+        .map((slot) => goalEvent(slot, resolvedAwayId)),
       ...(mvpPlayerId
-        ? [{
-            id: crypto.randomUUID(),
-            playerId: mvpPlayerId,
-            teamId: playersById.get(mvpPlayerId)?.team,
-            type: "MVP",
-            minute: 0,
-            source: "manual",
-          }]
+        ? [
+            {
+              id: crypto.randomUUID(),
+              playerId: mvpPlayerId,
+              teamId: playersById.get(mvpPlayerId)?.team,
+              type: "MVP",
+              minute: 0,
+              source: "manual",
+            },
+          ]
         : []),
       ...extras
         .filter((row) => row.playerId && row.type)
@@ -576,11 +763,17 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
     // Reutiliza los ids de los eventos guardados idénticos para que el diff de Supabase
     // solo toque lo que de verdad cambió.
     const savedEvents = saved?.events || [];
-    const keyOf = (candidate: { playerId: string; type: string; minute: number | string }) =>
+    const keyOf = (candidate: {
+      playerId: string;
+      type: string;
+      minute: number | string;
+    }) =>
       `${candidate.playerId}|${toDbEventType(candidate.type)}|${Number(candidate.minute) || 0}`;
     const pool = [...savedEvents];
     const mergedEvents = finalEvents.map((candidate) => {
-      const matchIndex = pool.findIndex((savedEvent) => keyOf(savedEvent) === keyOf(candidate));
+      const matchIndex = pool.findIndex(
+        (savedEvent) => keyOf(savedEvent) === keyOf(candidate),
+      );
       if (matchIndex >= 0) {
         const [matched] = pool.splice(matchIndex, 1);
         return { ...candidate, id: matched.id };
@@ -606,8 +799,12 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
         for (const stale of pool) {
           await deleteAdminEvent(matchNumber, stale.id);
         }
-        const savedIds = new Set(savedEvents.map((savedEvent) => savedEvent.id));
-        for (const added of mergedEvents.filter((candidate) => !savedIds.has(candidate.id))) {
+        const savedIds = new Set(
+          savedEvents.map((savedEvent) => savedEvent.id),
+        );
+        for (const added of mergedEvents.filter(
+          (candidate) => !savedIds.has(candidate.id),
+        )) {
           await addAdminEvent(matchNumber, added);
         }
       }
@@ -616,14 +813,19 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
       });
     } catch (error) {
       toast.error("No se ha podido guardar el partido", {
-        description: error instanceof Error ? error.message : "Inténtalo de nuevo.",
+        description:
+          error instanceof Error ? error.message : "Inténtalo de nuevo.",
       });
     } finally {
       setSaving(false);
     }
   };
 
-  const playerButton = (playerId: string, placeholder: string, target: PickerTarget) => {
+  const playerButton = (
+    playerId: string,
+    placeholder: string,
+    target: PickerTarget,
+  ) => {
     const player = playersById.get(playerId);
     return (
       <button
@@ -633,9 +835,14 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
       >
         {player ? (
           <>
-            <PlayerAvatar player={player} className="h-7 w-7 shrink-0 rounded-full bg-white/10 text-[10px]" />
+            <PlayerAvatar
+              player={player}
+              className="h-7 w-7 shrink-0 rounded-full bg-white/10 text-[10px]"
+            />
             <span className="min-w-0">
-              <span className="block truncate font-semibold">{player.name}</span>
+              <span className="block truncate font-semibold">
+                {player.name}
+              </span>
               <span className="block truncate text-xs text-slate-400">
                 {player.position} · {teamName(player.team)}
               </span>
@@ -648,20 +855,44 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
     );
   };
 
-  const goalSlots = (side: "home" | "away", teamId: string, count: number, slots: GoalSlot[]) => (
+  const goalSlots = (
+    side: "home" | "away",
+    teamId: string,
+    count: number,
+    slots: GoalSlot[],
+  ) => (
     <div className="space-y-2">
       <p className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-        {teamId ? <TeamFlag teamId={teamId} className="h-4 w-5 rounded-sm" /> : null}
-        Goles {teamId ? `de ${teamName(teamId)}` : side === "home" ? "del local" : "del visitante"}
+        {teamId ? (
+          <TeamFlag teamId={teamId} className="h-4 w-5 rounded-sm" />
+        ) : null}
+        Goles{" "}
+        {teamId
+          ? `de ${teamName(teamId)}`
+          : side === "home"
+            ? "del local"
+            : "del visitante"}
       </p>
       {Array.from({ length: count }, (_, index) => {
-        const slot = slots[index] || { playerId: "", minute: "", penalty: false };
+        const slot = slots[index] || {
+          playerId: "",
+          minute: "",
+          penalty: false,
+        };
         return (
           <div key={index} className="flex flex-wrap items-center gap-2">
-            {playerButton(slot.playerId, `Goleador ${index + 1}`, { kind: "goal", side, index })}
+            {playerButton(slot.playerId, `Goleador ${index + 1}`, {
+              kind: "goal",
+              side,
+              index,
+            })}
             <input
               value={slot.minute}
-              onChange={(event) => updateGoal(side, index, { minute: event.target.value.replace(/\D/g, "") })}
+              onChange={(event) =>
+                updateGoal(side, index, {
+                  minute: event.target.value.replace(/\D/g, ""),
+                })
+              }
               placeholder="Min"
               inputMode="numeric"
               className="w-20 rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white"
@@ -670,7 +901,9 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
               <input
                 type="checkbox"
                 checked={slot.penalty}
-                onChange={(event) => updateGoal(side, index, { penalty: event.target.checked })}
+                onChange={(event) =>
+                  updateGoal(side, index, { penalty: event.target.checked })
+                }
                 className="accent-cyan-400"
               />
               Penalti
@@ -685,20 +918,37 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
     <form className="space-y-6" onSubmit={submit}>
       {!scheduledHomeId || !scheduledAwayId ? (
         <div className="grid gap-4 md:grid-cols-2">
-          <TeamPicker label="Equipo local real" value={homeTeamId} onChange={setHomeTeamId} placeholder="Por confirmar" />
-          <TeamPicker label="Equipo visitante real" value={awayTeamId} onChange={setAwayTeamId} placeholder="Por confirmar" />
+          <TeamPicker
+            label="Equipo local real"
+            value={homeTeamId}
+            onChange={setHomeTeamId}
+            placeholder="Por confirmar"
+          />
+          <TeamPicker
+            label="Equipo visitante real"
+            value={awayTeamId}
+            onChange={setAwayTeamId}
+            placeholder="Por confirmar"
+          />
         </div>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <label className="space-y-2 text-sm text-slate-300">
           <span className="flex items-center gap-2">
-            {resolvedHomeId ? <TeamFlag teamId={resolvedHomeId} className="h-4 w-5 rounded-sm" /> : null}
+            {resolvedHomeId ? (
+              <TeamFlag
+                teamId={resolvedHomeId}
+                className="h-4 w-5 rounded-sm"
+              />
+            ) : null}
             Goles {resolvedHomeId ? teamName(resolvedHomeId) : "local"}
           </span>
           <input
             value={homeScore}
-            onChange={(event) => setHomeScore(event.target.value.replace(/\D/g, ""))}
+            onChange={(event) =>
+              setHomeScore(event.target.value.replace(/\D/g, ""))
+            }
             required
             inputMode="numeric"
             pattern="\d+"
@@ -707,12 +957,19 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
         </label>
         <label className="space-y-2 text-sm text-slate-300">
           <span className="flex items-center gap-2">
-            {resolvedAwayId ? <TeamFlag teamId={resolvedAwayId} className="h-4 w-5 rounded-sm" /> : null}
+            {resolvedAwayId ? (
+              <TeamFlag
+                teamId={resolvedAwayId}
+                className="h-4 w-5 rounded-sm"
+              />
+            ) : null}
             Goles {resolvedAwayId ? teamName(resolvedAwayId) : "visitante"}
           </span>
           <input
             value={awayScore}
-            onChange={(event) => setAwayScore(event.target.value.replace(/\D/g, ""))}
+            onChange={(event) =>
+              setAwayScore(event.target.value.replace(/\D/g, ""))
+            }
             required
             inputMode="numeric"
             pattern="\d+"
@@ -722,7 +979,10 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
       </div>
 
       {bothTeamIds.length < 2 ? (
-        <Notice>Confirma los dos equipos del partido para filtrar los jugadores en cada hueco.</Notice>
+        <Notice>
+          Confirma los dos equipos del partido para filtrar los jugadores en
+          cada hueco.
+        </Notice>
       ) : null}
 
       {homeCount || awayCount ? (
@@ -730,14 +990,22 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
           <div>
             <h4 className="font-semibold text-white">Goleadores</h4>
             <p className="text-sm text-slate-400">
-              Un hueco por gol según el marcador. Deja el hueco vacío si fue gol en propia puerta. Marca «Penalti» si el gol fue de penalti.
+              Un hueco por gol según el marcador. Deja el hueco vacío si fue gol
+              en propia puerta. Marca «Penalti» si el gol fue de penalti.
             </p>
           </div>
-          {homeCount ? goalSlots("home", resolvedHomeId, homeCount, homeGoals) : null}
-          {awayCount ? goalSlots("away", resolvedAwayId, awayCount, awayGoals) : null}
+          {homeCount
+            ? goalSlots("home", resolvedHomeId, homeCount, homeGoals)
+            : null}
+          {awayCount
+            ? goalSlots("away", resolvedAwayId, awayCount, awayGoals)
+            : null}
         </div>
       ) : (
-        <p className="text-sm text-slate-400">Indica el marcador y aparecerá un hueco por cada gol para asignar el goleador.</p>
+        <p className="text-sm text-slate-400">
+          Indica el marcador y aparecerá un hueco por cada gol para asignar el
+          goleador.
+        </p>
       )}
 
       <div className="space-y-2">
@@ -745,21 +1013,33 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
           <span aria-hidden>⭐</span>
           MVP del partido
         </h4>
-        <div className="flex">{playerButton(mvpPlayerId, "Sin MVP elegido", { kind: "mvp" })}</div>
+        <div className="flex">
+          {playerButton(mvpPlayerId, "Sin MVP elegido", { kind: "mvp" })}
+        </div>
       </div>
 
       <div className="space-y-3">
         <div>
           <h4 className="font-semibold text-white">Otros eventos</h4>
-          <p className="text-sm text-slate-400">Penaltis fallados o parados y tarjetas rojas.</p>
+          <p className="text-sm text-slate-400">
+            Penaltis fallados o parados y tarjetas rojas.
+          </p>
         </div>
         {extras.map((row, index) => (
-          <div key={index} className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            {playerButton(row.playerId, "Elige jugador", { kind: "extra", index })}
+          <div
+            key={index}
+            className="flex flex-col gap-2 sm:flex-row sm:items-center"
+          >
+            {playerButton(row.playerId, "Elige jugador", {
+              kind: "extra",
+              index,
+            })}
             <div className="flex items-center gap-2">
               <select
                 value={row.type}
-                onChange={(event) => updateExtra(index, { type: event.target.value })}
+                onChange={(event) =>
+                  updateExtra(index, { type: event.target.value })
+                }
                 className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white sm:flex-none"
               >
                 <option value="">Tipo</option>
@@ -771,14 +1051,20 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
               </select>
               <input
                 value={row.minute}
-                onChange={(event) => updateExtra(index, { minute: event.target.value.replace(/\D/g, "") })}
+                onChange={(event) =>
+                  updateExtra(index, {
+                    minute: event.target.value.replace(/\D/g, ""),
+                  })
+                }
                 placeholder="Min"
                 inputMode="numeric"
                 className="w-20 shrink-0 rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white"
               />
               <button
                 type="button"
-                onClick={() => setExtras((current) => current.filter((_, i) => i !== index))}
+                onClick={() =>
+                  setExtras((current) => current.filter((_, i) => i !== index))
+                }
                 className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-xs text-white"
               >
                 Quitar
@@ -788,7 +1074,12 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
         ))}
         <button
           type="button"
-          onClick={() => setExtras((current) => [...current, { playerId: "", type: "", minute: "" }])}
+          onClick={() =>
+            setExtras((current) => [
+              ...current,
+              { playerId: "", type: "", minute: "" },
+            ])
+          }
           className="rounded-full border border-white/15 px-4 py-2 text-sm text-white"
         >
           + Añadir evento
@@ -800,7 +1091,9 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
         disabled={saving}
         className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60 sm:w-auto"
       >
-        {saving ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/25 border-t-slate-950" /> : null}
+        {saving ? (
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/25 border-t-slate-950" />
+        ) : null}
         {saving ? "Guardando…" : "Guardar partido y recalcular"}
       </button>
 
@@ -826,7 +1119,9 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
 
 function ProviderFlag({ label, active }: { label: string; active: boolean }) {
   return (
-    <div className={`rounded-2xl border px-4 py-3 text-sm ${active ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200" : "border-white/10 bg-white/5 text-slate-300"}`}>
+    <div
+      className={`rounded-2xl border px-4 py-3 text-sm ${active ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200" : "border-white/10 bg-white/5 text-slate-300"}`}
+    >
       {label}: {active ? "sí" : "no"}
     </div>
   );
@@ -837,7 +1132,11 @@ function ProviderList({ title, items }: { title: string; items: string[] }) {
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
       <h4 className="font-semibold text-white">{title}</h4>
       <div className="mt-3 space-y-2 text-sm text-slate-300">
-        {items.length ? items.map((item) => <p key={item}>{item}</p>) : <p className="text-slate-400">Sin datos.</p>}
+        {items.length ? (
+          items.map((item) => <p key={item}>{item}</p>)
+        ) : (
+          <p className="text-slate-400">Sin datos.</p>
+        )}
       </div>
     </div>
   );

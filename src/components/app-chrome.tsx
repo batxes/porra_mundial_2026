@@ -41,7 +41,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                 priority
               />
               <div className="min-w-0">
-                <p className="truncate text-base font-black tracking-tight sm:text-lg">
+                <p className="truncate text-base font-bold tracking-tight sm:text-lg">
                   Triliporra
                 </p>
                 <p className="hidden text-xs font-medium text-zinc-500 sm:block">
@@ -140,7 +140,10 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                   Entrar
                 </button>
               ) : (
-                <div aria-hidden="true" className="flex items-center gap-1.5 sm:gap-2">
+                <div
+                  aria-hidden="true"
+                  className="flex items-center gap-1.5 sm:gap-2"
+                >
                   <div className="h-10 w-12 animate-pulse rounded-lg border border-white/10 bg-white/[0.06] sm:w-28" />
                   <div className="h-10 w-10 animate-pulse rounded-lg border border-white/10 bg-white/[0.06]" />
                 </div>
@@ -172,7 +175,11 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-24 sm:px-6">
         <main className="flex-1 pt-4">{children}</main>
       </div>
-      <AuthModal defaultMode="login" open={authOpen} onOpenChange={setAuthOpen} />
+      <AuthModal
+        defaultMode="login"
+        open={authOpen}
+        onOpenChange={setAuthOpen}
+      />
     </div>
   );
 }

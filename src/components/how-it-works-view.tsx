@@ -109,13 +109,13 @@ export function HowItWorksView() {
       />
 
       <section className="space-y-3">
-        <h2 className="text-2xl font-black tracking-tight text-white">
+        <h2 className="text-2xl font-bold tracking-tight text-white">
           Cómo se juega
         </h2>
         <div className="grid gap-3 sm:grid-cols-3">
           {playSteps.map((step, index) => (
             <Card key={step.title} className="space-y-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-sm font-black text-white">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-sm font-bold text-white">
                 {index + 1}
               </span>
               <h3 className="text-base font-bold text-white">{step.title}</h3>
@@ -128,7 +128,7 @@ export function HowItWorksView() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-2xl font-black tracking-tight text-white">
+        <h2 className="text-2xl font-bold tracking-tight text-white">
           Fases y puntuación
         </h2>
         <ResultsOpenBanner />
@@ -136,7 +136,7 @@ export function HowItWorksView() {
           {sections.map((section) => (
             <Card key={section.title} className="space-y-4">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/[0.08] text-sm font-black text-white">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/[0.08] text-sm font-bold text-white">
                   {section.step}
                 </span>
                 <h3 className="min-w-0 flex-1 text-lg font-bold text-white">
@@ -196,7 +196,7 @@ function ScoreValue({ value }: { value: string }) {
 
   return (
     <span
-      className={`shrink-0 text-right text-sm font-black ${
+      className={`shrink-0 text-right text-sm font-bold ${
         negative ? "text-rose-400" : "text-[#a7f600]"
       }`}
     >

@@ -31,15 +31,23 @@ function customAvatarFromUrl(avatarUrl?: string) {
 }
 
 export function ProfileView() {
-  const { adminResults, currentScorecard, leaderboard, prediction, playerName, ready, user } =
-    useAppContext();
+  const {
+    adminResults,
+    currentScorecard,
+    leaderboard,
+    prediction,
+    playerName,
+    ready,
+    user,
+  } = useAppContext();
 
   if (!ready) return <ProfileLoading />;
   if (!user) return <UnauthenticatedProfile />;
 
   const rankingPosition =
     leaderboard.filter(
-      (candidate) => !candidate.isHidden && candidate.points > currentScorecard.total,
+      (candidate) =>
+        !candidate.isHidden && candidate.points > currentScorecard.total,
     ).length + 1;
 
   return (
@@ -283,7 +291,7 @@ function UnauthenticatedProfile() {
           <button
             type="button"
             onClick={() => openAuth("login")}
-            className="rounded-lg bg-[#a7f600] px-5 py-3 text-sm font-black text-black transition hover:bg-[#c7ff43]"
+            className="rounded-lg bg-[#a7f600] px-5 py-3 text-sm font-bold text-black transition hover:bg-[#c7ff43]"
           >
             Entrar
           </button>
