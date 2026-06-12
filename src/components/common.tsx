@@ -137,6 +137,74 @@ export function matchStageLabel(match: Match) {
   return group ? `Grupo ${group}` : match.stage;
 }
 
+function formatCountdown(ms: number) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const d = Math.floor(total / 86400);
+  const h = Math.floor((total % 86400) / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  // Siempre mostramos los segundos para que la cuenta vaya bajando "en vivo".
+  if (d > 0) return `${d}d ${h}h ${m}m ${s}s`;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+// Cuenta atras hasta el inicio del partido. Se actualiza cada segundo para que
+// baje en vivo.
+export function MatchCountdown({
+  match,
+  className = "",
+}: {
+  match: Match;
+  className?: string;
+}) {
+  const kickoff = useMemo(
+    () => new Date(scheduleUtc(match)).getTime(),
+    [match],
+  );
+  // Empezamos en null para no desincronizar el render del servidor con el del
+  // cliente (la hora actual solo existe en el navegador).
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    let timer = 0;
+    const tick = () => {
+      const current = Date.now();
+      setNow(current);
+      const remaining = kickoff - current;
+      if (remaining <= 0) return;
+      timer = window.setTimeout(tick, 1000);
+    };
+    tick();
+    return () => window.clearTimeout(timer);
+  }, [kickoff]);
+
+  if (now === null) return null;
+  const remaining = kickoff - now;
+  if (remaining <= 0) return null;
+
+  return (
+    <span className={`inline-flex items-center gap-1 tabular-nums ${className}`}>
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        className="h-3 w-3 shrink-0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7.5V12l3 2" />
+      </svg>
+      <span>{formatCountdown(remaining)}</span>
+      <span className="sr-only"> para el inicio</span>
+    </span>
+  );
+}
+
 export function ProBadge({
   size = "sm",
   className = "",
@@ -1890,7 +1958,7 @@ function ResultsSummary({
                 return (
                   <article
                     key={match.number}
-                    className="overflow-hidden rounded-[22px] text-white"
+                    className="flex h-full flex-col overflow-hidden rounded-[22px] text-white"
                     style={{
                       background:
                         "radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), rgb(47, 47, 47)",
@@ -1930,7 +1998,7 @@ function ResultsSummary({
                       />
                     </div>
 
-                    <div className="border-t border-white/10 px-3 py-2 sm:px-4">
+                    <div className="mt-auto border-t border-white/10 px-3 py-2 sm:px-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="min-w-0 truncate text-xs text-zinc-400">
                           {match.venue}
@@ -1939,6 +2007,11 @@ function ResultsSummary({
                           <span className="text-xs font-medium text-zinc-500">
                             Se revelará cuando empiece el partido
                           </span>
+                        ) : !hasMatchStarted(match) ? (
+                          <MatchCountdown
+                            match={match}
+                            className="text-xs font-semibold text-zinc-300"
+                          />
                         ) : null}
                       </div>
                     </div>
@@ -2075,7 +2148,7 @@ export function FinishedMatchCard({
 
   return (
     <article
-      className={`overflow-hidden rounded-[22px] text-white ${cardRing}`}
+      className={`flex h-full flex-col overflow-hidden rounded-[22px] text-white ${cardRing}`}
       style={{
         background: `${cardGlow}radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), rgb(47, 47, 47)`,
       }}
@@ -2144,7 +2217,7 @@ export function FinishedMatchCard({
         />
       </div>
 
-      <div className="border-t border-white/10 px-3 py-2 sm:px-4">
+      <div className="mt-auto border-t border-white/10 px-3 py-2 sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="min-w-0 truncate text-xs text-zinc-400">
             {match.venue}

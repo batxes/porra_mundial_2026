@@ -36,6 +36,7 @@ import {
   Card,
   FinishedMatchCard,
   hasFinishedScore,
+  MatchCountdown,
   matchStageLabel,
   Notice,
   PlayerAvatar,
@@ -2434,12 +2435,14 @@ function ResultMatchCard({
           "radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), rgb(47, 47, 47)",
       }}
     >
-      <div className="flex items-center justify-between gap-3 px-3 pb-0 pt-3 sm:justify-center sm:px-4 sm:pt-4">
-        <span>{matchStageLabel(match)}</span>
-        <time className="inline-flex items-center text-sm font-semibold text-zinc-200">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 pb-0 pt-3 sm:gap-3 sm:px-4 sm:pt-4">
+        <span className="min-w-0 justify-self-start text-xs font-semibold text-zinc-400 sm:text-sm">
+          {matchStageLabel(match)}
+        </span>
+        <time className="inline-flex items-center justify-self-center text-sm font-semibold text-zinc-200">
           {formatResultTime(match)}
         </time>
-        <ResultStatusBadge complete={complete} className="sm:hidden" />
+        <ResultStatusBadge complete={complete} className="justify-self-end" />
       </div>
       <div className="space-y-2 px-3 py-3 sm:hidden">
         <ResultTeamScoreRow
@@ -2475,7 +2478,7 @@ function ResultMatchCard({
       </div>
       <div className="hidden min-h-[124px] w-full grid-cols-[minmax(0,1fr)_104px_minmax(0,1fr)] items-start py-2 pb-4 sm:grid sm:min-h-[128px] sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)]">
         <ResultTeamColumn teamId={home} fallback={translateSlot(match.home)} />
-        <div className="relative flex items-center justify-center gap-2 pt-2">
+        <div className="flex items-center justify-center gap-2 pt-2">
           <ResultScoreStepper
             label="Goles local"
             value={current.homeScore}
@@ -2484,18 +2487,6 @@ function ResultMatchCard({
               onScoreChange(match.number, "homeScore", value)
             }
           />
-          <span
-            aria-label={
-              complete ? "Resultado rellenado" : "Resultado pendiente"
-            }
-            className={`absolute left-1/2 top-10 z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border text-sm font-bold ${
-              complete
-                ? "result-pending-check border-[#ffe66d] bg-[#ffdd44] text-black"
-                : "border-white/20 bg-[#3a3a3a] text-zinc-500"
-            }`}
-          >
-            {complete ? "✓" : ""}
-          </span>
           <ResultScoreStepper
             label="Goles visitante"
             value={current.awayScore}
@@ -2513,13 +2504,16 @@ function ResultMatchCard({
           <p className="min-w-0 truncate text-xs text-zinc-400">
             {match.venue}
           </p>
-          <span className="text-xs font-medium text-zinc-500">
-            {locked
-              ? complete
-                ? "Prediccion cerrada"
-                : "No rellenaste este resultado"
-              : "Editable hasta el inicio"}
-          </span>
+          {locked ? (
+            <span className="text-xs font-medium text-zinc-500">
+              {complete ? "Prediccion cerrada" : "No rellenaste este resultado"}
+            </span>
+          ) : (
+            <MatchCountdown
+              match={match}
+              className="text-xs font-semibold text-zinc-300"
+            />
+          )}
         </div>
       </div>
     </article>

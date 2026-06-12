@@ -11,6 +11,7 @@ import {
   hasFinishedScore,
   MatchEventLine,
   matchEventIcons,
+  MatchCountdown,
   matchStageLabel,
   PlayerAvatar,
   PrimaryLink,
@@ -1615,21 +1616,21 @@ function UpcomingMatchCard({
       }}
     >
       <div
-        className={`flex items-center justify-between gap-3 px-3 pb-0 ${
-          compact ? "pt-2.5" : "pt-3 sm:justify-center sm:px-4 sm:pt-4"
+        className={`grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 pb-0 sm:gap-3 ${
+          compact ? "pt-2.5" : "pt-3 sm:px-4 sm:pt-4"
         }`}
       >
-        <span className={compact ? "text-xs font-semibold text-zinc-400" : ""}>
+        <span className="min-w-0 justify-self-start text-xs font-semibold text-zinc-400">
           {matchStageLabel(match)}
         </span>
-        <time className="inline-flex items-center text-sm font-semibold text-zinc-200">
+        <time className="inline-flex items-center justify-self-center text-sm font-semibold text-zinc-200">
           {formatResultTime(match)}
         </time>
         {hasUser ? (
           <HomeResultStatusBadge
             complete={predictionComplete}
             locked={locked}
-            className={compact ? "" : "sm:hidden"}
+            className={`justify-self-end ${compact ? "" : "sm:hidden"}`}
           />
         ) : null}
       </div>
@@ -1794,6 +1795,15 @@ function UpcomingMatchCard({
           )}
         </div>
       </div>
+
+      {!locked && !hasLiveScore ? (
+        <div className="flex items-center justify-center border-t border-white/10 px-3 py-2 sm:px-4">
+          <MatchCountdown
+            match={match}
+            className="text-xs font-semibold text-zinc-300"
+          />
+        </div>
+      ) : null}
     </article>
   );
 }
