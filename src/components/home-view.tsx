@@ -1262,8 +1262,8 @@ function JornadaMatchRow({ item }: { item: JornadaMatch }) {
               Falta resultado
             </span>
           ) : (
-            <span className="text-xs font-semibold text-zinc-500">
-              {formatResultTime(match)}
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[11px] font-bold text-zinc-400">
+              Finalizado
             </span>
           )}
         </div>
@@ -1636,7 +1636,7 @@ function UpcomingMatchCard({
       </div>
 
       {compact ? (
-        <div className="flex items-center justify-center gap-2.5 px-3 pb-3 pt-2">
+        <div className="flex items-center justify-center gap-2.5 px-3 pb-3 pt-2 sm:gap-4">
           <CompactTeamSide
             reversed
             teamId={match.home}
@@ -1823,7 +1823,7 @@ function CompactTeamSide({
     <span
       title={teamName}
       aria-label={teamName}
-      className={`flex min-w-0 flex-1 items-center justify-center gap-2 ${
+      className={`flex min-w-0 flex-1 items-center justify-center gap-2 sm:justify-start ${
         reversed ? "flex-row-reverse" : ""
       }`}
     >
