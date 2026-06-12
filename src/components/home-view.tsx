@@ -868,7 +868,7 @@ const scorerBreakdownLabels: Array<{
   label: string;
 }> = [
   { key: "exact", label: "Exacto" },
-  { key: "outcome", label: "Acierto" },
+  { key: "outcome", label: "Quiniela" },
   { key: "xi", label: "Tu once" },
 ];
 
