@@ -393,7 +393,7 @@ export function HomeView() {
             ) : null}
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#a7f600]/20 bg-[#a7f600]/[0.08] px-3 py-1 text-sm text-[#a7f600] sm:px-3.5 sm:py-1.5">
               <span className="font-semibold">{user.points}</span>
-              <span className="text-[#a7f600]/70">pts</span>
+              <span className="text-[#a7f600] dark:text-[#a7f600]/70">pts</span>
             </span>
           </div>
         </section>
@@ -722,9 +722,7 @@ function RecapMatchRow({ item }: { item: RecapItem }) {
             >
               {part.label}
               <span
-                className={
-                  part.points >= 0 ? "text-white" : "text-red-400"
-                }
+                className={part.points >= 0 ? "text-white" : "text-red-400"}
               >
                 {part.points > 0 ? `+${part.points}` : part.points}
               </span>
