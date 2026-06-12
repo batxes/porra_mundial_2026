@@ -79,7 +79,7 @@ export function LeaderboardView() {
       />
 
       {ready ? (
-        <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] p-1">
+        <div className="inline-flex max-w-full overflow-x-auto rounded-xl border border-white/10 bg-white/[0.04] p-1">
           <FilterTab
             active={filter === "all"}
             label="Todos"
@@ -329,7 +329,7 @@ function FilterTab({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-bold transition ${
+      className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-bold transition ${
         active
           ? activeClass
           : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
