@@ -206,6 +206,31 @@ export function MatchCountdown({
   );
 }
 
+// Numero de puesto para clasificaciones persistentes: el podio va en oro,
+// plata y bronce con gradiente (las medallas 🥇 quedan para las jornadas).
+// Los gradientes viven en globals.css (.rank-gold/-silver/-bronze) con
+// variante para el tema claro.
+export function RankNumber({ position }: { position: number }) {
+  const podium =
+    position === 1
+      ? "rank-gold"
+      : position === 2
+        ? "rank-silver"
+        : position === 3
+          ? "rank-bronze"
+          : null;
+
+  if (!podium) return <>{position}</>;
+
+  return (
+    <span
+      className={`${podium} bg-clip-text text-base font-extrabold text-transparent`}
+    >
+      {position}
+    </span>
+  );
+}
+
 export function ProBadge({
   size = "sm",
   className = "",

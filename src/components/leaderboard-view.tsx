@@ -10,6 +10,7 @@ import {
   LeaderboardRowsSkeleton,
   PlayerAvatar,
   ProBadge,
+  RankNumber,
   SectionHeading,
   TeamBadge,
   TeamFlag,
@@ -252,10 +253,10 @@ function PlayerRankRow({
   return (
     <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
       <span
-        className={`flex h-8 w-8 items-center justify-center text-sm font-bold ${rankTextClass(position)}`}
+        className="flex h-8 w-8 items-center justify-center text-sm font-bold text-zinc-300"
         aria-label={`Puesto ${position}`}
       >
-        {rankLabel(position)}
+        <RankNumber position={position} />
       </span>
       <span className="flex min-w-0 items-center gap-3">
         <PlayerAvatar player={row.player} className="size-10! text-xs" />
@@ -370,10 +371,10 @@ function LeaderboardRow({
       className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition hover:bg-white/5"
     >
       <span
-        className={`flex h-8 w-8 items-center justify-center text-sm font-bold ${rankTextClass(position)}`}
+        className="flex h-8 w-8 items-center justify-center text-sm font-bold text-zinc-300"
         aria-label={`Puesto ${position}`}
       >
-        {rankLabel(position)}
+        <RankNumber position={position} />
       </span>
       <span className="flex min-w-0 items-center gap-3">
         <Avatar
@@ -420,25 +421,3 @@ function rankFor(leaderboard: Array<{ points: number }>, index: number) {
   return rank;
 }
 
-function rankTextClass(position: number) {
-  if (position === 1) {
-    return "text-[#f7c948]";
-  }
-
-  if (position === 2) {
-    return "text-zinc-200";
-  }
-
-  if (position === 3) {
-    return "text-[#b7791f]";
-  }
-
-  return "text-zinc-300";
-}
-
-function rankLabel(position: number) {
-  if (position === 1) return "🥇";
-  if (position === 2) return "🥈";
-  if (position === 3) return "🥉";
-  return position;
-}

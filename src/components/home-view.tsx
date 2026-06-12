@@ -23,6 +23,7 @@ import {
   PlayerAvatar,
   PrimaryLink,
   ProBadge,
+  RankNumber,
   Skeleton,
   TeamFlag,
   WolfBadge,
@@ -558,13 +559,15 @@ type JornadaUserSummary = {
   rank: number | null;
 };
 
-// Movimiento en la clasificacion general que provoco cada jornada: puestos
-// con los puntos acumulados hasta la vispera frente a los acumulados al
-// cierre de la jornada. Solo cuentan entradas fechables (con partido).
-function jornadaRankMoves(
+type JornadaGeneralStanding = { rank: number; move: number | null };
+
+// Clasificacion general al cierre de cada jornada (puntos acumulados hasta
+// esa fecha) y el movimiento que provoco frente a la vispera. Solo cuentan
+// entradas fechables (con partido).
+function jornadaGeneralStandings(
   profiles: UserProfile[],
   jornadaDate: string,
-): Map<string, number> {
+): Map<string, JornadaGeneralStanding> {
   const dateByMatch = new Map(
     schedule.map((match) => [match.number, match.date]),
   );
@@ -585,10 +588,6 @@ function jornadaRankMoves(
     after.set(profile.id, pointsAfter);
   });
 
-  // Sin historico previo (primera jornada) el "antes" seria orden alfabetico:
-  // mejor no enseñar movimientos inventados.
-  if (Math.max(0, ...before.values()) === 0) return new Map();
-
   const rankOf = (points: Map<string, number>) => {
     const ranks = new Map<string, number>();
     [...profiles]
@@ -600,17 +599,21 @@ function jornadaRankMoves(
       .forEach((profile, index) => ranks.set(profile.id, index + 1));
     return ranks;
   };
-  const ranksBefore = rankOf(before);
   const ranksAfter = rankOf(after);
+  // Sin historico previo (primera jornada) el "antes" seria orden alfabetico:
+  // se enseña el puesto pero no movimientos inventados.
+  const ranksBefore =
+    Math.max(0, ...before.values()) > 0 ? rankOf(before) : null;
 
-  const moves = new Map<string, number>();
+  const standings = new Map<string, JornadaGeneralStanding>();
   profiles.forEach((profile) => {
-    moves.set(
-      profile.id,
-      (ranksBefore.get(profile.id) || 0) - (ranksAfter.get(profile.id) || 0),
-    );
+    const rank = ranksAfter.get(profile.id) || 0;
+    standings.set(profile.id, {
+      rank,
+      move: ranksBefore ? (ranksBefore.get(profile.id) || 0) - rank : null,
+    });
   });
-  return moves;
+  return standings;
 }
 
 // Resumen personal de la jornada: se muestra aunque no hayas puntuado,
@@ -737,7 +740,7 @@ function HomeFeedSection({
                 jornada={jornada}
                 scorers={scorers}
                 currentUserId={currentUserId}
-                rankMoves={jornadaRankMoves(leaderboard, jornada.date)}
+                standings={jornadaGeneralStandings(leaderboard, jornada.date)}
                 userSummary={jornadaUserSummary(
                   leaderboard,
                   currentUserId,
@@ -849,14 +852,14 @@ function UpcomingJornadaCard({
 function JornadaCard({
   currentUserId,
   jornada,
-  rankMoves,
   scorers,
+  standings,
   userSummary,
 }: {
   currentUserId: string;
   jornada: Jornada;
-  rankMoves: Map<string, number>;
   scorers: JornadaScorer[];
+  standings: Map<string, JornadaGeneralStanding>;
   userSummary: JornadaUserSummary | null;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -893,7 +896,7 @@ function JornadaCard({
                 }}
                 position={userSummary.rank}
                 isCurrentUser
-                rankMove={rankMoves.get(userSummary.profile.id) || 0}
+                general={standings.get(userSummary.profile.id)}
               />
             </div>
           ) : null}
@@ -911,7 +914,7 @@ function JornadaCard({
                     scorer={scorer}
                     position={index + 1}
                     isCurrentUser={scorer.profile.id === currentUserId}
-                    rankMove={rankMoves.get(scorer.profile.id) || 0}
+                    general={standings.get(scorer.profile.id)}
                   />
                 ))}
               </div>
@@ -955,14 +958,14 @@ function JornadaCard({
 }
 
 function JornadaScorerRow({
+  general,
   isCurrentUser,
   position,
-  rankMove = 0,
   scorer,
 }: {
+  general?: JornadaGeneralStanding;
   isCurrentUser: boolean;
   position: number | null;
-  rankMove?: number;
   scorer: JornadaScorer;
 }) {
   const { breakdown, points, profile } = scorer;
@@ -1041,14 +1044,23 @@ function JornadaScorerRow({
         </div>
       </div>
       <div className="mt-0.5 flex shrink-0 items-center gap-1.5">
-        {rankMove !== 0 ? (
+        {general ? (
           <span
-            title="Movimiento en la clasificacion general"
-            className={`text-[10px] font-bold ${
-              rankMove > 0 ? "text-[#a7f600]" : "text-rose-300"
-            }`}
+            title="Clasificacion general tras la jornada"
+            className="flex items-center gap-1 rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[11px] font-semibold text-zinc-300"
           >
-            {rankMove > 0 ? `▲${rankMove}` : `▼${Math.abs(rankMove)}`}
+            {general.rank}º
+            {general.move ? (
+              <span
+                className={`text-[10px] font-bold ${
+                  general.move > 0 ? "text-[#a7f600]" : "text-rose-300"
+                }`}
+              >
+                {general.move > 0
+                  ? `▲${general.move}`
+                  : `▼${Math.abs(general.move)}`}
+              </span>
+            ) : null}
           </span>
         ) : null}
         <span
@@ -1299,10 +1311,10 @@ function LeaderboardRow({
       className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-white/[0.04]"
     >
       <span
-        className={`flex w-6 shrink-0 items-center justify-center text-sm font-bold ${rankTextClass(position)}`}
+        className="flex w-6 shrink-0 items-center justify-center text-sm font-bold text-zinc-300"
         aria-label={`Puesto ${position}`}
       >
-        {rankLabel(position)}
+        <RankNumber position={position} />
       </span>
       <Avatar
         name={profile.name}
@@ -1332,10 +1344,10 @@ function TopPlayerRow({
   return (
     <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
       <span
-        className={`flex w-6 shrink-0 items-center justify-center text-sm font-bold ${rankTextClass(position)}`}
+        className="flex w-6 shrink-0 items-center justify-center text-sm font-bold text-zinc-300"
         aria-label={`Puesto ${position}`}
       >
-        {rankLabel(position)}
+        <RankNumber position={position} />
       </span>
       <PlayerAvatar
         player={row.player}
@@ -1356,22 +1368,6 @@ function TopPlayerRow({
       </span>
     </div>
   );
-}
-
-function rankTextClass(position: number) {
-  if (position === 1) {
-    return "text-[#f7c948]";
-  }
-
-  if (position === 2) {
-    return "text-zinc-200";
-  }
-
-  if (position === 3) {
-    return "text-[#b7791f]";
-  }
-
-  return "text-zinc-300";
 }
 
 function rankLabel(position: number) {

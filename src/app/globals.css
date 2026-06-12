@@ -98,6 +98,79 @@
   --color-cyan-300: #67e8f9;
 }
 
+/* Podio de las clasificaciones: numeros en oro, plata y bronce. La primera
+   capa es un destello que barre el numero (animado abajo); la segunda, el
+   metal. Sobre fondo claro los tonos se oscurecen para no perder contraste. */
+.rank-gold,
+.rank-silver,
+.rank-bronze {
+  background-position:
+    0% 0,
+    0 0;
+  background-size:
+    250% 100%,
+    100% 100%;
+}
+
+.rank-gold {
+  background-image:
+    linear-gradient(115deg, transparent 42%, rgba(255, 244, 200, 0.9) 50%, transparent 58%),
+    linear-gradient(180deg, #ffdf80, #f0b429 52%, #aa6c00);
+}
+
+.rank-silver {
+  background-image:
+    linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.85) 50%, transparent 58%),
+    linear-gradient(180deg, #e6ecf3, #aab6c5 52%, #67737f);
+}
+
+.rank-bronze {
+  background-image:
+    linear-gradient(115deg, transparent 42%, rgba(255, 224, 196, 0.9) 50%, transparent 58%),
+    linear-gradient(180deg, #ecaf78, #c47a36 52%, #79431d);
+}
+
+[data-theme="light"] .rank-gold {
+  background-image:
+    linear-gradient(115deg, transparent 42%, rgba(255, 211, 77, 0.95) 50%, transparent 58%),
+    linear-gradient(180deg, #d9a514, #b07c00 52%, #7c5600);
+}
+
+[data-theme="light"] .rank-silver {
+  background-image:
+    linear-gradient(115deg, transparent 42%, rgba(214, 224, 235, 0.95) 50%, transparent 58%),
+    linear-gradient(180deg, #97a5b6, #76869a 52%, #4d5a68);
+}
+
+[data-theme="light"] .rank-bronze {
+  background-image:
+    linear-gradient(115deg, transparent 42%, rgba(245, 173, 110, 0.95) 50%, transparent 58%),
+    linear-gradient(180deg, #c98146, #a35d22 52%, #6e3c16);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rank-gold,
+  .rank-silver,
+  .rank-bronze {
+    animation: rank-shine 4.5s ease-in-out infinite;
+  }
+}
+
+@keyframes rank-shine {
+  0% {
+    background-position:
+      0% 0,
+      0 0;
+  }
+
+  35%,
+  100% {
+    background-position:
+      100% 0,
+      0 0;
+  }
+}
+
 /* Logo por tema: la variante para fondo claro solo se muestra en modo claro */
 .theme-logo-light {
   display: none;
