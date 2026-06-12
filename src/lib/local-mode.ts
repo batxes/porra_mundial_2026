@@ -29,6 +29,7 @@ export type LocalUser = {
   isPro?: boolean;
   isWolf?: boolean;
   isHidden?: boolean;
+  lateEdit?: boolean;
   avatarUrl: string;
 };
 

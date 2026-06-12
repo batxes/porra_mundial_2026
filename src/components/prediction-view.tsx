@@ -216,7 +216,9 @@ export function PredictionView() {
     () => getSectionProgresses(prediction, visibleMatches),
     [prediction, visibleMatches],
   );
-  const tournamentLocked = hasTournamentStarted();
+  // La edicion tardia (flag de admin) reabre las secciones para ese usuario;
+  // el servidor sigue congelando los pronosticos de partidos ya empezados.
+  const tournamentLocked = hasTournamentStarted() && !user?.lateEdit;
   // Con el torneo cerrado solo se rellenan los resultados, asi que esa
   // pestana pasa a ser la primera (y la que se abre por defecto).
   const orderedSections: readonly PlaySection[] = tournamentLocked

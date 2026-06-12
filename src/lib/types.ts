@@ -131,6 +131,7 @@ export type UserProfile = {
   isAdmin: boolean;
   isPro: boolean;
   isWolf: boolean;
+  lateEdit?: boolean;
   isHidden: boolean;
   complete: number;
   champion?: string;

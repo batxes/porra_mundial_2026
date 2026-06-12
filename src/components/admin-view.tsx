@@ -40,6 +40,7 @@ export function AdminView() {
     leaderboard,
     ready,
     setUserHidden,
+    setUserLateEdit,
     setUserPro,
     setUserWolf,
     user,
@@ -363,6 +364,11 @@ export function AdminView() {
                       </span>
                       {profile.isPro ? <ProBadge /> : null}
                       {profile.isWolf ? <WolfBadge force /> : null}
+                      {profile.lateEdit ? (
+                        <span className="shrink-0 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-cyan-200">
+                          Edición abierta
+                        </span>
+                      ) : null}
                       {profile.isHidden ? (
                         <span className="shrink-0 rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-zinc-400">
                           Oculto
@@ -414,6 +420,24 @@ export function AdminView() {
                       }`}
                     >
                       {profile.isWolf ? "Quitar 🐺" : "🐺"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await setUserLateEdit(profile.id, !profile.lateEdit);
+                        setAdminMessage(
+                          profile.lateEdit
+                            ? `Edición cerrada para ${profile.name}.`
+                            : `${profile.name} ya puede rellenar o editar su porra (los partidos ya jugados siguen bloqueados).`,
+                        );
+                      }}
+                      className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                        profile.lateEdit
+                          ? "bg-cyan-400 text-slate-950 hover:brightness-110"
+                          : "border border-cyan-400/40 text-cyan-200 hover:bg-cyan-400/10"
+                      }`}
+                    >
+                      {profile.lateEdit ? "Cerrar edición" : "Abrir edición"}
                     </button>
                     <button
                       type="button"

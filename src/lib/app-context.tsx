@@ -55,6 +55,7 @@ type SessionUser = {
   isAdmin: boolean;
   isPro: boolean;
   isWolf: boolean;
+  lateEdit: boolean;
 };
 
 // Copia del ultimo usuario con sesion para pintar la cabecera al instante
@@ -76,6 +77,7 @@ function readCachedSessionUser(): SessionUser | null {
       isAdmin: Boolean(parsed.isAdmin),
       isPro: Boolean(parsed.isPro),
       isWolf: Boolean(parsed.isWolf),
+      lateEdit: Boolean(parsed.lateEdit),
     };
   } catch {
     return null;
@@ -125,6 +127,7 @@ type AppContextValue = {
   setXiSelection: (playerIds: string[]) => void;
   setUserPro: (userId: string, isPro: boolean) => Promise<void>;
   setUserWolf: (userId: string, isWolf: boolean) => Promise<void>;
+  setUserLateEdit: (userId: string, lateEdit: boolean) => Promise<void>;
   setUserHidden: (userId: string, isHidden: boolean) => Promise<void>;
   saveAdminResult: (matchNumber: string, payload: AdminResults[string]) => Promise<void>;
   addAdminEvent: (matchNumber: string, event: AdminResults[string]["events"][number]) => Promise<void>;
@@ -176,6 +179,7 @@ function buildLeaderboard(localUsers: LocalUser[], currentUserId: string | null,
         isAdmin: Boolean(user.isAdmin),
         isPro: Boolean(user.isPro),
         isWolf: Boolean(user.isWolf),
+        lateEdit: Boolean(user.lateEdit),
         isHidden: Boolean(user.isHidden),
         complete: calculateCompletion(userPrediction),
         champion: userPrediction.extras.worldChampion || userPrediction.bracket.winners["104"] || "",
@@ -227,6 +231,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               isAdmin: Boolean(sessionUser.isAdmin),
               isPro: Boolean(sessionUser.isPro),
               isWolf: Boolean(sessionUser.isWolf),
+              lateEdit: Boolean(sessionUser.lateEdit),
             }
           : null,
       );
@@ -291,6 +296,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           isAdmin: false,
           isPro: false,
           isWolf: false,
+          lateEdit: false,
         },
       );
     } else {
@@ -302,7 +308,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const tournamentId = tournamentResponse.data?.id;
 
     const [{ data: profiles }, { data: predictions }, { data: matches }, { data: events }, { data: scoreEntries }] = await Promise.all([
-      supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden"),
+      supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
       tournamentId
         ? supabase.from("predictions").select("user_id, selections, completion_percent, is_definitive").eq("tournament_id", tournamentId)
         : Promise.resolve({ data: [] as any[], error: null }),
@@ -377,6 +383,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             isAdmin: Boolean(currentProfile.is_admin),
             isPro: Boolean(currentProfile.is_pro),
             isWolf: Boolean(currentProfile.is_wolf),
+            lateEdit: Boolean(currentProfile.late_edit),
           }
         : null,
     );
@@ -396,6 +403,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             isAdmin: Boolean(profile.is_admin),
             isPro: Boolean(profile.is_pro),
             isWolf: Boolean(profile.is_wolf),
+            lateEdit: Boolean(profile.late_edit),
             isHidden: Boolean(profile.is_hidden),
             complete: calculateCompletion(profilePrediction),
             champion: profilePrediction.extras.worldChampion || profilePrediction.bracket.winners["104"] || "",
@@ -510,6 +518,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const supabase = getSupabaseBrowserClient() as any;
       if (!supabase) return;
       await supabase.rpc("admin_set_user_wolf", { target_user_id: userId, next_is_wolf: isWolf });
+      await refreshData();
+    },
+    [refreshData, syncLocalState, user, usingSupabase],
+  );
+
+  const setUserLateEdit = useCallback(
+    async (userId: string, lateEdit: boolean) => {
+      if (!user?.isAdmin) return;
+
+      if (!usingSupabase) {
+        const users = getLocalUsers();
+        const target = users.find((candidate) => candidate.id === userId);
+        if (!target) return;
+        target.lateEdit = lateEdit;
+        setLocalUsers(users);
+        await syncLocalState(user.id);
+        return;
+      }
+
+      const supabase = getSupabaseBrowserClient() as any;
+      if (!supabase) return;
+      await supabase.rpc("admin_set_user_late_edit", { target_user_id: userId, next_late_edit: lateEdit });
       await refreshData();
     },
     [refreshData, syncLocalState, user, usingSupabase],
@@ -829,15 +859,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateProfile,
       savePrediction,
       moveGroupTeam: (group, teamId, direction) => {
-        if (hasTournamentStarted()) return;
+        if (hasTournamentStarted() && !user?.lateEdit) return;
         replacePrediction(moveGroupTeam(prediction, group, teamId, direction));
       },
       replaceGroupOrder: (group, teamIds) => {
-        if (hasTournamentStarted()) return;
+        if (hasTournamentStarted() && !user?.lateEdit) return;
         replacePrediction(setGroupOrder(prediction, group, teamIds));
       },
       toggleThirdQualifier: (group) => {
-        if (hasTournamentStarted()) return;
+        if (hasTournamentStarted() && !user?.lateEdit) return;
         replacePrediction(toggleThirdQualifier(prediction, group));
       },
       chooseMatchWinner: (matchNumber, teamId) => {
@@ -851,23 +881,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         replacePrediction(setPredictionMatchScore(prediction, matchNumber, side, value));
       },
       setPredictionExtra: (key, value) => {
-        if (hasTournamentStarted()) return;
+        if (hasTournamentStarted() && !user?.lateEdit) return;
         replacePrediction(setPredictionExtra(prediction, key, value));
       },
       toggleXiPlayer: (playerId) => {
-        if (hasTournamentStarted()) return;
+        if (hasTournamentStarted() && !user?.lateEdit) return;
         replacePrediction(toggleXi(prediction, playerId));
       },
       setXiFormation: (formation) => {
-        if (hasTournamentStarted()) return;
+        if (hasTournamentStarted() && !user?.lateEdit) return;
         replacePrediction(setXiFormation(prediction, formation));
       },
       setXiSelection: (playerIds) => {
-        if (hasTournamentStarted()) return;
+        if (hasTournamentStarted() && !user?.lateEdit) return;
         replacePrediction(setXiSelection(prediction, playerIds));
       },
       setUserPro,
       setUserWolf,
+      setUserLateEdit,
       setUserHidden,
       saveAdminResult,
       addAdminEvent,
@@ -896,6 +927,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       savePrediction,
       setUserPro,
       setUserWolf,
+      setUserLateEdit,
       setUserHidden,
       signIn,
       signOut,
