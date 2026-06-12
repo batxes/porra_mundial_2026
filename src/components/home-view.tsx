@@ -513,6 +513,25 @@ function buildJornadas(results: AdminResults): Jornada[] {
     .slice(0, 8);
 }
 
+function jornadaPointsFor(profile: UserProfile, numbers: Set<number>) {
+  let points = 0;
+  let entryCount = 0;
+  const breakdown: ScorerBreakdown = { exact: 0, outcome: 0, xi: 0 };
+  profile.scorecard.entries.forEach((entry) => {
+    if (!entry.matchNumber || !numbers.has(entry.matchNumber)) return;
+    points += entry.points;
+    entryCount += 1;
+    if (entry.ruleCode === "match_exact_score") {
+      breakdown.exact += entry.points;
+    } else if (entry.ruleCode === "match_outcome_hit") {
+      breakdown.outcome += entry.points;
+    } else if (entry.ruleCode.startsWith("player_")) {
+      breakdown.xi += entry.points;
+    }
+  });
+  return { points, breakdown, entryCount };
+}
+
 function jornadaScorers(
   profiles: UserProfile[],
   matchNumbers: number[],
@@ -521,19 +540,7 @@ function jornadaScorers(
   return (
     profiles
       .map((profile) => {
-        let points = 0;
-        const breakdown: ScorerBreakdown = { exact: 0, outcome: 0, xi: 0 };
-        profile.scorecard.entries.forEach((entry) => {
-          if (!entry.matchNumber || !numbers.has(entry.matchNumber)) return;
-          points += entry.points;
-          if (entry.ruleCode === "match_exact_score") {
-            breakdown.exact += entry.points;
-          } else if (entry.ruleCode === "match_outcome_hit") {
-            breakdown.outcome += entry.points;
-          } else if (entry.ruleCode.startsWith("player_")) {
-            breakdown.xi += entry.points;
-          }
-        });
+        const { points, breakdown } = jornadaPointsFor(profile, numbers);
         return { profile, points, breakdown };
       })
       .filter((row) => row.points !== 0)
@@ -542,6 +549,102 @@ function jornadaScorers(
       // puesto en la clasificacion.
       .sort((a, b) => b.points - a.points)
   );
+}
+
+type JornadaUserSummary = {
+  profile: UserProfile;
+  points: number;
+  breakdown: ScorerBreakdown;
+  rank: number | null;
+};
+
+// Movimiento en la clasificacion general que provoco cada jornada: puestos
+// con los puntos acumulados hasta la vispera frente a los acumulados al
+// cierre de la jornada. Solo cuentan entradas fechables (con partido).
+function jornadaRankMoves(
+  profiles: UserProfile[],
+  jornadaDate: string,
+): Map<string, number> {
+  const dateByMatch = new Map(
+    schedule.map((match) => [match.number, match.date]),
+  );
+  const before = new Map<string, number>();
+  const after = new Map<string, number>();
+  profiles.forEach((profile) => {
+    let pointsBefore = 0;
+    let pointsAfter = 0;
+    profile.scorecard.entries.forEach((entry) => {
+      const date = entry.matchNumber
+        ? dateByMatch.get(entry.matchNumber)
+        : null;
+      if (!date || date > jornadaDate) return;
+      pointsAfter += entry.points;
+      if (date < jornadaDate) pointsBefore += entry.points;
+    });
+    before.set(profile.id, pointsBefore);
+    after.set(profile.id, pointsAfter);
+  });
+
+  // Sin historico previo (primera jornada) el "antes" seria orden alfabetico:
+  // mejor no enseñar movimientos inventados.
+  if (Math.max(0, ...before.values()) === 0) return new Map();
+
+  const rankOf = (points: Map<string, number>) => {
+    const ranks = new Map<string, number>();
+    [...profiles]
+      .sort(
+        (a, b) =>
+          (points.get(b.id) || 0) - (points.get(a.id) || 0) ||
+          a.name.localeCompare(b.name),
+      )
+      .forEach((profile, index) => ranks.set(profile.id, index + 1));
+    return ranks;
+  };
+  const ranksBefore = rankOf(before);
+  const ranksAfter = rankOf(after);
+
+  const moves = new Map<string, number>();
+  profiles.forEach((profile) => {
+    moves.set(
+      profile.id,
+      (ranksBefore.get(profile.id) || 0) - (ranksAfter.get(profile.id) || 0),
+    );
+  });
+  return moves;
+}
+
+// Resumen personal de la jornada: se muestra aunque no hayas puntuado,
+// siempre que tuvieras algun pronostico en sus partidos.
+function jornadaUserSummary(
+  profiles: UserProfile[],
+  currentUserId: string,
+  prediction: Prediction,
+  matchNumbers: number[],
+  scorers: JornadaScorer[],
+): JornadaUserSummary | null {
+  if (!currentUserId) return null;
+  const profile = profiles.find(
+    (candidate) => candidate.id === currentUserId,
+  );
+  if (!profile) return null;
+
+  const numbers = new Set(matchNumbers);
+  const { points, breakdown, entryCount } = jornadaPointsFor(profile, numbers);
+  const hasPick = matchNumbers.some((number) => {
+    const pick = prediction.matchPredictions[String(number)];
+    return Boolean(pick && pick.homeScore !== "" && pick.awayScore !== "");
+  });
+  if (!entryCount && !hasPick) return null;
+
+  const index = scorers.findIndex(
+    (scorer) => scorer.profile.id === currentUserId,
+  );
+  return {
+    profile,
+    points,
+    breakdown,
+    rank: index >= 0 ? index + 1 : null,
+  };
 }
 
 const scorerBreakdownLabels: Array<{
@@ -626,14 +729,25 @@ function HomeFeedSection({
               saveState={saveState}
             />
           ) : null}
-          {jornadas.map((jornada) => (
-            <JornadaCard
-              key={jornada.date}
-              jornada={jornada}
-              scorers={jornadaScorers(leaderboard, jornada.matchNumbers)}
-              currentUserId={currentUserId}
-            />
-          ))}
+          {jornadas.map((jornada) => {
+            const scorers = jornadaScorers(leaderboard, jornada.matchNumbers);
+            return (
+              <JornadaCard
+                key={jornada.date}
+                jornada={jornada}
+                scorers={scorers}
+                currentUserId={currentUserId}
+                rankMoves={jornadaRankMoves(leaderboard, jornada.date)}
+                userSummary={jornadaUserSummary(
+                  leaderboard,
+                  currentUserId,
+                  prediction,
+                  jornada.matchNumbers,
+                  scorers,
+                )}
+              />
+            );
+          })}
         </div>
       ) : (
         <Card className="px-4 py-10 text-center text-sm leading-6 text-zinc-400">
@@ -735,11 +849,15 @@ function UpcomingJornadaCard({
 function JornadaCard({
   currentUserId,
   jornada,
+  rankMoves,
   scorers,
+  userSummary,
 }: {
   currentUserId: string;
   jornada: Jornada;
+  rankMoves: Map<string, number>;
   scorers: JornadaScorer[];
+  userSummary: JornadaUserSummary | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const visibleScorers = expanded
@@ -760,94 +878,45 @@ function JornadaCard({
         ))}
       </div>
 
-      {scorers.length ? (
+      {scorers.length || userSummary ? (
         <div className="border-t border-white/10 bg-white/[0.015] px-4 py-3">
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
-            Han puntuado{" "}
-            <span className="text-zinc-400">· {scorers.length}</span>
-          </p>
-          <div className="space-y-2.5">
-            {visibleScorers.map(({ breakdown, points, profile }, index) => {
-              const parts = scorerBreakdownLabels
-                .map((part) => ({
-                  label: part.label,
-                  value: breakdown[part.key],
-                }))
-                .filter((part) => part.value !== 0);
-              const position = index + 1;
+          {userSummary ? (
+            <div>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+                Tu jornada
+              </p>
+              <JornadaScorerRow
+                scorer={{
+                  profile: userSummary.profile,
+                  points: userSummary.points,
+                  breakdown: userSummary.breakdown,
+                }}
+                position={userSummary.rank}
+                isCurrentUser
+                rankMove={rankMoves.get(userSummary.profile.id) || 0}
+              />
+            </div>
+          ) : null}
 
-              return (
-                <Link
-                  key={profile.id}
-                  href={`/perfil/${encodeURIComponent(profile.id)}`}
-                  className="-mx-2 flex items-start justify-between gap-3 rounded-lg px-2 py-1 transition hover:bg-white/[0.04]"
-                >
-                  <div className="flex min-w-0 items-start gap-2.5">
-                    {position <= 3 ? (
-                      <span
-                        className="mt-0.5 flex h-8 w-7 shrink-0 items-center justify-center text-lg leading-none"
-                        aria-label={`Puesto ${position}`}
-                      >
-                        {rankLabel(position)}
-                      </span>
-                    ) : (
-                      <span
-                        className="mt-0.5 flex h-8 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-xs font-bold text-zinc-300"
-                        aria-label={`Puesto ${position}`}
-                      >
-                        {position}
-                      </span>
-                    )}
-                    <Avatar
-                      name={profile.name}
-                      avatarUrl={profile.avatarUrl}
-                      className="size-9"
-                    />
-                    <div className="min-w-0">
-                      <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-white">
-                        <span className="truncate">{profile.name}</span>
-                        {profile.isPro ? <ProBadge /> : null}
-                        {profile.isWolf ? <WolfBadge /> : null}
-                        {profile.id === currentUserId ? (
-                          <span className="shrink-0 text-zinc-500">· tú</span>
-                        ) : null}
-                      </p>
-                      {parts.length ? (
-                        <div className="mt-1 flex flex-wrap items-center gap-1">
-                          {parts.map((part) => (
-                            <span
-                              key={part.label}
-                              className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400"
-                            >
-                              {part.label}
-                              <span
-                                className={
-                                  part.value >= 0
-                                    ? "text-white"
-                                    : "text-red-400"
-                                }
-                              >
-                                {part.value > 0 ? `+${part.value}` : part.value}
-                              </span>
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                  <span
-                    className={`mt-0.5 shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${
-                      points >= 0
-                        ? "bg-[#a7f600]/12 text-[#a7f600]"
-                        : "bg-rose-400/12 text-rose-300"
-                    }`}
-                  >
-                    {points > 0 ? `+${points}` : points}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
+          {scorers.length ? (
+            <div className={userSummary ? "mt-3 border-t border-white/[0.07] pt-3" : ""}>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+                Han puntuado{" "}
+                <span className="text-zinc-400">· {scorers.length}</span>
+              </p>
+              <div className="space-y-2.5">
+                {visibleScorers.map((scorer, index) => (
+                  <JornadaScorerRow
+                    key={scorer.profile.id}
+                    scorer={scorer}
+                    position={index + 1}
+                    isCurrentUser={scorer.profile.id === currentUserId}
+                    rankMove={rankMoves.get(scorer.profile.id) || 0}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {scorers.length > jornadaScorersCollapsed ? (
             <button
@@ -882,6 +951,119 @@ function JornadaCard({
         </div>
       )}
     </Card>
+  );
+}
+
+function JornadaScorerRow({
+  isCurrentUser,
+  position,
+  rankMove = 0,
+  scorer,
+}: {
+  isCurrentUser: boolean;
+  position: number | null;
+  rankMove?: number;
+  scorer: JornadaScorer;
+}) {
+  const { breakdown, points, profile } = scorer;
+  const parts = scorerBreakdownLabels
+    .map((part) => ({
+      label: part.label,
+      value: breakdown[part.key],
+    }))
+    .filter((part) => part.value !== 0);
+
+  return (
+    <Link
+      href={`/perfil/${encodeURIComponent(profile.id)}`}
+      className="-mx-2 flex items-start justify-between gap-3 rounded-lg px-2 py-1 transition hover:bg-white/[0.04]"
+    >
+      <div className="flex min-w-0 items-start gap-2.5">
+        {position === null ? (
+          <span
+            className="mt-0.5 flex h-8 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.04] text-xs font-bold text-zinc-600"
+            aria-label="Sin puntos"
+          >
+            –
+          </span>
+        ) : position <= 3 ? (
+          <span
+            className="mt-0.5 flex h-8 w-7 shrink-0 items-center justify-center text-lg leading-none"
+            aria-label={`Puesto ${position}`}
+          >
+            {rankLabel(position)}
+          </span>
+        ) : (
+          <span
+            className="mt-0.5 flex h-8 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-xs font-bold text-zinc-300"
+            aria-label={`Puesto ${position}`}
+          >
+            {position}
+          </span>
+        )}
+        <Avatar
+          name={profile.name}
+          avatarUrl={profile.avatarUrl}
+          className="size-9"
+        />
+        <div className="min-w-0">
+          <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-white">
+            <span className="truncate">{profile.name}</span>
+            {profile.isPro ? <ProBadge /> : null}
+            {profile.isWolf ? <WolfBadge /> : null}
+            {isCurrentUser ? (
+              <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-zinc-200">
+                Tú
+              </span>
+            ) : null}
+          </p>
+          {parts.length ? (
+            <div className="mt-1 flex flex-wrap items-center gap-1">
+              {parts.map((part) => (
+                <span
+                  key={part.label}
+                  className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400"
+                >
+                  {part.label}
+                  <span
+                    className={part.value >= 0 ? "text-white" : "text-red-400"}
+                  >
+                    {part.value > 0 ? `+${part.value}` : part.value}
+                  </span>
+                </span>
+              ))}
+            </div>
+          ) : isCurrentUser ? (
+            <p className="mt-1 text-[11px] font-medium text-zinc-500">
+              Sin puntos en esta jornada.
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-0.5 flex shrink-0 items-center gap-1.5">
+        {rankMove !== 0 ? (
+          <span
+            title="Movimiento en la clasificacion general"
+            className={`text-[10px] font-bold ${
+              rankMove > 0 ? "text-[#a7f600]" : "text-rose-300"
+            }`}
+          >
+            {rankMove > 0 ? `▲${rankMove}` : `▼${Math.abs(rankMove)}`}
+          </span>
+        ) : null}
+        <span
+          className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
+            points > 0
+              ? "bg-[#a7f600]/12 text-[#a7f600]"
+              : points < 0
+                ? "bg-rose-400/12 text-rose-300"
+                : "bg-white/[0.06] text-zinc-400"
+          }`}
+        >
+          {points > 0 ? `+${points}` : points}
+        </span>
+      </div>
+    </Link>
   );
 }
 
