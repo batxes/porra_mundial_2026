@@ -482,10 +482,13 @@ function readMatchScore(result: AdminResult | undefined) {
 }
 
 type ScorerBreakdown = { exact: number; outcome: number; xi: number };
+type XiPlayerPoints = { playerId: string; points: number };
 type JornadaScorer = {
   profile: UserProfile;
   points: number;
   breakdown: ScorerBreakdown;
+  xiPlayers: XiPlayerPoints[];
+  xiOther: number;
 };
 
 function buildJornadas(results: AdminResults): Jornada[] {
@@ -514,10 +517,27 @@ function buildJornadas(results: AdminResults): Jornada[] {
     .slice(0, 8);
 }
 
-function jornadaPointsFor(profile: UserProfile, numbers: Set<number>) {
+function jornadaPointsFor(
+  profile: UserProfile,
+  numbers: Set<number>,
+  results: AdminResults,
+) {
+  // Las entradas player_* llevan como sourceRef el id del evento del
+  // partido: cruzandolo se atribuyen los puntos del once a cada futbolista.
+  const eventPlayerById = new Map<string, string>();
+  numbers.forEach((number) => {
+    (results[String(number)]?.events || []).forEach((event) => {
+      if (event.id && event.playerId) {
+        eventPlayerById.set(event.id, event.playerId);
+      }
+    });
+  });
+
   let points = 0;
   let entryCount = 0;
   const breakdown: ScorerBreakdown = { exact: 0, outcome: 0, xi: 0 };
+  const xiByPlayer = new Map<string, number>();
+  let xiOther = 0;
   profile.scorecard.entries.forEach((entry) => {
     if (!entry.matchNumber || !numbers.has(entry.matchNumber)) return;
     points += entry.points;
@@ -528,21 +548,38 @@ function jornadaPointsFor(profile: UserProfile, numbers: Set<number>) {
       breakdown.outcome += entry.points;
     } else if (entry.ruleCode.startsWith("player_")) {
       breakdown.xi += entry.points;
+      const playerId = eventPlayerById.get(entry.sourceRef);
+      if (playerId) {
+        xiByPlayer.set(
+          playerId,
+          (xiByPlayer.get(playerId) || 0) + entry.points,
+        );
+      } else {
+        xiOther += entry.points;
+      }
     }
   });
-  return { points, breakdown, entryCount };
+  const xiPlayers = [...xiByPlayer.entries()]
+    .map(([playerId, playerPoints]) => ({ playerId, points: playerPoints }))
+    .sort((a, b) => b.points - a.points);
+  return { points, breakdown, entryCount, xiPlayers, xiOther };
 }
 
 function jornadaScorers(
   profiles: UserProfile[],
   matchNumbers: number[],
+  results: AdminResults,
 ): JornadaScorer[] {
   const numbers = new Set(matchNumbers);
   return (
     profiles
       .map((profile) => {
-        const { points, breakdown } = jornadaPointsFor(profile, numbers);
-        return { profile, points, breakdown };
+        const { points, breakdown, xiPlayers, xiOther } = jornadaPointsFor(
+          profile,
+          numbers,
+          results,
+        );
+        return { profile, points, breakdown, xiPlayers, xiOther };
       })
       .filter((row) => row.points !== 0)
       // Orden estable: `profiles` ya viene ordenado por la clasificacion
@@ -556,6 +593,8 @@ type JornadaUserSummary = {
   profile: UserProfile;
   points: number;
   breakdown: ScorerBreakdown;
+  xiPlayers: XiPlayerPoints[];
+  xiOther: number;
   rank: number | null;
 };
 
@@ -624,6 +663,7 @@ function jornadaUserSummary(
   prediction: Prediction,
   matchNumbers: number[],
   scorers: JornadaScorer[],
+  results: AdminResults,
 ): JornadaUserSummary | null {
   if (!currentUserId) return null;
   const profile = profiles.find(
@@ -632,7 +672,8 @@ function jornadaUserSummary(
   if (!profile) return null;
 
   const numbers = new Set(matchNumbers);
-  const { points, breakdown, entryCount } = jornadaPointsFor(profile, numbers);
+  const { points, breakdown, entryCount, xiPlayers, xiOther } =
+    jornadaPointsFor(profile, numbers, results);
   const hasPick = matchNumbers.some((number) => {
     const pick = prediction.matchPredictions[String(number)];
     return Boolean(pick && pick.homeScore !== "" && pick.awayScore !== "");
@@ -646,17 +687,20 @@ function jornadaUserSummary(
     profile,
     points,
     breakdown,
+    xiPlayers,
+    xiOther,
     rank: index >= 0 ? index + 1 : null,
   };
 }
 
+// El desglose del once no va aqui: se pinta por futbolista (foto + nombre
+// + puntos), con un chip "Tu once" residual para lo no atribuible.
 const scorerBreakdownLabels: Array<{
   key: keyof ScorerBreakdown;
   label: string;
 }> = [
   { key: "exact", label: "Exacto" },
   { key: "outcome", label: "Quiniela" },
-  { key: "xi", label: "Tu once" },
 ];
 
 // Cuantos puntuadores se ven antes de "Mostrar mas".
@@ -733,7 +777,11 @@ function HomeFeedSection({
             />
           ) : null}
           {jornadas.map((jornada) => {
-            const scorers = jornadaScorers(leaderboard, jornada.matchNumbers);
+            const scorers = jornadaScorers(
+              leaderboard,
+              jornada.matchNumbers,
+              results,
+            );
             return (
               <JornadaCard
                 key={jornada.date}
@@ -747,6 +795,7 @@ function HomeFeedSection({
                   prediction,
                   jornada.matchNumbers,
                   scorers,
+                  results,
                 )}
               />
             );
@@ -881,15 +930,13 @@ function JornadaCard({
           <JornadaMatchRow
             key={item.match.number}
             item={item}
-            onShowPicks={
-              item.status === "live" ? () => setPicksMatch(item) : undefined
-            }
+            onShowPicks={() => setPicksMatch(item)}
           />
         ))}
       </div>
 
       {picksMatch ? (
-        <LiveMatchPicksModal
+        <MatchPicksModal
           item={picksMatch}
           onClose={() => setPicksMatch(null)}
         />
@@ -912,6 +959,8 @@ function JornadaCard({
                   profile: userSummary.profile,
                   points: userSummary.points,
                   breakdown: userSummary.breakdown,
+                  xiPlayers: userSummary.xiPlayers,
+                  xiOther: userSummary.xiOther,
                 }}
                 position={userSummary.rank}
                 isCurrentUser
@@ -1001,6 +1050,14 @@ function JornadaScorerRow({
       value: breakdown[part.key],
     }))
     .filter((part) => part.value !== 0);
+  const xiChips = scorer.xiPlayers.flatMap((row) => {
+    const player = playersById.get(row.playerId);
+    return player ? [{ player, points: row.points }] : [];
+  });
+  // Lo que no se pudo atribuir a un futbolista concreto mantiene el total.
+  const xiRest =
+    breakdown.xi - xiChips.reduce((total, chip) => total + chip.points, 0);
+  const hasChips = parts.length > 0 || xiChips.length > 0 || xiRest !== 0;
 
   return (
     <Link
@@ -1046,7 +1103,7 @@ function JornadaScorerRow({
               </span>
             ) : null}
           </p>
-          {parts.length ? (
+          {hasChips ? (
             <div className="mt-1 flex flex-wrap items-center gap-1">
               {parts.map((part) => (
                 <span
@@ -1061,6 +1118,32 @@ function JornadaScorerRow({
                   </span>
                 </span>
               ))}
+              {xiChips.map(({ player, points: playerPoints }) => (
+                <span
+                  key={player.id}
+                  className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] py-px pl-px pr-1.5 text-[10px] font-medium text-zinc-400"
+                >
+                  <PlayerAvatar player={player} className="size-4! text-[6px]" />
+                  {player.name}
+                  <span
+                    className={
+                      playerPoints >= 0 ? "text-white" : "text-red-400"
+                    }
+                  >
+                    {playerPoints > 0 ? `+${playerPoints}` : playerPoints}
+                  </span>
+                </span>
+              ))}
+              {xiRest !== 0 ? (
+                <span className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
+                  Tu once
+                  <span
+                    className={xiRest >= 0 ? "text-white" : "text-red-400"}
+                  >
+                    {xiRest > 0 ? `+${xiRest}` : xiRest}
+                  </span>
+                </span>
+              ) : null}
             </div>
           ) : isCurrentUser ? (
             <p className="mt-1 text-[11px] font-medium text-zinc-500">
@@ -1105,9 +1188,6 @@ function JornadaScorerRow({
   );
 }
 
-// Con el partido en juego las porras ya estan congeladas, asi que se pueden
-// destapar: porra de cada uno coloreada segun el marcador actual y, en
-// pequeño, sus jugadores del once que juegan este partido.
 function normalizeSearchText(value: string) {
   return value
     .toLowerCase()
@@ -1115,7 +1195,14 @@ function normalizeSearchText(value: string) {
     .replace(/\p{Diacritic}/gu, "");
 }
 
-function LiveMatchPicksModal({
+function matchOutcomeOf(home: number, away: number) {
+  return home > away ? "home" : home < away ? "away" : "draw";
+}
+
+// Con el partido empezado las predicciones ya estan congeladas, asi que se
+// pueden destapar. En los terminados, ademas, se comparan con el resultado
+// final: exacto en lime relleno, ganador acertado con borde, fallo apagado.
+function MatchPicksModal({
   item,
   onClose,
 }: {
@@ -1124,7 +1211,35 @@ function LiveMatchPicksModal({
 }) {
   const { leaderboard, user } = useAppContext();
   const [query, setQuery] = useState("");
-  const { match, result } = item;
+  const [wolfOnly, setWolfOnly] = useState(false);
+  const { match, result, status } = item;
+  const finalScore =
+    result && isFinishedResult(result) && hasFinishedScore(result)
+      ? readMatchScore(result)
+      : null;
+
+  const pickChipClass = (pick: {
+    homeScore: string | number;
+    awayScore: string | number;
+  }) => {
+    if (!finalScore) {
+      return "border border-white/10 bg-white/[0.06] text-white";
+    }
+    const pickHome = Number(pick.homeScore);
+    const pickAway = Number(pick.awayScore);
+    const finalHome = Number(finalScore.home);
+    const finalAway = Number(finalScore.away);
+    if (pickHome === finalHome && pickAway === finalAway) {
+      return "border border-[#a7f600]/35 bg-[#a7f600]/15 text-[#a7f600]";
+    }
+    if (
+      matchOutcomeOf(pickHome, pickAway) ===
+      matchOutcomeOf(finalHome, finalAway)
+    ) {
+      return "border border-[#a7f600]/30 bg-white/[0.06] text-white";
+    }
+    return "border border-white/10 bg-white/[0.06] text-zinc-500";
+  };
   const homeTeamId =
     result?.homeTeamId || (teamsById.has(match.home) ? match.home : "");
   const awayTeamId =
@@ -1157,18 +1272,20 @@ function LiveMatchPicksModal({
   // Orden por clasificacion general (el de `leaderboard`): el buscador ya
   // cubre encontrar a alguien concreto.
   const normalizedQuery = normalizeSearchText(query.trim());
-  const filteredRows = normalizedQuery
-    ? rows.filter((row) =>
+  const filteredRows = rows
+    .filter((row) => !wolfOnly || row.profile.isWolf)
+    .filter(
+      (row) =>
+        !normalizedQuery ||
         normalizeSearchText(row.profile.name).includes(normalizedQuery),
-      )
-    : rows;
+    );
 
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="live-picks-title"
+      aria-labelledby="match-picks-title"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -1176,12 +1293,22 @@ function LiveMatchPicksModal({
       <div className="flex max-h-full w-full max-w-md flex-col rounded-2xl border border-white/10 bg-[#151515] p-5 text-white shadow-2xl shadow-black/50">
         <div className="mb-3 flex shrink-0 items-start justify-between gap-3">
           <div className="min-w-0">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-2 py-0.5 text-[11px] font-bold text-rose-200">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-400" />
-              En juego
-            </span>
+            {status === "live" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-2 py-0.5 text-[11px] font-bold text-rose-200">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-400" />
+                En juego
+              </span>
+            ) : status === "awaiting" ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-0.5 text-[11px] font-bold text-amber-200">
+                Falta resultado
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[11px] font-bold text-zinc-400">
+                Finalizado
+              </span>
+            )}
             <h3
-              id="live-picks-title"
+              id="match-picks-title"
               className="mt-2 flex min-w-0 items-center gap-2 text-base font-bold tracking-tight sm:text-lg"
             >
               <TeamFlag
@@ -1196,6 +1323,14 @@ function LiveMatchPicksModal({
                 className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
               />
             </h3>
+            {finalScore ? (
+              <p className="mt-1.5 text-sm font-semibold text-zinc-300">
+                Resultado:{" "}
+                <span className="rounded-md bg-white/[0.08] px-2 py-0.5 font-bold tabular-nums text-white">
+                  {finalScore.home} - {finalScore.away}
+                </span>
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -1217,8 +1352,8 @@ function LiveMatchPicksModal({
           </button>
         </div>
 
-        {rows.length >= 8 ? (
-          <label className="mb-2 flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-2">
+        <div className="mb-2 flex shrink-0 items-center gap-2">
+          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-2">
             <svg
               aria-hidden="true"
               viewBox="0 0 24 24"
@@ -1238,7 +1373,37 @@ function LiveMatchPicksModal({
               className="min-w-0 flex-1 bg-transparent text-sm font-medium text-white outline-none placeholder:text-zinc-600"
             />
           </label>
-        ) : null}
+          {user?.isWolf ? (
+              <div className="inline-flex shrink-0 rounded-xl border border-white/10 bg-white/[0.04] p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setWolfOnly(false)}
+                  aria-pressed={!wolfOnly}
+                  className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
+                    !wolfOnly
+                      ? "bg-zinc-200 text-zinc-900"
+                      : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
+                  }`}
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWolfOnly(true)}
+                  aria-pressed={wolfOnly}
+                  aria-label="Solo manada"
+                  title="Solo manada"
+                  className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
+                    wolfOnly
+                      ? "bg-zinc-100 text-zinc-900"
+                      : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
+                  }`}
+                >
+                  🐺
+                </button>
+              </div>
+            ) : null}
+        </div>
 
         <div className="team-picker-scroll -mr-2 min-h-0 space-y-1.5 overflow-y-auto pr-2">
           {filteredRows.map(({ pick, profile, xiPlayers }) => (
@@ -1282,7 +1447,7 @@ function LiveMatchPicksModal({
               <span
                 className={`shrink-0 rounded-md px-2 py-0.5 text-sm font-bold tabular-nums ${
                   pick
-                    ? "border border-white/10 bg-white/[0.06] text-white"
+                    ? pickChipClass(pick)
                     : "border border-white/10 bg-white/[0.03] text-zinc-600"
                 }`}
               >
@@ -1367,37 +1532,12 @@ function JornadaMatchRow({
             {awayName}
           </span>
         </div>
-        <div className="ml-1 flex w-[104px] shrink-0 flex-col items-end gap-1.5">
+        <div className="ml-1 flex w-[128px] shrink-0 items-center justify-end gap-1.5">
           {status === "live" ? (
-            <>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-2 py-0.5 text-[11px] font-bold text-rose-200">
-                <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
-                En juego
-              </span>
-              {onShowPicks ? (
-                <button
-                  type="button"
-                  onClick={onShowPicks}
-                  aria-label="Ver las predicciones de este partido"
-                  className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-[11px] font-bold text-zinc-200 transition hover:bg-white/10 hover:text-white"
-                >
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    className="h-3 w-3"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z" />
-                    <circle cx="12" cy="12" r="2.6" />
-                  </svg>
-                  Predicciones
-                </button>
-              ) : null}
-            </>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-2 py-0.5 text-[11px] font-bold text-rose-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
+              En juego
+            </span>
           ) : status === "awaiting" ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-0.5 text-[11px] font-bold text-amber-200">
               Falta resultado
@@ -1407,6 +1547,29 @@ function JornadaMatchRow({
               Finalizado
             </span>
           )}
+          {onShowPicks ? (
+            <button
+              type="button"
+              onClick={onShowPicks}
+              aria-label="Ver las predicciones de este partido"
+              title="Predicciones"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-zinc-300 transition hover:bg-white/10 hover:text-white"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-3.5 w-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z" />
+                <circle cx="12" cy="12" r="2.6" />
+              </svg>
+            </button>
+          ) : null}
         </div>
       </div>
 
