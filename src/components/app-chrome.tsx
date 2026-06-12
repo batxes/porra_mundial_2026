@@ -7,6 +7,7 @@ import { useState, useSyncExternalStore } from "react";
 
 import { AuthModal } from "@/components/auth-modal";
 import { Avatar } from "@/components/common";
+import { ResultsRecapWatcher } from "@/components/results-recap";
 import { useAppContext } from "@/lib/app-context";
 import {
   currentTheme,
@@ -75,8 +76,11 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   const [authOpen, setAuthOpen] = useState(false);
 
   return (
-    <div className="app-shell flex min-h-screen flex-col text-white">
-      {!usingSupabase ? (
+    // Los modales globales van fuera del shell: `.app-shell > *` fuerza
+    // position relative en sus hijos directos y romperia su `fixed`.
+    <>
+      <div className="app-shell flex min-h-screen flex-col text-white">
+        {!usingSupabase ? (
         <div className="bg-amber-400 px-4 py-1.5 text-center text-xs font-bold text-black">
           Modo demo · los datos se guardan solo en este navegador (localStorage)
         </div>
@@ -258,11 +262,13 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-24 sm:px-6">
         <main className="flex-1 pt-4">{children}</main>
       </div>
+      </div>
       <AuthModal
         defaultMode="login"
         open={authOpen}
         onOpenChange={setAuthOpen}
       />
-    </div>
+      <ResultsRecapWatcher />
+    </>
   );
 }

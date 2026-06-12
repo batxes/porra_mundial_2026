@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { createEngine } from "@/lib/scoring";
 import { data, playersById, schedule, teamsById } from "@/lib/data";
@@ -431,6 +431,115 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!ready) return;
     writeCachedSessionUser(user);
   }, [ready, user]);
+
+  // Refresco "en vivo" para detectar resultados nuevos con la web abierta:
+  // solo actualiza resultados y clasificacion. No toca la sesion ni la porra
+  // en edicion (refreshData pisaria cambios sin guardar del usuario).
+  const refreshLiveData = useCallback(async () => {
+    if (!usingSupabase) {
+      const currentResults = getLocalAdminResults();
+      setAdminResults(currentResults);
+      setLeaderboard(buildLeaderboard(getLocalUsers(), user?.id || null, prediction, currentResults));
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient() as any;
+    if (!supabase) return;
+
+    const [{ data: profiles }, { data: matches }, { data: events }, { data: scoreEntries }] = await Promise.all([
+      supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
+      supabase.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, status, stage").eq("status", "validated"),
+      supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute"),
+      supabase.from("score_entries").select("user_id, match_id, rule_code, points, explanation, source_ref"),
+    ]);
+
+    const results: AdminResults = {};
+    ((matches || []) as any[]).forEach((match: any) => {
+      const number = String(match.id || "").replace("wc26-", "");
+      if (!number) return;
+      results[number] = {
+        homeScore: match.home_score,
+        awayScore: match.away_score,
+        homeTeamId: match.home_team_id || "",
+        awayTeamId: match.away_team_id || "",
+        status: match.status,
+        events: [],
+      };
+    });
+    ((events || []) as any[]).forEach((event: any) => {
+      const number = String(event.match_id || "").replace("wc26-", "");
+      if (!number) return;
+      results[number] ||= { homeScore: "", awayScore: "", events: [] };
+      results[number].events.push({
+        id: event.id,
+        playerId: event.player_id,
+        teamId: event.team_id,
+        type: event.event_type,
+        minute: event.minute,
+      });
+    });
+
+    const entriesByUser = new Map<string, Array<Record<string, unknown>>>();
+    (scoreEntries || []).forEach((entry: any) => {
+      const userEntries = entriesByUser.get(entry.user_id) || [];
+      userEntries.push(entry);
+      entriesByUser.set(entry.user_id, userEntries);
+    });
+
+    // Reutiliza las porras ya cargadas: en este refresco solo cambian los
+    // resultados y los puntos.
+    const predictionByUser = new Map<string, Prediction | null>(
+      leaderboard.map((profile) => [profile.id, profile.prediction]),
+    );
+
+    setAdminResults(results);
+    setLeaderboard(
+      ((profiles || []) as any[])
+        .map((profile: any) => {
+          const profilePrediction = predictionByUser.get(profile.id) || emptyPrediction();
+          const scorecard = scoring.scorecardFromEntries(entriesByUser.get(profile.id) || []);
+          return {
+            id: profile.id,
+            name: profile.display_name,
+            email: "",
+            avatarUrl: profile.avatar_url || "",
+            points: scorecard.entries.length ? scorecard.total : profile.total_points || 0,
+            isAdmin: Boolean(profile.is_admin),
+            isPro: Boolean(profile.is_pro),
+            isWolf: Boolean(profile.is_wolf),
+            lateEdit: Boolean(profile.late_edit),
+            isHidden: Boolean(profile.is_hidden),
+            complete: calculateCompletion(profilePrediction),
+            champion: profilePrediction.extras.worldChampion || profilePrediction.bracket.winners["104"] || "",
+            prediction: profilePrediction,
+            scorecard,
+          };
+        })
+        .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name)),
+    );
+  }, [leaderboard, prediction, user?.id, usingSupabase]);
+
+  const refreshLiveDataRef = useRef(refreshLiveData);
+  useEffect(() => {
+    refreshLiveDataRef.current = refreshLiveData;
+  }, [refreshLiveData]);
+
+  // Con la web abierta los resultados nuevos llegan solos: sondeo periodico
+  // mientras la pestaña esta visible y refresco al volver a ella.
+  useEffect(() => {
+    if (!ready) return;
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshLiveDataRef.current();
+      }
+    };
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    const interval = window.setInterval(refreshIfVisible, 120_000);
+    return () => {
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+      window.clearInterval(interval);
+    };
+  }, [ready]);
 
   const persistPrediction = useCallback(
     async (nextPrediction: Prediction, makeDefinitive = false) => {

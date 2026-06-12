@@ -20,6 +20,7 @@ import {
   TeamFlag,
   WolfBadge,
 } from "@/components/common";
+import { isFinishedResult } from "@/components/results-recap";
 import { useAppContext } from "@/lib/app-context";
 import { data, playersById, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
@@ -38,7 +39,6 @@ import type {
   AdminResults,
   Match,
   Prediction,
-  ScoreEntry,
   UserProfile,
 } from "@/lib/types";
 
@@ -57,49 +57,10 @@ function madridTodayKey() {
 }
 
 const resultsReminderKey = "porra26_results_reminder_date";
-const resultsRecapKey = "porra26_results_recap_seen";
-const resultsRecapRankKey = "porra26_results_recap_rank";
-
-type RecapRank = { current: number; previous: number | null; total: number };
-type RecapBreakdownPart = { label: string; points: number };
-type RecapItem = {
-  match: Match;
-  result: AdminResult;
-  points: number;
-  breakdown: RecapBreakdownPart[];
-};
-
-const matchPointCategories: Array<{
-  label: string;
-  match: (ruleCode: string) => boolean;
-}> = [
-  { label: "Resultado exacto", match: (rc) => rc === "match_exact_score" },
-  { label: "Resultado acertado", match: (rc) => rc === "match_outcome_hit" },
-  { label: "Tu once", match: (rc) => rc.startsWith("player_") },
-  { label: "Pasa de ronda", match: (rc) => rc === "team_progression_hit" },
-  { label: "Campeon", match: (rc) => rc === "tournament_champion_hit" },
-];
-
-function matchPointBreakdown(entries: ScoreEntry[]): RecapBreakdownPart[] {
-  const totals = new Map<string, number>();
-  entries.forEach((entry) => {
-    const category = matchPointCategories.find((item) =>
-      item.match(entry.ruleCode),
-    );
-    const label = category ? category.label : "Otros";
-    totals.set(label, (totals.get(label) || 0) + entry.points);
-  });
-
-  const order = [...matchPointCategories.map((item) => item.label), "Otros"];
-  return order
-    .map((label) => ({ label, points: totals.get(label) || 0 }))
-    .filter((part) => part.points !== 0);
-}
 
 export function HomeView() {
   const {
     adminResults,
-    currentScorecard,
     leaderboard: fullLeaderboard,
     prediction,
     ready,
@@ -117,8 +78,6 @@ export function HomeView() {
   );
   const [homeSaveState, setHomeSaveState] = useState<HomeSaveState>("idle");
   const [reminderMatches, setReminderMatches] = useState<Match[]>([]);
-  const [recapMatches, setRecapMatches] = useState<RecapItem[]>([]);
-  const [recapRank, setRecapRank] = useState<RecapRank | null>(null);
 
   useEffect(() => {
     if (!ready || !user) return;
@@ -164,123 +123,6 @@ export function HomeView() {
     return () => window.cancelAnimationFrame(frame);
   }, [prediction, ready, user]);
 
-  useEffect(() => {
-    if (!ready || !user) return;
-
-    const finished = schedule
-      .map((match) => ({ match, result: adminResults[String(match.number)] }))
-      .filter((item): item is { match: Match; result: AdminResult } =>
-        Boolean(
-          item.result &&
-          isFinishedResult(item.result) &&
-          hasFinishedScore(item.result),
-        ),
-      );
-    if (!finished.length) return;
-
-    const storageKey = `${resultsRecapKey}_${user.id}`;
-    const rankKey = `${resultsRecapRankKey}_${user.id}`;
-    let raw: string | null = null;
-    try {
-      raw = window.localStorage.getItem(storageKey);
-    } catch {
-      raw = null;
-    }
-
-    const currentRank =
-      leaderboard.findIndex((profile) => profile.id === user.id) + 1;
-
-    const persistSeen = () => {
-      try {
-        window.localStorage.setItem(
-          storageKey,
-          JSON.stringify(finished.map((item) => item.match.number)),
-        );
-        if (currentRank > 0) {
-          window.localStorage.setItem(rankKey, String(currentRank));
-        }
-      } catch {
-        // Ignore storage failures.
-      }
-    };
-
-    // Primera visita: fijar la linea base sin enseñar el historico entero.
-    if (raw === null) {
-      persistSeen();
-      return;
-    }
-
-    let previousRank: number | null = null;
-    try {
-      const storedRank = window.localStorage.getItem(rankKey);
-      previousRank = storedRank ? Number(storedRank) : null;
-      if (previousRank !== null && !Number.isFinite(previousRank)) {
-        previousRank = null;
-      }
-    } catch {
-      previousRank = null;
-    }
-
-    let seen: number[] = [];
-    try {
-      seen = JSON.parse(raw) as number[];
-    } catch {
-      seen = [];
-    }
-    const seenSet = new Set(seen);
-
-    const entriesByMatch = new Map<number, ScoreEntry[]>();
-    currentScorecard.entries.forEach((entry) => {
-      if (!entry.matchNumber) return;
-      const list = entriesByMatch.get(entry.matchNumber) || [];
-      list.push(entry);
-      entriesByMatch.set(entry.matchNumber, list);
-    });
-    const matchPoints = (matchNumber: number) =>
-      (entriesByMatch.get(matchNumber) || []).reduce(
-        (total, entry) => total + entry.points,
-        0,
-      );
-
-    const fresh = finished.filter(({ match }) => {
-      if (seenSet.has(match.number)) return false;
-      const pick = prediction.matchPredictions[String(match.number)];
-      const hasPick = Boolean(
-        pick && pick.homeScore !== "" && pick.awayScore !== "",
-      );
-      return hasPick || matchPoints(match.number) !== 0;
-    });
-
-    if (!fresh.length) {
-      persistSeen();
-      return;
-    }
-
-    const items = fresh
-      .map(({ match, result }) => {
-        const entries = entriesByMatch.get(match.number) || [];
-        return {
-          match,
-          result,
-          points: matchPoints(match.number),
-          breakdown: matchPointBreakdown(entries),
-        };
-      })
-      .sort((a, b) => b.match.number - a.match.number);
-
-    const frame = window.requestAnimationFrame(() => {
-      persistSeen();
-      setRecapMatches(items);
-      if (currentRank > 0) {
-        setRecapRank({
-          current: currentRank,
-          previous: previousRank,
-          total: leaderboard.length,
-        });
-      }
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [adminResults, currentScorecard, leaderboard, prediction, ready, user]);
   const homeEditPendingRef = useRef(false);
   const homeSaveTimerRef = useRef<number | null>(null);
   const homeSaveRunRef = useRef(0);
@@ -522,218 +364,13 @@ export function HomeView() {
         </aside>
       </div>
 
-      {recapMatches.length ? (
-        <MatchResultsRecapModal
-          items={recapMatches}
-          rank={recapRank}
-          onClose={() => {
-            setRecapMatches([]);
-            setRecapRank(null);
-          }}
-        />
-      ) : reminderMatches.length ? (
+      {reminderMatches.length ? (
         <ResultsReminderModal
           matches={reminderMatches}
           prediction={prediction}
           onClose={() => setReminderMatches([])}
         />
       ) : null}
-    </div>
-  );
-}
-
-function MatchResultsRecapModal({
-  items,
-  onClose,
-  rank,
-}: {
-  items: RecapItem[];
-  onClose: () => void;
-  rank: RecapRank | null;
-}) {
-  const totalPoints = items.reduce((total, item) => total + item.points, 0);
-  const rankDelta =
-    rank && rank.previous !== null ? rank.previous - rank.current : null;
-
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="results-recap-title"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#151515] p-5 text-white shadow-2xl shadow-black/50">
-        <div className="mb-4 flex items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#a7f600]/15 text-lg">
-            🏆
-          </span>
-          <div>
-            <h3
-              id="results-recap-title"
-              className="text-xl font-bold tracking-tight"
-            >
-              {items.length === 1
-                ? "Ha terminado un partido"
-                : `Han terminado ${items.length} partidos`}
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-zinc-300">
-              Esto es lo que has sumado desde tu ultima visita.
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          {items.map((item) => (
-            <RecapMatchRow key={item.match.number} item={item} />
-          ))}
-        </div>
-
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
-          <span className="text-sm font-semibold text-zinc-300">
-            {totalPoints > 0
-              ? "Has sumado"
-              : totalPoints < 0
-                ? "Balance"
-                : "Esta vez"}
-          </span>
-          <span
-            className={`rounded-md px-2.5 py-1 text-sm font-bold ${
-              totalPoints > 0
-                ? "bg-[#a7f600]/15 text-[#a7f600]"
-                : totalPoints < 0
-                  ? "bg-rose-400/15 text-rose-300"
-                  : "bg-white/[0.06] text-zinc-300"
-            }`}
-          >
-            {totalPoints > 0
-              ? `+${totalPoints} pts`
-              : totalPoints < 0
-                ? `${totalPoints} pts`
-                : "0 pts"}
-          </span>
-        </div>
-
-        {rank ? (
-          <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white">
-                Tu puesto en la clasificacion
-              </p>
-              {rankDelta !== null ? (
-                <p
-                  className={`mt-0.5 text-xs font-bold ${
-                    rankDelta > 0
-                      ? "text-[#a7f600]"
-                      : rankDelta < 0
-                        ? "text-rose-300"
-                        : "text-zinc-500"
-                  }`}
-                >
-                  {rankDelta > 0
-                    ? `Subes ${rankDelta} ${rankDelta === 1 ? "puesto" : "puestos"}`
-                    : rankDelta < 0
-                      ? `Bajas ${Math.abs(rankDelta)} ${
-                          Math.abs(rankDelta) === 1 ? "puesto" : "puestos"
-                        }`
-                      : "Mantienes tu puesto"}
-                </p>
-              ) : (
-                <p className="mt-0.5 text-xs font-medium text-zinc-500">
-                  de {rank.total} participantes
-                </p>
-              )}
-            </div>
-            <span className="shrink-0 rounded-md bg-white/[0.08] px-2.5 py-1 text-sm font-bold text-white">
-              {rank.current}º
-              <span className="font-semibold text-zinc-500">
-                {" "}
-                / {rank.total}
-              </span>
-            </span>
-          </div>
-        ) : null}
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-4 w-full rounded-lg bg-[#a7f600] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#c7ff43]"
-        >
-          Entendido
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function RecapMatchRow({ item }: { item: RecapItem }) {
-  const { match, points, result } = item;
-  const homeTeamId =
-    result.homeTeamId || (teamsById.has(match.home) ? match.home : "");
-  const awayTeamId =
-    result.awayTeamId || (teamsById.has(match.away) ? match.away : "");
-  const homeName = homeTeamId
-    ? teamsById.get(homeTeamId)?.name || translateSlot(match.home)
-    : translateSlot(match.home);
-  const awayName = awayTeamId
-    ? teamsById.get(awayTeamId)?.name || translateSlot(match.away)
-    : translateSlot(match.away);
-
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <TeamFlag
-            teamId={homeTeamId}
-            className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
-          />
-          <span className="shrink-0 rounded-md bg-white/[0.07] px-2 py-0.5 text-sm font-bold text-white">
-            {result.homeScore}-{result.awayScore}
-          </span>
-          <TeamFlag
-            teamId={awayTeamId}
-            className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
-          />
-          <span className="min-w-0 truncate text-sm font-semibold text-white">
-            {homeName} · {awayName}
-          </span>
-        </div>
-        <span
-          className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${
-            points > 0
-              ? "bg-[#a7f600]/12 text-[#a7f600]"
-              : points < 0
-                ? "bg-rose-400/12 text-rose-300"
-                : "bg-white/[0.06] text-zinc-400"
-          }`}
-        >
-          {points > 0 ? `+${points}` : points < 0 ? points : "0"}
-        </span>
-      </div>
-
-      {item.breakdown.length ? (
-        <div className="mt-2 flex flex-wrap items-center gap-1">
-          {item.breakdown.map((part) => (
-            <span
-              key={part.label}
-              className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400"
-            >
-              {part.label}
-              <span
-                className={part.points >= 0 ? "text-white" : "text-red-400"}
-              >
-                {part.points > 0 ? `+${part.points}` : part.points}
-              </span>
-            </span>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-2 text-[11px] font-medium text-zinc-500">
-          No has puntuado en este partido.
-        </p>
-      )}
     </div>
   );
 }
@@ -2092,16 +1729,6 @@ function hasAdminScore(result?: AdminResult) {
     result.homeScore !== "" &&
     result?.awayScore !== undefined &&
     result.awayScore !== ""
-  );
-}
-
-function isFinishedResult(result?: AdminResult) {
-  const status = String(result?.status || "").toLowerCase();
-  return (
-    status.includes("final") ||
-    status.includes("finished") ||
-    status === "ft" ||
-    status === "validated"
   );
 }
 
