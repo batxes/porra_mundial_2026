@@ -13,6 +13,7 @@ import {
   SectionHeading,
   TeamBadge,
   TeamFlag,
+  WolfBadge,
 } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { data, teamsById } from "@/lib/data";
@@ -22,7 +23,7 @@ import {
 } from "@/lib/scoring";
 import type { Position, UserProfile } from "@/lib/types";
 
-type LeaderboardFilter = "all" | "pro" | "players";
+type LeaderboardFilter = "all" | "pro" | "players" | "wolf";
 
 const PLAYERS_PAGE_SIZE = 25;
 
@@ -38,7 +39,7 @@ function normalizeSearch(value: string) {
 }
 
 export function LeaderboardView() {
-  const { leaderboard: fullLeaderboard, adminResults, ready } = useAppContext();
+  const { leaderboard: fullLeaderboard, adminResults, ready, user } = useAppContext();
   const [filter, setFilter] = useState<LeaderboardFilter>("all");
 
   useEffect(() => {
@@ -48,6 +49,10 @@ export function LeaderboardView() {
 
   const leaderboard = fullLeaderboard.filter((profile) => !profile.isHidden);
   const proCount = leaderboard.filter((profile) => profile.isPro).length;
+  // El tab de la manada y su clasificacion solo los ve quien tiene el tag 🐺
+  // (y el admin, que puede verlo todo).
+  const isWolf = Boolean(user?.isWolf || user?.isAdmin);
+  const wolfCount = leaderboard.filter((profile) => profile.isWolf).length;
   const playerStandings = useMemo(
     () => calculatePlayerStandings(adminResults, data.players),
     [adminResults],
@@ -55,7 +60,9 @@ export function LeaderboardView() {
   const visible =
     filter === "pro"
       ? leaderboard.filter((profile) => profile.isPro)
-      : leaderboard;
+      : filter === "wolf"
+        ? leaderboard.filter((profile) => profile.isWolf)
+        : leaderboard;
 
   return (
     <div className="space-y-6">
@@ -65,7 +72,9 @@ export function LeaderboardView() {
         description={
           filter === "players"
             ? "Los futbolistas que mas puntos han sumado con goles, MVP, penaltis y tarjetas."
-            : "La tabla se ordena por puntos y muestra el campeon elegido por cada participante."
+            : filter === "wolf"
+              ? "La clasificacion de la manada 🐺. Solo visible para sus miembros."
+              : "La tabla se ordena por puntos y muestra el campeon elegido por cada participante."
         }
       />
 
@@ -92,6 +101,15 @@ export function LeaderboardView() {
             count={playerStandings.length}
             onClick={() => setFilter("players")}
           />
+          {isWolf ? (
+            <FilterTab
+              active={filter === "wolf"}
+              label="🐺"
+              count={wolfCount}
+              tone="wolf"
+              onClick={() => setFilter("wolf")}
+            />
+          ) : null}
         </div>
       ) : null}
 
@@ -111,8 +129,16 @@ export function LeaderboardView() {
       ) : !visible.length ? (
         <EmptyState
           icon="0"
-          title="Aun no hay jugadores PRO"
-          description="Cuando alguien tenga el badge PRO aparecera en esta vista."
+          title={
+            filter === "wolf"
+              ? "Aun no hay miembros de la manada"
+              : "Aun no hay jugadores PRO"
+          }
+          description={
+            filter === "wolf"
+              ? "Cuando alguien tenga el tag 🐺 aparecera en esta vista."
+              : "Cuando alguien tenga el badge PRO aparecera en esta vista."
+          }
         />
       ) : (
         <Card className="overflow-hidden p-0">
@@ -285,12 +311,14 @@ function FilterTab({
   count: number;
   label: string;
   onClick: () => void;
-  tone?: "default" | "pro";
+  tone?: "default" | "pro" | "wolf";
 }) {
   const activeClass =
     tone === "pro"
       ? "bg-amber-400 text-amber-950"
-      : "bg-zinc-200 text-zinc-900";
+      : tone === "wolf"
+        ? "bg-zinc-100 text-zinc-900"
+        : "bg-zinc-200 text-zinc-900";
   const activeCountClass =
     tone === "pro"
       ? "bg-amber-950/15 text-amber-950"
@@ -357,6 +385,7 @@ function LeaderboardRow({
           <strong className="flex min-w-0 items-center gap-1.5 text-sm text-white">
             <span className="truncate">{profile.name}</span>
             {profile.isPro ? <ProBadge /> : null}
+            {profile.isWolf ? <WolfBadge /> : null}
           </strong>
           <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-zinc-500">
             {profile.champion ? (

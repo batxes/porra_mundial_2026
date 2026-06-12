@@ -130,6 +130,7 @@ export type UserProfile = {
   points: number;
   isAdmin: boolean;
   isPro: boolean;
+  isWolf: boolean;
   isHidden: boolean;
   complete: number;
   champion?: string;

@@ -18,6 +18,7 @@ import {
   ProBadge,
   Skeleton,
   TeamFlag,
+  WolfBadge,
 } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { data, playersById, schedule, teamsById } from "@/lib/data";
@@ -1119,6 +1120,7 @@ function JornadaCard({
                       <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-white">
                         <span className="truncate">{profile.name}</span>
                         {profile.isPro ? <ProBadge /> : null}
+                        {profile.isWolf ? <WolfBadge /> : null}
                         {profile.id === currentUserId ? (
                           <span className="shrink-0 text-zinc-500">· tú</span>
                         ) : null}
@@ -1441,6 +1443,7 @@ function LeaderboardRow({
       <strong className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-semibold text-white">
         <span className="truncate">{profile.name}</span>
         {profile.isPro ? <ProBadge /> : null}
+        {profile.isWolf ? <WolfBadge /> : null}
       </strong>
       <span className="shrink-0 text-sm font-bold text-white">
         {profile.points}

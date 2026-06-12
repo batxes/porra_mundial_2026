@@ -42,6 +42,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
         name={profile.name}
         avatarUrl={profile.avatarUrl}
         isPro={profile.isPro}
+        isWolf={profile.isWolf}
         eyebrow="Perfil publico"
         subtitle="Elecciones de este participante."
         scorecard={profile.scorecard}

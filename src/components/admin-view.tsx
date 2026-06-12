@@ -16,6 +16,7 @@ import {
   SectionHeading,
   TeamFlag,
   TeamPicker,
+  WolfBadge,
 } from "@/components/common";
 import { PlayerSearchModal } from "@/components/player-search-modal";
 import { toDbEventType, useAppContext } from "@/lib/app-context";
@@ -40,6 +41,7 @@ export function AdminView() {
     ready,
     setUserHidden,
     setUserPro,
+    setUserWolf,
     user,
     usingSupabase,
   } = useAppContext();
@@ -360,6 +362,7 @@ export function AdminView() {
                         {profile.name}
                       </span>
                       {profile.isPro ? <ProBadge /> : null}
+                      {profile.isWolf ? <WolfBadge force /> : null}
                       {profile.isHidden ? (
                         <span className="shrink-0 rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-zinc-400">
                           Oculto
@@ -393,6 +396,24 @@ export function AdminView() {
                       }`}
                     >
                       {profile.isPro ? "Quitar PRO" : "Hacer PRO"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await setUserWolf(profile.id, !profile.isWolf);
+                        setAdminMessage(
+                          profile.isWolf
+                            ? `${profile.name} sale de la manada 🐺.`
+                            : `${profile.name} entra en la manada 🐺.`,
+                        );
+                      }}
+                      className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                        profile.isWolf
+                          ? "border border-white/15 text-white hover:bg-white/10"
+                          : "border border-white/15 bg-white/[0.06] text-zinc-200 hover:bg-white/10"
+                      }`}
+                    >
+                      {profile.isWolf ? "Quitar 🐺" : "🐺"}
                     </button>
                     <button
                       type="button"

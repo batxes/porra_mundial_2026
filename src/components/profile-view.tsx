@@ -62,6 +62,7 @@ export function ProfileView() {
         name={user.name}
         avatarUrl={user.avatarUrl}
         isPro={user.isPro}
+        isWolf={user.isWolf}
         subtitle={user.email}
         scorecard={currentScorecard}
         rank={rankingPosition}

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useAppContext } from "@/lib/app-context";
 import { data, playersById, teamsById } from "@/lib/data";
 import {
   flagUrl,
@@ -221,6 +222,34 @@ export function ProBadge({
       className={`inline-flex shrink-0 select-none items-center rounded-full bg-amber-400 font-semibold uppercase leading-none tracking-[0.08em] text-amber-950 ${sizeClasses} ${className}`}
     >
       PRO
+    </span>
+  );
+}
+
+// Tag de la manada. Solo lo ven los propios usuarios con el tag 🐺 y el
+// admin (que puede verlo todo); `force` lo muestra incondicionalmente.
+export function WolfBadge({
+  size = "sm",
+  className = "",
+  force = false,
+}: {
+  size?: "sm" | "md";
+  className?: string;
+  force?: boolean;
+}) {
+  const { user } = useAppContext();
+  if (!force && !user?.isWolf && !user?.isAdmin) return null;
+
+  const sizeClasses =
+    size === "md" ? "px-1.5 py-[3px] text-[12px]" : "px-1 py-[2px] text-[10px]";
+
+  return (
+    <span
+      title="Manada"
+      aria-label="Manada"
+      className={`inline-flex shrink-0 select-none items-center rounded-full border border-white/15 bg-white/[0.08] leading-none ${sizeClasses} ${className}`}
+    >
+      🐺
     </span>
   );
 }
@@ -549,6 +578,7 @@ export function ProfileScoreCard({
   name,
   avatarUrl,
   isPro = false,
+  isWolf = false,
   eyebrow,
   subtitle,
   scorecard,
@@ -557,6 +587,7 @@ export function ProfileScoreCard({
   name: string;
   avatarUrl?: string;
   isPro?: boolean;
+  isWolf?: boolean;
   eyebrow?: string;
   subtitle?: string;
   scorecard: Scorecard;
@@ -583,6 +614,7 @@ export function ProfileScoreCard({
             <h2 className="flex min-w-0 items-center gap-2 text-lg font-semibold text-white sm:text-xl">
               <span className="truncate">{name}</span>
               {isPro ? <ProBadge size="md" /> : null}
+              {isWolf ? <WolfBadge size="md" /> : null}
             </h2>
             {subtitle ? (
               <p className="truncate text-sm text-slate-400">{subtitle}</p>
@@ -2374,6 +2406,7 @@ export function PredictionSnapshot({
             <h3 className="flex min-w-0 items-center gap-2 text-xl font-semibold text-white">
               <span className="truncate">{profile.name}</span>
               {profile.isPro ? <ProBadge /> : null}
+              {profile.isWolf ? <WolfBadge /> : null}
             </h3>
             <p className="text-sm text-slate-400">
               {profile.points} puntos · {profile.complete}% completada
