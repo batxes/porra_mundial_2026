@@ -2,7 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import {
   Avatar,
@@ -20,7 +27,11 @@ import {
   TeamFlag,
   WolfBadge,
 } from "@/components/common";
-import { isFinishedResult } from "@/components/results-recap";
+import {
+  isFinishedResult,
+  readRankBeforeUpdate,
+  subscribeRankDelta,
+} from "@/components/results-recap";
 import { useAppContext } from "@/lib/app-context";
 import { data, playersById, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
@@ -78,6 +89,11 @@ export function HomeView() {
   );
   const [homeSaveState, setHomeSaveState] = useState<HomeSaveState>("idle");
   const [reminderMatches, setReminderMatches] = useState<Match[]>([]);
+  const rankBeforeUpdate = useSyncExternalStore(
+    subscribeRankDelta,
+    () => readRankBeforeUpdate(user?.id),
+    () => null,
+  );
 
   useEffect(() => {
     if (!ready || !user) return;
@@ -226,17 +242,45 @@ export function HomeView() {
               </h1>
             </div>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+          {/* Mini marcador, mismo lenguaje que el pie del reporte de resultados */}
+          <div className="flex shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]">
             {ready && userRank ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm text-zinc-300 sm:px-3.5 sm:py-1.5">
-                <span className="text-zinc-500">Puesto</span>
-                <span className="font-semibold text-white">{userRank}º</span>
-              </span>
+              <div className="px-3 py-1.5 text-center sm:px-4 sm:py-2">
+                <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                  Puesto
+                </p>
+                <p className="mt-0.5 text-lg font-bold leading-none text-white sm:text-xl">
+                  {userRank}º
+                  {rankBeforeUpdate !== null &&
+                  rankBeforeUpdate !== userRank ? (
+                    <span
+                      title="Desde los ultimos resultados"
+                      className={`ml-1 align-middle text-[10px] font-bold ${
+                        rankBeforeUpdate > userRank
+                          ? "text-[#a7f600]"
+                          : "text-rose-300"
+                      }`}
+                    >
+                      {rankBeforeUpdate > userRank
+                        ? `▲${rankBeforeUpdate - userRank}`
+                        : `▼${userRank - rankBeforeUpdate}`}
+                    </span>
+                  ) : null}
+                </p>
+              </div>
             ) : null}
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#a7f600]/20 bg-[#a7f600]/[0.08] px-3 py-1 text-sm text-[#a7f600] sm:px-3.5 sm:py-1.5">
-              <span className="font-semibold">{user.points}</span>
-              <span className="text-[#a7f600] dark:text-[#a7f600]/70">pts</span>
-            </span>
+            <div
+              className={`bg-[radial-gradient(90px_at_50%_-30%,rgba(167,246,0,0.2),transparent)] bg-[#a7f600]/[0.06] px-3 py-1.5 text-center sm:px-4 sm:py-2 ${
+                ready && userRank ? "border-l border-white/10" : ""
+              }`}
+            >
+              <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                Puntos
+              </p>
+              <p className="mt-0.5 text-lg font-bold leading-none text-[#a7f600] sm:text-xl">
+                {user.points}
+              </p>
+            </div>
           </div>
         </section>
       ) : (

@@ -13,6 +13,55 @@ import type { AdminResult, Match, ScoreEntry } from "@/lib/types";
 const resultsRecapKey = "porra26_results_recap_seen";
 const resultsRecapRankKey = "porra26_results_recap_rank";
 
+// Puesto anterior a los ultimos resultados, para el delta del marcador del
+// inicio. Se avisa con un evento porque el watcher y el inicio comparten
+// pestaña (los eventos `storage` solo saltan entre pestañas).
+export const rankDeltaEventName = "porra26-rank-delta";
+
+export function rankBeforeLastUpdateKey(userId: string) {
+  return `${resultsRecapRankKey}_prev_${userId}`;
+}
+
+// Para useSyncExternalStore en el marcador del inicio.
+export function subscribeRankDelta(listener: () => void) {
+  window.addEventListener(rankDeltaEventName, listener);
+  return () => {
+    window.removeEventListener(rankDeltaEventName, listener);
+  };
+}
+
+export function readRankBeforeUpdate(userId?: string): number | null {
+  if (!userId) return null;
+  try {
+    const raw = window.localStorage.getItem(rankBeforeLastUpdateKey(userId));
+    const value = raw ? Number(raw) : NaN;
+    return Number.isFinite(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistRankDelta(
+  userId: string,
+  previousRank: number | null,
+  currentRank: number,
+) {
+  if (currentRank <= 0 || previousRank === null) return;
+  try {
+    if (previousRank === currentRank) {
+      window.localStorage.removeItem(rankBeforeLastUpdateKey(userId));
+    } else {
+      window.localStorage.setItem(
+        rankBeforeLastUpdateKey(userId),
+        String(previousRank),
+      );
+    }
+    window.dispatchEvent(new Event(rankDeltaEventName));
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
 type RecapRank = { current: number; previous: number | null; total: number };
 type RecapBreakdownPart = { label: string; points: number };
 type RecapItem = {
@@ -169,7 +218,16 @@ export function ResultsRecapWatcher() {
       return hasPick || matchPoints(match.number) !== 0;
     });
 
+    // Hay "actualizacion" cuando aparecen partidos terminados nuevos, aunque
+    // el usuario no puntue en ellos (el puesto puede moverse por los demas).
+    const newlyFinished = finished.some(
+      (item) => !seenSet.has(item.match.number),
+    );
+
     if (!fresh.length) {
+      if (newlyFinished) {
+        persistRankDelta(user.id, previousRank, currentRank);
+      }
       persistSeen();
       return;
     }
@@ -188,6 +246,7 @@ export function ResultsRecapWatcher() {
 
     const frame = window.requestAnimationFrame(() => {
       persistSeen();
+      persistRankDelta(user.id, previousRank, currentRank);
       setRecapMatches(items);
       if (currentRank > 0) {
         setRecapRank({
