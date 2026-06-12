@@ -275,7 +275,7 @@ export function HomeView() {
                 ready && userRank ? "border-l border-white/10" : ""
               }`}
             >
-              <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+              <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#a7f600] opacity-70">
                 Puntos
               </p>
               <p className="mt-0.5 text-lg font-bold leading-none text-[#a7f600] sm:text-xl">
@@ -863,6 +863,7 @@ function JornadaCard({
   userSummary: JornadaUserSummary | null;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [picksMatch, setPicksMatch] = useState<JornadaMatch | null>(null);
   const visibleScorers = expanded
     ? scorers
     : scorers.slice(0, jornadaScorersCollapsed);
@@ -877,17 +878,35 @@ function JornadaCard({
 
       <div className="divide-y divide-white/10">
         {jornada.matches.map((item) => (
-          <JornadaMatchRow key={item.match.number} item={item} />
+          <JornadaMatchRow
+            key={item.match.number}
+            item={item}
+            onShowPicks={
+              item.status === "live" ? () => setPicksMatch(item) : undefined
+            }
+          />
         ))}
       </div>
+
+      {picksMatch ? (
+        <LiveMatchPicksModal
+          item={picksMatch}
+          onClose={() => setPicksMatch(null)}
+        />
+      ) : null}
 
       {scorers.length || userSummary ? (
         <div className="border-t border-white/10 bg-white/[0.015] px-4 py-3">
           {userSummary ? (
             <div>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
-                Tu jornada
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+                  Tu jornada
+                </p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600">
+                  General · pts
+                </p>
+              </div>
               <JornadaScorerRow
                 scorer={{
                   profile: userSummary.profile,
@@ -903,10 +922,17 @@ function JornadaCard({
 
           {scorers.length ? (
             <div className={userSummary ? "mt-3 border-t border-white/[0.07] pt-3" : ""}>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
-                Han puntuado{" "}
-                <span className="text-zinc-400">· {scorers.length}</span>
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+                  Han puntuado{" "}
+                  <span className="text-zinc-400">· {scorers.length}</span>
+                </p>
+                {!userSummary ? (
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600">
+                    General · pts
+                  </p>
+                ) : null}
+              </div>
               <div className="space-y-2.5">
                 {visibleScorers.map((scorer, index) => (
                   <JornadaScorerRow
@@ -1079,7 +1105,214 @@ function JornadaScorerRow({
   );
 }
 
-function JornadaMatchRow({ item }: { item: JornadaMatch }) {
+// Con el partido en juego las porras ya estan congeladas, asi que se pueden
+// destapar: porra de cada uno coloreada segun el marcador actual y, en
+// pequeño, sus jugadores del once que juegan este partido.
+function normalizeSearchText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
+}
+
+function LiveMatchPicksModal({
+  item,
+  onClose,
+}: {
+  item: JornadaMatch;
+  onClose: () => void;
+}) {
+  const { leaderboard, user } = useAppContext();
+  const [query, setQuery] = useState("");
+  const { match, result } = item;
+  const homeTeamId =
+    result?.homeTeamId || (teamsById.has(match.home) ? match.home : "");
+  const awayTeamId =
+    result?.awayTeamId || (teamsById.has(match.away) ? match.away : "");
+  const homeName = homeTeamId
+    ? teamsById.get(homeTeamId)?.name || translateSlot(match.home)
+    : translateSlot(match.home);
+  const awayName = awayTeamId
+    ? teamsById.get(awayTeamId)?.name || translateSlot(match.away)
+    : translateSlot(match.away);
+
+  const rows = leaderboard
+    .filter((profile) => !profile.isHidden)
+    .map((profile) => {
+      const pick = profile.prediction?.matchPredictions?.[String(match.number)];
+      const hasPick = Boolean(
+        pick && pick.homeScore !== "" && pick.awayScore !== "",
+      );
+      const xiPlayers = (profile.prediction?.xi || [])
+        .map((playerId) => playersById.get(playerId))
+        .filter(
+          (player): player is NonNullable<typeof player> =>
+            Boolean(player) &&
+            (player?.team === homeTeamId || player?.team === awayTeamId),
+        );
+      return { profile, pick: hasPick && pick ? pick : null, xiPlayers };
+    })
+    .filter((row) => row.pick || row.xiPlayers.length);
+
+  // Orden por clasificacion general (el de `leaderboard`): el buscador ya
+  // cubre encontrar a alguien concreto.
+  const normalizedQuery = normalizeSearchText(query.trim());
+  const filteredRows = normalizedQuery
+    ? rows.filter((row) =>
+        normalizeSearchText(row.profile.name).includes(normalizedQuery),
+      )
+    : rows;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="live-picks-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="flex max-h-full w-full max-w-md flex-col rounded-2xl border border-white/10 bg-[#151515] p-5 text-white shadow-2xl shadow-black/50">
+        <div className="mb-3 flex shrink-0 items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-2 py-0.5 text-[11px] font-bold text-rose-200">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-400" />
+              En juego
+            </span>
+            <h3
+              id="live-picks-title"
+              className="mt-2 flex min-w-0 items-center gap-2 text-base font-bold tracking-tight sm:text-lg"
+            >
+              <TeamFlag
+                teamId={homeTeamId}
+                className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
+              />
+              <span className="min-w-0 truncate">
+                {homeName} · {awayName}
+              </span>
+              <TeamFlag
+                teamId={awayTeamId}
+                className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
+              />
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-zinc-300 transition hover:bg-white/10 hover:text-white"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        {rows.length >= 8 ? (
+          <label className="mb-2 flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-2">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-4 w-4 shrink-0 text-zinc-500"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Buscar por nombre"
+              className="min-w-0 flex-1 bg-transparent text-sm font-medium text-white outline-none placeholder:text-zinc-600"
+            />
+          </label>
+        ) : null}
+
+        <div className="team-picker-scroll -mr-2 min-h-0 space-y-1.5 overflow-y-auto pr-2">
+          {filteredRows.map(({ pick, profile, xiPlayers }) => (
+            <div
+              key={profile.id}
+              className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-2.5 py-2"
+            >
+              <div className="flex min-w-0 items-center gap-2.5">
+                <Avatar
+                  name={profile.name}
+                  avatarUrl={profile.avatarUrl}
+                  className="size-8"
+                />
+                <div className="min-w-0">
+                  <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-white">
+                    <span className="truncate">{profile.name}</span>
+                    {profile.id === user?.id ? (
+                      <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-zinc-200">
+                        Tú
+                      </span>
+                    ) : null}
+                  </p>
+                  {xiPlayers.length ? (
+                    <div className="mt-1 flex flex-wrap items-center gap-1">
+                      {xiPlayers.map((player) => (
+                        <span
+                          key={player.id}
+                          className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] py-px pl-px pr-1.5 text-[10px] font-medium text-zinc-300"
+                        >
+                          <PlayerAvatar
+                            player={player}
+                            className="size-4! text-[6px]"
+                          />
+                          {player.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <span
+                className={`shrink-0 rounded-md px-2 py-0.5 text-sm font-bold tabular-nums ${
+                  pick
+                    ? "border border-white/10 bg-white/[0.06] text-white"
+                    : "border border-white/10 bg-white/[0.03] text-zinc-600"
+                }`}
+              >
+                {pick ? `${pick.homeScore} - ${pick.awayScore}` : "– - –"}
+              </span>
+            </div>
+          ))}
+          {!rows.length ? (
+            <p className="py-4 text-center text-sm text-zinc-500">
+              Nadie ha pronosticado este partido.
+            </p>
+          ) : !filteredRows.length ? (
+            <p className="py-4 text-center text-sm text-zinc-500">
+              Nadie se llama asi en la porra.
+            </p>
+          ) : null}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+function JornadaMatchRow({
+  item,
+  onShowPicks,
+}: {
+  item: JornadaMatch;
+  onShowPicks?: () => void;
+}) {
   const { match, result, status } = item;
   const homeTeamId =
     result?.homeTeamId || (teamsById.has(match.home) ? match.home : "");
@@ -1134,12 +1367,37 @@ function JornadaMatchRow({ item }: { item: JornadaMatch }) {
             {awayName}
           </span>
         </div>
-        <div className="ml-1 flex w-[104px] shrink-0 justify-end">
+        <div className="ml-1 flex w-[104px] shrink-0 flex-col items-end gap-1.5">
           {status === "live" ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-2 py-0.5 text-[11px] font-bold text-rose-200">
-              <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
-              En juego
-            </span>
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-2 py-0.5 text-[11px] font-bold text-rose-200">
+                <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
+                En juego
+              </span>
+              {onShowPicks ? (
+                <button
+                  type="button"
+                  onClick={onShowPicks}
+                  aria-label="Ver las predicciones de este partido"
+                  className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-[11px] font-bold text-zinc-200 transition hover:bg-white/10 hover:text-white"
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z" />
+                    <circle cx="12" cy="12" r="2.6" />
+                  </svg>
+                  Predicciones
+                </button>
+              ) : null}
+            </>
           ) : status === "awaiting" ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-0.5 text-[11px] font-bold text-amber-200">
               Falta resultado

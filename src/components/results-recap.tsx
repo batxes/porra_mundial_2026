@@ -313,13 +313,13 @@ function MatchResultsRecapModal({
             </span>
             <h3
               id="results-recap-title"
-              className="mt-2 text-xl font-bold tracking-tight"
+              className="mt-2 text-base font-bold tracking-tight sm:text-xl"
             >
               {items.length === 1
                 ? "Ha terminado un partido"
                 : `Han terminado ${items.length} partidos`}
             </h3>
-            <p className="mt-2 text-sm leading-6 text-zinc-300">
+            <p className="mt-1.5 text-[13px] leading-5 text-zinc-400 sm:mt-2 sm:text-sm sm:leading-6 sm:text-zinc-300">
               Esto es lo que has sumado desde tu ultima visita.
             </p>
           </div>
