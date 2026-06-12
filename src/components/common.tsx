@@ -2732,7 +2732,7 @@ export function MatchEventLine({
     points !== 0 ? (
       <span
         className={`shrink-0 font-semibold ${
-          points > 0 ? "text-[#a7f600]" : "text-rose-300"
+          points > 0 ? "text-white" : "text-red-400"
         }`}
       >
         {points > 0 ? `+${points}` : points}

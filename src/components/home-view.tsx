@@ -714,7 +714,7 @@ function RecapMatchRow({ item }: { item: RecapItem }) {
               {part.label}
               <span
                 className={
-                  part.points >= 0 ? "text-[#a7f600]" : "text-rose-300"
+                  part.points >= 0 ? "text-white" : "text-red-400"
                 }
               >
                 {part.points > 0 ? `+${part.points}` : part.points}
@@ -1134,8 +1134,8 @@ function JornadaCard({
                               <span
                                 className={
                                   part.value >= 0
-                                    ? "text-[#a7f600]"
-                                    : "text-rose-300"
+                                    ? "text-white"
+                                    : "text-red-400"
                                 }
                               >
                                 {part.value > 0 ? `+${part.value}` : part.value}
