@@ -3,6 +3,7 @@
 :root {
   --background: #050505;
   --foreground: #f8fafc;
+  --match-card-bg: #2f2f2f;
 }
 
 @theme inline {
@@ -12,11 +13,288 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #050505;
-    --foreground: #f4f4f5;
-  }
+/* ===== Tema claro =====
+   Tailwind v4 resuelve los colores de las utilidades via var(--color-*), asi
+   que el modo claro se construye redefiniendo esas variables bajo
+   [data-theme="light"] (lo activa src/lib/theme.ts). Los casos que las
+   variables no cubren (hex arbitrarios, parejas bg-white/text-black) se
+   corrigen con overrides por clase. La clase `theme-dark` re-asienta la
+   paleta oscura original en un subarbol (campo del XI, modales claros) para
+   que no se invierta. */
+
+:root[data-theme="light"] {
+  --background: #eef1f5;
+  --foreground: #16212e;
+  --match-card-bg: #ffffff;
+
+  --color-white: #16212e;
+
+  --color-slate-50: #1b2335;
+  --color-slate-100: #20293b;
+  --color-slate-200: #334155;
+  --color-slate-300: #475569;
+  --color-slate-400: #5d6d84;
+  --color-slate-700: #c3cede;
+  --color-slate-800: #d8e0ec;
+  --color-slate-900: #ebf0f7;
+  --color-slate-950: #ffffff;
+
+  --color-zinc-100: #232329;
+  --color-zinc-200: #36363e;
+  --color-zinc-300: #4b4b54;
+  --color-zinc-400: #62626c;
+  --color-zinc-500: #6e6e78;
+  --color-zinc-600: #9b9ba4;
+  --color-zinc-900: #e9eaee;
+
+  --color-rose-100: #881337;
+  --color-rose-200: #9f1239;
+  --color-rose-300: #be123c;
+  --color-red-400: #d92525;
+
+  --color-yellow-100: #7c5005;
+  --color-yellow-200: #955e09;
+  --color-amber-100: #793f0c;
+  --color-lime-100: #4a6a0a;
+  --color-cyan-100: #105a70;
+  --color-cyan-300: #0e7490;
+}
+
+[data-theme="light"] .theme-dark {
+  /* Restaura tambien la herencia de color para nodos sin clase de texto;
+     los modales claros la pisan con su propia clase (text-slate-950). */
+  color: #ffffff;
+
+  --color-white: #ffffff;
+
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+
+  --color-zinc-100: #f4f4f5;
+  --color-zinc-200: #e4e4e7;
+  --color-zinc-300: #d4d4d8;
+  --color-zinc-400: #a1a1aa;
+  --color-zinc-500: #71717a;
+  --color-zinc-600: #52525b;
+  --color-zinc-900: #18181b;
+
+  --color-rose-100: #ffe4e6;
+  --color-rose-200: #fecdd3;
+  --color-rose-300: #fda4af;
+  --color-red-400: #f87171;
+
+  --color-yellow-100: #fef9c3;
+  --color-yellow-200: #fef08a;
+  --color-amber-100: #fef3c7;
+  --color-lime-100: #ecfccb;
+  --color-cyan-100: #cffafe;
+  --color-cyan-300: #67e8f9;
+}
+
+/* Logo por tema: la variante para fondo claro solo se muestra en modo claro */
+.theme-logo-light {
+  display: none;
+}
+
+[data-theme="light"] .theme-logo-light {
+  display: block;
+}
+
+[data-theme="light"] .theme-logo-dark {
+  display: none;
+}
+
+/* Acentos que pierden contraste sobre fondo claro */
+[data-theme="light"] .text-\[\#a7f600\]:not(.theme-dark *) {
+  color: #4c8500;
+}
+
+[data-theme="light"] .text-rose-400:not(.theme-dark *) {
+  color: #cc0036;
+}
+
+[data-theme="light"] .text-emerald-300:not(.theme-dark *),
+[data-theme="light"] .text-emerald-200:not(.theme-dark *) {
+  color: #047857;
+}
+
+[data-theme="light"] .text-lime-300:not(.theme-dark *) {
+  color: #4d7c0f;
+}
+
+[data-theme="light"] .text-amber-200:not(.theme-dark *) {
+  color: #92480c;
+}
+
+[data-theme="light"] .text-\[\#f7c948\]:not(.theme-dark *) {
+  color: #a87900;
+}
+
+[data-theme="light"] .text-\[\#b7791f\]:not(.theme-dark *) {
+  color: #8a5a14;
+}
+
+/* Pildoras activas (bg-white text-black): en claro se mantienen blancas con
+   texto oscuro y se definen con un anillo y sombra suaves, como un control
+   segmentado, en vez de invertirse a oscuro. */
+[data-theme="light"] .bg-white.text-black:not(.theme-dark *) {
+  background-color: #ffffff;
+  color: #16212e;
+  box-shadow:
+    0 0 0 1px rgba(22, 33, 46, 0.14),
+    0 1px 3px rgba(22, 33, 46, 0.06);
+}
+
+[data-theme="light"] .bg-white.text-black.hover\:bg-zinc-200:hover:not(.theme-dark *) {
+  background-color: #eef1f5;
+}
+
+/* Contadores bg-black dentro de las pildoras: siguen siendo circulos negros
+   con texto claro. */
+[data-theme="light"] .bg-black.text-white:not(.theme-dark *) {
+  color: #f7f9fc;
+}
+
+/* Tintes oscurecedores: en claro se convierten en tintes de tinta suaves
+   para que el texto volteado siga leyendose encima. Los velos de modal
+   (bg-black/70+) se mantienen oscuros a proposito. */
+[data-theme="light"] .bg-black\/30:not(.theme-dark *) {
+  background-color: rgba(22, 33, 46, 0.08);
+}
+
+[data-theme="light"] .bg-black\/25:not(.theme-dark *) {
+  background-color: rgba(22, 33, 46, 0.07);
+}
+
+[data-theme="light"] .bg-black\/20:not(.theme-dark *) {
+  background-color: rgba(22, 33, 46, 0.06);
+}
+
+[data-theme="light"] .bg-black\/15:not(.theme-dark *) {
+  background-color: rgba(22, 33, 46, 0.05);
+}
+
+[data-theme="light"] .bg-black\/10:not(.theme-dark *) {
+  background-color: rgba(22, 33, 46, 0.04);
+}
+
+/* Tarjetas de partido: sobre fondo claro se fusionan con la pagina, asi que
+   se definen con un anillo de tinta fino y una sombra minima. Las que llevan
+   anillo de estado propio (acierto/fallo, shadow-[inset...]) se respetan. */
+[data-theme="light"] .match-card:not([class*="shadow-["]) {
+  box-shadow:
+    0 0 0 1px rgba(22, 33, 46, 0.07),
+    0 1px 3px rgba(22, 33, 46, 0.05);
+}
+
+/* Sombras de paneles: sobre fondo claro las sombras negras pesan demasiado,
+   se reducen al minimo. Los brillos de acento (lime/dorado) no se tocan. */
+[data-theme="light"] .shadow-lg:not(.theme-dark *) {
+  box-shadow: 0 1px 2px rgba(22, 33, 46, 0.06);
+}
+
+[data-theme="light"] .shadow-2xl {
+  box-shadow: 0 4px 16px rgba(22, 33, 46, 0.08);
+}
+
+[data-theme="light"] .shadow-sm:not(.theme-dark *) {
+  box-shadow: 0 1px 2px rgba(22, 33, 46, 0.05);
+}
+
+[data-theme="light"] .shadow-\[0_18px_60px_rgba\(0\,0\,0\,0\.42\)\]:not(.theme-dark *) {
+  box-shadow: 0 8px 24px rgba(22, 33, 46, 0.14);
+}
+
+/* Superficies oscuras con hex fijo */
+[data-theme="light"] .bg-\[\#151515\]:not(.theme-dark *),
+[data-theme="light"] .bg-\[\#101010\]:not(.theme-dark *),
+[data-theme="light"] .bg-\[\#111111\]:not(.theme-dark *) {
+  background-color: #ffffff;
+}
+
+[data-theme="light"] .bg-\[\#131313\]:not(.theme-dark *),
+[data-theme="light"] .bg-\[\#090909\]:not(.theme-dark *) {
+  background-color: #f1f4f8;
+}
+
+[data-theme="light"] .bg-\[\#0f0f0f\]:not(.theme-dark *) {
+  background-color: #f3f5f9;
+}
+
+[data-theme="light"] .bg-\[\#101010\]\/94:not(.theme-dark *) {
+  background-color: rgba(255, 255, 255, 0.94);
+}
+
+[data-theme="light"] .bg-\[\#0d0d0d\]\/86:not(.theme-dark *) {
+  background-color: rgba(255, 255, 255, 0.86);
+}
+
+[data-theme="light"] .bg-\[\#050505\]\/90:not(.theme-dark *) {
+  background-color: rgba(238, 241, 245, 0.9);
+}
+
+[data-theme="light"] .bg-\[\#222\]:not(.theme-dark *) {
+  background-color: #e3e7ed;
+}
+
+[data-theme="light"] .bg-\[\#454545\]:not(.theme-dark *) {
+  background-color: #d3d9e1;
+}
+
+[data-theme="light"] .hover\:bg-\[\#555\]:hover:not(.theme-dark *) {
+  background-color: #c4ccd6;
+}
+
+[data-theme="light"] .bg-\[\#3a3a3a\]:not(.theme-dark *) {
+  background-color: #dde2e8;
+}
+
+[data-theme="light"] .app-shell {
+  background:
+    linear-gradient(180deg, rgba(22, 33, 46, 0.025) 0%, transparent 30%),
+    linear-gradient(180deg, #f4f6f9 0%, #eef1f5 48%, #e9edf2 100%);
+}
+
+[data-theme="light"] .app-shell::before {
+  background:
+    linear-gradient(90deg, rgba(22, 33, 46, 0.05) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(22, 33, 46, 0.045) 1px, transparent 1px);
+  background-size: 72px 72px;
+}
+
+[data-theme="light"] .app-shell::after {
+  background:
+    linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, 0.5) 47%, transparent 68%),
+    linear-gradient(180deg, transparent 0%, rgba(22, 33, 46, 0.03) 78%, rgba(22, 33, 46, 0.06) 100%);
+}
+
+[data-theme="light"] *:not(.theme-dark, .theme-dark *) {
+  border-color: rgba(22, 33, 46, 0.12);
+}
+
+[data-theme="light"] ::selection {
+  background: rgba(101, 163, 13, 0.3);
+  color: #101828;
+}
+
+[data-theme="light"] .team-picker-scroll {
+  scrollbar-color: rgba(101, 163, 13, 0.55) rgba(22, 33, 46, 0.08);
+}
+
+[data-theme="light"] .team-picker-scroll::-webkit-scrollbar-track {
+  background: rgba(22, 33, 46, 0.06);
+}
+
+[data-theme="light"] .team-picker-scroll::-webkit-scrollbar-thumb {
+  background: rgba(101, 163, 13, 0.55);
+  border-color: #ffffff;
 }
 
 body {

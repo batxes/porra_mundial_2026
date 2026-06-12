@@ -3,11 +3,61 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { AuthModal } from "@/components/auth-modal";
 import { Avatar } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
+import {
+  currentTheme,
+  saveTheme,
+  serverTheme,
+  subscribeTheme,
+} from "@/lib/theme";
+
+function ThemeToggleButton() {
+  const theme = useSyncExternalStore(subscribeTheme, currentTheme, serverTheme);
+  const isDark = theme === "dark";
+
+  return (
+    <button
+      type="button"
+      onClick={() => saveTheme(isDark ? "light" : "dark")}
+      aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+      title={isDark ? "Modo claro" : "Modo oscuro"}
+      className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.08] text-zinc-300 transition hover:bg-white/[0.12] hover:text-white"
+    >
+      {isDark ? (
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+        >
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+        </svg>
+      ) : (
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+        >
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
+        </svg>
+      )}
+    </button>
+  );
+}
 
 const links = [
   { href: "/", label: "Inicio" },
@@ -40,7 +90,15 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                 alt=""
                 width={42}
                 height={42}
-                className="h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10"
+                className="theme-logo-dark h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10"
+                priority
+              />
+              <Image
+                src="/logo-light.png"
+                alt=""
+                width={42}
+                height={42}
+                className="theme-logo-light h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10"
                 priority
               />
               <div className="min-w-0">
@@ -155,6 +213,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                   <div className="h-10 w-10 animate-pulse rounded-lg border border-white/10 bg-white/[0.06]" />
                 </div>
               )}
+              <ThemeToggleButton />
             </div>
           </div>
 

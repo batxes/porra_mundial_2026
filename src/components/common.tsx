@@ -525,7 +525,7 @@ export function Avatar({
     <span
       className={`inline-flex aspect-square shrink-0 ${sizeClass} items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br ${
         tones[preset] || "from-cyan-500 to-blue-500"
-      } text-sm font-bold text-slate-950 ${className}`}
+      } text-sm font-bold text-black ${className}`}
       style={{ borderRadius: "9999px" }}
     >
       {initials(name)}
@@ -932,7 +932,7 @@ function LineupSnapshot({
   );
 
   return (
-    <div className="overflow-hidden rounded-lg border border-emerald-300/15 bg-emerald-700 shadow-lg shadow-emerald-950/20">
+    <div className="theme-dark overflow-hidden rounded-lg border border-emerald-300/15 bg-emerald-700 shadow-lg shadow-emerald-950/20">
       <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-950/25 px-4 py-3">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-50/75">
           Once elegido
@@ -1990,10 +1990,10 @@ function ResultsSummary({
                 return (
                   <article
                     key={match.number}
-                    className="flex h-full flex-col overflow-hidden rounded-[22px] text-white"
+                    className="match-card flex h-full flex-col overflow-hidden rounded-[22px] text-white"
                     style={{
                       background:
-                        "radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), rgb(47, 47, 47)",
+                        "radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), var(--match-card-bg)",
                     }}
                   >
                     <div className="flex items-center justify-between gap-2 px-3 pb-0 pt-3 sm:px-4 sm:pt-4">
@@ -2180,9 +2180,9 @@ export function FinishedMatchCard({
 
   return (
     <article
-      className={`flex h-full flex-col overflow-hidden rounded-[22px] text-white ${cardRing}`}
+      className={`match-card flex h-full flex-col overflow-hidden rounded-[22px] text-white ${cardRing}`}
       style={{
-        background: `${cardGlow}radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), rgb(47, 47, 47)`,
+        background: `${cardGlow}radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), var(--match-card-bg)`,
       }}
     >
       <div className="flex items-center justify-between gap-3 px-3 pb-0 pt-3 sm:px-4 sm:pt-4">

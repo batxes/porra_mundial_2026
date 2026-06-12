@@ -157,7 +157,7 @@ export function AdminView() {
             onClick={() => setActiveTab(tab.id)}
             className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
               activeTab === tab.id
-                ? "bg-cyan-400 text-slate-950"
+                ? "bg-cyan-400 text-black"
                 : "border border-white/15 text-slate-300 hover:bg-white/10 hover:text-white"
             }`}
           >
@@ -460,7 +460,7 @@ export function AdminView() {
               type="button"
               onClick={() => void loadProvider()}
               disabled={providerBusy}
-              className="w-full rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60 sm:w-auto"
+              className="w-full rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-black disabled:opacity-60 sm:w-auto"
             >
               {providerBusy ? "Cargando…" : "Consultar API"}
             </button>
@@ -1110,10 +1110,10 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
       <button
         type="submit"
         disabled={saving}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60 sm:w-auto"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-black disabled:opacity-60 sm:w-auto"
       >
         {saving ? (
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/25 border-t-slate-950" />
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/25 border-t-black" />
         ) : null}
         {saving ? "Guardando…" : "Guardar partido y recalcular"}
       </button>

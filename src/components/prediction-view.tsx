@@ -1886,7 +1886,7 @@ function LineupBuilder({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-emerald-300/15 bg-emerald-700 shadow-2xl shadow-emerald-950/30 sm:rounded-3xl">
+      <div className="theme-dark overflow-hidden rounded-2xl border border-emerald-300/15 bg-emerald-700 shadow-2xl shadow-emerald-950/30 sm:rounded-3xl">
         <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-950/20 px-4 py-3">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-50/75">
             Alineacion
@@ -2128,7 +2128,7 @@ function PlayerPickerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-3 py-5 backdrop-blur-sm">
-      <div className="flex max-h-[76vh] w-full max-w-[420px] flex-col overflow-hidden rounded-2xl bg-white text-slate-950 shadow-2xl">
+      <div className="theme-dark flex max-h-[76vh] w-full max-w-[420px] flex-col overflow-hidden rounded-2xl bg-white text-slate-950 shadow-2xl">
         <div className="flex items-center gap-2 border-b border-slate-100 p-3">
           <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-slate-100 px-3 py-2">
             <input
@@ -2429,10 +2429,10 @@ function ResultMatchCard({
 
   return (
     <article
-      className="overflow-hidden rounded-[22px] text-white"
+      className="match-card overflow-hidden rounded-[22px] text-white"
       style={{
         background:
-          "radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), rgb(47, 47, 47)",
+          "radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), var(--match-card-bg)",
       }}
     >
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 pb-0 pt-3 sm:gap-3 sm:px-4 sm:pt-4">

@@ -1,6 +1,12 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import {
+  ChangeEvent,
+  FormEvent,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { AuthModal } from "@/components/auth-modal";
 import {
@@ -16,9 +22,82 @@ import {
 } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
+import {
+  currentTheme,
+  saveTheme,
+  serverTheme,
+  subscribeTheme,
+  type ThemePreference,
+} from "@/lib/theme";
 import type { AuthMode } from "@/lib/types";
 
 const MAX_AVATAR_BYTES = 1024 * 1024;
+
+const themeOptions: {
+  id: ThemePreference;
+  label: string;
+  description: string;
+  swatchClass: string;
+}[] = [
+  {
+    id: "dark",
+    label: "Oscuro",
+    description: "El aspecto clasico de Triliporra.",
+    swatchClass: "border-white/20 bg-[#16212e]",
+  },
+  {
+    id: "light",
+    label: "Claro",
+    description: "Fondos claros y texto oscuro.",
+    swatchClass: "border-black/15 bg-[#f4f6f9]",
+  },
+];
+
+function ThemeCard() {
+  const theme = useSyncExternalStore(subscribeTheme, currentTheme, serverTheme);
+
+  return (
+    <Card className="space-y-4">
+      <div>
+        <h3 className="text-xl font-semibold text-white">Apariencia</h3>
+        <p className="mt-1 text-sm text-slate-400">
+          Elige el tema de la web en este dispositivo.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {themeOptions.map((option) => {
+          const active = theme === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={active}
+              onClick={() => saveTheme(option.id)}
+              className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition ${
+                active
+                  ? "border-[#a7f600]/70 bg-[#a7f600]/10"
+                  : "border-white/10 bg-white/5 hover:bg-white/10"
+              }`}
+            >
+              <span
+                aria-hidden="true"
+                className={`h-9 w-9 shrink-0 rounded-full border ${option.swatchClass}`}
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-white">
+                  {option.label}
+                </span>
+                <span className="block truncate text-xs text-slate-400">
+                  {option.description}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
 
 function avatarPresetFromUrl(avatarUrl?: string) {
   return avatarUrl?.startsWith("preset:")
@@ -237,7 +316,7 @@ export function ProfileOptionsView() {
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <button
               type="submit"
-              className="w-full rounded-full bg-[#a7f600] hover:bg-[#acf600] px-5 py-3 text-sm font-semibold text-slate-950 sm:w-auto"
+              className="w-full rounded-full bg-[#a7f600] hover:bg-[#acf600] px-5 py-3 text-sm font-semibold text-black sm:w-auto"
             >
               Guardar perfil
             </button>
@@ -251,6 +330,8 @@ export function ProfileOptionsView() {
           </div>
         </form>
       </Card>
+
+      <ThemeCard />
     </div>
   );
 }

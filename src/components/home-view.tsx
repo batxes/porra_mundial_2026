@@ -404,7 +404,15 @@ export function HomeView() {
             alt=""
             width={88}
             height={88}
-            className="mb-4 h-16 w-16 object-contain sm:h-20 sm:w-20"
+            className="theme-logo-dark mb-4 h-16 w-16 object-contain sm:h-20 sm:w-20"
+            priority
+          />
+          <Image
+            src="/logo-light.png"
+            alt=""
+            width={88}
+            height={88}
+            className="theme-logo-light mb-4 h-16 w-16 object-contain sm:h-20 sm:w-20"
             priority
           />
           <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl">
@@ -1612,10 +1620,10 @@ function UpcomingMatchCard({
 
   return (
     <article
-      className="overflow-hidden rounded-[22px] text-white"
+      className="match-card overflow-hidden rounded-[22px] text-white"
       style={{
         background:
-          "radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), rgb(47, 47, 47)",
+          "radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), var(--match-card-bg)",
       }}
     >
       <div

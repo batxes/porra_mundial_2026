@@ -89,7 +89,7 @@ export function PlayerSearchModal({
       aria-modal="true"
       aria-label={title}
     >
-      <div className="flex max-h-[78vh] w-full max-w-[440px] flex-col overflow-hidden rounded-2xl bg-white text-slate-950 shadow-2xl">
+      <div className="theme-dark flex max-h-[78vh] w-full max-w-[440px] flex-col overflow-hidden rounded-2xl bg-white text-slate-950 shadow-2xl">
         <div className="border-b border-slate-100 p-3">
           <div className="grid grid-cols-5 rounded-xl bg-slate-100 p-1">
             {positionTabs.map((position) => (

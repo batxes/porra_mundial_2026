@@ -3,6 +3,7 @@ import { Geist_Mono, Inter } from "next/font/google";
 import { AppChrome } from "@/components/app-chrome";
 import { AppToaster } from "@/components/app-toaster";
 import { AppProvider } from "@/lib/app-context";
+import { themeBootstrapScript } from "@/lib/theme";
 import "./globals.css";
 
 const inter = Inter({
@@ -28,9 +29,11 @@ export default function RootLayout({
   return (
     <html
       lang="es"
+      suppressHydrationWarning
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#050505] text-white">
+      <body className="min-h-full flex flex-col bg-background text-foreground">
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
         <AppProvider>
           <AppChrome>{children}</AppChrome>
           <AppToaster />
