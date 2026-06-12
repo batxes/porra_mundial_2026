@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import { AppChrome } from "@/components/app-chrome";
 import { AppToaster } from "@/components/app-toaster";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { AppProvider } from "@/lib/app-context";
 import { themeBootstrapScript } from "@/lib/theme";
 import "./globals.css";
@@ -19,6 +20,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Triliporra",
   description: "Porra del Mundial 2026 para jugar con amigos.",
+  appleWebApp: {
+    capable: true,
+    title: "Triliporra",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#050505",
 };
 
 export default function RootLayout({
@@ -38,6 +48,7 @@ export default function RootLayout({
           <AppChrome>{children}</AppChrome>
           <AppToaster />
         </AppProvider>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );
