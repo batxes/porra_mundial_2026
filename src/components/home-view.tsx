@@ -1088,9 +1088,10 @@ function JornadaCard({
               const position = index + 1;
 
               return (
-                <div
+                <Link
                   key={profile.id}
-                  className="flex items-start justify-between gap-3"
+                  href={`/perfil/${encodeURIComponent(profile.id)}`}
+                  className="-mx-2 flex items-start justify-between gap-3 rounded-lg px-2 py-1 transition hover:bg-white/[0.04]"
                 >
                   <div className="flex min-w-0 items-start gap-2.5">
                     {position <= 3 ? (
@@ -1153,7 +1154,7 @@ function JornadaCard({
                   >
                     {points > 0 ? `+${points}` : points}
                   </span>
-                </div>
+                </Link>
               );
             })}
           </div>

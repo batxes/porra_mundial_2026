@@ -656,7 +656,7 @@ function StepTabs({
   onSectionChange: (section: SectionId) => void;
 }) {
   return (
-    <div className="-mx-4 overflow-x-auto px-4 py-2 sm:-mx-6 sm:px-6 md:mx-0 md:overflow-visible md:px-0">
+    <div className="sticky top-0 z-30 -mx-4 overflow-x-auto border-b border-white/10 bg-[#050505]/90 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 md:mx-0 md:overflow-visible md:px-0">
       <div className="flex w-max max-w-none gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:grid md:w-full md:grid-cols-4">
         {sections.map((tab, index) => {
           const active = section === tab.id;
@@ -2273,20 +2273,38 @@ function ResultsSchedule({
     return upcoming[0]?.number ?? null;
   }, [matches]);
 
-  // Al llegar desde "Ver partidos" del inicio (?goto=next) hacemos scroll
-  // hasta el proximo partido por jugar.
+  // Al llegar desde "Ver partidos" del inicio o "Jugar" del menu (?goto=next)
+  // hacemos scroll hasta el proximo partido por jugar. Reintentamos con
+  // setTimeout (no requestAnimationFrame, que se pausa si la pestaña no esta
+  // visible) porque la seccion de resultados y la tarjeta del proximo partido
+  // pueden tardar varios ciclos en montarse tras la navegacion.
   useEffect(() => {
     if (nextMatchNumber == null) return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("goto") !== "next") return;
+    if (new URLSearchParams(window.location.search).get("goto") !== "next") {
+      return;
+    }
 
-    const timer = window.setTimeout(() => {
-      document
-        .getElementById("proximo-partido")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    let timer = 0;
+    let attempts = 0;
+    const maxAttempts = 30; // ~1.5s (30 x 50ms) antes de rendirnos.
 
-      // Limpiamos el flag tras hacer scroll (dentro del timeout para que el
-      // doble render de dev no cancele el scroll).
+    const tryScroll = () => {
+      const target = document.getElementById("proximo-partido");
+      if (!target) {
+        if (attempts++ < maxAttempts) {
+          timer = window.setTimeout(tryScroll, 50);
+        }
+        return;
+      }
+
+      // Con la pestaña oculta el scroll suave no se anima, asi que ahi usamos
+      // un salto instantaneo para dejar la posicion lista al volver.
+      target.scrollIntoView({
+        behavior: document.visibilityState === "visible" ? "smooth" : "auto",
+        block: "start",
+      });
+
+      // Limpiamos el flag tras hacer scroll para no repetirlo en recargas.
       const current = new URLSearchParams(window.location.search);
       current.delete("goto");
       const query = current.toString();
@@ -2295,8 +2313,9 @@ function ResultsSchedule({
         "",
         `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
       );
-    }, 140);
+    };
 
+    tryScroll();
     return () => window.clearTimeout(timer);
   }, [nextMatchNumber]);
 

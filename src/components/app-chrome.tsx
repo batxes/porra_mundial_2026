@@ -11,7 +11,10 @@ import { useAppContext } from "@/lib/app-context";
 
 const links = [
   { href: "/", label: "Inicio" },
-  { href: "/porra", label: "Jugar" },
+  // "Jugar" lleva al proximo partido por jugar (mismo flujo que "Ver
+  // partidos" del inicio). `match` mantiene el resaltado activo, ya que
+  // usePathname no incluye la query.
+  { href: "/porra?section=results&goto=next", label: "Jugar", match: "/porra" },
   { href: "/clasificacion", label: "Clasificacion" },
   { href: "/como-funciona", label: "Reglas" },
 ];
@@ -52,11 +55,15 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
 
             <nav className="hidden items-center gap-1 md:flex">
               {links.map((link) => {
-                const active = pathname === link.href;
+                const active = pathname === (link.match ?? link.href);
                 return (
                   <Link
                     key={link.href}
                     href={link.href}
+                    // El link con query (?goto=next) no se prefetcha: el
+                    // prefetch del segmento cacheado interfiere con el scroll
+                    // al proximo partido al navegar desde el menu.
+                    prefetch={link.match ? false : undefined}
                     className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
                       active
                         ? "bg-white text-black"
@@ -153,11 +160,12 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
 
           <nav className="mt-3 grid grid-cols-4 gap-1 md:hidden">
             {links.map((link) => {
-              const active = pathname === link.href;
+              const active = pathname === (link.match ?? link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
+                  prefetch={link.match ? false : undefined}
                   className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-center text-[11px] font-semibold transition sm:px-2 sm:text-xs ${
                     active
                       ? "bg-white text-black"
