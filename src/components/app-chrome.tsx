@@ -158,7 +158,11 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          <nav className="mt-3 grid grid-cols-4 gap-1 md:hidden">
+          <nav
+            className={`mt-3 grid gap-1 md:hidden ${
+              user?.isAdmin ? "grid-cols-5" : "grid-cols-4"
+            }`}
+          >
             {links.map((link) => {
               const active = pathname === (link.match ?? link.href);
               return (
@@ -176,6 +180,18 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
+            {user?.isAdmin ? (
+              <Link
+                href="/admin"
+                className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-center text-[11px] font-semibold transition sm:px-2 sm:text-xs ${
+                  pathname === "/admin"
+                    ? "bg-white text-black"
+                    : "bg-white/[0.08] text-zinc-300"
+                }`}
+              >
+                <span className="truncate">Admin</span>
+              </Link>
+            ) : null}
           </nav>
         </div>
       </header>
