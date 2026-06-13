@@ -2471,7 +2471,7 @@ export function PredictionSnapshot({
               onClick={() => setSection("recorrido")}
               className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${activeSection === "recorrido" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
             >
-              Recorrido
+              Historial
             </button>
           ) : null}
         </div>
