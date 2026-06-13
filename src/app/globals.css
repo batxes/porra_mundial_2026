@@ -376,6 +376,15 @@ body {
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
 }
 
+/* Tailwind v4 deja los botones con cursor por defecto; restauramos el puntero
+   en todo lo accionable (los deshabilitados conservan el suyo). */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+label:has(> input[type="file"]),
+summary {
+  cursor: pointer;
+}
+
 .app-shell {
   isolation: isolate;
   overflow-x: clip;
