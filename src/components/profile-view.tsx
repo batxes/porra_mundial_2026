@@ -20,6 +20,7 @@ import {
   ProfileScoreCardSkeleton,
   SectionHeading,
 } from "@/components/common";
+import { ProfileJornadaFeed } from "@/components/profile-jornada-feed";
 import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
 import {
@@ -129,6 +130,9 @@ export function ProfileView() {
         !candidate.isHidden && candidate.points > currentScorecard.total,
     ).length + 1;
 
+  const ownProfile =
+    leaderboard.find((candidate) => candidate.id === user.id) || null;
+
   return (
     <div className="space-y-6">
       <SectionHeading
@@ -156,6 +160,11 @@ export function ProfileView() {
         results={adminResults}
         scorecard={currentScorecard}
         showBracket={false}
+        recorrido={
+          ownProfile ? (
+            <ProfileJornadaFeed profile={ownProfile} results={adminResults} />
+          ) : undefined
+        }
       />
     </div>
   );

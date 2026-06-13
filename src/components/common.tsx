@@ -647,25 +647,31 @@ export function ProfileScoreCard({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-stretch gap-2">
-          <div className="flex-1 rounded-lg border border-[#a7f600]/30 bg-[#a7f600]/10 px-4 py-2 sm:flex-none sm:text-right">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a7f600]">
-              Puntos
-            </p>
-            <p className="text-2xl font-bold leading-none text-white sm:text-3xl">
-              {scorecard.total}
-            </p>
-          </div>
+        {/* Mismo marcador que la cabecera del inicio: a lo ancho cuando se
+            apila, compacto a la derecha en escritorio. */}
+        <div className="flex w-full shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] sm:w-auto">
           {rank ? (
-            <div className="rounded-lg border border-white/10 bg-white/[0.06] px-4 py-2 sm:text-right">
+            <div className="flex-1 px-4 py-2 text-center sm:flex-none">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
                 Puesto
               </p>
-              <p className="text-2xl font-bold leading-none text-white sm:text-3xl">
-                {rank}
+              <p className="mt-0.5 text-2xl font-bold leading-none text-white sm:text-3xl">
+                {rank}º
               </p>
             </div>
           ) : null}
+          <div
+            className={`flex-1 bg-[radial-gradient(120px_at_50%_-30%,rgba(167,246,0,0.2),transparent)] bg-[#a7f600]/[0.06] px-4 py-2 text-center sm:flex-none ${
+              rank ? "border-l border-white/10" : ""
+            }`}
+          >
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a7f600] opacity-70">
+              Puntos
+            </p>
+            <p className="mt-0.5 text-2xl font-bold leading-none text-[#a7f600] sm:text-3xl">
+              {scorecard.total}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -2381,6 +2387,7 @@ export function PredictionSnapshot({
   playerName,
   profile,
   showBracket = true,
+  recorrido,
   maskUnstarted = false,
   results,
   scorecard,
@@ -2392,6 +2399,7 @@ export function PredictionSnapshot({
   playerName: (playerId: string) => string;
   profile?: UserProfile;
   showBracket?: boolean;
+  recorrido?: React.ReactNode;
   maskUnstarted?: boolean;
   results?: AdminResults;
   scorecard?: Scorecard;
@@ -2399,28 +2407,13 @@ export function PredictionSnapshot({
   const maskedUntilTournament = maskUnstarted && !hasTournamentStarted();
   const safePrediction = prediction || emptyPrediction();
   const [section, setSection] = useState<
-    "summary" | "groups" | "knockout" | "results"
+    "recorrido" | "summary" | "groups" | "knockout" | "results"
   >("summary");
   const activeSection =
-    !showBracket && section === "knockout" ? "summary" : section;
-
-  const teamValue = (teamId: string) =>
-    teamId ? <TeamBadge teamId={teamId} /> : "Pendiente";
-  const playerValue = (playerId: string) => {
-    if (!playerId) return "Pendiente";
-    const player = playersById.get(playerId);
-    if (!player) return playerName(playerId);
-    return (
-      <span className="flex min-w-0 max-w-full items-center gap-2">
-        <PlayerAvatar player={player} className="h-6! w-6! text-[9px]!" />
-        <span className="truncate">{player.name}</span>
-      </span>
-    );
-  };
-  const electionPoints = (field: string) =>
-    scorecard?.entries.find(
-      (entry) => entry.ruleCode === electionRuleByField[field],
-    )?.points;
+    (!showBracket && section === "knockout") ||
+    (!recorrido && section === "recorrido")
+      ? "summary"
+      : section;
 
   return (
     <Card className="space-y-5">
@@ -2472,6 +2465,15 @@ export function PredictionSnapshot({
           >
             Resultados
           </button>
+          {recorrido ? (
+            <button
+              type="button"
+              onClick={() => setSection("recorrido")}
+              className={`rounded-lg px-3 py-2 text-sm sm:px-4 ${activeSection === "recorrido" ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-200"}`}
+            >
+              Recorrido
+            </button>
+          ) : null}
         </div>
         {editHref ? (
           <Link
@@ -2483,44 +2485,19 @@ export function PredictionSnapshot({
         ) : null}
       </div>
 
+      {activeSection === "recorrido" ? <div className="min-w-0">{recorrido}</div> : null}
+
       {activeSection === "summary" ? (
         <MaskableSection
           masked={maskedUntilTournament}
           message="Las elecciones se revelarán cuando empiece el torneo."
         >
           <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <SummaryStat
-                title="Campeón"
-                value={teamValue(safePrediction.extras.worldChampion)}
-                points={electionPoints("worldChampion")}
-              />
-              <SummaryStat
-                title="Equipo más goleador"
-                value={teamValue(safePrediction.extras.highestScoringTeam)}
-                points={electionPoints("highestScoringTeam")}
-              />
-              <SummaryStat
-                title="Equipo más goleado"
-                value={teamValue(safePrediction.extras.mostConcededTeam)}
-                points={electionPoints("mostConcededTeam")}
-              />
-              <SummaryStat
-                title="Equipo con más rojas"
-                value={teamValue(safePrediction.extras.mostRedsTeam)}
-                points={electionPoints("mostRedsTeam")}
-              />
-              <SummaryStat
-                title="Máximo goleador"
-                value={playerValue(safePrediction.extras.topScorer)}
-                points={electionPoints("topScorer")}
-              />
-              <SummaryStat
-                title="MVP"
-                value={playerValue(safePrediction.extras.mvp)}
-                points={electionPoints("mvp")}
-              />
-            </div>
+            <ElectionsStatsGrid
+              prediction={safePrediction}
+              scorecard={scorecard}
+              playerName={playerName}
+            />
             <LineupSnapshot prediction={safePrediction} results={results} />
           </div>
         </MaskableSection>
@@ -2550,6 +2527,74 @@ export function PredictionSnapshot({
         />
       ) : null}
     </Card>
+  );
+}
+
+// Cuadricula de apuestas del torneo (campeon, goleadores, MVP...). Se usa en
+// el resumen de la porra y, en el perfil publico, suelta arriba en 3 columnas.
+export function ElectionsStatsGrid({
+  prediction,
+  scorecard,
+  playerName,
+  className = "grid gap-4 md:grid-cols-2 xl:grid-cols-3",
+}: {
+  prediction: Prediction | null;
+  scorecard?: Scorecard;
+  playerName: (playerId: string) => string;
+  className?: string;
+}) {
+  const safe = prediction || emptyPrediction();
+  const teamValue = (teamId: string) =>
+    teamId ? <TeamBadge teamId={teamId} /> : "Pendiente";
+  const playerValue = (playerId: string) => {
+    if (!playerId) return "Pendiente";
+    const player = playersById.get(playerId);
+    if (!player) return playerName(playerId);
+    return (
+      <span className="flex min-w-0 max-w-full items-center gap-2">
+        <PlayerAvatar player={player} className="h-6! w-6! text-[9px]!" />
+        <span className="truncate">{player.name}</span>
+      </span>
+    );
+  };
+  const electionPoints = (field: string) =>
+    scorecard?.entries.find(
+      (entry) => entry.ruleCode === electionRuleByField[field],
+    )?.points;
+
+  return (
+    <div className={className}>
+      <SummaryStat
+        title="Campeón"
+        value={teamValue(safe.extras.worldChampion)}
+        points={electionPoints("worldChampion")}
+      />
+      <SummaryStat
+        title="Equipo más goleador"
+        value={teamValue(safe.extras.highestScoringTeam)}
+        points={electionPoints("highestScoringTeam")}
+      />
+      <SummaryStat
+        title="Equipo más goleado"
+        value={teamValue(safe.extras.mostConcededTeam)}
+        points={electionPoints("mostConcededTeam")}
+      />
+      <SummaryStat
+        title="Equipo con más rojas"
+        value={teamValue(safe.extras.mostRedsTeam)}
+        points={electionPoints("mostRedsTeam")}
+      />
+      <SummaryStat
+        title="Máximo goleador"
+        value={playerValue(safe.extras.topScorer)}
+        points={electionPoints("topScorer")}
+      />
+      <SummaryStat
+        title="MVP"
+        value={playerValue(safe.extras.mvp)}
+        points={electionPoints("mvp")}
+      />
+    </div>
   );
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { EmptyState, PredictionSnapshot, PredictionSnapshotSkeleton, PrimaryLink, ProfileScoreCard, ProfileScoreCardSkeleton, SectionHeading } from "@/components/common";
+import { ProfileJornadaFeed } from "@/components/profile-jornada-feed";
 import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
 
@@ -44,7 +45,6 @@ export function PublicProfileView({ userId }: { userId: string }) {
         isPro={profile.isPro}
         isWolf={profile.isWolf}
         eyebrow="Perfil público"
-        subtitle="Elecciones de este participante."
         scorecard={profile.scorecard}
         rank={rankingPosition}
       />
@@ -57,6 +57,9 @@ export function PublicProfileView({ userId }: { userId: string }) {
         results={adminResults}
         scorecard={profile.scorecard}
         showBracket={false}
+        recorrido={
+          <ProfileJornadaFeed profile={profile} results={adminResults} />
+        }
         maskUnstarted={!user || (user.id !== profile.id && !user.isAdmin)}
       />
     </div>
