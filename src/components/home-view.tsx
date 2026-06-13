@@ -913,6 +913,10 @@ function JornadaCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [picksMatch, setPicksMatch] = useState<JornadaMatch | null>(null);
+  const [reportScorer, setReportScorer] = useState<{
+    profile: UserProfile;
+    points: number;
+  } | null>(null);
   const visibleScorers = expanded
     ? scorers
     : scorers.slice(0, jornadaScorersCollapsed);
@@ -942,6 +946,17 @@ function JornadaCard({
         />
       ) : null}
 
+      {reportScorer ? (
+        <JornadaUserReportModal
+          profile={reportScorer.profile}
+          jornadaPoints={reportScorer.points}
+          jornada={jornada}
+          general={standings.get(reportScorer.profile.id)}
+          isCurrentUser={reportScorer.profile.id === currentUserId}
+          onClose={() => setReportScorer(null)}
+        />
+      ) : null}
+
       {scorers.length || userSummary ? (
         <div className="border-t border-white/10 bg-white/[0.015] px-4 py-3">
           {userSummary ? (
@@ -965,6 +980,9 @@ function JornadaCard({
                 position={userSummary.rank}
                 isCurrentUser
                 general={standings.get(userSummary.profile.id)}
+                onSelect={(profile, points) =>
+                  setReportScorer({ profile, points })
+                }
               />
             </div>
           ) : null}
@@ -990,6 +1008,9 @@ function JornadaCard({
                     position={index + 1}
                     isCurrentUser={scorer.profile.id === currentUserId}
                     general={standings.get(scorer.profile.id)}
+                    onSelect={(profile, points) =>
+                      setReportScorer({ profile, points })
+                    }
                   />
                 ))}
               </div>
@@ -1035,11 +1056,13 @@ function JornadaCard({
 function JornadaScorerRow({
   general,
   isCurrentUser,
+  onSelect,
   position,
   scorer,
 }: {
   general?: JornadaGeneralStanding;
   isCurrentUser: boolean;
+  onSelect: (profile: UserProfile, points: number) => void;
   position: number | null;
   scorer: JornadaScorer;
 }) {
@@ -1060,9 +1083,10 @@ function JornadaScorerRow({
   const hasChips = parts.length > 0 || xiChips.length > 0 || xiRest !== 0;
 
   return (
-    <Link
-      href={`/perfil/${encodeURIComponent(profile.id)}`}
-      className="-mx-2 flex items-start justify-between gap-3 rounded-lg px-2 py-1 transition hover:bg-white/[0.04]"
+    <button
+      type="button"
+      onClick={() => onSelect(profile, points)}
+      className="-mx-2 flex w-[calc(100%+1rem)] items-start justify-between gap-3 rounded-lg px-2 py-1 text-left transition hover:bg-white/[0.04]"
     >
       <div className="flex min-w-0 items-start gap-2.5">
         {position === null ? (
@@ -1184,7 +1208,284 @@ function JornadaScorerRow({
           {points > 0 ? `+${points}` : points}
         </span>
       </div>
-    </Link>
+    </button>
+  );
+}
+
+// Reporte de un usuario en una jornada: cabecera con su foto, puntos y
+// movimiento en la general, y debajo el desglose partido a partido.
+function JornadaUserReportModal({
+  general,
+  isCurrentUser,
+  jornada,
+  jornadaPoints,
+  onClose,
+  profile,
+}: {
+  general?: JornadaGeneralStanding;
+  isCurrentUser: boolean;
+  jornada: Jornada;
+  jornadaPoints: number;
+  onClose: () => void;
+  profile: UserProfile;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="user-report-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="flex max-h-full w-full max-w-md flex-col rounded-2xl border border-white/10 bg-[#151515] p-5 text-white shadow-2xl shadow-black/50">
+        <div className="mb-3 flex shrink-0 items-center gap-2.5">
+          <Avatar
+            name={profile.name}
+            avatarUrl={profile.avatarUrl}
+            className="size-11 shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <h3
+              id="user-report-title"
+              className="flex min-w-0 items-center gap-1.5 text-base font-bold tracking-tight"
+            >
+              <span className="truncate">{profile.name}</span>
+              {profile.isPro ? <ProBadge /> : null}
+              {profile.isWolf ? <WolfBadge /> : null}
+              {isCurrentUser ? (
+                <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-zinc-200">
+                  Tú
+                </span>
+              ) : null}
+            </h3>
+            <p className="mt-0.5 truncate text-xs font-medium text-zinc-500 first-letter:capitalize">
+              {formatDate(jornada.date)}
+            </p>
+          </div>
+          {general ? (
+            <span
+              title="Clasificacion general tras la jornada"
+              className="flex shrink-0 items-center gap-1 rounded-md bg-white/[0.06] px-1.5 py-1 text-[11px] font-semibold text-zinc-300"
+            >
+              {general.rank}º
+              {general.move ? (
+                <span
+                  className={`text-[10px] font-bold ${
+                    general.move > 0 ? "text-[#a7f600]" : "text-rose-300"
+                  }`}
+                >
+                  {general.move > 0
+                    ? `▲${general.move}`
+                    : `▼${Math.abs(general.move)}`}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
+          <span
+            className={`shrink-0 rounded-md px-2 py-1 text-sm font-bold ${
+              jornadaPoints > 0
+                ? "bg-[#a7f600]/15 text-[#a7f600]"
+                : jornadaPoints < 0
+                  ? "bg-rose-400/15 text-rose-300"
+                  : "bg-white/[0.06] text-zinc-300"
+            }`}
+          >
+            {jornadaPoints > 0 ? `+${jornadaPoints}` : jornadaPoints}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-zinc-300 transition hover:bg-white/10 hover:text-white"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <p className="mb-2 shrink-0 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+          Partido a partido
+        </p>
+
+        <div className="team-picker-scroll -mr-2 min-h-0 space-y-1.5 overflow-y-auto pr-2">
+          {jornada.matches.map((item) => (
+            <UserReportMatchRow
+              key={item.match.number}
+              item={item}
+              profile={profile}
+            />
+          ))}
+        </div>
+
+        <Link
+          href={`/perfil/${encodeURIComponent(profile.id)}`}
+          className="mt-3 flex shrink-0 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] py-2.5 text-sm font-bold text-white transition hover:bg-white/10"
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          Ver perfil completo
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function UserReportMatchRow({
+  item,
+  profile,
+}: {
+  item: JornadaMatch;
+  profile: UserProfile;
+}) {
+  const { match, result } = item;
+  const homeTeamId =
+    result?.homeTeamId || (teamsById.has(match.home) ? match.home : "");
+  const awayTeamId =
+    result?.awayTeamId || (teamsById.has(match.away) ? match.away : "");
+  const homeName = homeTeamId
+    ? teamsById.get(homeTeamId)?.name || translateSlot(match.home)
+    : translateSlot(match.home);
+  const awayName = awayTeamId
+    ? teamsById.get(awayTeamId)?.name || translateSlot(match.away)
+    : translateSlot(match.away);
+  const score = readMatchScore(result);
+  const finished =
+    Boolean(result) && isFinishedResult(result) && hasFinishedScore(result);
+  const pick = profile.prediction?.matchPredictions?.[String(match.number)];
+  const hasPick = Boolean(
+    pick && pick.homeScore !== "" && pick.awayScore !== "",
+  );
+
+  // El chip de prediccion se colorea contra el resultado final, igual que en
+  // el modal del ojo: exacto relleno, ganador con borde, fallo apagado.
+  let pickClass = "border border-white/10 bg-white/[0.03] text-zinc-600";
+  if (hasPick && pick) {
+    if (!finished || !score) {
+      pickClass = "border border-white/10 bg-white/[0.06] text-white";
+    } else {
+      const pickHome = Number(pick.homeScore);
+      const pickAway = Number(pick.awayScore);
+      const finalHome = Number(score.home);
+      const finalAway = Number(score.away);
+      if (pickHome === finalHome && pickAway === finalAway) {
+        pickClass = "border border-[#a7f600]/35 bg-[#a7f600]/15 text-[#a7f600]";
+      } else if (
+        matchOutcomeOf(pickHome, pickAway) ===
+        matchOutcomeOf(finalHome, finalAway)
+      ) {
+        pickClass = "border border-[#a7f600]/30 bg-white/[0.06] text-white";
+      } else {
+        pickClass = "border border-white/10 bg-white/[0.06] text-zinc-500";
+      }
+    }
+  }
+
+  const report = userMatchReport(profile, match.number, result);
+  const xiChips = report.xiPlayers.flatMap((row) => {
+    const player = playersById.get(row.playerId);
+    return player ? [{ player, points: row.points }] : [];
+  });
+  const breakdownParts = [
+    { label: "Exacto", value: report.exact },
+    { label: "Quiniela", value: report.outcome },
+  ].filter((part) => part.value !== 0);
+
+  return (
+    <div className="rounded-lg bg-white/[0.03] px-2.5 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <TeamFlag
+            teamId={homeTeamId}
+            className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
+          />
+          <span className="shrink-0 rounded-md bg-white/[0.07] px-1.5 py-0.5 text-xs font-bold tabular-nums text-white">
+            {score ? `${score.home}-${score.away}` : "–-–"}
+          </span>
+          <TeamFlag
+            teamId={awayTeamId}
+            className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
+          />
+          <span className="min-w-0 truncate text-sm font-medium text-white">
+            {homeName} · {awayName}
+          </span>
+        </div>
+        <span
+          className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ${
+            report.total > 0
+              ? "bg-[#a7f600]/15 text-[#a7f600]"
+              : report.total < 0
+                ? "bg-rose-400/15 text-rose-300"
+                : "bg-white/[0.06] text-zinc-500"
+          }`}
+        >
+          {report.total > 0 ? `+${report.total}` : report.total}
+        </span>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-1">
+        <span
+          title="Su prediccion"
+          className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${pickClass}`}
+        >
+          {hasPick && pick ? `${pick.homeScore}-${pick.awayScore}` : "–-–"}
+        </span>
+        {breakdownParts.map((part) => (
+          <span
+            key={part.label}
+            className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400"
+          >
+            {part.label}
+            <span className={part.value >= 0 ? "text-white" : "text-red-400"}>
+              {part.value > 0 ? `+${part.value}` : part.value}
+            </span>
+          </span>
+        ))}
+        {xiChips.map(({ player, points: playerPoints }) => (
+          <span
+            key={player.id}
+            className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] py-px pl-px pr-1.5 text-[10px] font-medium text-zinc-400"
+          >
+            <PlayerAvatar player={player} className="size-4! text-[6px]" />
+            {player.name}
+            <span className={playerPoints >= 0 ? "text-white" : "text-red-400"}>
+              {playerPoints > 0 ? `+${playerPoints}` : playerPoints}
+            </span>
+          </span>
+        ))}
+        {report.xiOther !== 0 ? (
+          <span className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
+            Tu once
+            <span
+              className={report.xiOther >= 0 ? "text-white" : "text-red-400"}
+            >
+              {report.xiOther > 0 ? `+${report.xiOther}` : report.xiOther}
+            </span>
+          </span>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -1197,6 +1498,46 @@ function normalizeSearchText(value: string) {
 
 function matchOutcomeOf(home: number, away: number) {
   return home > away ? "home" : home < away ? "away" : "draw";
+}
+
+// Desglose de un usuario en un partido concreto: cuanto saco y de que.
+function userMatchReport(
+  profile: UserProfile,
+  matchNumber: number,
+  result: AdminResult | undefined,
+) {
+  const eventPlayerById = new Map<string, string>();
+  (result?.events || []).forEach((event) => {
+    if (event.id && event.playerId) {
+      eventPlayerById.set(event.id, event.playerId);
+    }
+  });
+
+  let total = 0;
+  let exact = 0;
+  let outcome = 0;
+  const xiByPlayer = new Map<string, number>();
+  let xiOther = 0;
+  profile.scorecard.entries.forEach((entry) => {
+    if (entry.matchNumber !== matchNumber) return;
+    total += entry.points;
+    if (entry.ruleCode === "match_exact_score") {
+      exact += entry.points;
+    } else if (entry.ruleCode === "match_outcome_hit") {
+      outcome += entry.points;
+    } else if (entry.ruleCode.startsWith("player_")) {
+      const playerId = eventPlayerById.get(entry.sourceRef);
+      if (playerId) {
+        xiByPlayer.set(playerId, (xiByPlayer.get(playerId) || 0) + entry.points);
+      } else {
+        xiOther += entry.points;
+      }
+    }
+  });
+  const xiPlayers = [...xiByPlayer.entries()]
+    .map(([playerId, points]) => ({ playerId, points }))
+    .sort((a, b) => b.points - a.points);
+  return { total, exact, outcome, xiPlayers, xiOther };
 }
 
 // Con el partido empezado las predicciones ya estan congeladas, asi que se
