@@ -10,6 +10,7 @@ import {
   EmptyState,
   MatchEventLine,
   matchEventIcons,
+  matchEventTeamId,
   Notice,
   PlayerAvatar,
   ProBadge,
@@ -249,10 +250,7 @@ export function AdminView() {
                       event.playerId && matchEventIcons[String(event.type)],
                   );
                   const awayEvents = events.filter(
-                    (event) =>
-                      (playersById.get(event.playerId)?.team ||
-                        event.teamId ||
-                        "") === awayTeamId,
+                    (event) => matchEventTeamId(event) === awayTeamId,
                   );
                   const homeEvents = events.filter(
                     (event) => !awayEvents.includes(event),
@@ -580,7 +578,12 @@ export function AdminView() {
   );
 }
 
-type GoalSlot = { playerId: string; minute: string; penalty: boolean };
+type GoalSlot = {
+  playerId: string;
+  minute: string;
+  penalty: boolean;
+  ownGoal: boolean;
+};
 type ExtraRow = { playerId: string; type: string; minute: string };
 type PickerTarget =
   | { kind: "goal"; side: "home" | "away"; index: number }
@@ -592,6 +595,8 @@ const goalEventTypes = new Set([
   "goal",
   "penalti marcado",
   "penalty_goal",
+  "gol en propia",
+  "own_goal",
 ]);
 const mvpEventTypes = new Set(["MVP", "mvp"]);
 
@@ -630,6 +635,7 @@ function splitSavedEvents(
         playerId: event.playerId,
         minute,
         penalty: type === "penalti marcado" || type === "penalty_goal",
+        ownGoal: type === "gol en propia" || type === "own_goal",
       };
       if (teamId && teamId === awayId) {
         away.push(slot);
@@ -710,7 +716,7 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
     setter((current) => {
       const next = [...current];
       while (next.length <= index)
-        next.push({ playerId: "", minute: "", penalty: false });
+        next.push({ playerId: "", minute: "", penalty: false, ownGoal: false });
       next[index] = { ...next[index], ...patch };
       return next;
     });
@@ -732,6 +738,18 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
         : extras[pickerTarget.index]?.playerId || ""
     : "";
 
+  // En un gol en propia el autor es del equipo rival, así que el modal debe
+  // ofrecer los jugadores de los dos equipos.
+  const pickerOwnGoal = pickerTarget
+    ? pickerTarget.kind === "goal"
+      ? Boolean(
+          (pickerTarget.side === "home" ? homeGoals : awayGoals)[
+            pickerTarget.index
+          ]?.ownGoal,
+        )
+      : false
+    : false;
+
   const setPickerPlayerId = (playerId: string) => {
     if (!pickerTarget) return;
     if (pickerTarget.kind === "goal") {
@@ -745,7 +763,7 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
 
   const pickerTeamIds = !pickerTarget
     ? bothTeamIds
-    : pickerTarget.kind === "goal"
+    : pickerTarget.kind === "goal" && !pickerOwnGoal
       ? [pickerTarget.side === "home" ? resolvedHomeId : resolvedAwayId].filter(
           Boolean,
         )
@@ -754,7 +772,9 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
   const pickerTitle = !pickerTarget
     ? ""
     : pickerTarget.kind === "goal"
-      ? `Goleador ${pickerTarget.side === "home" ? (resolvedHomeId ? `de ${teamName(resolvedHomeId)}` : "local") : resolvedAwayId ? `de ${teamName(resolvedAwayId)}` : "visitante"}`
+      ? pickerOwnGoal
+        ? "Gol en propia puerta"
+        : `Goleador ${pickerTarget.side === "home" ? (resolvedHomeId ? `de ${teamName(resolvedHomeId)}` : "local") : resolvedAwayId ? `de ${teamName(resolvedAwayId)}` : "visitante"}`
       : pickerTarget.kind === "mvp"
         ? "MVP del partido"
         : "Jugador del evento";
@@ -767,7 +787,11 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
       id: crypto.randomUUID(),
       playerId: slot.playerId,
       teamId: teamId || playersById.get(slot.playerId)?.team,
-      type: slot.penalty ? "penalti marcado" : "gol",
+      type: slot.ownGoal
+        ? "gol en propia"
+        : slot.penalty
+          ? "penalti marcado"
+          : "gol",
       minute: Number(slot.minute) || 0,
       source: "manual",
     });
@@ -923,6 +947,7 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
           playerId: "",
           minute: "",
           penalty: false,
+          ownGoal: false,
         };
         return (
           <div key={index} className="flex flex-wrap items-center gap-2">
@@ -947,11 +972,28 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
                 type="checkbox"
                 checked={slot.penalty}
                 onChange={(event) =>
-                  updateGoal(side, index, { penalty: event.target.checked })
+                  updateGoal(side, index, {
+                    penalty: event.target.checked,
+                    ...(event.target.checked ? { ownGoal: false } : {}),
+                  })
                 }
                 className="accent-cyan-400"
               />
               Penalti
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-slate-300">
+              <input
+                type="checkbox"
+                checked={slot.ownGoal}
+                onChange={(event) =>
+                  updateGoal(side, index, {
+                    ownGoal: event.target.checked,
+                    ...(event.target.checked ? { penalty: false } : {}),
+                  })
+                }
+                className="accent-cyan-400"
+              />
+              P.p.
             </label>
           </div>
         );
@@ -1035,8 +1077,9 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
           <div>
             <h4 className="font-semibold text-white">Goleadores</h4>
             <p className="text-sm text-slate-400">
-              Un hueco por gol según el marcador. Deja el hueco vacío si fue gol
-              en propia puerta. Marca «Penalti» si el gol fue de penalti.
+              Un hueco por gol según el marcador. Marca «Penalti» si fue de
+              penalti o «P.p.» si fue en propia puerta (entonces el goleador
+              puede ser de cualquiera de los dos equipos y no suma puntos).
             </p>
           </div>
           {homeCount

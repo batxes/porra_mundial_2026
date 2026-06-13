@@ -45,7 +45,7 @@ const sections: RulesSection[] = [
     rules: [
       ["Ganador del Mundial", "+25"],
       ["Máximo goleador", "+20"],
-      ["MVP del torneo", "+20"],
+      ["MVP del torneo (Sofascore)", "+20"],
       ["Equipo más goleador", "+10"],
       ["Equipo más goleado (mayor diferencia en contra)", "+10"],
       ["Equipo con más rojas", "+10"],
@@ -104,7 +104,7 @@ export function HowItWorksView() {
     <div className="space-y-8">
       <SectionHeading
         eyebrow="Reglas claras"
-        title="Como funciona TRILIPORRA"
+        title="Cómo funciona TRILIPORRA"
         description="Tres pasos: rellena tu porra antes del Mundial, pronostica cada partido hasta su inicio y suma puntos con cada acierto."
       />
 

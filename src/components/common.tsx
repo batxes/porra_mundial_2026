@@ -470,7 +470,7 @@ export function TeamPicker({
                 ref={searchRef}
                 value={teamQuery}
                 onChange={(event) => setTeamQuery(event.target.value)}
-                placeholder="Buscar pais"
+                placeholder="Buscar país"
                 className="min-w-0 flex-1 bg-transparent text-sm font-medium text-white outline-none placeholder:text-zinc-500"
               />
             </label>
@@ -500,7 +500,7 @@ export function TeamPicker({
               ))}
               {!filteredTeams.length ? (
                 <p className="px-3 py-4 text-sm text-zinc-500">
-                  No hay paises para esa busqueda.
+                  No hay países para esa búsqueda.
                 </p>
               ) : null}
             </div>
@@ -2491,27 +2491,27 @@ export function PredictionSnapshot({
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <SummaryStat
-                title="Campeon"
+                title="Campeón"
                 value={teamValue(safePrediction.extras.worldChampion)}
                 points={electionPoints("worldChampion")}
               />
               <SummaryStat
-                title="Equipo mas goleador"
+                title="Equipo más goleador"
                 value={teamValue(safePrediction.extras.highestScoringTeam)}
                 points={electionPoints("highestScoringTeam")}
               />
               <SummaryStat
-                title="Equipo mas goleado"
+                title="Equipo más goleado"
                 value={teamValue(safePrediction.extras.mostConcededTeam)}
                 points={electionPoints("mostConcededTeam")}
               />
               <SummaryStat
-                title="Equipo con mas rojas"
+                title="Equipo con más rojas"
                 value={teamValue(safePrediction.extras.mostRedsTeam)}
                 points={electionPoints("mostRedsTeam")}
               />
               <SummaryStat
-                title="Maximo goleador"
+                title="Máximo goleador"
                 value={playerValue(safePrediction.extras.topScorer)}
                 points={electionPoints("topScorer")}
               />
@@ -2598,7 +2598,7 @@ export function LeaderboardRowsSkeleton({ rows = 5 }: { rows?: number }) {
   return (
     <div
       role="status"
-      aria-label="Cargando clasificacion"
+      aria-label="Cargando clasificación"
       className="divide-y divide-white/10"
     >
       {Array.from({ length: rows }, (_, index) => (
@@ -2742,6 +2742,8 @@ export function ScheduleMeta({ match }: { match: Match }) {
 export const matchEventIcons: Record<string, string> = {
   goal: "⚽",
   gol: "⚽",
+  own_goal: "⚽",
+  "gol en propia": "⚽",
   penalty_goal: "🥅",
   "penalti marcado": "🥅",
   mvp: "⭐",
@@ -2775,6 +2777,20 @@ export function matchEventValue(type: string, playerId: string): number {
   return 0;
 }
 
+export function isOwnGoalEvent(type: string): boolean {
+  const key = String(type);
+  return key === "gol en propia" || key === "own_goal";
+}
+
+// Equipo en cuyo lado del marcador se muestra el evento. En un gol en propia el
+// autor es del equipo rival, pero el gol lo suma (y se muestra) el otro equipo,
+// así que priorizamos el teamId guardado; el resto de eventos van con su jugador.
+export function matchEventTeamId(event: AdminEvent): string {
+  return isOwnGoalEvent(String(event.type))
+    ? event.teamId || playersById.get(event.playerId)?.team || ""
+    : playersById.get(event.playerId)?.team || event.teamId || "";
+}
+
 export function MatchEventLine({
   align = "left",
   event,
@@ -2796,6 +2812,9 @@ export function MatchEventLine({
         {points > 0 ? `+${points}` : points}
       </span>
     ) : null;
+  const ownGoalNode = isOwnGoalEvent(String(event.type)) ? (
+    <span className="shrink-0 text-zinc-500">(p.p.)</span>
+  ) : null;
   const iconNode = (
     <span aria-hidden="true" className="shrink-0 text-[13px]">
       {icon}
@@ -2812,12 +2831,14 @@ export function MatchEventLine({
         <>
           {pointsNode}
           <span className="min-w-0 truncate">{playerName}</span>
+          {ownGoalNode}
           {iconNode}
         </>
       ) : (
         <>
           {iconNode}
           <span className="min-w-0 truncate">{playerName}</span>
+          {ownGoalNode}
           {pointsNode}
         </>
       )}

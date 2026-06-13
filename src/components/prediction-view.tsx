@@ -914,7 +914,7 @@ function GroupsIntroModal({ onClose }: { onClose: () => void }) {
             <div>
               <p className="font-bold text-white">Marca los terceros</p>
               <p className="mt-1 text-sm leading-5 text-zinc-400">
-                Luego haz click mas abajo en los 8 terceros clasificados.
+                Luego haz click más abajo en los 8 terceros clasificados.
               </p>
             </div>
           </div>
@@ -1198,7 +1198,7 @@ function TusElecciones({
         </ChoiceBlock>
         <ChoiceBlock points={10}>
           <TeamPicker
-            label="Equipo mas goleador"
+            label="Equipo más goleador"
             value={prediction.extras.highestScoringTeam}
             disabled={disabled}
             controlClassName="mt-4"
@@ -1207,7 +1207,7 @@ function TusElecciones({
         </ChoiceBlock>
         <ChoiceBlock points={10}>
           <TeamPicker
-            label="Equipo mas goleado"
+            label="Equipo más goleado"
             value={prediction.extras.mostConcededTeam}
             disabled={disabled}
             controlClassName="mt-4"
@@ -1216,7 +1216,7 @@ function TusElecciones({
         </ChoiceBlock>
         <ChoiceBlock points={10}>
           <TeamPicker
-            label="Equipo con mas rojas"
+            label="Equipo con más rojas"
             value={prediction.extras.mostRedsTeam}
             disabled={disabled}
             controlClassName="mt-4"
@@ -1225,7 +1225,7 @@ function TusElecciones({
         </ChoiceBlock>
         <ChoiceBlock points={20}>
           <ExtraPlayerField
-            label="Maximo goleador"
+            label="Máximo goleador"
             value={prediction.extras.topScorer}
             disabled={disabled}
             onChange={(value) => onExtraChange("topScorer", value)}
@@ -1308,7 +1308,7 @@ function ExtraPlayerField({
             ) : null}
             <span className="truncate">
               {player
-                ? teamsById.get(player.team)?.name || "Sin pais"
+                ? teamsById.get(player.team)?.name || "Sin país"
                 : "Portero, defensa, centro o delantero"}
             </span>
           </span>
@@ -1444,8 +1444,8 @@ function GroupStage({
         </p>
         <p className="text-sm text-zinc-500">
           {disabled
-            ? "La fase de grupos esta cerrada y queda solo como consulta."
-            : "Arrastra desde el asa de la derecha para ordenar primero, segundo, tercero y cuarto. Despues elige los 8 terceros que pasan."}
+            ? "La fase de grupos está cerrada y queda solo como consulta."
+            : "Arrastra desde el asa de la derecha para ordenar primero, segundo, tercero y cuarto. Después elige los 8 terceros que pasan."}
         </p>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
@@ -1513,7 +1513,7 @@ function GroupStage({
             </h3>
             <p className="text-sm text-zinc-400">
               {disabled
-                ? "Seleccion bloqueada. El orden no cuenta."
+                ? "Selección bloqueada. El orden no cuenta."
                 : "Elige los 8 terceros que pasan. El orden no cuenta."}
             </p>
           </div>
@@ -1547,12 +1547,12 @@ function GroupStage({
 
         {prediction.bracket.thirdQualifiers.length === 8 ? (
           <Notice>
-            Los terceros ya estan completos. El cuadro de eliminacion puede
+            Los terceros ya estan completos. El cuadro de eliminación puede
             resolver sus emparejamientos.
           </Notice>
         ) : (
           <Notice tone="warm">
-            El cuadro se completara cuando haya 8 terceros clasificados
+            El cuadro se completará cuando haya 8 terceros clasificados
             seleccionados.
           </Notice>
         )}
@@ -2092,7 +2092,7 @@ function PlayerPickerModal({
     const groups = new Map<string, Player[]>();
 
     renderedPlayers.forEach((player) => {
-      const country = teamsById.get(player.team)?.name || "Sin pais";
+      const country = teamsById.get(player.team)?.name || "Sin país";
       const countryPlayers = groups.get(country);
 
       if (countryPlayers) {
@@ -2219,13 +2219,13 @@ function PlayerPickerModal({
 
             {listReady && players.length > renderedPlayers.length ? (
               <p className="rounded-xl bg-slate-100 px-3 py-3 text-center text-xs font-semibold text-slate-500">
-                Cargando mas jugadores...
+                Cargando más jugadores...
               </p>
             ) : null}
 
             {listReady && !players.length ? (
               <p className="rounded-xl bg-slate-100 px-3 py-4 text-sm text-slate-500">
-                No hay jugadores para esa busqueda.
+                No hay jugadores para esa búsqueda.
               </p>
             ) : null}
           </div>
@@ -2383,7 +2383,7 @@ function ResultsSchedule({
 
         {!dateKeys.length ? (
           <div className="rounded-lg border border-white/10 bg-[#151515] px-4 py-6 text-sm text-zinc-400">
-            Completa la fase de grupos para desbloquear mas partidos.
+            Completa la fase de grupos para desbloquear más partidos.
           </div>
         ) : null}
       </div>
@@ -2508,7 +2508,7 @@ function ResultMatchCard({
           </p>
           {locked ? (
             <span className="text-xs font-medium text-zinc-500">
-              {complete ? "Prediccion cerrada" : "No rellenaste este resultado"}
+              {complete ? "Predicción cerrada" : "No rellenaste este resultado"}
             </span>
           ) : (
             <MatchCountdown

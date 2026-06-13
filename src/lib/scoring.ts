@@ -13,12 +13,12 @@ const ruleMeta = {
   group_qualification_hit: { label: "Equipo clasificado en grupos", category: "Grupos y cuadro" },
   group_third_qualification_hit: { label: "Tercer clasificado acertado", category: "Grupos y cuadro" },
   group_position_hit: { label: "Orden exacto en grupo", category: "Grupos y cuadro" },
-  tournament_champion_hit: { label: "Campeon del Mundial", category: "Tus elecciones" },
-  tournament_highest_scoring_team_hit: { label: "Equipo mas goleador", category: "Tus elecciones" },
-  tournament_most_conceded_team_hit: { label: "Equipo mas goleado", category: "Tus elecciones" },
-  tournament_most_reds_team_hit: { label: "Equipo con mas rojas", category: "Tus elecciones" },
+  tournament_champion_hit: { label: "Campeón del Mundial", category: "Tus elecciones" },
+  tournament_highest_scoring_team_hit: { label: "Equipo más goleador", category: "Tus elecciones" },
+  tournament_most_conceded_team_hit: { label: "Equipo más goleado", category: "Tus elecciones" },
+  tournament_most_reds_team_hit: { label: "Equipo con más rojas", category: "Tus elecciones" },
   tournament_mvp_hit: { label: "MVP del Mundial", category: "Tus elecciones" },
-  tournament_top_scorer_hit: { label: "Maximo goleador", category: "Tus elecciones" },
+  tournament_top_scorer_hit: { label: "Máximo goleador", category: "Tus elecciones" },
 } as const;
 
 const eventRules = {
@@ -312,7 +312,7 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
             matchNumber: match.number,
             ruleCode: "tournament_champion_hit",
             points: 25,
-            explanation: `${teamName(actualWinner)} campeon del Mundial`,
+            explanation: `${teamName(actualWinner)} campeón del Mundial`,
             sourceRef: "champion",
           });
         }
@@ -396,9 +396,9 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
     const extras = calculateFinalExtras(adminResults);
     if (extras) {
       const teamChecks = [
-        ["highestScoringTeam", "highestScoringTeams", "tournament_highest_scoring_team_hit", 10, "Equipo mas goleador"],
-        ["mostConcededTeam", "mostConcededTeams", "tournament_most_conceded_team_hit", 10, "Equipo mas goleado"],
-        ["mostRedsTeam", "mostRedsTeams", "tournament_most_reds_team_hit", 10, "Equipo con mas rojas"],
+        ["highestScoringTeam", "highestScoringTeams", "tournament_highest_scoring_team_hit", 10, "Equipo más goleador"],
+        ["mostConcededTeam", "mostConcededTeams", "tournament_most_conceded_team_hit", 10, "Equipo más goleado"],
+        ["mostRedsTeam", "mostRedsTeams", "tournament_most_reds_team_hit", 10, "Equipo con más rojas"],
       ] as const;
 
       teamChecks.forEach(([predictionKey, leadersKey, ruleCode, points, label]) => {
@@ -414,7 +414,7 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
       });
 
       const specialChecks = [
-        ["topScorer", "topScorers", "tournament_top_scorer_hit", 20, "Maximo goleador del Mundial", playerName],
+        ["topScorer", "topScorers", "tournament_top_scorer_hit", 20, "Máximo goleador del Mundial", playerName],
         ["mvp", "mvps", "tournament_mvp_hit", 20, "MVP del Mundial", playerName],
       ] as const;
 

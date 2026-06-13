@@ -66,7 +66,7 @@ const links = [
   // partidos" del inicio). `match` mantiene el resaltado activo, ya que
   // usePathname no incluye la query.
   { href: "/porra?section=results&goto=next", label: "Jugar", match: "/porra" },
-  { href: "/clasificacion", label: "Clasificacion" },
+  { href: "/clasificacion", label: "Clasificación" },
   { href: "/como-funciona", label: "Reglas" },
 ];
 

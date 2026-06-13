@@ -25,12 +25,12 @@ export function PublicProfileView({ userId }: { userId: string }) {
   if (!profile) {
     return (
       <div className="space-y-6">
-        <SectionHeading eyebrow="Perfil publico" title="Perfil no encontrado" />
+        <SectionHeading eyebrow="Perfil público" title="Perfil no encontrado" />
         <EmptyState
           icon="?"
           title="No encontramos ese participante"
-          description="Puede que el usuario ya no exista o que todavia no tenga perfil en la clasificacion."
-          action={<PrimaryLink href="/clasificacion">Volver a clasificacion</PrimaryLink>}
+          description="Puede que el usuario ya no exista o que todavía no tenga perfil en la clasificación."
+          action={<PrimaryLink href="/clasificacion">Volver a clasificación</PrimaryLink>}
         />
       </div>
     );
@@ -43,7 +43,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
         avatarUrl={profile.avatarUrl}
         isPro={profile.isPro}
         isWolf={profile.isWolf}
-        eyebrow="Perfil publico"
+        eyebrow="Perfil público"
         subtitle="Elecciones de este participante."
         scorecard={profile.scorecard}
         rank={rankingPosition}

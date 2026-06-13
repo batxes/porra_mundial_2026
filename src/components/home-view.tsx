@@ -18,6 +18,7 @@ import {
   hasFinishedScore,
   MatchEventLine,
   matchEventIcons,
+  matchEventTeamId,
   MatchCountdown,
   matchStageLabel,
   PlayerAvatar,
@@ -255,7 +256,7 @@ export function HomeView() {
                   {rankBeforeUpdate !== null &&
                   rankBeforeUpdate !== userRank ? (
                     <span
-                      title="Desde los ultimos resultados"
+                      title="Desde los últimos resultados"
                       className={`ml-1 align-middle text-[10px] font-bold ${
                         rankBeforeUpdate > userRank
                           ? "text-[#a7f600]"
@@ -349,7 +350,7 @@ export function HomeView() {
                 href="/clasificacion"
                 className="w-fit shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10"
               >
-                Ver mas
+                Ver más
               </Link>
             </div>
 
@@ -371,7 +372,7 @@ export function HomeView() {
               </div>
             ) : (
               <div className="py-6 text-center text-sm text-zinc-400">
-                Aun no hay participantes.
+                Aún no hay participantes.
               </div>
             )}
           </section>
@@ -384,14 +385,14 @@ export function HomeView() {
                     Jugadores
                   </h2>
                   <p className="mt-1 text-sm text-zinc-500">
-                    Los futbolistas que mas puntos suman
+                    Los futbolistas que más puntos suman
                   </p>
                 </div>
                 <Link
                   href="/clasificacion?tab=jugadores"
                   className="w-fit shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10"
                 >
-                  Ver mas
+                  Ver más
                 </Link>
               </div>
 
@@ -703,7 +704,7 @@ const scorerBreakdownLabels: Array<{
   { key: "outcome", label: "Quiniela" },
 ];
 
-// Cuantos puntuadores se ven antes de "Mostrar mas".
+// Cuantos puntuadores se ven antes de "Mostrar más".
 const jornadaScorersCollapsed = 3;
 
 function HomeFeedSection({
@@ -744,7 +745,7 @@ function HomeFeedSection({
             Novedades
           </h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Tus proximos partidos y los resultados de cada jornada
+            Tus próximos partidos y los resultados de cada jornada
           </p>
         </div>
         <Link
@@ -804,10 +805,10 @@ function HomeFeedSection({
       ) : (
         <Card className="px-4 py-10 text-center text-sm leading-6 text-zinc-400">
           <p className="font-semibold text-white">
-            Aun no hay nada que contar.
+            Aún no hay nada que contar.
           </p>
           <p className="mt-1">
-            En cuanto haya partidos veras aqui tus proximos encuentros y los
+            En cuanto haya partidos verás aquí tus próximos encuentros y los
             resultados de cada jornada.
           </p>
         </Card>
@@ -861,7 +862,7 @@ function UpcomingJornadaCard({
             </svg>
           </span>
           <div className="min-w-0">
-            <h3 className="text-sm font-bold text-white">Proxima jornada</h3>
+            <h3 className="text-sm font-bold text-white">Próxima jornada</h3>
             <p className="truncate text-xs font-medium text-zinc-400 first-letter:capitalize">
               {formatDate(dateKey)}
             </p>
@@ -1026,7 +1027,7 @@ function JornadaCard({
             >
               {expanded
                 ? "Mostrar menos"
-                : `Ver ${scorers.length - jornadaScorersCollapsed} mas`}
+                : `Ver ${scorers.length - jornadaScorersCollapsed} más`}
               <svg
                 aria-hidden="true"
                 viewBox="0 0 16 16"
@@ -1179,7 +1180,7 @@ function JornadaScorerRow({
       <div className="mt-0.5 flex shrink-0 items-center gap-1.5">
         {general ? (
           <span
-            title="Clasificacion general tras la jornada"
+            title="Clasificación general tras la jornada"
             className="flex items-center gap-1 rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[11px] font-semibold text-zinc-300"
           >
             {general.rank}º
@@ -1266,7 +1267,7 @@ function JornadaUserReportModal({
           </div>
           {general ? (
             <span
-              title="Clasificacion general tras la jornada"
+              title="Clasificación general tras la jornada"
               className="flex shrink-0 items-center gap-1 rounded-md bg-white/[0.06] px-1.5 py-1 text-[11px] font-semibold text-zinc-300"
             >
               {general.rank}º
@@ -1446,7 +1447,7 @@ function UserReportMatchRow({
 
       <div className="mt-2 flex flex-wrap items-center gap-1">
         <span
-          title="Su prediccion"
+          title="Su predicción"
           className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${pickClass}`}
         >
           {hasPick && pick ? `${pick.homeScore}-${pick.awayScore}` : "–-–"}
@@ -1802,7 +1803,7 @@ function MatchPicksModal({
             </p>
           ) : !filteredRows.length ? (
             <p className="py-4 text-center text-sm text-zinc-500">
-              Nadie se llama asi en la porra.
+              Nadie se llama así en la porra.
             </p>
           ) : null}
         </div>
@@ -1834,14 +1835,12 @@ function JornadaMatchRow({
   const events = (result?.events || []).filter(
     (event) => event.playerId && matchEventIcons[String(event.type)],
   );
-  const homeEvents = events.filter((event) => {
-    const team = playersById.get(event.playerId)?.team || event.teamId || "";
-    return team !== awayTeamId;
-  });
-  const awayEvents = events.filter((event) => {
-    const team = playersById.get(event.playerId)?.team || event.teamId || "";
-    return team === awayTeamId;
-  });
+  const homeEvents = events.filter(
+    (event) => matchEventTeamId(event) !== awayTeamId,
+  );
+  const awayEvents = events.filter(
+    (event) => matchEventTeamId(event) === awayTeamId,
+  );
 
   return (
     <div className="px-4 py-4">
@@ -2414,13 +2413,13 @@ function UpcomingMatchCard({
             <span className="text-xs font-medium text-zinc-500">
               {locked
                 ? predictionComplete
-                  ? "Prediccion cerrada"
+                  ? "Predicción cerrada"
                   : "No rellenaste este resultado"
                 : "Editable hasta el inicio"}
             </span>
           ) : (
             <span className="text-xs font-medium text-zinc-500">
-              Entra para guardar tu prediccion
+              Entra para guardar tu predicción
             </span>
           )}
         </div>

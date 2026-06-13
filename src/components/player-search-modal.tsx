@@ -75,7 +75,7 @@ export function PlayerSearchModal({
     const groups = new Map<string, Player[]>();
 
     visiblePlayers.forEach((player) => {
-      const country = teamsById.get(player.team)?.name || "Sin pais";
+      const country = teamsById.get(player.team)?.name || "Sin país";
       groups.set(country, [...(groups.get(country) || []), player]);
     });
 
@@ -175,7 +175,7 @@ export function PlayerSearchModal({
                         </p>
                         <p className="text-xs leading-4 text-slate-500">
                           {positionLabels[player.position]} ·{" "}
-                          {teamsById.get(player.team)?.name || "Sin pais"}
+                          {teamsById.get(player.team)?.name || "Sin país"}
                         </p>
                       </div>
                       {selected ? (
@@ -191,7 +191,7 @@ export function PlayerSearchModal({
 
             {!visiblePlayers.length ? (
               <p className="rounded-xl bg-slate-100 px-3 py-4 text-sm text-slate-500">
-                No hay jugadores para esa busqueda.
+                No hay jugadores para esa búsqueda.
               </p>
             ) : null}
           </div>

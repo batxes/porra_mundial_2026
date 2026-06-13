@@ -89,7 +89,7 @@ const matchPointCategories: Array<{
   { label: "Resultado acertado", match: (rc) => rc === "match_outcome_hit" },
   { label: "Tu once", match: (rc) => rc.startsWith("player_") },
   { label: "Pasa de ronda", match: (rc) => rc === "team_progression_hit" },
-  { label: "Campeon", match: (rc) => rc === "tournament_champion_hit" },
+  { label: "Campeón", match: (rc) => rc === "tournament_champion_hit" },
 ];
 
 function matchPointBreakdown(entries: ScoreEntry[]): RecapBreakdownPart[] {
@@ -320,7 +320,7 @@ function MatchResultsRecapModal({
                 : `Han terminado ${items.length} partidos`}
             </h3>
             <p className="mt-1.5 text-[13px] leading-5 text-zinc-400 sm:mt-2 sm:text-sm sm:leading-6 sm:text-zinc-300">
-              Esto es lo que has sumado desde tu ultima visita.
+              Esto es lo que has sumado desde tu última visita.
             </p>
           </div>
           <Image

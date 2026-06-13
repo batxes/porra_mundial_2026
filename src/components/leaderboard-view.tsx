@@ -69,13 +69,13 @@ export function LeaderboardView() {
     <div className="space-y-6">
       <SectionHeading
         eyebrow="Todos los participantes"
-        title="Clasificacion"
+        title="Clasificación"
         description={
           filter === "players"
-            ? "Los futbolistas que mas puntos han sumado con goles, MVP, penaltis y tarjetas."
+            ? "Los futbolistas que más puntos han sumado con goles, MVP, penaltis y tarjetas."
             : filter === "wolf"
-              ? "La clasificacion de la manada 🐺. Solo visible para sus miembros."
-              : "La tabla se ordena por puntos y muestra el campeon elegido por cada participante."
+              ? "La clasificación de la manada 🐺. Solo visible para sus miembros."
+              : "La tabla se ordena por puntos y muestra el campeón elegido por cada participante."
         }
       />
 
@@ -124,21 +124,21 @@ export function LeaderboardView() {
       ) : !leaderboard.length ? (
         <EmptyState
           icon="0"
-          title="Aun no hay participantes"
-          description="Cuando la gente se registre o entre a la demo local, aparecera aqui."
+          title="Aún no hay participantes"
+          description="Cuando la gente se registre o entre a la demo local, aparecerá aquí."
         />
       ) : !visible.length ? (
         <EmptyState
           icon="0"
           title={
             filter === "wolf"
-              ? "Aun no hay miembros de la manada"
-              : "Aun no hay jugadores PRO"
+              ? "Aún no hay miembros de la manada"
+              : "Aún no hay jugadores PRO"
           }
           description={
             filter === "wolf"
-              ? "Cuando alguien tenga el tag 🐺 aparecera en esta vista."
-              : "Cuando alguien tenga el badge PRO aparecera en esta vista."
+              ? "Cuando alguien tenga el tag 🐺 aparecerá en esta vista."
+              : "Cuando alguien tenga el badge PRO aparecerá en esta vista."
           }
         />
       ) : (
@@ -176,8 +176,8 @@ function PlayerLeaderboard({ standings }: { standings: PlayerStandingRow[] }) {
     return (
       <EmptyState
         icon="0"
-        title="Aun no hay puntos de jugadores"
-        description="Cuando se registren goles, MVP, penaltis o tarjetas en los partidos, los futbolistas apareceran aqui."
+        title="Aún no hay puntos de jugadores"
+        description="Cuando se registren goles, MVP, penaltis o tarjetas en los partidos, los futbolistas aparecerán aquí."
       />
     );
   }
@@ -191,7 +191,7 @@ function PlayerLeaderboard({ standings }: { standings: PlayerStandingRow[] }) {
             setQuery(event.target.value);
             setLimit(PLAYERS_PAGE_SIZE);
           }}
-          placeholder="Buscar jugador o pais"
+          placeholder="Buscar jugador o país"
           className="min-w-0 flex-1 bg-transparent text-sm font-medium text-white outline-none placeholder:text-zinc-500"
         />
         {query ? (
@@ -212,7 +212,7 @@ function PlayerLeaderboard({ standings }: { standings: PlayerStandingRow[] }) {
         <EmptyState
           icon="0"
           title="Sin resultados"
-          description="Ningun jugador con puntos coincide con esa busqueda."
+          description="Ningún jugador con puntos coincide con esa búsqueda."
         />
       ) : (
         <Card className="overflow-hidden p-0">
@@ -248,7 +248,7 @@ function PlayerRankRow({
   row: PlayerStandingRow;
   position: number;
 }) {
-  const teamName = teamsById.get(row.player.team)?.name || "Sin pais";
+  const teamName = teamsById.get(row.player.team)?.name || "Sin país";
 
   return (
     <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">

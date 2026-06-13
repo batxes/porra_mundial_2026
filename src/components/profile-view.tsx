@@ -42,7 +42,7 @@ const themeOptions: {
   {
     id: "dark",
     label: "Oscuro",
-    description: "El aspecto clasico de Triliporra.",
+    description: "El aspecto clásico de Triliporra.",
     swatchClass: "border-white/20 bg-[#16212e]",
   },
   {
@@ -325,7 +325,7 @@ export function ProfileOptionsView() {
               onClick={() => void signOut()}
               className="w-full rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
             >
-              Cerrar sesion
+              Cerrar sesión
             </button>
           </div>
         </form>

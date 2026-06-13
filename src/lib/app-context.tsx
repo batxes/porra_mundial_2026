@@ -143,6 +143,7 @@ type AppContextValue = {
 // el panel de admin trabaja en español, así que se traduce al escribir en Supabase.
 const dbEventTypes: Record<string, string> = {
   gol: "goal",
+  "gol en propia": "own_goal",
   "penalti marcado": "penalty_goal",
   MVP: "mvp",
   "penalti parado": "penalty_save",
