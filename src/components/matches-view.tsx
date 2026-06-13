@@ -57,7 +57,12 @@ export function MatchesView() {
                     {result?.events?.length ? (
                       <div className="space-y-2 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
                         <p className="text-sm font-semibold text-white">Eventos validados</p>
-                        {result.events.map((event) => (
+                        {[...result.events]
+                          .sort(
+                            (a, b) =>
+                              (Number(a.minute) || 0) - (Number(b.minute) || 0),
+                          )
+                          .map((event) => (
                           <div key={event.id} className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 text-sm">
                             <span className="text-slate-400">{event.minute}&apos;</span>
                             <span className="min-w-0 text-slate-200">

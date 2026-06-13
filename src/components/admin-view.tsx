@@ -245,10 +245,15 @@ export function AdminView() {
                   const awayName =
                     (awayTeamId && teamsById.get(awayTeamId)?.name) ||
                     (savedMatch ? translateSlot(savedMatch.away) : "Visitante");
-                  const events = (result.events || []).filter(
-                    (event) =>
-                      event.playerId && matchEventIcons[String(event.type)],
-                  );
+                  const events = (result.events || [])
+                    .filter(
+                      (event) =>
+                        event.playerId && matchEventIcons[String(event.type)],
+                    )
+                    .sort(
+                      (a, b) =>
+                        (Number(a.minute) || 0) - (Number(b.minute) || 0),
+                    );
                   const awayEvents = events.filter(
                     (event) => matchEventTeamId(event) === awayTeamId,
                   );

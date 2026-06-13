@@ -340,7 +340,7 @@ export function HomeView() {
             <div className="flex items-end justify-between gap-3">
               <div>
                 <h2 className="text-xl font-bold tracking-tight text-white">
-                  Clasificacion
+                  Clasificación
                 </h2>
                 <p className="mt-1 text-sm text-zinc-500">
                   {ready ? `${leaderboard.length} participantes` : " "}
@@ -1832,9 +1832,9 @@ function JornadaMatchRow({
     ? teamsById.get(awayTeamId)?.name || translateSlot(match.away)
     : translateSlot(match.away);
   const score = readMatchScore(result);
-  const events = (result?.events || []).filter(
-    (event) => event.playerId && matchEventIcons[String(event.type)],
-  );
+  const events = (result?.events || [])
+    .filter((event) => event.playerId && matchEventIcons[String(event.type)])
+    .sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0));
   const homeEvents = events.filter(
     (event) => matchEventTeamId(event) !== awayTeamId,
   );

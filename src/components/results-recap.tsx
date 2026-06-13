@@ -375,7 +375,7 @@ function MatchResultsRecapModal({
           {rank ? (
             <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3.5 text-center">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">
-                Clasificacion
+                Clasificación
               </p>
               <p className="mt-1.5 text-3xl font-bold leading-none text-white">
                 {rank.current}º
