@@ -246,10 +246,12 @@ export function LeaderboardEvolution({
   leaderboard,
   adminResults,
   currentUserId,
+  canSeeWolf = false,
 }: {
   leaderboard: UserProfile[];
   adminResults: AdminResults;
   currentUserId?: string;
+  canSeeWolf?: boolean;
 }) {
   const model = useMemo(
     () => buildEvolution(leaderboard, adminResults, currentUserId),
@@ -329,6 +331,13 @@ export function LeaderboardEvolution({
   const selectTop = () => setSelectedIds(defaultSelection(series, currentUserId));
   const selectAll = () => setSelectedIds(new Set(series.map((item) => item.profile.id)));
   const selectNone = () => setSelectedIds(new Set());
+  // Preset de la manada: solo visible para sus miembros (y admin).
+  const wolfSet = new Set(
+    series.filter((item) => item.profile.isWolf).map((item) => item.profile.id),
+  );
+  const showWolfPreset = canSeeWolf && wolfSet.size > 0;
+  const isWolfSel = showWolfPreset && sameIds(selectedIds, wolfSet);
+  const selectWolf = () => setSelectedIds(new Set(wolfSet));
   const toggleId = (id: string) =>
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -396,6 +405,16 @@ export function LeaderboardEvolution({
           <button type="button" onClick={selectAll} className={presetCls(isAll)}>
             Todos
           </button>
+          {showWolfPreset ? (
+            <button
+              type="button"
+              onClick={selectWolf}
+              aria-label="Manada"
+              className={presetCls(isWolfSel)}
+            >
+              🐺
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={replay}

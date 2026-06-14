@@ -168,6 +168,7 @@ export function LeaderboardView() {
             leaderboard={visible}
             adminResults={adminResults}
             currentUserId={user?.id}
+            canSeeWolf={isWolf}
           />
         </Card>
       ) : (
