@@ -255,12 +255,12 @@ function FeedMatchRow({
           </span>
         </div>
         <span
-          className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ${
+          className={`inline-flex w-[2.5rem] shrink-0 justify-end text-sm font-bold tabular-nums ${
             report.total > 0
-              ? "bg-[#a7f600]/15 text-[#a7f600]"
+              ? "text-[#a7f600]"
               : report.total < 0
-                ? "bg-rose-400/15 text-rose-300"
-                : "bg-white/[0.06] text-zinc-500"
+                ? "text-rose-300"
+                : "text-zinc-600"
           }`}
         >
           {report.total > 0 ? `+${report.total}` : report.total}

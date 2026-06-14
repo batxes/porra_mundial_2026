@@ -1198,6 +1198,7 @@ function JornadaScorerRow({
           </span>
         ) : null}
         <span
+          title="Puntos de la jornada"
           className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
             points > 0
               ? "bg-[#a7f600]/12 text-[#a7f600]"
@@ -1433,12 +1434,12 @@ function UserReportMatchRow({
           </span>
         </div>
         <span
-          className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ${
+          className={`inline-flex w-[2.5rem] shrink-0 justify-end text-sm font-bold tabular-nums ${
             report.total > 0
-              ? "bg-[#a7f600]/15 text-[#a7f600]"
+              ? "text-[#a7f600]"
               : report.total < 0
-                ? "bg-rose-400/15 text-rose-300"
-                : "bg-white/[0.06] text-zinc-500"
+                ? "text-rose-300"
+                : "text-zinc-600"
           }`}
         >
           {report.total > 0 ? `+${report.total}` : report.total}
@@ -1607,7 +1608,23 @@ function MatchPicksModal({
             Boolean(player) &&
             (player?.team === homeTeamId || player?.team === awayTeamId),
         );
-      return { profile, pick: hasPick && pick ? pick : null, xiPlayers };
+      // Solo en finalizados hay puntos: total del partido (resultado + once)
+      // y que futbolistas del once aportaron.
+      const report = finalScore
+        ? userMatchReport(profile, match.number, result)
+        : null;
+      const scoringPlayerIds = new Set(
+        (report?.xiPlayers || [])
+          .filter((row) => row.points > 0)
+          .map((row) => row.playerId),
+      );
+      return {
+        profile,
+        pick: hasPick && pick ? pick : null,
+        xiPlayers,
+        matchPoints: report ? report.total : null,
+        scoringPlayerIds,
+      };
     })
     .filter((row) => row.pick || row.xiPlayers.length);
 
@@ -1748,55 +1765,81 @@ function MatchPicksModal({
         </div>
 
         <div className="team-picker-scroll -mr-2 min-h-0 space-y-1.5 overflow-y-auto pr-2">
-          {filteredRows.map(({ pick, profile, xiPlayers }) => (
-            <div
-              key={profile.id}
-              className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-2.5 py-2"
-            >
-              <div className="flex min-w-0 items-center gap-2.5">
-                <Avatar
-                  name={profile.name}
-                  avatarUrl={profile.avatarUrl}
-                  className="size-8"
-                />
-                <div className="min-w-0">
-                  <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-white">
-                    <span className="truncate">{profile.name}</span>
-                    {profile.id === user?.id ? (
-                      <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-zinc-200">
-                        Tú
-                      </span>
-                    ) : null}
-                  </p>
-                  {xiPlayers.length ? (
-                    <div className="mt-1 flex flex-wrap items-center gap-1">
-                      {xiPlayers.map((player) => (
-                        <span
-                          key={player.id}
-                          className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] py-px pl-px pr-1.5 text-[10px] font-medium text-zinc-300"
-                        >
-                          <PlayerAvatar
-                            player={player}
-                            className="size-4! text-[6px]"
-                          />
-                          {player.name}
+          {filteredRows.map(
+            ({ matchPoints, pick, profile, scoringPlayerIds, xiPlayers }) => (
+              <div
+                key={profile.id}
+                className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-2.5 py-2"
+              >
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Avatar
+                    name={profile.name}
+                    avatarUrl={profile.avatarUrl}
+                    className="size-8"
+                  />
+                  <div className="min-w-0">
+                    <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-white">
+                      <span className="truncate">{profile.name}</span>
+                      {profile.id === user?.id ? (
+                        <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-zinc-200">
+                          Tú
                         </span>
-                      ))}
-                    </div>
+                      ) : null}
+                    </p>
+                    {xiPlayers.length ? (
+                      <div className="mt-1 flex flex-wrap items-center gap-1">
+                        {xiPlayers.map((player) => {
+                          const scored = scoringPlayerIds.has(player.id);
+                          return (
+                            <span
+                              key={player.id}
+                              className={`inline-flex items-center gap-1 rounded-full border py-px pl-px pr-1.5 text-[10px] font-medium ${
+                                scored
+                                  ? "border-[#a7f600]/40 bg-[#a7f600]/15 text-[#a7f600]"
+                                  : "border-white/10 bg-white/[0.05] text-zinc-300"
+                              }`}
+                            >
+                              <PlayerAvatar
+                                player={player}
+                                className="size-4! text-[6px]"
+                              />
+                              {player.name}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span
+                    title="Su predicción"
+                    className={`inline-flex w-[3.25rem] justify-center rounded-md py-1 text-sm font-bold tabular-nums ${
+                      pick
+                        ? pickChipClass(pick)
+                        : "border border-white/10 bg-white/[0.03] text-zinc-600"
+                    }`}
+                  >
+                    {pick ? `${pick.homeScore}-${pick.awayScore}` : "–-–"}
+                  </span>
+                  {matchPoints !== null ? (
+                    <span
+                      title="Puntos en este partido"
+                      className={`inline-flex w-[2.5rem] justify-end text-sm font-bold tabular-nums ${
+                        matchPoints > 0
+                          ? "text-[#a7f600]"
+                          : matchPoints < 0
+                            ? "text-rose-300"
+                            : "text-zinc-600"
+                      }`}
+                    >
+                      {matchPoints > 0 ? `+${matchPoints}` : matchPoints}
+                    </span>
                   ) : null}
                 </div>
               </div>
-              <span
-                className={`shrink-0 rounded-md px-2 py-0.5 text-sm font-bold tabular-nums ${
-                  pick
-                    ? pickChipClass(pick)
-                    : "border border-white/10 bg-white/[0.03] text-zinc-600"
-                }`}
-              >
-                {pick ? `${pick.homeScore} - ${pick.awayScore}` : "– - –"}
-              </span>
-            </div>
-          ))}
+            ),
+          )}
           {!rows.length ? (
             <p className="py-4 text-center text-sm text-zinc-500">
               Nadie ha pronosticado este partido.
