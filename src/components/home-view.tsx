@@ -1409,10 +1409,6 @@ function UserReportMatchRow({
     const player = playersById.get(row.playerId);
     return player ? [{ player, points: row.points }] : [];
   });
-  const breakdownParts = [
-    { label: "Exacto", value: report.exact },
-    { label: "Quiniela", value: report.outcome },
-  ].filter((part) => part.value !== 0);
 
   return (
     <div className="rounded-lg bg-white/[0.03] px-2.5 py-2">
@@ -1453,17 +1449,6 @@ function UserReportMatchRow({
         >
           {hasPick && pick ? `${pick.homeScore}-${pick.awayScore}` : "–-–"}
         </span>
-        {breakdownParts.map((part) => (
-          <span
-            key={part.label}
-            className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400"
-          >
-            {part.label}
-            <span className={part.value >= 0 ? "text-white" : "text-red-400"}>
-              {part.value > 0 ? `+${part.value}` : part.value}
-            </span>
-          </span>
-        ))}
         {xiChips.map(({ player, points: playerPoints }) => (
           <span
             key={player.id}

@@ -4,9 +4,9 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { hasFinishedScore, TeamFlag } from "@/components/common";
+import { hasFinishedScore, PlayerAvatar, TeamFlag } from "@/components/common";
 import { useAppContext } from "@/lib/app-context";
-import { schedule, teamsById } from "@/lib/data";
+import { playersById, schedule, teamsById } from "@/lib/data";
 import { translateSlot } from "@/lib/format";
 import type { AdminResult, Match, ScoreEntry } from "@/lib/types";
 
@@ -64,12 +64,46 @@ function persistRankDelta(
 
 type RecapRank = { current: number; previous: number | null; total: number };
 type RecapBreakdownPart = { label: string; points: number };
+type MatchPick = { homeScore: string | number; awayScore: string | number };
 type RecapItem = {
   match: Match;
   result: AdminResult;
   points: number;
   breakdown: RecapBreakdownPart[];
+  pick: MatchPick | null;
+  xiPlayers: { playerId: string; points: number }[];
+  xiOther: number;
 };
+
+function matchOutcomeOf(home: number, away: number) {
+  return home > away ? "home" : home < away ? "away" : "draw";
+}
+
+// Atribuye los puntos del once a cada futbolista (via id del evento) para
+// mostrar un badge por jugador en vez de un "Tu once" generico.
+function playerPointsFromEntries(entries: ScoreEntry[], result: AdminResult) {
+  const eventPlayerById = new Map<string, string>();
+  (result.events || []).forEach((event) => {
+    if (event.id && event.playerId) {
+      eventPlayerById.set(event.id, event.playerId);
+    }
+  });
+  const byPlayer = new Map<string, number>();
+  let xiOther = 0;
+  entries.forEach((entry) => {
+    if (!entry.ruleCode.startsWith("player_")) return;
+    const playerId = eventPlayerById.get(entry.sourceRef);
+    if (playerId) {
+      byPlayer.set(playerId, (byPlayer.get(playerId) || 0) + entry.points);
+    } else {
+      xiOther += entry.points;
+    }
+  });
+  const xiPlayers = [...byPlayer.entries()]
+    .map(([playerId, points]) => ({ playerId, points }))
+    .sort((a, b) => b.points - a.points);
+  return { xiPlayers, xiOther };
+}
 
 export function isFinishedResult(result?: AdminResult) {
   const status = String(result?.status || "").toLowerCase();
@@ -235,11 +269,20 @@ export function ResultsRecapWatcher() {
     const items = fresh
       .map(({ match, result }) => {
         const entries = entriesByMatch.get(match.number) || [];
+        const { xiPlayers, xiOther } = playerPointsFromEntries(entries, result);
+        const rawPick = prediction.matchPredictions[String(match.number)];
+        const pick =
+          rawPick && rawPick.homeScore !== "" && rawPick.awayScore !== ""
+            ? rawPick
+            : null;
         return {
           match,
           result,
           points: matchPoints(match.number),
           breakdown: matchPointBreakdown(entries),
+          pick,
+          xiPlayers,
+          xiOther,
         };
       })
       .sort((a, b) => b.match.number - a.match.number);
@@ -293,6 +336,12 @@ function MatchResultsRecapModal({
   const totalPoints = items.reduce((total, item) => total + item.points, 0);
   const rankDelta =
     rank && rank.previous !== null ? rank.previous - rank.current : null;
+  // Si un futbolista de tu once ha puntuado (gol, MVP...), presenta Andrés;
+  // si no, Pedrerol.
+  const xiScored = items.some((item) =>
+    item.breakdown.some((part) => part.label === "Tu once" && part.points > 0),
+  );
+  const presenter = xiScored ? "/andres.png" : "/pedrerol.png";
 
   return (
     <div
@@ -324,7 +373,7 @@ function MatchResultsRecapModal({
             </p>
           </div>
           <Image
-            src="/pedrerol.png"
+            src={presenter}
             alt=""
             width={171}
             height={128}
@@ -435,6 +484,29 @@ function RecapMatchRow({ item }: { item: RecapItem }) {
   const awayName = awayTeamId
     ? teamsById.get(awayTeamId)?.name || translateSlot(match.away)
     : translateSlot(match.away);
+  // En vez de "Resultado exacto/acertado", la prediccion coloreada segun el
+  // acierto (mismo patron que el modal de predicciones): exacto relleno,
+  // ganador con borde, fallo apagado. Los puntos del once, por futbolista.
+  const xiChips = item.xiPlayers.flatMap((row) => {
+    const player = playersById.get(row.playerId);
+    return player ? [{ player, points: row.points }] : [];
+  });
+  const finalHome = Number(result.homeScore);
+  const finalAway = Number(result.awayScore);
+  let pickClass = "border border-white/10 bg-white/[0.03] text-zinc-600";
+  if (item.pick) {
+    const pickHome = Number(item.pick.homeScore);
+    const pickAway = Number(item.pick.awayScore);
+    if (pickHome === finalHome && pickAway === finalAway) {
+      pickClass = "border border-[#a7f600]/35 bg-[#a7f600]/15 text-[#a7f600]";
+    } else if (
+      matchOutcomeOf(pickHome, pickAway) === matchOutcomeOf(finalHome, finalAway)
+    ) {
+      pickClass = "border border-[#a7f600]/30 bg-white/[0.06] text-white";
+    } else {
+      pickClass = "border border-white/10 bg-white/[0.06] text-zinc-500";
+    }
+  }
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5">
@@ -468,27 +540,38 @@ function RecapMatchRow({ item }: { item: RecapItem }) {
         </span>
       </div>
 
-      {item.breakdown.length ? (
-        <div className="mt-2 flex flex-wrap items-center gap-1">
-          {item.breakdown.map((part) => (
+      <div className="mt-2 flex flex-wrap items-center gap-1">
+          <span
+            title="Tu predicción"
+            className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${pickClass}`}
+          >
+            {item.pick
+              ? `${item.pick.homeScore}-${item.pick.awayScore}`
+              : "–-–"}
+          </span>
+          {xiChips.map(({ player, points: playerPoints }) => (
             <span
-              key={part.label}
-              className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400"
+              key={player.id}
+              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] py-px pl-px pr-1.5 text-[10px] font-medium text-zinc-400"
             >
-              {part.label}
+              <PlayerAvatar player={player} className="size-4! text-[6px]" />
+              {player.name}
               <span
-                className={part.points >= 0 ? "text-white" : "text-red-400"}
+                className={playerPoints >= 0 ? "text-white" : "text-red-400"}
               >
-                {part.points > 0 ? `+${part.points}` : part.points}
+                {playerPoints > 0 ? `+${playerPoints}` : playerPoints}
               </span>
             </span>
           ))}
-        </div>
-      ) : (
-        <p className="mt-2 text-[11px] font-medium text-zinc-500">
-          No has puntuado en este partido.
-        </p>
-      )}
+          {item.xiOther !== 0 ? (
+            <span className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
+              Tu once
+              <span className={item.xiOther >= 0 ? "text-white" : "text-red-400"}>
+                {item.xiOther > 0 ? `+${item.xiOther}` : item.xiOther}
+              </span>
+            </span>
+          ) : null}
+      </div>
     </div>
   );
 }
