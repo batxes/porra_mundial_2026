@@ -165,6 +165,7 @@ export function LeaderboardView() {
       ) : view === "chart" ? (
         <Card className="overflow-hidden">
           <LeaderboardEvolution
+            key={filter}
             leaderboard={visible}
             adminResults={adminResults}
             currentUserId={user?.id}
