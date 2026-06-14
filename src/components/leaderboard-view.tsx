@@ -16,6 +16,7 @@ import {
   TeamFlag,
   WolfBadge,
 } from "@/components/common";
+import { LeaderboardEvolution } from "@/components/leaderboard-evolution";
 import { useAppContext } from "@/lib/app-context";
 import { data, teamsById } from "@/lib/data";
 import {
@@ -42,6 +43,7 @@ function normalizeSearch(value: string) {
 export function LeaderboardView() {
   const { leaderboard: fullLeaderboard, adminResults, ready, user } = useAppContext();
   const [filter, setFilter] = useState<LeaderboardFilter>("all");
+  const [view, setView] = useState<"table" | "chart">("table");
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
@@ -80,36 +82,55 @@ export function LeaderboardView() {
       />
 
       {ready ? (
-        <div className="inline-flex max-w-full overflow-x-auto rounded-xl border border-white/10 bg-white/[0.04] p-1">
-          <FilterTab
-            active={filter === "all"}
-            label="Todos"
-            count={leaderboard.length}
-            onClick={() => setFilter("all")}
-          />
-          {proCount > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex max-w-full overflow-x-auto rounded-xl border border-white/10 bg-white/[0.04] p-1">
             <FilterTab
-              active={filter === "pro"}
-              label="PRO"
-              count={proCount}
-              tone="pro"
-              onClick={() => setFilter("pro")}
+              active={filter === "all"}
+              label="Todos"
+              count={leaderboard.length}
+              onClick={() => setFilter("all")}
             />
-          ) : null}
-          <FilterTab
-            active={filter === "players"}
-            label="Jugadores"
-            count={playerStandings.length}
-            onClick={() => setFilter("players")}
-          />
-          {isWolf ? (
+            {proCount > 0 ? (
+              <FilterTab
+                active={filter === "pro"}
+                label="PRO"
+                count={proCount}
+                tone="pro"
+                onClick={() => setFilter("pro")}
+              />
+            ) : null}
             <FilterTab
-              active={filter === "wolf"}
-              label="🐺"
-              count={wolfCount}
-              tone="wolf"
-              onClick={() => setFilter("wolf")}
+              active={filter === "players"}
+              label="Jugadores"
+              count={playerStandings.length}
+              onClick={() => setFilter("players")}
             />
+            {isWolf ? (
+              <FilterTab
+                active={filter === "wolf"}
+                label="🐺"
+                count={wolfCount}
+                tone="wolf"
+                onClick={() => setFilter("wolf")}
+              />
+            ) : null}
+          </div>
+
+          {filter !== "players" ? (
+            <div className="flex w-full items-center gap-1 sm:w-auto">
+              <ViewTab
+                active={view === "table"}
+                kind="table"
+                label="Tabla"
+                onClick={() => setView("table")}
+              />
+              <ViewTab
+                active={view === "chart"}
+                kind="chart"
+                label="Evolución"
+                onClick={() => setView("chart")}
+              />
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -141,6 +162,14 @@ export function LeaderboardView() {
               : "Cuando alguien tenga el badge PRO aparecerá en esta vista."
           }
         />
+      ) : view === "chart" ? (
+        <Card className="overflow-hidden">
+          <LeaderboardEvolution
+            leaderboard={visible}
+            adminResults={adminResults}
+            currentUserId={user?.id}
+          />
+        </Card>
       ) : (
         <Card className="overflow-hidden p-0">
           <LeaderboardHeaderRow />
@@ -344,6 +373,53 @@ function FilterTab({
       >
         {count}
       </span>
+    </button>
+  );
+}
+
+function ViewTab({
+  active,
+  kind,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  kind: "table" | "chart";
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-bold transition sm:flex-none ${
+        active
+          ? "border-[#a7f600]/40 bg-[#a7f600]/15 text-[#a7f600]"
+          : "border-transparent text-zinc-400 hover:bg-white/[0.06] hover:text-white"
+      }`}
+    >
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 16 16"
+        className="h-3.5 w-3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {kind === "table" ? (
+          <>
+            <line x1="2.5" y1="4" x2="13.5" y2="4" />
+            <line x1="2.5" y1="8" x2="13.5" y2="8" />
+            <line x1="2.5" y1="12" x2="13.5" y2="12" />
+          </>
+        ) : (
+          <polyline points="2 11 6 7 9 9 14 3" />
+        )}
+      </svg>
+      {label}
     </button>
   );
 }
