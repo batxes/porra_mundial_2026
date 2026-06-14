@@ -169,6 +169,7 @@ export function LeaderboardView() {
             adminResults={adminResults}
             currentUserId={user?.id}
             canSeeWolf={isWolf}
+            subgroup={filter === "wolf"}
           />
         </Card>
       ) : (

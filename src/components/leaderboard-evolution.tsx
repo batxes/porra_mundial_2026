@@ -247,18 +247,22 @@ export function LeaderboardEvolution({
   adminResults,
   currentUserId,
   canSeeWolf = false,
+  subgroup = false,
 }: {
   leaderboard: UserProfile[];
   adminResults: AdminResults;
   currentUserId?: string;
   canSeeWolf?: boolean;
+  subgroup?: boolean;
 }) {
   const model = useMemo(
     () => buildEvolution(leaderboard, adminResults, currentUserId),
     [leaderboard, adminResults, currentUserId],
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() =>
-    defaultSelection(model.series, currentUserId),
+    subgroup
+      ? new Set(model.series.map((item) => item.profile.id))
+      : defaultSelection(model.series, currentUserId),
   );
   const [progress, setProgress] = useState(0);
   const [isMobile, setIsMobile] = useState(
@@ -399,21 +403,25 @@ export function LeaderboardEvolution({
           Evolución de posiciones
         </p>
         <div className="flex items-center gap-1.5">
-          <button type="button" onClick={selectTop} className={presetCls(isTop)}>
-            Top 10
-          </button>
-          <button type="button" onClick={selectAll} className={presetCls(isAll)}>
-            Todos
-          </button>
-          {showWolfPreset ? (
-            <button
-              type="button"
-              onClick={selectWolf}
-              aria-label="Manada"
-              className={presetCls(isWolfSel)}
-            >
-              🐺
-            </button>
+          {!subgroup ? (
+            <>
+              <button type="button" onClick={selectTop} className={presetCls(isTop)}>
+                Top 10
+              </button>
+              <button type="button" onClick={selectAll} className={presetCls(isAll)}>
+                Todos
+              </button>
+              {showWolfPreset ? (
+                <button
+                  type="button"
+                  onClick={selectWolf}
+                  aria-label="Manada"
+                  className={presetCls(isWolfSel)}
+                >
+                  🐺
+                </button>
+              ) : null}
+            </>
           ) : null}
           <button
             type="button"
