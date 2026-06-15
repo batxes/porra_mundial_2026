@@ -679,10 +679,13 @@ export function CofresView() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      // En modo Supabase la fuente de verdad es `loadSupabaseCards`: NO leemos
-      // el localStorage local (si no, su `setState` podría pisar el inventario
-      // real con datos viejos). Solo marcamos hydrated para quitar el skeleton.
-      if (usingSupabase && user) {
+      // En modo demo (CARDS_DEMO) NO tocamos localStorage: cada montaje/F5
+      // arranca en limpio (el estado vive solo en memoria), así la demo se
+      // resetea y puedes volver a abrir los sobres. En modo Supabase la fuente
+      // de verdad es `loadSupabaseCards` (tampoco leemos el localStorage local,
+      // su setState podría pisar el inventario real con datos viejos). En ambos
+      // casos solo marcamos hydrated para quitar el skeleton.
+      if (CARDS_DEMO || (usingSupabase && user)) {
         setHydrated(true);
         return;
       }
@@ -740,27 +743,27 @@ export function CofresView() {
     return () => window.clearTimeout(timer);
   }, [loadSupabaseCards, ready, usingSupabase, user]);
 
-  // Las escrituras NO ocurren hasta haber cargado el estado guardado
-  // (`hydrated`): si no, el render inicial con estado vacío pisaría el
-  // localStorage antes de que el efecto de carga lo leyera, y la colección se
-  // perdería en cada recarga.
+  // Persistencia local SOLO fuera de demo y fuera de Supabase. En demo
+  // (CARDS_DEMO) NO escribimos: el estado es en memoria y se resetea en cada
+  // F5 (a propósito). El gate `hydrated` evita además que el render inicial
+  // vacío pise el localStorage antes de que el efecto de carga lo lea.
   useEffect(() => {
-    if (!hydrated || (usingSupabase && user)) return;
+    if (!hydrated || CARDS_DEMO || (usingSupabase && user)) return;
     writeJson(inventoryKey, inventory);
   }, [hydrated, inventory, inventoryKey, usingSupabase, user]);
 
   useEffect(() => {
-    if (!hydrated || (usingSupabase && user)) return;
+    if (!hydrated || CARDS_DEMO || (usingSupabase && user)) return;
     writeJson(openedKey, openedPackIds);
   }, [hydrated, openedPackIds, openedKey, usingSupabase, user]);
 
   useEffect(() => {
-    if (!hydrated || (usingSupabase && user)) return;
+    if (!hydrated || CARDS_DEMO || (usingSupabase && user)) return;
     writeJson(logKey, swapLog);
   }, [hydrated, logKey, swapLog, usingSupabase, user]);
 
   useEffect(() => {
-    if (!hydrated || (usingSupabase && user)) return;
+    if (!hydrated || CARDS_DEMO || (usingSupabase && user)) return;
     writeJson(localSpecialPacksKey, specialPacks);
   }, [hydrated, specialPacks, usingSupabase, user]);
 
