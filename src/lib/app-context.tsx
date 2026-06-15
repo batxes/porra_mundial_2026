@@ -125,6 +125,14 @@ type AppContextValue = {
   toggleXiPlayer: (playerId: string) => void;
   setXiFormation: (formation: string) => void;
   setXiSelection: (playerIds: string[]) => void;
+  applyCardSwap: (swap: {
+    cardId?: string | null;
+    inPlayerId: string;
+    outPlayerId: string;
+    pointsIn: number;
+    pointsOut: number;
+    sourcePackId?: string;
+  }) => Promise<{ ok: boolean; message: string }>;
   setUserPro: (userId: string, isPro: boolean) => Promise<void>;
   setUserWolf: (userId: string, isWolf: boolean) => Promise<void>;
   setUserLateEdit: (userId: string, lateEdit: boolean) => Promise<void>;
@@ -418,11 +426,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [saveSupabasePredictionForUser, syncLocalState, usingSupabase]);
 
   useEffect(() => {
-    const cached = readCachedSessionUser();
-    if (cached) {
-      setUser((current) => current ?? cached);
-    }
     const timer = window.setTimeout(() => {
+      const cached = readCachedSessionUser();
+      if (cached) {
+        setUser((current) => current ?? cached);
+      }
       void refreshData();
     }, 0);
     return () => window.clearTimeout(timer);
@@ -577,6 +585,75 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return persistPrediction(prediction, makeDefinitive);
     },
     [persistPrediction, prediction],
+  );
+
+  const applyCardSwap = useCallback(
+    async (swap: {
+      cardId?: string | null;
+      inPlayerId: string;
+      outPlayerId: string;
+      pointsIn: number;
+      pointsOut: number;
+      sourcePackId?: string;
+    }) => {
+      if (!user) {
+        return { ok: false, message: "Necesitas entrar para usar cartas." };
+      }
+
+      const currentXi = Array.isArray(prediction.xi) ? prediction.xi : [];
+      if (!currentXi.includes(swap.outPlayerId)) {
+        return { ok: false, message: "Ese jugador ya no esta en tu once." };
+      }
+      if (currentXi.includes(swap.inPlayerId)) {
+        return { ok: false, message: "Ese jugador ya esta en tu once." };
+      }
+
+      const inPlayer = playersById.get(swap.inPlayerId);
+      const outPlayer = playersById.get(swap.outPlayerId);
+      if (!inPlayer || !outPlayer || inPlayer.position !== outPlayer.position) {
+        return { ok: false, message: "La carta no coincide con el puesto." };
+      }
+
+      const canEnter =
+        swap.pointsIn < swap.pointsOut ||
+        (swap.pointsIn === 0 && swap.pointsOut >= 0);
+      if (!canEnter) {
+        return {
+          ok: false,
+          message: "El jugador de la carta debe tener menos puntos que el que sale.",
+        };
+      }
+
+      if (!usingSupabase) {
+        const nextPrediction = preparePredictionForSave({
+          ...prediction,
+          xi: currentXi.map((playerId) =>
+            playerId === swap.outPlayerId ? swap.inPlayerId : playerId,
+          ),
+        });
+
+        saveLocalPrediction(user.id, nextPrediction);
+        await syncLocalState(user.id, nextPrediction);
+        return { ok: true, message: "Swap guardado." };
+      }
+
+      const supabase = getSupabaseBrowserClient() as any;
+      if (!supabase) {
+        return { ok: false, message: "No se ha podido conectar con Supabase." };
+      }
+
+      const { error } = await supabase.rpc("apply_card_swap", {
+        p_card_id: swap.cardId || null,
+        p_out_player_id: swap.outPlayerId,
+      });
+      if (error) {
+        return { ok: false, message: error.message };
+      }
+
+      await refreshData();
+      return { ok: true, message: "Swap guardado y puntos recalculados." };
+    },
+    [prediction, refreshData, syncLocalState, user, usingSupabase],
   );
 
   const replacePrediction = useCallback(
@@ -1006,6 +1083,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (hasTournamentStarted() && !user?.lateEdit) return;
         replacePrediction(setXiSelection(prediction, playerIds));
       },
+      applyCardSwap,
       setUserPro,
       setUserWolf,
       setUserLateEdit,
@@ -1024,6 +1102,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       adminResults,
+      applyCardSwap,
       authBusy,
       authError,
       authMode,

@@ -582,6 +582,14 @@ summary {
     );
     animation: results-banner-spin 3200ms linear infinite;
   }
+
+  .cofre-card-reveal {
+    animation: cofre-card-reveal 520ms cubic-bezier(0.2, 1.2, 0.34, 1) both;
+  }
+
+  [data-cofres-opening-overlay] canvas {
+    transform-origin: center;
+  }
 }
 
 @keyframes lineup-slot-settle {
@@ -882,5 +890,78 @@ summary {
 
   100% {
     transform: translateY(-12.5rem);
+  }
+}
+
+@keyframes cofre-card-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) rotateX(72deg) scale(0.86);
+  }
+
+  62% {
+    opacity: 1;
+    transform: translateY(-4px) rotateX(0deg) scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg) scale(1);
+  }
+}
+
+/* Flotación suave del sobre del hero de /cofres. Solo se aplica con
+   motion-safe en el JSX, así que respeta prefers-reduced-motion. */
+@keyframes cofre-hero-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Entrada del modal de confirmar cambio en /cofres. */
+@keyframes cofre-modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cofres-epic-shake {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+
+  12% {
+    transform: translate3d(-10px, 6px, 0) rotate(-0.8deg);
+  }
+
+  24% {
+    transform: translate3d(9px, -7px, 0) rotate(0.7deg);
+  }
+
+  38% {
+    transform: translate3d(-7px, -4px, 0) rotate(-0.45deg);
+  }
+
+  55% {
+    transform: translate3d(5px, 4px, 0) rotate(0.32deg);
+  }
+
+  76% {
+    transform: translate3d(-2px, 1px, 0) rotate(-0.12deg);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
   }
 }

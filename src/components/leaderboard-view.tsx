@@ -46,8 +46,11 @@ export function LeaderboardView() {
   const [view, setView] = useState<"table" | "chart">("table");
 
   useEffect(() => {
-    const tab = new URLSearchParams(window.location.search).get("tab");
-    if (tab === "jugadores") setFilter("players");
+    const timer = window.setTimeout(() => {
+      const tab = new URLSearchParams(window.location.search).get("tab");
+      if (tab === "jugadores") setFilter("players");
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const leaderboard = fullLeaderboard.filter((profile) => !profile.isHidden);
