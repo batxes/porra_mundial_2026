@@ -77,9 +77,11 @@ const packPlaneHeight = packPlaneWidth / (818 / 1206);
 // consumen esto para que TODO se redimensione a la vez. En móvil (<520) el
 // sobre se achica y baja un poco; escritorio (>=820) son los valores de
 // siempre (sin regresión). Si en móvil el sobre se ve grande o pequeño, este
-// 0.7 es el ÚNICO número a tocar: todo lo demás lo sigue.
+// 0.90 es el ÚNICO número a tocar: todo lo demás lo sigue. El sobre es vertical
+// y la pantalla estrecha, así que SIEMPRE debe quedar margen lateral. Calibrado
+// a ojo: 0.76 dejaba ~15% por lado, 0.90 deja ~8-9%; subir más come ese margen.
 function packLayout(width: number) {
-  const scale = focusedPackScale * (width < 520 ? 0.7 : width < 820 ? 0.98 : 1);
+  const scale = focusedPackScale * (width < 520 ? 0.9 : width < 820 ? 0.98 : 1);
   const y = width < 520 ? focusedPackY - 0.12 : focusedPackY;
   return { scale, y };
 }
