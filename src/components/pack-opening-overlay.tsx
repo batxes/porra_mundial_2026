@@ -1800,6 +1800,105 @@ function ShaderBackground({
 // entero; basta poner esto en `true` para reactivarlo en el futuro.
 const CARD_HOVER_FX: boolean = false;
 
+// Shader holográfico de las cartas de TIER ALTO del revelado, movido por el
+// GIROSCOPIO (DeviceOrientation) en móvil y por el ratón en escritorio. Escribe
+// CSS vars (--holo-rx/ry para el giro, --holo-mx/my para el brillo) en el nodo
+// de la carta vía rAF, SIN re-render por frame. En iOS 13+ la orientación pide
+// permiso desde un gesto del usuario: el hook devuelve un ref con la función
+// para pedirlo (se llama en el primer toque del revelado). Respeta
+// prefers-reduced-motion (si está, no engancha nada y la carta queda estática).
+function useHoloMotion(
+  enabled: boolean,
+  ref: RefObject<HTMLDivElement | null>,
+  measureRef: RefObject<HTMLDivElement | null>,
+) {
+  useEffect(() => {
+    if (!enabled || typeof window === "undefined") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
+      return;
+    }
+    const target = { rx: 0, ry: 0, mx: 50, my: 50 };
+    const cur = { rx: 0, ry: 0, mx: 50, my: 50 };
+    let base: { beta: number; gamma: number } | null = null;
+    let raf = 0;
+    let alive = true;
+    const MAX = 15; // giro máximo (grados)
+    const RANGE = 60; // rango de inclinación del móvil (grados) que llega al tope
+
+    const onOrient = (event: DeviceOrientationEvent) => {
+      if (event.beta == null || event.gamma == null) return;
+      // La PRIMERA lectura calibra el "neutro": funciona sostengas el móvil
+      // como lo sostengas.
+      if (!base) base = { beta: event.beta, gamma: event.gamma };
+      const db = Math.max(-RANGE, Math.min(RANGE, event.beta - base.beta));
+      const dg = Math.max(-RANGE, Math.min(RANGE, event.gamma - base.gamma));
+      target.rx = -(db / RANGE) * MAX;
+      target.ry = (dg / RANGE) * MAX;
+      target.mx = 50 + (dg / RANGE) * 50;
+      target.my = 50 + (db / RANGE) * 50;
+    };
+    const onMouse = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return;
+      // Medimos sobre la caja ESTABLE (no la capa que se inclina), si no su
+      // rect cambiaría con el giro y derivaría.
+      const el = measureRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      const px = (event.clientX - r.left) / r.width;
+      const py = (event.clientY - r.top) / r.height;
+      // PRUEBA: todo el viewport como área -> la carta gira según el ratón esté
+      // donde esté en la pantalla (el giro se mantiene al máximo más allá del
+      // borde de la carta, por el clamp de cx/cy a ±0.5).
+      const inside = true;
+      const cx = Math.max(-0.5, Math.min(0.5, px - 0.5));
+      const cy = Math.max(-0.5, Math.min(0.5, py - 0.5));
+      target.rx = inside ? -cy * 2 * MAX : 0;
+      target.ry = inside ? cx * 2 * MAX : 0;
+      target.mx = inside ? px * 100 : 50;
+      target.my = inside ? py * 100 : 50;
+    };
+    const loop = () => {
+      if (!alive) return;
+      cur.rx += (target.rx - cur.rx) * 0.12;
+      cur.ry += (target.ry - cur.ry) * 0.12;
+      cur.mx += (target.mx - cur.mx) * 0.12;
+      cur.my += (target.my - cur.my) * 0.12;
+      const el = ref.current;
+      if (el) {
+        el.style.setProperty("--holo-rx", `${cur.rx.toFixed(2)}deg`);
+        el.style.setProperty("--holo-ry", `${cur.ry.toFixed(2)}deg`);
+        // Centro del brillo (rango completo 0-100%): para máscaras/glare.
+        el.style.setProperty("--holo-mx", `${cur.mx.toFixed(1)}%`);
+        el.style.setProperty("--holo-my", `${cur.my.toFixed(1)}%`);
+        // Paneo del FOIL: rango comprimido y centrado (34-66%) para que las
+        // bandas se muevan pero sin llegar nunca al borde/hueco del patrón
+        // (si no, al inclinar a un lado se veía "el final del shader").
+        el.style.setProperty("--holo-bx", `${(30 + cur.mx * 0.4).toFixed(1)}%`);
+        el.style.setProperty("--holo-by", `${(30 + cur.my * 0.4).toFixed(1)}%`);
+      }
+      raf = requestAnimationFrame(loop);
+    };
+
+    // El permiso de orientación en iOS se pide al ABRIR el sobre (gesto del
+    // usuario, ver requestOrientationPermission en cofres-view). Aquí solo
+    // escuchamos: en iOS dispara si se concedió, en Android directo, y en
+    // escritorio no dispara (queda la ruta de ratón).
+    if ("DeviceOrientationEvent" in window) {
+      window.addEventListener("deviceorientation", onOrient);
+    }
+    window.addEventListener("pointermove", onMouse);
+    raf = requestAnimationFrame(loop);
+
+    return () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+      window.removeEventListener("deviceorientation", onOrient);
+      window.removeEventListener("pointermove", onMouse);
+    };
+  }, [enabled, ref, measureRef]);
+}
+
 // Revelado en HTML (reusa la carta del inventario). three.js solo se encarga
 // del sobre; al abrirlo, el Canvas se desmonta y entra esta capa: cartas una a
 // una con tap/swipe, abanico final, tilt 3D en CSS y barrido de brillo.
@@ -1844,6 +1943,13 @@ function RevealCards({
     my: 50,
     active: false,
   });
+
+  // Shader holográfico por giroscopio en la carta de tier alto (legendaria).
+  // Solo se engancha si el sobre tiene alguna legendaria. holoRef apunta a la
+  // carta protagonista cuando es legendaria; el hook le escribe las CSS vars.
+  const hasLegendary = cards.some((card) => starPlayerIds.has(card.playerId));
+  const holoRef = useRef<HTMLDivElement>(null);
+  useHoloMotion(hasLegendary, holoRef, stageRef);
 
   const onDown = (event: ReactPointerEvent) => {
     if (done || !event.isPrimary) return;
@@ -2019,9 +2125,14 @@ function RevealCards({
               : 0;
           // Pop hacia el espectador al pasar el ratón (efecto 3D más marcado).
           const lift = hoverActive ? 34 : 0;
-          // Rareza ALTA (legendaria) = shader holográfico espectacular; el resto
-          // (común), solo un brillo muy sutil. (Hoy solo hay común/legendaria.)
+          // Rareza ALTA (legendaria) = shader holográfico (foil + glare) que
+          // sigue al giroscopio/ratón. El resto, sin shader.
           const legendary = starPlayerIds.has(card.playerId);
+          // Carta "protagonista" del shader: la que estás revelando (isHero) Y la
+          // que queda mostrada al terminar (done + revelada), justo antes de
+          // entrar al inventario.
+          const showcase = isHero || (done && revealed);
+          const holoHero = showcase && legendary;
           return (
             <div
               key={card.id}
@@ -2040,62 +2151,49 @@ function RevealCards({
                 willChange: "transform",
               }}
             >
-              <div className="relative h-full w-full">
+              <div
+                ref={holoHero ? holoRef : undefined}
+                className="relative h-full w-full"
+                style={
+                  holoHero
+                    ? {
+                        // Giro 3D que sigue al giroscopio/ratón (CSS vars que
+                        // pone useHoloMotion). Va aquí, NO en la capa que coloca
+                        // el abanico, para no pisar su transición de posición.
+                        transform:
+                          "rotateY(var(--holo-ry, 0deg)) rotateX(var(--holo-rx, 0deg)) translateZ(18px)",
+                        transformStyle: "preserve-3d",
+                        transition: "transform 70ms linear",
+                      }
+                    : undefined
+                }
+              >
                 <PlayerCard
                   playerId={card.playerId}
                   points={pointsFor(card.playerId)}
                   featured={isHero}
+                  holoShader={showcase && legendary}
                 />
-                {isHero ? (
+                {showcase ? (
                   <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg">
-                    {/* SHADER ESPECTACULAR (solo rareza alta): foil arcoíris que
-                        se desplaza con el puntero, en color-dodge sobre el navy
-                        oscuro de la carta -> brillo vivo tipo poke-holo.
-                        (Desactivado por CARD_HOVER_FX.) */}
-                    {CARD_HOVER_FX && legendary ? (
+                    {/* El holo (foil dorado + destello) va DENTRO de la carta,
+                        DETRÁS de la foto (PlayerCard holoShader), para que la
+                        cara del jugador quede por encima/limpia. El tilt 3D por
+                        giroscopio sigue en la capa interior (--holo-rx/ry). Aquí
+                        solo queda el barrido del momento de revelar. */}
+                    {isHero ? (
                       <div
-                        className="absolute inset-0"
+                        className="absolute inset-y-[-30%] left-0 w-1/2"
                         style={{
-                          opacity: hoverActive ? 0.62 : 0,
-                          transition: "opacity 220ms ease",
-                          mixBlendMode: "color-dodge",
-                          backgroundSize: "230% 230%",
-                          backgroundPosition: `${hover.mx}% ${hover.my}%`,
-                          backgroundImage:
-                            "linear-gradient(115deg, transparent 6%, rgba(255,119,115,0.42) 18%, rgba(255,233,99,0.4) 30%, rgba(168,255,120,0.42) 42%, rgba(120,247,238,0.42) 54%, rgba(125,151,255,0.45) 66%, rgba(214,123,255,0.45) 78%, transparent 92%)",
+                          background:
+                            "linear-gradient(100deg, transparent, rgba(255,255,255,0.33), transparent)",
+                          // forwards: al terminar se queda en el último fotograma
+                          // (fuera de la carta, a la derecha) y no deja la mitad
+                          // iluminada con la banda en su posición base.
+                          animation: "cofreShine 780ms ease-out forwards",
                         }}
                       />
                     ) : null}
-                    {/* Glare especular que sigue al ratón. Rareza alta = marcado;
-                        común = MUY sutil (solo un punto de luz tenue).
-                        (Desactivado por CARD_HOVER_FX.) */}
-                    {CARD_HOVER_FX ? (
-                      <div
-                        className="absolute inset-0"
-                        style={{
-                          opacity: hoverActive ? (legendary ? 0.6 : 0.16) : 0,
-                          transition: "opacity 200ms ease",
-                          background: `radial-gradient(circle at ${hover.mx}% ${hover.my}%, rgba(255,255,255,${
-                            legendary ? 0.85 : 0.55
-                          }), rgba(255,255,255,0.1) ${
-                            legendary ? 26 : 32
-                          }%, transparent 56%)`,
-                          mixBlendMode: "overlay",
-                        }}
-                      />
-                    ) : null}
-                    {/* Barrido único al revelarse la carta. */}
-                    <div
-                      className="absolute inset-y-[-30%] left-0 w-1/2"
-                      style={{
-                        background:
-                          "linear-gradient(100deg, transparent, rgba(255,255,255,0.33), transparent)",
-                        // forwards: al terminar se queda en el último fotograma
-                        // (fuera de la carta, a la derecha) y no deja la mitad
-                        // iluminada con la banda en su posición base.
-                        animation: "cofreShine 780ms ease-out forwards",
-                      }}
-                    />
                   </div>
                 ) : null}
               </div>

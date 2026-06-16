@@ -41,11 +41,15 @@ export function PlayerCard({
   points,
   selected = false,
   featured = false,
+  holoShader = false,
 }: {
   playerId: string;
   points: number;
   selected?: boolean;
   featured?: boolean;
+  // Shader holo (foil dorado + destello) DETRÁS de la foto, movido por el
+  // giroscopio (lee --holo-bx/by/mx/my del ancestro). Solo el revelado lo activa.
+  holoShader?: boolean;
 }) {
   const player = playersById.get(playerId);
   if (!player) return null;
@@ -131,11 +135,10 @@ export function PlayerCard({
         }}
       />
 
-      {/* Holo: gradiente holográfico a pantalla completa que se DESPLAZA (anima
-          background-position, sin rotar, así no deja huecos), en `screen` por
-          detrás del recorte; brilla alrededor del jugador (foto = PNG con fondo
-          transparente). El alto del panel inferior tapa la franja al fundir. */}
-      {effects ? (
+      {/* Holo del GRID (no `featured`): gradiente que se desplaza solo en
+          `screen`. El shader del REVELADO (holoShader) se pinta al FINAL, encima
+          de toda la carta, con la foto re-pintada por encima (ver abajo). */}
+      {effects && !featured ? (
         <div
           className="cofre-card-holo pointer-events-none absolute inset-0"
           style={{
@@ -264,8 +267,10 @@ export function PlayerCard({
         </div>
       ) : null}
 
-      {/* Barrido de brillo diagonal por ENCIMA de todo (reflejo de inclinación). */}
-      {effects ? (
+      {/* Barrido de brillo diagonal por ENCIMA de todo (reflejo de inclinación).
+          Solo en el grid (no `featured`): en el revelado de tier alto el único
+          brillo es el trainer holo del fondo. */}
+      {effects && !featured ? (
         <div
           className="cofre-card-shine pointer-events-none absolute inset-0"
           style={{
@@ -273,6 +278,65 @@ export function PlayerCard({
               "linear-gradient(110deg, transparent 38%, rgba(255,255,255,0.16) 50%, transparent 62%)",
           }}
         />
+      ) : null}
+
+      {/* Shader del REVELADO de tier alto (holoShader): foil dorado + destello a
+          TODA la carta, encima de todo, movido por el giroscopio. `screen` AÑADE
+          luz dorada dejando ver el fondo (no lo "come" como color-dodge). La
+          FOTO del jugador se re-pinta ENCIMA, así queda limpia -> el shader cubre
+          toda la carta MENOS la foto (incluida la parte de atrás). */}
+      {holoShader ? (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              mixBlendMode: "screen",
+              filter: "saturate(1.1)",
+              backgroundSize: "260% 260%",
+              backgroundPosition: "var(--holo-bx, 50%) var(--holo-by, 50%)",
+              backgroundImage:
+                "repeating-linear-gradient(110deg, rgba(150,112,52,0.1) 0%, rgba(214,170,96,0.2) 18%, rgba(255,228,156,0.38) 30%, rgba(255,249,228,0.55) 36%, rgba(255,228,156,0.38) 42%, rgba(214,170,96,0.2) 54%, rgba(150,112,52,0.1) 72%)",
+              WebkitMaskImage:
+                "radial-gradient(130% 130% at var(--holo-mx, 50%) var(--holo-my, 50%), #000 0%, rgba(0,0,0,0.6) 100%)",
+              maskImage:
+                "radial-gradient(130% 130% at var(--holo-mx, 50%) var(--holo-my, 50%), #000 0%, rgba(0,0,0,0.6) 100%)",
+            }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              opacity: 0.3,
+              mixBlendMode: "screen",
+              backgroundImage:
+                "radial-gradient(rgba(255,255,255,0.6) 0.5px, transparent 1.3px), radial-gradient(rgba(255,255,255,0.45) 0.5px, transparent 1.3px)",
+              backgroundSize: "6px 6px, 9px 9px",
+              backgroundPosition: "0 0, 3px 4px",
+              WebkitMaskImage:
+                "radial-gradient(55% 55% at var(--holo-mx, 50%) var(--holo-my, 50%), #000 0%, transparent 72%)",
+              maskImage:
+                "radial-gradient(55% 55% at var(--holo-mx, 50%) var(--holo-my, 50%), #000 0%, transparent 72%)",
+            }}
+          />
+          {/* Foto re-pintada por encima del shader. Con opacidad < 1 deja pasar
+              una fracción del shader de debajo -> la cara recibe el holo MUY
+              leve (y en movimiento), mientras el resto de la carta lo lleva al
+              100%. Sube/baja esta opacidad para más/menos brillo en la foto. */}
+          {photo ? (
+            <div
+              className="pointer-events-none absolute inset-x-[8%] top-[10%] h-[60%]"
+              style={{ opacity: 0.8 }}
+            >
+              <Image
+                src={photo}
+                alt=""
+                fill
+                sizes="(max-width: 768px) 34vw, 300px"
+                className="object-cover object-top"
+                unoptimized
+              />
+            </div>
+          ) : null}
+        </>
       ) : null}
     </article>
   );
