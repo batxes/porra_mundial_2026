@@ -419,6 +419,7 @@ export const playerPhotoOverrides: Record<string, string> = {
   "egy-06": "/player-photos/fotmob/egy-06.png",
   "egy-07": "/player-photos/fotmob/egy-07.png",
   "egy-08": "/player-photos/fotmob/egy-08.png",
+  "egy-09": "/player-photos/fotmob/egy-09.png",
   "egy-10": "/player-photos/fotmob/egy-10.png",
   "egy-11": "/player-photos/fotmob/egy-11.png",
   "egy-12": "/player-photos/fotmob/egy-12.png",
