@@ -40,10 +40,10 @@ type Pack = {
   playerIds: string[];
   dateKey?: string;
   availableAt: string;
-  // Imagen del sobre para el overlay 3D y el hero. Por defecto /sobre.png.
+  // Imagen del sobre para el overlay 3D y el hero. Por defecto /sobre.webp.
   image?: string;
   // Color del cacho que vuela al cortar en el overlay 3D (por defecto verde).
-  flap?: "green" | "white" | "black" | "navy";
+  flap?: "green" | "white" | "black" | "navy" | "royal";
 };
 
 // Sobres agrupados por TIPO para la estantería del hero (los diarios cuentan
@@ -252,6 +252,30 @@ const SUB21_PLAYER_IDS = [
   "por-15", // João Neves
   "tur-08", // Arda Güler
   "arg-18", // Nico Paz
+];
+
+// Sobre "Selección Francia": 1 carta de un internacional francés. Todos del
+// combinado `fra` del dataset (verificado por apellido).
+const FRANCE_PLAYER_IDS = [
+  "fra-16", // Mike Maignan
+  "fra-05", // Jules Koundé
+  "fra-04", // Dayot Upamecano
+  "fra-17", // William Saliba
+  "fra-19", // Théo Hernández
+  "fra-08", // Aurélien Tchouaméni
+  "fra-14", // Adrien Rabiot
+  "fra-11", // Michael Olise
+  "fra-20", // Désiré Doué
+  "fra-07", // Ousmane Dembélé
+  "fra-10", // Kylian Mbappé
+  "fra-12", // Bradley Barcola
+  "fra-09", // Marcus Thuram
+  "fra-24", // Rayan Cherki
+  "fra-13", // N'Golo Kanté
+  "fra-06", // Manu Koné
+  "fra-18", // Warren Zaïre-Emery
+  "fra-21", // Lucas Hernández
+  "fra-02", // Malo Gusto
 ];
 
 function storageKey(userId: string, suffix: string) {
@@ -521,7 +545,7 @@ export function CofresView() {
       subtitle: "1 carta del Real Madrid",
       playerIds: pickDeterministicPlayers(`madrid:${today}`, 1, MADRID_PLAYER_IDS),
       availableAt: `${today}T00:00:00.000Z`,
-      image: "/sobre-madrid.png",
+      image: "/sobre-madrid.webp",
       flap: "white",
     };
   }, []);
@@ -537,7 +561,7 @@ export function CofresView() {
       subtitle: "1 promesa sub-21",
       playerIds: pickDeterministicPlayers(`sub21:${today}`, 1, SUB21_PLAYER_IDS),
       availableAt: `${today}T00:00:00.000Z`,
-      image: "/sobre21.png",
+      image: "/sobre21.webp",
       flap: "black",
     };
   }, []);
@@ -554,8 +578,28 @@ export function CofresView() {
       subtitle: "1 estrella mundial",
       playerIds: pickDeterministicPlayers(`stars:${today}`, 1, STAR_PLAYER_IDS),
       availableAt: `${today}T00:00:00.000Z`,
-      image: "/sobre-estrellas.png",
+      image: "/sobre-estrellas.webp",
       flap: "navy",
+    };
+  }, []);
+
+  // Sobre Selección Francia: especial SIEMPRE disponible, 1 carta de un
+  // internacional francés de la lista curada (semilla por día, determinista).
+  const francePack = useMemo<Pack>(() => {
+    const today = madridTodayKey();
+    return {
+      id: "special-francia",
+      kind: "special",
+      title: "Sobre Francia",
+      subtitle: "1 internacional francés",
+      playerIds: pickDeterministicPlayers(
+        `francia:${today}`,
+        1,
+        FRANCE_PLAYER_IDS,
+      ),
+      availableAt: `${today}T00:00:00.000Z`,
+      image: "/sobre-francia.webp",
+      flap: "royal",
     };
   }, []);
 
@@ -654,8 +698,22 @@ export function CofresView() {
     [inventory, openedPackIds],
   );
   const packs = useMemo(
-    () => [madridPack, sub21Pack, starsPack, ...dailyPacks, ...specialPacks],
-    [dailyPacks, madridPack, starsPack, sub21Pack, specialPacks],
+    () => [
+      madridPack,
+      sub21Pack,
+      starsPack,
+      francePack,
+      ...dailyPacks,
+      ...specialPacks,
+    ],
+    [
+      dailyPacks,
+      francePack,
+      madridPack,
+      starsPack,
+      sub21Pack,
+      specialPacks,
+    ],
   );
   const unopenedPacks = useMemo(
     () => packs.filter((pack) => !openedIds.has(pack.id)),
@@ -685,7 +743,7 @@ export function CofresView() {
             pack.kind === "daily"
               ? "Diario"
               : pack.title.replace(/^Sobre\s+/i, ""),
-          image: pack.image || "/sobre.png",
+          image: pack.image || "/sobre.webp",
           packs: [],
         };
         byKey.set(key, group);
@@ -1570,6 +1628,7 @@ const PACK_GLOW: Record<NonNullable<Pack["flap"]>, string> = {
   white: "215,227,255",
   black: "255,210,77",
   navy: "106,166,255",
+  royal: "96,150,255", // Francia: azul royal
 };
 function packGlowRgb(pack: Pack | null): string {
   return PACK_GLOW[pack?.flap ?? "green"] ?? PACK_GLOW.green;
@@ -1608,7 +1667,7 @@ function PackHero({
   // prod) y dejaba el hueco en blanco. Mostramos un skeleton hasta que carga y
   // lo fundimos al entrar. Guardamos la SRC ya cargada (no un bool) para que al
   // cambiar de sobre en la estantería reaparezca el skeleton sin parpadeo.
-  const sobreSrc = featuredPack?.image || "/sobre.png";
+  const sobreSrc = featuredPack?.image || "/sobre.webp";
   const [loadedSrc, setLoadedSrc] = useState("");
   const sobreLoaded = loadedSrc === sobreSrc;
 

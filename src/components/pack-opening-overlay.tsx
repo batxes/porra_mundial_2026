@@ -29,7 +29,7 @@ type OpeningPack = {
   title: string;
   image?: string;
   // Color del cacho que vuela al cortar (por defecto verde de marca).
-  flap?: "green" | "white" | "black" | "navy";
+  flap?: "green" | "white" | "black" | "navy" | "royal";
 };
 
 type OpeningCard = {
@@ -119,11 +119,11 @@ function easeOutCubic(value: number) {
 
 // Textura del sobre: la imagen de marca, cargada UNA vez POR URL y compartida
 // por todas las caras/mitades que usan ese sobre (cada sobre puede tener su
-// imagen: /sobre.png, /sobre-madrid.png…). No se clona: al cargar (async) el
+// imagen: /sobre.webp, /sobre-madrid.png…). No se clona: al cargar (async) el
 // TextureLoader marca needsUpdate y todos los materiales que la referencian se
 // actualizan.
 const packImageTextures = new Map<string, THREE.Texture>();
-function getPackImageTexture(url = "/sobre.png") {
+function getPackImageTexture(url = "/sobre.webp") {
   let texture = packImageTextures.get(url);
   if (!texture) {
     texture = new THREE.TextureLoader().load(url);
@@ -135,7 +135,7 @@ function getPackImageTexture(url = "/sobre.png") {
 }
 
 function usePackTexture(url?: string) {
-  return getPackImageTexture(url || "/sobre.png");
+  return getPackImageTexture(url || "/sobre.webp");
 }
 
 // Textura de la TAPA que se corta y vuela: un foil con borde dentado (crimp)
@@ -145,7 +145,9 @@ function usePackTexture(url?: string) {
 // sobre: verde de marca (por defecto) o blanco (sobre Madrid). Cacheada por
 // variante.
 const packFlapTextures = new Map<string, THREE.CanvasTexture>();
-function getFlapTexture(variant: "green" | "white" | "black" | "navy" = "green") {
+function getFlapTexture(
+  variant: "green" | "white" | "black" | "navy" | "royal" = "green",
+) {
   const cached = packFlapTextures.get(variant);
   if (cached) return cached;
   const canvas = document.createElement("canvas");
@@ -179,6 +181,13 @@ function getFlapTexture(variant: "green" | "white" | "black" | "navy" = "green")
       top: "#16203a",
       mid: "#0c1124",
       bottom: "#070a14",
+      sheen: "rgba(200,178,110,0.15)",
+      line: "#b89a3e",
+    },
+    royal: {
+      top: "#1f3a86",
+      mid: "#142457",
+      bottom: "#0a1330",
       sheen: "rgba(200,178,110,0.15)",
       line: "#b89a3e",
     },
@@ -297,6 +306,7 @@ const NEBULA_TINTS: Record<NonNullable<OpeningPack["flap"]>, NebulaTint> = {
   white: [0.3, 0.36, 0.46], // Madrid: plata frío
   black: [0.46, 0.33, 0.1], // sobre 21 (negro + oro): oro/ámbar
   navy: [0.12, 0.2, 0.52], // estrellas (azul + oro): azul real
+  royal: [0.11, 0.19, 0.5], // Francia (azul + rojo + oro): azul royal
 };
 function nebulaTint(flap?: OpeningPack["flap"]): NebulaTint {
   return NEBULA_TINTS[flap ?? "green"] ?? NEBULA_TINTS.green;
@@ -311,6 +321,7 @@ const PACK_ACCENTS: Record<NonNullable<OpeningPack["flap"]>, string> = {
   white: "#d7e3ff",
   black: "#ffd24d",
   navy: "#6aa6ff",
+  royal: "#6a9bff", // Francia: azul royal
 };
 function packAccent(flap?: OpeningPack["flap"]): string {
   return PACK_ACCENTS[flap ?? "green"] ?? PACK_ACCENTS.green;

@@ -1,5 +1,5 @@
 // Jugadores "estrella" (los mejores del mundo). Sirve para dos cosas:
-//  1. Pool del Sobre Estrellas (/sobre-estrellas.png), que tira 1 carta.
+//  1. Pool del Sobre Estrellas (/sobre-estrellas.webp), que tira 1 carta.
 //  2. RAREZA de las cartas: estar en esta lista = "legendaria" (la mayor); el
 //     resto, "comun". Sustituye al sistema antiguo por umbrales de PUNTOS, que
 //     era arbitrario (premiaba a un defensa goleador como si fuera un crack).
