@@ -1810,6 +1810,7 @@ function RevealCards({
   pointsFor,
   title,
   tint = NEBULA_TINTS.green,
+  accent = PACK_ACCENTS.green,
 }: {
   cards: OpeningCard[];
   stackIndex: number;
@@ -1817,6 +1818,7 @@ function RevealCards({
   pointsFor: (playerId: string) => number;
   title?: string;
   tint?: NebulaTint;
+  accent?: string;
 }) {
   const done = stackIndex >= cards.length;
   // Acento de la carta visible (protagonista) para teñir el brillo del fondo.
@@ -1944,13 +1946,22 @@ function RevealCards({
       {/* Cabecera: logo + título del sobre. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-3 pt-[5vh] sm:pt-[6vh]">
         <div className="relative h-14 w-72 sm:h-20 sm:w-[26rem] xl:h-24 xl:w-[32rem]">
+          {/* Glow del logo: radial ESTÁTICO detrás (no filter), tematizado por
+              sobre. Antes era filter:drop-shadow verde y en iOS salía como un
+              rectángulo raro. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -inset-x-10 -inset-y-7"
+            style={{
+              background: `radial-gradient(60% 72% at 50% 50%, ${accent}40, transparent 75%)`,
+            }}
+          />
           <Image
             src="/logo.png"
             alt="Triliporra"
             fill
             sizes="(max-width: 640px) 288px, 512px"
             className="object-contain"
-            style={{ filter: "drop-shadow(0 0 26px rgba(167,246,0,0.34))" }}
             unoptimized
           />
         </div>
@@ -2301,6 +2312,7 @@ export function PackOpeningOverlay({
           pointsFor={pointsFor}
           title={selectedPack.title}
           tint={nebulaTint(selectedPack.flap)}
+          accent={packAccent(selectedPack.flap)}
         />
       )}
 
