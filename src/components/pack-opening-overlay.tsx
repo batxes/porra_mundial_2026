@@ -1822,8 +1822,8 @@ function useHoloMotion(
     let base: { beta: number; gamma: number } | null = null;
     let raf = 0;
     let alive = true;
-    const MAX = 30; // giro máximo (grados)
-    const RANGE = 26; // rango de inclinación del móvil (grados) que llega al tope
+    const MAX = 15; // giro máximo (grados)
+    const RANGE = 60; // rango de inclinación del móvil (grados) que llega al tope
     // (RANGE más bajo = más reactivo a inclinaciones pequeñas; MAX más alto =
     // giro más marcado. Junto con la perspectiva más cercana (650px) el giro se
     // nota claramente.)
@@ -1841,7 +1841,9 @@ function useHoloMotion(
       target.my = 50 + (db / RANGE) * 50;
     };
     const onMouse = (event: PointerEvent) => {
-      if (event.pointerType !== "mouse") return;
+      // Ratón (PC) y DEDO (móvil): arrastrar el dedo inclina la carta. En táctil
+      // no hay "hover", solo dispara mientras el dedo está apoyado y moviéndose
+      // (el tap <14px sigue pasando de carta; arrastrar inclina).
       // Medimos sobre la caja ESTABLE (no la capa que se inclina), si no su
       // rect cambiaría con el giro y derivaría.
       const el = measureRef.current;
