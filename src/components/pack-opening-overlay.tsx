@@ -1822,8 +1822,10 @@ function useHoloMotion(
     let base: { beta: number; gamma: number } | null = null;
     let raf = 0;
     let alive = true;
-    const MAX = 15; // giro máximo (grados)
-    const RANGE = 60; // rango de inclinación del móvil (grados) que llega al tope
+    const MAX = 24; // giro máximo (grados)
+    const RANGE = 32; // rango de inclinación del móvil (grados) que llega al tope
+    // (RANGE más bajo = más reactivo a inclinaciones pequeñas; MAX más alto =
+    // giro más marcado. Antes 15/60 se notaba casi imperceptible en móvil.)
 
     const onOrient = (event: DeviceOrientationEvent) => {
       if (event.beta == null || event.gamma == null) return;

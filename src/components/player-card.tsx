@@ -100,7 +100,7 @@ export function PlayerCard({
     <article
       data-selected={selected}
       data-rarity={rarity}
-      className={`cofre-card relative aspect-[5/7] overflow-hidden rounded-lg ${
+      className={`cofre-card relative aspect-[5/7] select-none overflow-hidden rounded-lg ${
         featured ? "cofre-card--featured" : ""
       }`}
       style={{

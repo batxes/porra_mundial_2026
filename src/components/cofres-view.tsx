@@ -1494,12 +1494,7 @@ export function CofresView() {
             </div>
           </Card>
 
-          <div
-            ref={swapPanelRef}
-            className={`scroll-mt-4 xl:self-start ${
-              selectedCard || lastSwap ? "" : "hidden xl:block"
-            }`}
-          >
+          <div ref={swapPanelRef} className="scroll-mt-4 xl:self-start">
             <SwapPanel
               activeXi={activeXi}
               breakdownFor={breakdownFor}
@@ -1629,6 +1624,14 @@ function PackHero({
   // Color del glow según el sobre (verde, plata, oro o azul).
   const glow = packGlowRgb(featuredPack);
 
+  // El <Image> del sobre tarda en descargar/optimizar (sobre todo el 1er hit en
+  // prod) y dejaba el hueco en blanco. Mostramos un skeleton hasta que carga y
+  // lo fundimos al entrar. Guardamos la SRC ya cargada (no un bool) para que al
+  // cambiar de sobre en la estantería reaparezca el skeleton sin parpadeo.
+  const sobreSrc = featuredPack?.image || "/sobre.png";
+  const [loadedSrc, setLoadedSrc] = useState("");
+  const sobreLoaded = loadedSrc === sobreSrc;
+
   if (!hydrated) {
     // El skeleton replica la estructura real (pill + sobre + contador + label +
     // CTA) con los mismos márgenes para que al hidratar no haya salto de layout.
@@ -1721,13 +1724,23 @@ function PackHero({
                 : "group-hover:[transform:rotateX(6deg)_rotateY(-8deg)_translateY(-6px)] group-active:scale-[1.04]"
             }`}
           >
+            {/* Skeleton en el hueco del sobre hasta que la imagen carga. */}
+            {sobreLoaded ? null : (
+              <span
+                aria-hidden
+                className="absolute inset-0 animate-pulse rounded-2xl bg-white/[0.05]"
+              />
+            )}
             <Image
-              src={featuredPack?.image || "/sobre.png"}
+              src={sobreSrc}
               alt="Sobre de cartas de la Triliporra 2026"
               fill
               priority
               sizes="(max-width: 640px) 56vw, 300px"
-              className="select-none object-contain"
+              onLoad={() => setLoadedSrc(sobreSrc)}
+              className={`select-none object-contain transition-opacity duration-500 ${
+                sobreLoaded ? "opacity-100" : "opacity-0"
+              }`}
             />
           </span>
         </span>
@@ -1829,61 +1842,41 @@ function SwapPanel({
   selectedCard: InventoryCard | undefined;
   selectedPlayer: Player | null | undefined;
 }) {
-  if (!selectedCard || !selectedPlayer) {
-    if (lastSwap) {
-      return (
-        <SwapResult
-          activeXi={activeXi}
-          breakdownFor={breakdownFor}
-          lastSwap={lastSwap}
-          onDismiss={onDismissResult}
-          pointsFor={pointsFor}
-        />
-      );
-    }
+  // Tras un cambio (no demo): muestra el NUEVO once con el fichaje resaltado.
+  if (lastSwap && (!selectedCard || !selectedPlayer)) {
     return (
-      <Card className="flex min-h-[260px] flex-col items-center justify-center gap-5 text-center xl:h-full">
-        {/* Slot de carta vacío (borde dashed) para invitar a elegir una carta. */}
-        <div className="flex aspect-[5/7] w-28 items-center justify-center rounded-lg border-2 border-dashed border-[#a7f600]/30 bg-[#a7f600]/[0.03]">
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            className="h-10 w-10 text-[#a7f600]/60"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-        </div>
-        <div>
-          <p className="font-bold text-white">Selecciona una carta</p>
-          <p className="mx-auto mt-1 max-w-[240px] text-sm text-zinc-500">
-            Elige una carta de tu colección para cambiarla por un jugador de tu
-            once.
-          </p>
-        </div>
-      </Card>
+      <SwapResult
+        activeXi={activeXi}
+        breakdownFor={breakdownFor}
+        lastSwap={lastSwap}
+        onDismiss={onDismissResult}
+        pointsFor={pointsFor}
+      />
     );
   }
 
-  const samePosTitulares = activeXi
-    .map((playerId) => playersById.get(playerId))
-    .filter(
-      (player): player is Player =>
-        player != null && player.position === selectedPlayer.position,
-    );
+  // El panel se muestra SIEMPRE con el once; el slot de la carta enseña un
+  // placeholder cuando no hay carta seleccionada. Estos datos solo se usan
+  // cuando hay carta.
+  const samePosTitulares = selectedPlayer
+    ? activeXi
+        .map((playerId) => playersById.get(playerId))
+        .filter(
+          (player): player is Player =>
+            player != null && player.position === selectedPlayer.position,
+        )
+    : [];
   const eligibleCount = samePosTitulares.filter(
     (player) => candidateFor(player).eligible,
   ).length;
-  const selectedPhoto = playerPhotoUrl(selectedPlayer);
-  const selectedPts = pointsFor(selectedPlayer.id);
-  const selectedBreakdown = breakdownFor(selectedPlayer.id);
+  const selectedPhoto = selectedPlayer ? playerPhotoUrl(selectedPlayer) : "";
+  const selectedPts = selectedPlayer ? pointsFor(selectedPlayer.id) : 0;
+  const selectedBreakdown = selectedPlayer
+    ? breakdownFor(selectedPlayer.id)
+    : null;
 
   return (
-    <Card className="space-y-4">
+    <Card className="space-y-4 select-none">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-white">
@@ -1893,16 +1886,19 @@ function SwapPanel({
             Cambia un jugador de tu once por tu carta.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onClear}
-          className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/10"
-        >
-          Cerrar
-        </button>
+        {selectedPlayer ? (
+          <button
+            type="button"
+            onClick={onClear}
+            className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/10"
+          >
+            Cerrar
+          </button>
+        ) : null}
       </div>
 
-      <div className="rounded-xl border border-[#a7f600]/30 bg-gradient-to-br from-[#a7f600]/[0.14] to-transparent p-3">
+      {selectedPlayer ? (
+        <div className="rounded-xl border border-[#a7f600]/30 bg-gradient-to-br from-[#a7f600]/[0.14] to-transparent p-3">
         <div className="flex items-center gap-3">
           <span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#a7f600]/40 bg-zinc-900">
             {selectedPhoto ? (
@@ -1934,7 +1930,7 @@ function SwapPanel({
               </span>
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {hasAnyEvent(selectedBreakdown) ? (
+              {selectedBreakdown && hasAnyEvent(selectedBreakdown) ? (
                 <EventPills breakdown={selectedBreakdown} />
               ) : (
                 <span className="text-[11px] text-zinc-400">
@@ -1960,14 +1956,43 @@ function SwapPanel({
             </span>
           </div>
         </div>
-      </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 rounded-xl border border-dashed border-white/[0.14] bg-white/[0.02] p-3">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-[#a7f600]/30 bg-[#a7f600]/[0.04]">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-6 w-6 text-[#a7f600]/60"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+              Tu carta
+            </span>
+            <p className="mt-0.5 text-sm font-bold text-white">
+              Selecciona una carta
+            </p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Elígela de tu colección para cambiarla por un jugador de tu once.
+            </p>
+          </div>
+        </div>
+      )}
 
       {CARDS_DEMO ? (
         <Notice tone="warm">
           Los cambios de jugador estarán disponibles pronto. De momento puedes
           abrir sobres y ver tus cartas.
         </Notice>
-      ) : samePosTitulares.length === 0 ? (
+      ) : !selectedPlayer ? null : samePosTitulares.length === 0 ? (
         <Notice tone="warm">No hay titulares de este puesto en tu once.</Notice>
       ) : eligibleCount === 0 ? (
         <Notice tone="danger">
@@ -1989,7 +2014,7 @@ function SwapPanel({
         candidateFor={candidateFor}
         pointsFor={pointsFor}
         requestSwap={requestSwap}
-        selectedPosition={selectedPlayer.position}
+        selectedPosition={selectedPlayer?.position}
       />
     </Card>
   );
@@ -2013,7 +2038,7 @@ function SwapResult({
   const inPlayer = playersById.get(lastSwap.inPlayerId);
   const outPlayer = playersById.get(lastSwap.outPlayerId);
   return (
-    <Card className="space-y-4 xl:flex xl:h-full xl:flex-col">
+    <Card className="space-y-4 select-none xl:flex xl:h-full xl:flex-col">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#a7f600]/15 text-[#a7f600]">
