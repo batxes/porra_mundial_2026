@@ -1752,9 +1752,11 @@ function MatchPicksModal({
         <div className="team-picker-scroll -mr-2 min-h-0 space-y-1.5 overflow-y-auto pr-2">
           {filteredRows.map(
             ({ matchPoints, pick, profile, scoringPlayerIds, xiPlayers }) => (
-              <div
+              <Link
                 key={profile.id}
-                className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-2.5 py-2"
+                href={`/perfil/${encodeURIComponent(profile.id)}`}
+                onClick={onClose}
+                className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-2.5 py-2 transition hover:bg-white/[0.06]"
               >
                 <div className="flex min-w-0 items-center gap-2.5">
                   <Avatar
@@ -1822,7 +1824,7 @@ function MatchPicksModal({
                     </span>
                   ) : null}
                 </div>
-              </div>
+              </Link>
             ),
           )}
           {!rows.length ? (
