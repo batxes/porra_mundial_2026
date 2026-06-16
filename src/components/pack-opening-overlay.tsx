@@ -316,6 +316,20 @@ function packAccent(flap?: OpeningPack["flap"]): string {
   return PACK_ACCENTS[flap ?? "green"] ?? PACK_ACCENTS.green;
 }
 
+// Vibración háptica al abrir el sobre / revelar cartas. Solo Android (y algunos
+// navegadores); iOS Safari NO soporta navigator.vibrate (es no-op). Se llama
+// desde handlers de gesto del usuario (corte/tap), que es lo que el API exige.
+function vibrate(pattern: number | number[]) {
+  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") {
+    return;
+  }
+  try {
+    navigator.vibrate(pattern);
+  } catch {
+    // algunos navegadores lanzan sin activación de usuario; lo ignoramos.
+  }
+}
+
 // Fondo de la escena 3D del sobre: el MISMO shader nebulosa como quad a pantalla
 // completa (RawShaderMaterial), detrás de todo (renderOrder -1, sin depth). El
 // vertex shader saca el quad directo en clip-space, ignorando la cámara, así que
@@ -1885,25 +1899,18 @@ function useHoloMotion(
       raf = requestAnimationFrame(loop);
     };
 
-    const startGyro = () =>
-      window.addEventListener("deviceorientation", onOrient);
+    // Giroscopio SOLO donde no hace falta permiso (Android/escritorio). En iOS,
+    // DeviceOrientationEvent.requestPermission existe y exige pedir permiso con
+    // un gesto -> NO lo pedimos (sin prompt) y NO enganchamos el listener: en
+    // iOS no hay giroscopio, la carta se mueve con el DEDO (ruta de puntero).
     const DOE = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
       requestPermission?: () => Promise<"granted" | "denied">;
     };
-    if ("DeviceOrientationEvent" in window) {
-      // Escucha ya: cubre Android y iOS con el permiso YA concedido antes.
-      startGyro();
-      // iOS sin permiso aún: lo pedimos al tocar la carta (gesto). Al concederlo
-      // re-enganchamos (addEventListener deduplica, no añade dos veces).
-      if (typeof DOE.requestPermission === "function") {
-        requestRef.current = () => {
-          DOE.requestPermission?.()
-            .then((res) => {
-              if (res === "granted") startGyro();
-            })
-            .catch(() => {});
-        };
-      }
+    if (
+      "DeviceOrientationEvent" in window &&
+      typeof DOE.requestPermission !== "function"
+    ) {
+      window.addEventListener("deviceorientation", onOrient);
     }
     window.addEventListener("pointermove", onMouse);
     raf = requestAnimationFrame(loop);
@@ -2309,6 +2316,7 @@ export function PackOpeningOverlay({
   const onCardSwiped = useCallback(() => {
     // Avanza el paso del revelado; al pasar la última, queda en "todo revelado"
     // (stackIndex === cards.length) y aparece el CTA. Sin cambio de fase.
+    vibrate(12); // toquecito háptico al pasar/revelar carta
     setStackIndex((current) => Math.min(current + 1, cards.length));
   }, [cards.length]);
 
@@ -2346,6 +2354,7 @@ export function PackOpeningOverlay({
   }, []);
 
   const onSlashComplete = useCallback(() => {
+    vibrate([22, 35, 85]); // "burst" háptico al abrir el sobre (Android; iOS no)
     setPhase("opening");
   }, []);
 

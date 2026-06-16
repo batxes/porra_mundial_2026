@@ -19,7 +19,7 @@ import { data, playersById, teamsById } from "@/lib/data";
 import { initials, playerPhotoUrl } from "@/lib/format";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { calculatePlayerStandings } from "@/lib/scoring";
-import { STAR_PLAYER_IDS, starPlayerIds } from "@/lib/star-players";
+import { STAR_PLAYER_IDS } from "@/lib/star-players";
 import type { AdminEvent, AdminResults, Player, Position } from "@/lib/types";
 
 const PackOpeningOverlay = dynamic(
@@ -1011,11 +1011,6 @@ export function CofresView() {
         return;
       }
 
-      // Si el sobre trae alguna carta de tier alto, pedimos (una vez) permiso
-      // de giroscopio para el holo del revelado, aprovechando este gesto.
-      if (pack.playerIds.some((id) => starPlayerIds.has(id))) {
-        requestOrientationPermission();
-      }
       setActivePack(pack);
       setMessage("");
       setOpening(true);
@@ -1565,21 +1560,6 @@ export function CofresView() {
       ) : null}
     </div>
   );
-}
-
-// iOS 13+: el giroscopio (para el holo de las cartas legendarias en el
-// revelado) necesita permiso pedido desde un gesto del usuario. Lo pedimos al
-// abrir el sobre (este onClick es el gesto). No-op fuera de iOS / sin soporte.
-function requestOrientationPermission() {
-  if (typeof window === "undefined") return;
-  const DOE = window.DeviceOrientationEvent as
-    | (typeof window.DeviceOrientationEvent & {
-        requestPermission?: () => Promise<"granted" | "denied">;
-      })
-    | undefined;
-  if (DOE && typeof DOE.requestPermission === "function") {
-    DOE.requestPermission().catch(() => {});
-  }
 }
 
 // Color del glow del hero según el sobre (misma paleta que las luces de la
