@@ -532,13 +532,13 @@ export function CofresView() {
         kind: "daily" as const,
         title:
           index === 0 ? "Sobre diario" : `Sobre ${formatPackDate(dateKey)}`,
-        subtitle: "3 cartas iguales para todos",
-        playerIds: pickDeterministicPlayers(`daily:${dateKey}`),
+        subtitle: "3 cartas aleatorias",
+        playerIds: pickDeterministicPlayers(`daily:${dateKey}:${drawSeed}`),
         dateKey,
         availableAt: `${dateKey}T00:00:00.000Z`,
       };
     });
-  }, []);
+  }, [drawSeed]);
 
   // Sobre Madrid: especial SIEMPRE disponible, con su propia imagen y 1 sola
   // carta del roster del Madrid (semilla por día, determinista).
@@ -1169,16 +1169,11 @@ export function CofresView() {
       // los empates sí valen).
       const cardEqualOrLower = inPoints <= outPoints;
       const eligible = Boolean(
-        !CARDS_DEMO &&
-          selectedPlayer &&
-          samePosition &&
-          !alreadyInXi &&
-          cardEqualOrLower,
+        selectedPlayer && samePosition && !alreadyInXi && cardEqualOrLower,
       );
 
       let reason = "Disponible";
-      if (CARDS_DEMO) reason = "Cambios deshabilitados por ahora";
-      else if (!selectedPlayer) reason = "Elige una carta";
+      if (!selectedPlayer) reason = "Elige una carta";
       else if (!samePosition)
         reason = `Solo ${positionLabel[selectedPlayer.position]}`;
       else if (alreadyInXi) reason = "Ya esta en tu once";
@@ -1624,6 +1619,7 @@ export function CofresView() {
           candidate={pendingSwap}
           inPlayer={selectedPlayer}
           busy={swapBusy}
+          demo={CARDS_DEMO}
           onCancel={() => setPendingSwap(null)}
           onConfirm={() => void confirmSwap()}
         />
@@ -2054,8 +2050,8 @@ function SwapPanel({
 
       {CARDS_DEMO ? (
         <Notice tone="warm">
-          Los cambios de jugador estarán disponibles pronto. De momento puedes
-          abrir sobres y ver tus cartas.
+          Modo demo: pulsa un titular de tu puesto para ver cómo quedaría el
+          cambio. Confirmarlo estará disponible pronto.
         </Notice>
       ) : !selectedPlayer ? null : samePosTitulares.length === 0 ? (
         <Notice tone="warm">No hay titulares de este puesto en tu once.</Notice>
@@ -2471,12 +2467,14 @@ function MiniPlayerPhoto({ player }: { player: Player }) {
 function ConfirmSwapModal({
   busy,
   candidate,
+  demo,
   inPlayer,
   onCancel,
   onConfirm,
 }: {
   busy: boolean;
   candidate: SwapCandidate;
+  demo: boolean;
   inPlayer: Player;
   onCancel: () => void;
   onConfirm: () => void;
@@ -2561,17 +2559,24 @@ function ConfirmSwapModal({
           </div>
         </div>
 
-        <label className="mx-5 mb-4 flex cursor-pointer select-none items-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 transition hover:bg-white/[0.06]">
-          <input
-            type="checkbox"
-            checked={acknowledged}
-            onChange={(event) => setAcknowledged(event.target.checked)}
-            className="h-4 w-4 shrink-0 accent-[#a7f600]"
-          />
-          <span className="text-xs font-semibold text-zinc-300">
-            Entiendo que este cambio es definitivo y no se puede deshacer.
-          </span>
-        </label>
+        {demo ? (
+          <div className="mx-5 mb-4 rounded-lg border border-amber-300/25 bg-amber-300/10 px-3 py-2.5 text-xs font-semibold text-amber-200">
+            Modo demo: así se ve el cambio, pero confirmarlo estará disponible
+            pronto.
+          </div>
+        ) : (
+          <label className="mx-5 mb-4 flex cursor-pointer select-none items-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 transition hover:bg-white/[0.06]">
+            <input
+              type="checkbox"
+              checked={acknowledged}
+              onChange={(event) => setAcknowledged(event.target.checked)}
+              className="h-4 w-4 shrink-0 accent-[#a7f600]"
+            />
+            <span className="text-xs font-semibold text-zinc-300">
+              Entiendo que este cambio es definitivo y no se puede deshacer.
+            </span>
+          </label>
+        )}
 
         <div className="grid gap-2 px-4 pb-4 sm:grid-cols-2">
           <button
@@ -2585,10 +2590,14 @@ function ConfirmSwapModal({
           <button
             type="button"
             onClick={onConfirm}
-            disabled={busy || !acknowledged}
+            disabled={busy || demo || !acknowledged}
             className="rounded-lg bg-[#a7f600] px-4 py-3 text-sm font-bold text-black shadow-lg shadow-[#a7f600]/10 transition hover:bg-[#c7ff43] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {busy ? "Guardando…" : "Confirmar cambio"}
+            {demo
+              ? "Disponible pronto"
+              : busy
+                ? "Guardando…"
+                : "Confirmar cambio"}
           </button>
         </div>
       </div>
