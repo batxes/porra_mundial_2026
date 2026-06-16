@@ -1812,20 +1812,21 @@ function useHoloMotion(
   ref: RefObject<HTMLDivElement | null>,
   measureRef: RefObject<HTMLDivElement | null>,
 ) {
+  // En iOS la orientación necesita permiso desde un gesto: exponemos esta
+  // función (ref) para pedirlo al TOCAR la carta, además de al abrir el sobre.
+  const requestRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
-      return;
-    }
     const target = { rx: 0, ry: 0, mx: 50, my: 50 };
     const cur = { rx: 0, ry: 0, mx: 50, my: 50 };
     let base: { beta: number; gamma: number } | null = null;
     let raf = 0;
     let alive = true;
-    const MAX = 24; // giro máximo (grados)
-    const RANGE = 32; // rango de inclinación del móvil (grados) que llega al tope
+    const MAX = 30; // giro máximo (grados)
+    const RANGE = 26; // rango de inclinación del móvil (grados) que llega al tope
     // (RANGE más bajo = más reactivo a inclinaciones pequeñas; MAX más alto =
-    // giro más marcado. Antes 15/60 se notaba casi imperceptible en móvil.)
+    // giro más marcado. Junto con la perspectiva más cercana (650px) el giro se
+    // nota claramente.)
 
     const onOrient = (event: DeviceOrientationEvent) => {
       if (event.beta == null || event.gamma == null) return;
@@ -1862,10 +1863,10 @@ function useHoloMotion(
     };
     const loop = () => {
       if (!alive) return;
-      cur.rx += (target.rx - cur.rx) * 0.12;
-      cur.ry += (target.ry - cur.ry) * 0.12;
-      cur.mx += (target.mx - cur.mx) * 0.12;
-      cur.my += (target.my - cur.my) * 0.12;
+      cur.rx += (target.rx - cur.rx) * 0.18;
+      cur.ry += (target.ry - cur.ry) * 0.18;
+      cur.mx += (target.mx - cur.mx) * 0.18;
+      cur.my += (target.my - cur.my) * 0.18;
       const el = ref.current;
       if (el) {
         el.style.setProperty("--holo-rx", `${cur.rx.toFixed(2)}deg`);
@@ -1882,12 +1883,25 @@ function useHoloMotion(
       raf = requestAnimationFrame(loop);
     };
 
-    // El permiso de orientación en iOS se pide al ABRIR el sobre (gesto del
-    // usuario, ver requestOrientationPermission en cofres-view). Aquí solo
-    // escuchamos: en iOS dispara si se concedió, en Android directo, y en
-    // escritorio no dispara (queda la ruta de ratón).
-    if ("DeviceOrientationEvent" in window) {
+    const startGyro = () =>
       window.addEventListener("deviceorientation", onOrient);
+    const DOE = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
+      requestPermission?: () => Promise<"granted" | "denied">;
+    };
+    if ("DeviceOrientationEvent" in window) {
+      // Escucha ya: cubre Android y iOS con el permiso YA concedido antes.
+      startGyro();
+      // iOS sin permiso aún: lo pedimos al tocar la carta (gesto). Al concederlo
+      // re-enganchamos (addEventListener deduplica, no añade dos veces).
+      if (typeof DOE.requestPermission === "function") {
+        requestRef.current = () => {
+          DOE.requestPermission?.()
+            .then((res) => {
+              if (res === "granted") startGyro();
+            })
+            .catch(() => {});
+        };
+      }
     }
     window.addEventListener("pointermove", onMouse);
     raf = requestAnimationFrame(loop);
@@ -1897,8 +1911,11 @@ function useHoloMotion(
       cancelAnimationFrame(raf);
       window.removeEventListener("deviceorientation", onOrient);
       window.removeEventListener("pointermove", onMouse);
+      requestRef.current = null;
     };
   }, [enabled, ref, measureRef]);
+
+  return requestRef;
 }
 
 // Revelado en HTML (reusa la carta del inventario). three.js solo se encarga
@@ -1951,10 +1968,17 @@ function RevealCards({
   // carta protagonista cuando es legendaria; el hook le escribe las CSS vars.
   const hasLegendary = cards.some((card) => starPlayerIds.has(card.playerId));
   const holoRef = useRef<HTMLDivElement>(null);
-  useHoloMotion(hasLegendary, holoRef, stageRef);
+  const gyroRequest = useHoloMotion(hasLegendary, holoRef, stageRef);
+  const askedGyro = useRef(false);
 
   const onDown = (event: ReactPointerEvent) => {
     if (done || !event.isPrimary) return;
+    // iOS: pide el permiso de orientación en el primer toque (gesto de usuario),
+    // por si no se concedió al abrir el sobre.
+    if (gyroRequest.current && !askedGyro.current) {
+      askedGyro.current = true;
+      gyroRequest.current();
+    }
     start.current = { x: event.clientX, y: event.clientY, id: event.pointerId };
     setDrag({ x: 0, y: 0, active: true });
   };
@@ -2027,7 +2051,7 @@ function RevealCards({
           "radial-gradient(55% 45% at 84% 10%, rgba(150,190,120,0.07), transparent 60%)," +
           "radial-gradient(130% 100% at 50% 42%, transparent 50%, rgba(0,0,0,0.62) 100%)," +
           "linear-gradient(180deg, #0b1211, #0a0f0d 45%, #050807)",
-        perspective: "1300px",
+        perspective: "650px",
         touchAction: "none",
       }}
       onPointerDown={onDown}
