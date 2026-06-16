@@ -39,6 +39,10 @@ type Pack = {
   playerIds: string[];
   dateKey?: string;
   availableAt: string;
+  // Imagen del sobre para el overlay 3D y el hero. Por defecto /sobre.png.
+  image?: string;
+  // Color del cacho que vuela al cortar en el overlay 3D (por defecto verde).
+  flap?: "green" | "white" | "black";
 };
 
 type InventoryCard = {
@@ -206,6 +210,38 @@ const DEMO_RESULTS: AdminResults = (() => {
 const dailyPackCount = 7;
 const localSpecialPacksKey = "porra26_card_special_packs";
 
+// Sobre especial "Madrid": 1 sola carta de un jugador del Real Madrid. Como el
+// dataset no tiene campo de club, la plantilla es una lista CURADA por id de los
+// jugadores del Madrid presentes en el Mundial (+ Cucurella, recién fichado). Si
+// cambia el roster del Madrid, este es el ÚNICO sitio a tocar.
+const MADRID_PLAYER_IDS = [
+  "bel-01", // Courtois
+  "bra-07", // Vini Jr.
+  "bra-19", // Endrick
+  "eng-10", // Bellingham
+  "fra-08", // Tchouaméni
+  "fra-10", // Mbappé
+  "ger-02", // Rüdiger
+  "mar-10", // Brahim Díaz
+  "uru-08", // Valverde
+  "aut-08", // Alaba
+  "esp-24", // Cucurella
+];
+
+// Sobre "Promesas sub-21": 1 carta de un joven crack. Lista CURADA por id (el
+// dataset no trae edad/fecha de nacimiento). Si cambia, este es el ÚNICO sitio.
+const SUB21_PLAYER_IDS = [
+  "mex-19", // Gilberto Mora
+  "esp-19", // Lamine Yamal
+  "egy-09", // Hamza Abdelkarim
+  "ned-25", // Jorrel Hato
+  "bra-19", // Endrick
+  "fra-20", // Désiré Doué
+  "por-15", // João Neves
+  "tur-08", // Arda Güler
+  "arg-18", // Nico Paz
+];
+
 function storageKey(userId: string, suffix: string) {
   return `porra26_cards_${userId || "guest"}_${suffix}`;
 }
@@ -242,9 +278,16 @@ function mulberry32(seed: number) {
   };
 }
 
-function pickDeterministicPlayers(seed: string, count = 3) {
+function pickDeterministicPlayers(
+  seed: string,
+  count = 3,
+  allowedIds?: string[],
+) {
   const random = mulberry32(hashString(seed));
-  const pool = [...data.players].filter((player) => player.id);
+  const allow = allowedIds ? new Set(allowedIds) : null;
+  const pool = [...data.players].filter(
+    (player) => player.id && (!allow || allow.has(player.id)),
+  );
 
   for (let index = pool.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(random() * (index + 1));
@@ -455,6 +498,38 @@ export function CofresView() {
     });
   }, []);
 
+  // Sobre Madrid: especial SIEMPRE disponible, con su propia imagen y 1 sola
+  // carta del roster del Madrid (semilla por día, determinista).
+  const madridPack = useMemo<Pack>(() => {
+    const today = madridTodayKey();
+    return {
+      id: "special-madrid",
+      kind: "special",
+      title: "Sobre Madrid",
+      subtitle: "1 carta del Real Madrid",
+      playerIds: pickDeterministicPlayers(`madrid:${today}`, 1, MADRID_PLAYER_IDS),
+      availableAt: `${today}T00:00:00.000Z`,
+      image: "/sobre-madrid.png",
+      flap: "white",
+    };
+  }, []);
+
+  // Sobre Promesas sub-21: especial SIEMPRE disponible, 1 carta de un joven
+  // crack de la lista curada (semilla por día, determinista).
+  const sub21Pack = useMemo<Pack>(() => {
+    const today = madridTodayKey();
+    return {
+      id: "special-sub21",
+      kind: "special",
+      title: "Sobre Promesas",
+      subtitle: "1 promesa sub-21",
+      playerIds: pickDeterministicPlayers(`sub21:${today}`, 1, SUB21_PLAYER_IDS),
+      availableAt: `${today}T00:00:00.000Z`,
+      image: "/sobre21.png",
+      flap: "black",
+    };
+  }, []);
+
   const hasRealXi = prediction.xi.some((playerId) => playersById.has(playerId));
   const activeXi = hasRealXi ? prediction.xi : demoXi;
 
@@ -550,8 +625,8 @@ export function CofresView() {
     [inventory, openedPackIds],
   );
   const packs = useMemo(
-    () => [...dailyPacks, ...specialPacks],
-    [dailyPacks, specialPacks],
+    () => [madridPack, sub21Pack, ...dailyPacks, ...specialPacks],
+    [dailyPacks, madridPack, sub21Pack, specialPacks],
   );
   const unopenedPacks = useMemo(
     () => packs.filter((pack) => !openedIds.has(pack.id)),
@@ -1251,13 +1326,13 @@ export function CofresView() {
               </div>
             ) : null}
 
-            <div className="xl:-mx-1 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:px-1 xl:pt-1">
+            <div className="team-picker-scroll -ml-1 -mr-2 max-h-[60vh] overflow-y-auto pl-1 pr-2 pt-1 xl:max-h-none xl:min-h-0 xl:flex-1">
               {!hydrated ? (
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
                   {Array.from({ length: 10 }).map((_, index) => (
                     <div
                       key={index}
-                      className="aspect-[5/7] animate-pulse rounded-xl bg-white/[0.04]"
+                      className="aspect-[5/7] animate-pulse rounded-lg bg-white/[0.04]"
                     />
                   ))}
                 </div>
@@ -1293,7 +1368,7 @@ export function CofresView() {
                         style={{
                           animationDelay: `${Math.min(index, 9) * 45}ms`,
                         }}
-                        className={`cofre-card-reveal relative rounded-xl text-left outline-none transition focus-visible:ring-2 focus-visible:ring-[#a7f600]/60 ${
+                        className={`cofre-card-reveal relative rounded-lg text-left outline-none transition focus-visible:ring-2 focus-visible:ring-[#a7f600]/60 ${
                           selectedCardId === card.id
                             ? "scale-[1.03]"
                             : "hover:-translate-y-1"
@@ -1324,7 +1399,7 @@ export function CofresView() {
                   {shownUsed.map((card) => (
                     <div
                       key={card.id}
-                      className="relative rounded-xl opacity-60"
+                      className="relative rounded-lg opacity-60"
                     >
                       <PlayerCard
                         playerId={card.playerId}
@@ -1437,7 +1512,6 @@ function PackHero({
 }) {
   const special = topPack?.kind === "special";
   const empty = count === 0;
-  const ghostCount = Math.min(Math.max(count - 1, 0), 3);
 
   if (!hydrated) {
     // El skeleton replica la estructura real (pill + sobre + contador + label +
@@ -1475,7 +1549,11 @@ function PackHero({
               : "border-[#a7f600]/30 bg-[#a7f600]/10 text-[#a7f600]"
         }`}
       >
-        {empty ? "Sin sobres" : special ? "Drop especial" : "Sobre diario"}
+        {empty
+          ? "Sin sobres"
+          : special
+            ? topPack?.title || "Drop especial"
+            : "Sobre diario"}
       </span>
 
       <button
@@ -1490,20 +1568,6 @@ function PackHero({
         }
         className="group relative z-10 flex aspect-[818/1206] w-[clamp(190px,56vw,300px)] items-center justify-center rounded-2xl outline-none [perspective:1200px] focus-visible:ring-2 focus-visible:ring-[#a7f600]/60 disabled:cursor-default"
       >
-        {Array.from({ length: ghostCount }).map((_, index) => (
-          <span
-            key={index}
-            aria-hidden
-            className="absolute inset-0 rounded-[14px] border border-white/10 bg-[#151515]"
-            style={{
-              transform: `translate(${(index + 1) * 6}px, ${
-                (index + 1) * 8
-              }px) scale(${1 - (index + 1) * 0.04})`,
-              filter: `brightness(${1 - (index + 1) * 0.14})`,
-              zIndex: -(index + 1),
-            }}
-          />
-        ))}
         {/* Dos capas: la EXTERIOR flota (cofre-hero-float, transform propio); la
             INTERIOR hace el tilt de hover y el scale de active. Si fueran el
             mismo elemento, la animación en curso pisaría el transform del hover
@@ -1527,7 +1591,7 @@ function PackHero({
             }`}
           >
             <Image
-              src="/sobre.png"
+              src={topPack?.image || "/sobre.png"}
               alt="Sobre de cartas de la Triliporra 2026"
               fill
               priority
@@ -1607,7 +1671,7 @@ function SwapPanel({
     return (
       <Card className="flex min-h-[260px] flex-col items-center justify-center gap-5 text-center xl:h-full">
         {/* Slot de carta vacío (borde dashed) para invitar a elegir una carta. */}
-        <div className="flex aspect-[5/7] w-28 items-center justify-center rounded-xl border-2 border-dashed border-[#a7f600]/30 bg-[#a7f600]/[0.03]">
+        <div className="flex aspect-[5/7] w-28 items-center justify-center rounded-lg border-2 border-dashed border-[#a7f600]/30 bg-[#a7f600]/[0.03]">
           <svg
             aria-hidden="true"
             viewBox="0 0 24 24"
@@ -1990,45 +2054,50 @@ function SwapPitch({
 
   return (
     <div className="space-y-3">
-      <div className="theme-dark relative aspect-[5/6] w-full overflow-hidden rounded-xl border border-emerald-200/20 bg-emerald-600 shadow-lg shadow-emerald-950/20">
-        <SwapPitchLines />
-        <div className="relative z-10 flex h-full flex-col justify-between px-2 py-4 sm:px-4">
-          {rows.map((row) => (
-            <div
-              key={row.position}
-              className="grid items-center gap-1"
-              style={{
-                gridTemplateColumns: `repeat(${row.players.length}, minmax(0, 1fr))`,
-              }}
-            >
-              {row.players.map((player) => {
-                const inSwapMode = selectedPosition != null;
-                const swappable =
-                  inSwapMode && player.position === selectedPosition;
-                const candidate =
-                  swappable && candidateFor ? candidateFor(player) : null;
-                const eligible = Boolean(candidate?.eligible);
-                const entered = player.id === enteredId;
-                return (
-                  <PitchPlayer
-                    key={player.id}
-                    player={player}
-                    points={pointsFor(player.id)}
-                    breakdown={breakdownFor(player.id)}
-                    swappable={swappable}
-                    eligible={eligible}
-                    entered={entered}
-                    dimmed={inSwapMode && !swappable}
-                    onSwap={
-                      candidate && eligible && requestSwap
-                        ? () => requestSwap(candidate)
-                        : undefined
-                    }
-                  />
-                );
-              })}
-            </div>
-          ))}
+      {/* Frame verde que ESCALA con el panel; dentro, el campo con ancho FIJO
+          (max-w + mx-auto) para que no se estire gigante cuando el panel va a
+          ancho completo. Mismo patrón que el LineupBuilder de predicción. */}
+      <div className="theme-dark overflow-hidden rounded-xl border border-emerald-300/15 bg-emerald-700 p-3 shadow-lg shadow-emerald-950/20">
+        <div className="relative mx-auto aspect-[5/6] w-full max-w-[460px] overflow-hidden rounded-lg border border-emerald-200/20 bg-emerald-600">
+          <SwapPitchLines />
+          <div className="relative z-10 flex h-full flex-col justify-between px-2 py-4 sm:px-4">
+            {rows.map((row) => (
+              <div
+                key={row.position}
+                className="grid items-center gap-1"
+                style={{
+                  gridTemplateColumns: `repeat(${row.players.length}, minmax(0, 1fr))`,
+                }}
+              >
+                {row.players.map((player) => {
+                  const inSwapMode = selectedPosition != null;
+                  const swappable =
+                    inSwapMode && player.position === selectedPosition;
+                  const candidate =
+                    swappable && candidateFor ? candidateFor(player) : null;
+                  const eligible = Boolean(candidate?.eligible);
+                  const entered = player.id === enteredId;
+                  return (
+                    <PitchPlayer
+                      key={player.id}
+                      player={player}
+                      points={pointsFor(player.id)}
+                      breakdown={breakdownFor(player.id)}
+                      swappable={swappable}
+                      eligible={eligible}
+                      entered={entered}
+                      dimmed={inSwapMode && !swappable}
+                      onSwap={
+                        candidate && eligible && requestSwap
+                          ? () => requestSwap(candidate)
+                          : undefined
+                      }
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -2108,7 +2177,7 @@ function EventPills({ breakdown }: { breakdown: PlayerBreakdown }) {
           }`}
         >
           <span aria-hidden>{pill.icon}</span>
-          <span>{breakdown[pill.key]}</span>
+          <span className="text-white">{breakdown[pill.key]}</span>
           <span className="sr-only">{pill.label}</span>
         </span>
       ))}
@@ -2299,7 +2368,7 @@ function SwapModalCard({
           selected={highlighted}
         />
         <div
-          className={`pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ${
+          className={`pointer-events-none absolute inset-0 rounded-lg ring-1 ring-inset ${
             out ? "ring-white/15" : "ring-[#a7f600]/50"
           }`}
         />

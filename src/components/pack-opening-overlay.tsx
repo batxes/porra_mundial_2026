@@ -25,6 +25,9 @@ type OpeningPack = {
   playerIds: string[];
   subtitle: string;
   title: string;
+  image?: string;
+  // Color del cacho que vuela al cortar (por defecto verde de marca).
+  flap?: "green" | "white" | "black";
 };
 
 type OpeningCard = {
@@ -112,44 +115,78 @@ function easeOutCubic(value: number) {
   return 1 - Math.pow(1 - value, 3);
 }
 
-// Textura del sobre: la imagen de marca /sobre.png, cargada UNA vez y compartida
-// por todas las caras/mitades. No se clona: al cargar (async) el TextureLoader
-// marca needsUpdate y todos los materiales que la referencian se actualizan.
-let packImageTexture: THREE.Texture | null = null;
-function getPackImageTexture() {
-  if (!packImageTexture) {
-    packImageTexture = new THREE.TextureLoader().load("/sobre.png");
-    packImageTexture.colorSpace = THREE.SRGBColorSpace;
-    packImageTexture.anisotropy = 8;
+// Textura del sobre: la imagen de marca, cargada UNA vez POR URL y compartida
+// por todas las caras/mitades que usan ese sobre (cada sobre puede tener su
+// imagen: /sobre.png, /sobre-madrid.png…). No se clona: al cargar (async) el
+// TextureLoader marca needsUpdate y todos los materiales que la referencian se
+// actualizan.
+const packImageTextures = new Map<string, THREE.Texture>();
+function getPackImageTexture(url = "/sobre.png") {
+  let texture = packImageTextures.get(url);
+  if (!texture) {
+    texture = new THREE.TextureLoader().load(url);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 8;
+    packImageTextures.set(url, texture);
   }
-  return packImageTexture;
+  return texture;
 }
 
-function usePackTexture() {
-  return getPackImageTexture();
+function usePackTexture(url?: string) {
+  return getPackImageTexture(url || "/sobre.png");
 }
 
-// Textura de la TAPA que se corta y vuela: un foil verde (estilo del sobre) con
-// borde dentado (crimp) arriba y una línea lima, como el sellado de un sobre.
-// El trozo real de la imagen ahí salía oscuro/mal al volar; esto es claro y con
-// forma de "cacho de sobre". Mismo aspecto que el plano (818x1206) para alinear.
-let packFlapTexture: THREE.CanvasTexture | null = null;
-function getFlapTexture() {
-  if (packFlapTexture) return packFlapTexture;
+// Textura de la TAPA que se corta y vuela: un foil con borde dentado (crimp)
+// arriba y una línea de "borde", como el sellado de un sobre. El trozo real de
+// la imagen ahí salía oscuro/mal al volar; esto es claro y con forma de "cacho
+// de sobre". Mismo aspecto que el plano (818x1206) para alinear. Variante por
+// sobre: verde de marca (por defecto) o blanco (sobre Madrid). Cacheada por
+// variante.
+const packFlapTextures = new Map<string, THREE.CanvasTexture>();
+function getFlapTexture(variant: "green" | "white" | "black" = "green") {
+  const cached = packFlapTextures.get(variant);
+  if (cached) return cached;
   const canvas = document.createElement("canvas");
   canvas.width = 818;
   canvas.height = 1206;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    packFlapTexture = new THREE.CanvasTexture(canvas);
-    return packFlapTexture;
+    const fallback = new THREE.CanvasTexture(canvas);
+    packFlapTextures.set(variant, fallback);
+    return fallback;
   }
+  // Paleta del foil por variante. `black` = sobre21 (negro con filo dorado):
+  // foil casi negro + sheen y línea doradas, a juego con la imagen del sobre.
+  const palettes = {
+    white: {
+      top: "#ffffff",
+      mid: "#eaeef3",
+      bottom: "#c8d0da",
+      sheen: "rgba(255,255,255,0.5)",
+      line: "#9aa6b4",
+    },
+    black: {
+      top: "#1c1c1c",
+      mid: "#101010",
+      bottom: "#070707",
+      sheen: "rgba(212,175,55,0.16)",
+      line: "#caa23c",
+    },
+    green: {
+      top: "#327f27",
+      mid: "#1f5418",
+      bottom: "#13320e",
+      sheen: "rgba(167,246,0,0.18)",
+      line: "#a7f600",
+    },
+  } as const;
+  const palette = palettes[variant] ?? palettes.green;
   // El corte está al ~10% de arriba; dibujamos el foil hasta el ~13%.
   const flapBottom = 150;
   const grad = ctx.createLinearGradient(0, 0, 0, flapBottom);
-  grad.addColorStop(0, "#327f27");
-  grad.addColorStop(0.55, "#1f5418");
-  grad.addColorStop(1, "#13320e");
+  grad.addColorStop(0, palette.top);
+  grad.addColorStop(0.55, palette.mid);
+  grad.addColorStop(1, palette.bottom);
   ctx.fillStyle = grad;
   // Borde "crimp" (dientes) en el borde superior.
   const teeth = 24;
@@ -165,24 +202,25 @@ function getFlapTexture() {
   ctx.lineTo(0, flapBottom);
   ctx.closePath();
   ctx.fill();
-  // Sheen lima diagonal, solo sobre el foil.
+  // Sheen diagonal, solo sobre el foil.
   ctx.save();
   ctx.globalCompositeOperation = "source-atop";
   const sheen = ctx.createLinearGradient(0, 0, 818, 0);
   sheen.addColorStop(0, "rgba(255,255,255,0)");
-  sheen.addColorStop(0.5, "rgba(167,246,0,0.18)");
+  sheen.addColorStop(0.5, palette.sheen);
   sheen.addColorStop(1, "rgba(255,255,255,0)");
   ctx.fillStyle = sheen;
   ctx.fillRect(0, 0, 818, flapBottom);
   ctx.restore();
-  // Línea lima (el "borde" del cacho).
-  ctx.fillStyle = "#a7f600";
+  // Línea del "borde" del cacho.
+  ctx.fillStyle = palette.line;
   ctx.fillRect(0, 96, 818, 6);
 
-  packFlapTexture = new THREE.CanvasTexture(canvas);
-  packFlapTexture.colorSpace = THREE.SRGBColorSpace;
-  packFlapTexture.anisotropy = 8;
-  return packFlapTexture;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  packFlapTextures.set(variant, texture);
+  return texture;
 }
 
 // Fragment shader compartido del fondo "nebulosa" (domain warping, paleta de
@@ -278,12 +316,14 @@ function SceneShaderBackground() {
 
 function PackPrimitive({
   groupRef,
+  image,
 }: {
   groupRef?: RefObject<THREE.Group | null>;
+  image?: string;
 }) {
   const internalRef = useRef<THREE.Group>(null);
   const ref = groupRef || internalRef;
-  const texture = usePackTexture();
+  const texture = usePackTexture(image);
 
   // El sobre es una CARTA PLANA con la imagen de marca (en escena solo se ve de
   // frente, así que no hace falta el modelo 3D). El plano va al aspecto exacto
@@ -482,7 +522,7 @@ function CarouselPacks({
             packRefs.current[index] = element;
           }}
         >
-          <PackPrimitive />
+          <PackPrimitive image={pack.image} />
         </group>
       ))}
     </group>
@@ -768,7 +808,7 @@ function PackHalves({
     body: THREE.Plane | null;
     flap: THREE.Plane | null;
   }>({ body: null, flap: null });
-  const texture = usePackTexture();
+  const texture = usePackTexture(pack.image);
   const { size } = useThree();
   const { scale, y, cutY } = cutLayout(size.width);
   const slashNormal = useMemo(() => {
@@ -800,7 +840,7 @@ function PackHalves({
       const material = isFlap
         ? new THREE.MeshBasicMaterial({
             clippingPlanes: [clipPlane],
-            map: getFlapTexture(),
+            map: getFlapTexture(pack.flap),
             toneMapped: false,
             transparent: true,
             alphaTest: 0.1,
@@ -827,7 +867,7 @@ function PackHalves({
       bottomScene: makeHalf(flapClipPlane, true),
       topScene: makeHalf(bodyClipPlane, false),
     };
-  }, [texture]);
+  }, [pack.flap, texture]);
 
   useEffect(() => {
     clipPlanesRef.current.body = findClipPlane(topScene);
@@ -955,6 +995,7 @@ function PackHalves({
 }
 
 function FocusedPack({
+  image,
   onPackSettled,
   onSlashCancel,
   onSlashComplete,
@@ -963,6 +1004,7 @@ function FocusedPack({
   phase,
   slashLine,
 }: {
+  image?: string;
   onPackSettled: (settled: boolean) => void;
   onSlashCancel: () => void;
   onSlashComplete: () => void;
@@ -1202,13 +1244,13 @@ function FocusedPack({
     if (settled) onPackSettled(true);
   });
 
-  return <PackPrimitive groupRef={groupRef} />;
+  return <PackPrimitive groupRef={groupRef} image={image} />;
 }
 
-function OpeningFallback() {
+function OpeningFallback({ image }: { image?: string }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const { size } = useThree();
-  const texture = usePackTexture();
+  const texture = usePackTexture(image);
 
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
@@ -1558,6 +1600,7 @@ function OverlayWorld({
       {phase === "focused" || phase === "slashing" ? (
         <>
           <FocusedPack
+            image={selectedPack?.image}
             onPackSettled={onPackSettled}
             onSlashCancel={onSlashCancel}
             onSlashComplete={onSlashComplete}
@@ -1734,11 +1777,15 @@ function RevealCards({
   };
 
   // card 0 -> izquierda, card 1 -> derecha, card 2 -> centro (igual que el 3D).
-  const fan = [
-    { x: -56, rot: -8, scale: 0.82 },
-    { x: 56, rot: 8, scale: 0.82 },
-    { x: 0, rot: 0, scale: 0.9 },
-  ];
+  // Con UNA sola carta (p.ej. sobre Madrid) no hay abanico: queda centrada.
+  const fan =
+    cards.length === 1
+      ? [{ x: 0, rot: 0, scale: 0.9 }]
+      : [
+          { x: -56, rot: -8, scale: 0.82 },
+          { x: 56, rot: 8, scale: 0.82 },
+          { x: 0, rot: 0, scale: 0.9 },
+        ];
 
   return (
     <div
@@ -1843,9 +1890,10 @@ function RevealCards({
                 <PlayerCard
                   playerId={card.playerId}
                   points={pointsFor(card.playerId)}
+                  featured={isHero}
                 />
                 {isHero ? (
-                  <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
+                  <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg">
                     <div
                       className="absolute inset-y-[-30%] left-0 w-1/2"
                       style={{
@@ -2006,7 +2054,7 @@ export function PackOpeningOverlay({
             shadows
             style={{ height: "100%", touchAction: "none", width: "100%" }}
           >
-            <Suspense fallback={<OpeningFallback />}>
+            <Suspense fallback={<OpeningFallback image={selectedPack?.image} />}>
               <OverlayWorld
                 onOpeningComplete={() => {
                   setStackIndex(0);

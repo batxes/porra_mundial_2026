@@ -9,9 +9,28 @@ function formatSigned(value: number) {
   return value > 0 ? `+${value}` : String(value);
 }
 
+// Rareza por PUNTOS. El scoring premia el puesto (gol de DEL=2, MED=6, DEF=11,
+// POR=35; ver `scoring.ts`), así que estos tramos absolutos dan jerarquía
+// temática: un defensa que marca es épico y un portero goleador, legendario.
+//   común <6 · rara 6-14 · épica 15-29 · legendaria >=30
+// Cada tramo escala el marco; el HOLO (cónica + barrido) solo aparece de "rara"
+// hacia arriba, y solo se anima en hover (grid) o si `featured` (revelado),
+// respetando prefers-reduced-motion (ver globals.css).
+type Rarity = "comun" | "rara" | "epica" | "legendaria";
+
+function rarityFor(points: number): Rarity {
+  if (points >= 30) return "legendaria";
+  if (points >= 15) return "epica";
+  if (points >= 6) return "rara";
+  return "comun";
+}
+
 // Carta de jugador compartida: misma pieza para el inventario de /cofres y para
 // el revelado del sobre. Recibe solo playerId + points para no acoplarse a
 // ningún tipo concreto (InventoryCard, OpeningCard, etc.).
+//
+// `featured` enciende el holo/barrido de forma permanente (revelado, 1-3 cartas
+// grandes); en el grid se quedan en hover para no animar decenas a la vez.
 //
 // Tipografía FLUIDA: el <article> es el contenedor (container-type) y el
 // texto/espaciado de sus HIJOS se mide en `cqw` (1cqw = 1% del ancho de la
@@ -23,10 +42,12 @@ export function PlayerCard({
   playerId,
   points,
   selected = false,
+  featured = false,
 }: {
   playerId: string;
   points: number;
   selected?: boolean;
+  featured?: boolean;
 }) {
   const player = playersById.get(playerId);
   if (!player) return null;
@@ -34,25 +55,90 @@ export function PlayerCard({
   const photo = playerPhotoUrl(player);
   const accent = positionAccent[player.position];
 
+  const rarity = rarityFor(points);
+  const legendary = rarity === "legendaria";
+  // Holo y barrido solo de "rara" hacia arriba; "común" se queda limpia.
+  const effects = rarity !== "comun";
+  // Tono del marco/foco: el del puesto, salvo legendaria que va dorada.
+  const hue = legendary ? "245, 184, 30" : accent.rgb;
+
+  // Foco detrás de la cabeza: el recorte deja de "flotar". Sube con la rareza.
+  const spotAlpha = legendary
+    ? 0.24
+    : rarity === "epica"
+      ? 0.2
+      : rarity === "rara"
+        ? 0.17
+        : 0.13;
+
+  // Borde BLANCO sutil como arista (despega la carta del fondo y hace que
+  // resalte). Se hace con `border` REAL, NO con inset box-shadow: un inset sobre
+  // un fondo a sangre + esquinas redondeadas dejaba "restos" blancos en las
+  // esquinas. El color de puesto/rareza ya se lee por el tinte del fondo, chip,
+  // puntos, foco y holo; el glow exterior queda como señal de rareza/selección.
+  const whiteAlpha = selected ? 0.9 : legendary ? 0.62 : 0.4;
+  const cardBorder = `1px solid rgba(255,255,255,${whiteAlpha})`;
+  const outerGlow = legendary
+    ? "0 0 26px rgba(245,184,30,0.22)"
+    : rarity === "epica"
+      ? `0 0 22px rgba(${accent.rgb},0.16)`
+      : rarity === "rara"
+        ? `0 0 16px rgba(${accent.rgb},0.1)`
+        : selected
+          ? `0 0 16px rgba(${accent.rgb},0.18)`
+          : "none";
+
   return (
     <article
-      className="relative aspect-[5/7] overflow-hidden rounded-xl"
+      data-selected={selected}
+      data-rarity={rarity}
+      className={`cofre-card relative aspect-[5/7] overflow-hidden rounded-lg ${
+        featured ? "cofre-card--featured" : ""
+      }`}
       style={{
         containerType: "inline-size",
-        background: "linear-gradient(165deg, #17222e, #090d13)",
-        boxShadow: `inset 0 0 0 1px rgba(${accent.rgb}, ${
-          selected ? 0.85 : 0.3
-        }), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 22px rgba(${accent.rgb}, ${
-          selected ? 0.32 : 0.12
-        })`,
+        background: "#0a0f1a",
+        border: cardBorder,
+        boxShadow: outerGlow,
       }}
     >
+      {/* Fondo de carta (cardbg.png): textura navy premium con arcos de luz, el
+          "shader al fondo". Se recolorea por puesto con hue-rotate (ver
+          positionAccent.bgRotate) para conservar el color de posición. */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-2/3"
+        className="pointer-events-none absolute inset-0"
         style={{
-          background: `radial-gradient(125% 95% at 50% 22%, rgba(${accent.rgb},0.08), transparent 62%)`,
+          backgroundImage: "url(/cardbg.png)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          filter: accent.bgRotate ? `hue-rotate(${accent.bgRotate}deg)` : undefined,
         }}
       />
+
+      {/* Foco de acento detrás del jugador (antes era un tinte plano arriba). */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[66%]"
+        style={{
+          background: `radial-gradient(60% 52% at 50% 40%, rgba(${hue},${spotAlpha}), transparent 70%)`,
+        }}
+      />
+
+      {/* Holo: gradiente holográfico a pantalla completa que se DESPLAZA (anima
+          background-position, sin rotar, así no deja huecos), en `screen` por
+          detrás del recorte; brilla alrededor del jugador (foto = PNG con fondo
+          transparente). El alto del panel inferior tapa la franja al fundir. */}
+      {effects ? (
+        <div
+          className="cofre-card-holo pointer-events-none absolute inset-0"
+          style={{
+            mixBlendMode: "screen",
+            backgroundSize: "220% 220%",
+            backgroundImage: legendary
+              ? "linear-gradient(115deg, transparent 12%, rgba(245,184,30,0.26) 30%, rgba(255,255,255,0.18) 50%, rgba(255,214,120,0.24) 70%, transparent 88%)"
+              : `linear-gradient(115deg, transparent 12%, rgba(${accent.rgb},0.22) 28%, rgba(150,120,255,0.2) 40%, rgba(255,255,255,0.16) 50%, rgba(95,227,176,0.2) 60%, rgba(${accent.rgb},0.22) 72%, transparent 88%)`,
+          }}
+        />
+      ) : null}
 
       <div className="absolute inset-x-[8%] top-[10%] h-[60%]">
         {photo ? (
@@ -94,7 +180,7 @@ export function PlayerCard({
           className="font-bold leading-none"
           style={{
             color: "#ffffff",
-            textShadow: `0 0 14px rgba(${accent.rgb},0.5)`,
+            textShadow: `0 0 14px rgba(${hue},0.5)`,
             fontSize: "11.6cqw",
           }}
         >
@@ -153,6 +239,17 @@ export function PlayerCard({
           <span className="truncate">{team?.name || player.team}</span>
         </div>
       </div>
+
+      {/* Barrido de brillo diagonal por ENCIMA de todo (reflejo de inclinación). */}
+      {effects ? (
+        <div
+          className="cofre-card-shine pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(110deg, transparent 38%, rgba(255,255,255,0.16) 50%, transparent 62%)",
+          }}
+        />
+      ) : null}
     </article>
   );
 }
