@@ -27,7 +27,7 @@ type OpeningPack = {
   title: string;
   image?: string;
   // Color del cacho que vuela al cortar (por defecto verde de marca).
-  flap?: "green" | "white" | "black";
+  flap?: "green" | "white" | "black" | "navy";
 };
 
 type OpeningCard = {
@@ -143,7 +143,7 @@ function usePackTexture(url?: string) {
 // sobre: verde de marca (por defecto) o blanco (sobre Madrid). Cacheada por
 // variante.
 const packFlapTextures = new Map<string, THREE.CanvasTexture>();
-function getFlapTexture(variant: "green" | "white" | "black" = "green") {
+function getFlapTexture(variant: "green" | "white" | "black" | "navy" = "green") {
   const cached = packFlapTextures.get(variant);
   if (cached) return cached;
   const canvas = document.createElement("canvas");
@@ -155,8 +155,9 @@ function getFlapTexture(variant: "green" | "white" | "black" = "green") {
     packFlapTextures.set(variant, fallback);
     return fallback;
   }
-  // Paleta del foil por variante. `black` = sobre21 (negro con filo dorado):
-  // foil casi negro + sheen y línea doradas, a juego con la imagen del sobre.
+  // Paleta del foil por variante. `black` = sobre21 (negro con filo dorado),
+  // `navy` = sobre-estrellas (azul MUY oscuro con filo dorado): foil oscuro +
+  // sheen/línea dorados, a juego con la imagen de cada sobre.
   const palettes = {
     white: {
       top: "#ffffff",
@@ -171,6 +172,13 @@ function getFlapTexture(variant: "green" | "white" | "black" = "green") {
       bottom: "#070707",
       sheen: "rgba(212,175,55,0.16)",
       line: "#caa23c",
+    },
+    navy: {
+      top: "#16203a",
+      mid: "#0c1124",
+      bottom: "#070a14",
+      sheen: "rgba(200,178,110,0.15)",
+      line: "#b89a3e",
     },
     green: {
       top: "#327f27",

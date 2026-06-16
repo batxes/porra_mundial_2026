@@ -4,25 +4,23 @@ import { TeamFlag } from "@/components/common";
 import { playersById, teamsById } from "@/lib/data";
 import { initials, playerPhotoUrl } from "@/lib/format";
 import { positionAccent } from "@/lib/position-style";
+import { starPlayerIds } from "@/lib/star-players";
 
 function formatSigned(value: number) {
   return value > 0 ? `+${value}` : String(value);
 }
 
-// Rareza por PUNTOS. El scoring premia el puesto (gol de DEL=2, MED=6, DEF=11,
-// POR=35; ver `scoring.ts`), así que estos tramos absolutos dan jerarquía
-// temática: un defensa que marca es épico y un portero goleador, legendario.
-//   común <6 · rara 6-14 · épica 15-29 · legendaria >=30
-// Cada tramo escala el marco; el HOLO (cónica + barrido) solo aparece de "rara"
-// hacia arriba, y solo se anima en hover (grid) o si `featured` (revelado),
-// respetando prefers-reduced-motion (ver globals.css).
+// Rareza por ESTRELLA, no por puntos. Lo de los puntos era arbitrario (premiaba
+// a un defensa goleador como a un crack). Los jugadores de `starPlayerIds` (los
+// mejores del mundo, pool del Sobre Estrellas) son "legendaria" —la mayor
+// rareza: marco dorado, glow y holo—; el resto, "comun". Los tramos intermedios
+// (rara/épica) se mantienen en el tipo por si se añaden más listas curadas, pero
+// hoy no se asignan. El HOLO/barrido solo aparece de "rara" hacia arriba, así
+// que de facto solo las legendarias lo llevan.
 type Rarity = "comun" | "rara" | "epica" | "legendaria";
 
-function rarityFor(points: number): Rarity {
-  if (points >= 30) return "legendaria";
-  if (points >= 15) return "epica";
-  if (points >= 6) return "rara";
-  return "comun";
+function rarityFor(playerId: string): Rarity {
+  return starPlayerIds.has(playerId) ? "legendaria" : "comun";
 }
 
 // Carta de jugador compartida: misma pieza para el inventario de /cofres y para
@@ -55,12 +53,15 @@ export function PlayerCard({
   const photo = playerPhotoUrl(player);
   const accent = positionAccent[player.position];
 
-  const rarity = rarityFor(points);
+  const rarity = rarityFor(playerId);
   const legendary = rarity === "legendaria";
   // Holo y barrido solo de "rara" hacia arriba; "común" se queda limpia.
   const effects = rarity !== "comun";
   // Tono del marco/foco: el del puesto, salvo legendaria que va dorada.
   const hue = legendary ? "245, 184, 30" : accent.rgb;
+  // Color del texto de puesto (chip, "PTS", iniciales): el del puesto, pero en
+  // las legendarias va DORADO para no romper el oro (aunque sea DEF, MED, etc.).
+  const textAccent = legendary ? "#f7c84a" : accent.text;
 
   // Foco detrás de la cabeza: el recorte deja de "flotar". Sube con la rareza.
   const spotAlpha = legendary
@@ -76,8 +77,11 @@ export function PlayerCard({
   // un fondo a sangre + esquinas redondeadas dejaba "restos" blancos en las
   // esquinas. El color de puesto/rareza ya se lee por el tinte del fondo, chip,
   // puntos, foco y holo; el glow exterior queda como señal de rareza/selección.
-  const whiteAlpha = selected ? 0.9 : legendary ? 0.62 : 0.4;
-  const cardBorder = `1px solid rgba(255,255,255,${whiteAlpha})`;
+  const whiteAlpha = selected ? 0.9 : 0.4;
+  // Legendaria = oro total (fondo, borde y estrella); el resto, borde blanco.
+  const cardBorder = legendary
+    ? "1.5px solid rgba(245,184,30,0.85)"
+    : `1px solid rgba(255,255,255,${whiteAlpha})`;
   const outerGlow = legendary
     ? "0 0 26px rgba(245,184,30,0.22)"
     : rarity === "epica"
@@ -103,15 +107,19 @@ export function PlayerCard({
       }}
     >
       {/* Fondo de carta (cardbg.png): textura navy premium con arcos de luz, el
-          "shader al fondo". Se recolorea por puesto con hue-rotate (ver
-          positionAccent.bgRotate) para conservar el color de posición. */}
+          "shader al fondo". Se recolorea con hue-rotate: por puesto en general,
+          o a ORO en las legendarias (ver positionAccent.bgRotate). */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage: "url(/cardbg.png)",
           backgroundSize: "cover",
           backgroundPosition: "center",
-          filter: accent.bgRotate ? `hue-rotate(${accent.bgRotate}deg)` : undefined,
+          filter: legendary
+            ? "hue-rotate(190deg) saturate(1.15)"
+            : accent.bgRotate
+              ? `hue-rotate(${accent.bgRotate}deg)`
+              : undefined,
         }}
       />
 
@@ -153,7 +161,7 @@ export function PlayerCard({
         ) : (
           <span
             className="flex h-full w-full items-center justify-center font-bold"
-            style={{ color: accent.text, fontSize: "22cqw" }}
+            style={{ color: textAccent, fontSize: "22cqw" }}
           >
             {initials(player.name)}
           </span>
@@ -164,7 +172,7 @@ export function PlayerCard({
         className="absolute left-[7%] top-[5%] font-bold uppercase tracking-wide"
         style={{
           background: "rgba(255,255,255,0.09)",
-          color: accent.text,
+          color: textAccent,
           fontSize: "6.3cqw",
           padding: "2.4cqw 4.8cqw",
           borderRadius: "3.4cqw",
@@ -191,7 +199,7 @@ export function PlayerCard({
         <span
           className="font-bold uppercase leading-none"
           style={{
-            color: accent.text,
+            color: textAccent,
             fontSize: "4.4cqw",
             letterSpacing: "0.14em",
             opacity: 0.85,
@@ -239,6 +247,22 @@ export function PlayerCard({
           <span className="truncate">{team?.name || player.team}</span>
         </div>
       </div>
+
+      {/* Estrella dorada: sello de la legendaria, arriba-centro (fluida en cqw). */}
+      {legendary ? (
+        <div
+          className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+          style={{
+            top: "3.4%",
+            width: "9cqw",
+            filter: "drop-shadow(0 0 4px rgba(245,184,30,0.9))",
+          }}
+        >
+          <svg viewBox="0 0 24 24" className="block w-full" fill="#f7c84a">
+            <path d="M12 2l2.9 6.1 6.7.8-5 4.6 1.3 6.6-5.9-3.2-5.9 3.2 1.3-6.6-5-4.6 6.7-.8z" />
+          </svg>
+        </div>
+      ) : null}
 
       {/* Barrido de brillo diagonal por ENCIMA de todo (reflejo de inclinación). */}
       {effects ? (

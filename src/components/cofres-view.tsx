@@ -19,6 +19,7 @@ import { data, playersById, teamsById } from "@/lib/data";
 import { initials, playerPhotoUrl } from "@/lib/format";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { calculatePlayerStandings } from "@/lib/scoring";
+import { STAR_PLAYER_IDS } from "@/lib/star-players";
 import type { AdminEvent, AdminResults, Player, Position } from "@/lib/types";
 
 const PackOpeningOverlay = dynamic(
@@ -42,7 +43,7 @@ type Pack = {
   // Imagen del sobre para el overlay 3D y el hero. Por defecto /sobre.png.
   image?: string;
   // Color del cacho que vuela al cortar en el overlay 3D (por defecto verde).
-  flap?: "green" | "white" | "black";
+  flap?: "green" | "white" | "black" | "navy";
 };
 
 // Sobres agrupados por TIPO para la estantería del hero (los diarios cuentan
@@ -541,6 +542,23 @@ export function CofresView() {
     };
   }, []);
 
+  // Sobre Estrellas: especial SIEMPRE disponible, 1 carta de un crack mundial de
+  // la lista curada (semilla por día, determinista). Estos jugadores salen como
+  // legendaria (ver star-players.ts).
+  const starsPack = useMemo<Pack>(() => {
+    const today = madridTodayKey();
+    return {
+      id: "special-estrellas",
+      kind: "special",
+      title: "Sobre Estrellas",
+      subtitle: "1 estrella mundial",
+      playerIds: pickDeterministicPlayers(`stars:${today}`, 1, STAR_PLAYER_IDS),
+      availableAt: `${today}T00:00:00.000Z`,
+      image: "/sobre-estrellas.png",
+      flap: "navy",
+    };
+  }, []);
+
   const hasRealXi = prediction.xi.some((playerId) => playersById.has(playerId));
   const activeXi = hasRealXi ? prediction.xi : demoXi;
 
@@ -636,8 +654,8 @@ export function CofresView() {
     [inventory, openedPackIds],
   );
   const packs = useMemo(
-    () => [madridPack, sub21Pack, ...dailyPacks, ...specialPacks],
-    [dailyPacks, madridPack, sub21Pack, specialPacks],
+    () => [madridPack, sub21Pack, starsPack, ...dailyPacks, ...specialPacks],
+    [dailyPacks, madridPack, starsPack, sub21Pack, specialPacks],
   );
   const unopenedPacks = useMemo(
     () => packs.filter((pack) => !openedIds.has(pack.id)),
@@ -1473,7 +1491,7 @@ export function CofresView() {
 
           <div
             ref={swapPanelRef}
-            className={`scroll-mt-4 xl:h-full xl:overflow-y-auto ${
+            className={`scroll-mt-4 xl:self-start ${
               selectedCard || lastSwap ? "" : "hidden xl:block"
             }`}
           >
