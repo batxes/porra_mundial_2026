@@ -497,6 +497,11 @@ export function CofresView() {
   const [hydrated, setHydrated] = useState(false);
   const [activePack, setActivePack] = useState<Pack | null>(null);
   const [opening, setOpening] = useState(false);
+  // Semilla del "tiro" de los sobres ESPECIALES. Vacía en el render inicial
+  // (determinista → sin hydration mismatch en SSR); al ABRIR se pone a
+  // Math.random() y los especiales re-tiran carta aleatoria. Los diarios NO la
+  // usan (siguen "iguales para todos").
+  const [drawSeed, setDrawSeed] = useState("");
   const [message, setMessage] = useState("");
   const heroButtonRef = useRef<HTMLButtonElement>(null);
   const swapPanelRef = useRef<HTMLDivElement>(null);
@@ -519,7 +524,8 @@ export function CofresView() {
 
   const dailyPacks = useMemo<Pack[]>(() => {
     const today = madridTodayKey();
-    return Array.from({ length: dailyPackCount }, (_, index) => {
+    // En demo solo 1 sobre diario (para probar); en real, los 7 históricos.
+    return Array.from({ length: CARDS_DEMO ? 1 : dailyPackCount }, (_, index) => {
       const dateKey = shiftDateKey(today, -index);
       return {
         id: `daily-${dateKey}`,
@@ -543,12 +549,16 @@ export function CofresView() {
       kind: "special",
       title: "Sobre Madrid",
       subtitle: "1 carta del Real Madrid",
-      playerIds: pickDeterministicPlayers(`madrid:${today}`, 1, MADRID_PLAYER_IDS),
+      playerIds: pickDeterministicPlayers(
+        `madrid:${today}:${drawSeed}`,
+        1,
+        MADRID_PLAYER_IDS,
+      ),
       availableAt: `${today}T00:00:00.000Z`,
       image: "/sobre-madrid.webp",
       flap: "white",
     };
-  }, []);
+  }, [drawSeed]);
 
   // Sobre Promesas sub-21: especial SIEMPRE disponible, 1 carta de un joven
   // crack de la lista curada (semilla por día, determinista).
@@ -559,12 +569,16 @@ export function CofresView() {
       kind: "special",
       title: "Sobre Promesas",
       subtitle: "1 promesa sub-21",
-      playerIds: pickDeterministicPlayers(`sub21:${today}`, 1, SUB21_PLAYER_IDS),
+      playerIds: pickDeterministicPlayers(
+        `sub21:${today}:${drawSeed}`,
+        1,
+        SUB21_PLAYER_IDS,
+      ),
       availableAt: `${today}T00:00:00.000Z`,
       image: "/sobre21.webp",
       flap: "black",
     };
-  }, []);
+  }, [drawSeed]);
 
   // Sobre Estrellas: especial SIEMPRE disponible, 1 carta de un crack mundial de
   // la lista curada (semilla por día, determinista). Estos jugadores salen como
@@ -576,12 +590,16 @@ export function CofresView() {
       kind: "special",
       title: "Sobre Estrellas",
       subtitle: "1 estrella mundial",
-      playerIds: pickDeterministicPlayers(`stars:${today}`, 1, STAR_PLAYER_IDS),
+      playerIds: pickDeterministicPlayers(
+        `stars:${today}:${drawSeed}`,
+        1,
+        STAR_PLAYER_IDS,
+      ),
       availableAt: `${today}T00:00:00.000Z`,
       image: "/sobre-estrellas.webp",
       flap: "navy",
     };
-  }, []);
+  }, [drawSeed]);
 
   // Sobre Selección Francia: especial SIEMPRE disponible, 1 carta de un
   // internacional francés de la lista curada (semilla por día, determinista).
@@ -593,7 +611,7 @@ export function CofresView() {
       title: "Sobre Francia",
       subtitle: "1 internacional francés",
       playerIds: pickDeterministicPlayers(
-        `francia:${today}`,
+        `francia:${today}:${drawSeed}`,
         1,
         FRANCE_PLAYER_IDS,
       ),
@@ -601,7 +619,7 @@ export function CofresView() {
       image: "/sobre-francia.webp",
       flap: "royal",
     };
-  }, []);
+  }, [drawSeed]);
 
   const hasRealXi = prediction.xi.some((playerId) => playersById.has(playerId));
   const activeXi = hasRealXi ? prediction.xi : demoXi;
@@ -751,8 +769,12 @@ export function CofresView() {
       }
       group.packs.push(pack);
     }
-    return order.sort(
-      (a, b) => Number(b.kind === "special") - Number(a.kind === "special"),
+    return order.sort((a, b) =>
+      // En demo el diario va PRIMERO (para probar rápido); en real, los
+      // especiales primero (más hype).
+      CARDS_DEMO
+        ? Number(b.kind === "daily") - Number(a.kind === "daily")
+        : Number(b.kind === "special") - Number(a.kind === "special"),
     );
   }, [unopenedPacks]);
 
@@ -1069,6 +1091,10 @@ export function CofresView() {
         return;
       }
 
+      // Re-tira los ESPECIALES para que la carta sea aleatoria en cada apertura
+      // (los diarios no usan drawSeed). Math.random aquí es seguro: es un evento
+      // de cliente, no el render (no hay hydration mismatch).
+      setDrawSeed(String(Math.random()));
       setActivePack(pack);
       setMessage("");
       setOpening(true);
