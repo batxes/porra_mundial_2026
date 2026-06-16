@@ -45,6 +45,17 @@ type Pack = {
   flap?: "green" | "white" | "black";
 };
 
+// Sobres agrupados por TIPO para la estantería del hero (los diarios cuentan
+// como un solo tipo; cada especial es el suyo). `packs` son los sin abrir de ese
+// tipo y `packs[0]` es el que se abre al seleccionarlo.
+type PackGroup = {
+  key: string;
+  kind: PackKind;
+  label: string;
+  image: string;
+  packs: Pack[];
+};
+
 type InventoryCard = {
   id: string;
   playerId: string;
@@ -481,7 +492,7 @@ export function CofresView() {
   const openedKey = storageKey(userStorageId, "opened");
   const logKey = storageKey(userStorageId, "log");
 
-  const dailyPacks = useMemo(() => {
+  const dailyPacks = useMemo<Pack[]>(() => {
     const today = madridTodayKey();
     return Array.from({ length: dailyPackCount }, (_, index) => {
       const dateKey = shiftDateKey(today, -index);
@@ -639,6 +650,46 @@ export function CofresView() {
     unopenedPacks[0] ||
     null;
   const unopenedCount = unopenedPacks.length;
+
+  // Agrupa los sobres sin abrir por tipo para la estantería del hero. Los
+  // especiales van primero (más hype), igual que el orden de `topPack`.
+  const packGroups = useMemo<PackGroup[]>(() => {
+    const order: PackGroup[] = [];
+    const byKey = new Map<string, PackGroup>();
+    for (const pack of unopenedPacks) {
+      const key = pack.kind === "daily" ? "daily" : pack.image || pack.id;
+      let group = byKey.get(key);
+      if (!group) {
+        group = {
+          key,
+          kind: pack.kind,
+          label:
+            pack.kind === "daily"
+              ? "Diario"
+              : pack.title.replace(/^Sobre\s+/i, ""),
+          image: pack.image || "/sobre.png",
+          packs: [],
+        };
+        byKey.set(key, group);
+        order.push(group);
+      }
+      group.packs.push(pack);
+    }
+    return order.sort(
+      (a, b) => Number(b.kind === "special") - Number(a.kind === "special"),
+    );
+  }, [unopenedPacks]);
+
+  // Tipo de sobre seleccionado en la estantería (null = el primero, que por el
+  // orden de `packGroups` es el especial de más hype). El sobre destacado es el
+  // primero sin abrir de ese tipo; ese es el que abre el botón.
+  const [selectedTypeKey, setSelectedTypeKey] = useState<string | null>(null);
+  const featuredGroup =
+    packGroups.find((group) => group.key === selectedTypeKey) ||
+    packGroups[0] ||
+    null;
+  const featuredPack = featuredGroup?.packs[0] || topPack;
+
   const overlayPacks = useMemo(() => {
     if (!activePack) return unopenedPacks.length ? unopenedPacks : packs;
     const pool = unopenedPacks.length ? unopenedPacks : packs;
@@ -1185,12 +1236,15 @@ export function CofresView() {
       {message ? <Notice tone="neutral">{message}</Notice> : null}
 
       <PackHero
-        topPack={topPack}
+        featuredPack={featuredPack}
+        groups={packGroups}
+        selectedKey={featuredGroup?.key ?? null}
+        onSelectType={setSelectedTypeKey}
         count={unopenedCount}
         opening={opening}
         hydrated={hydrated}
         buttonRef={heroButtonRef}
-        onOpen={() => topPack && openPack(topPack)}
+        onOpen={() => featuredPack && openPack(featuredPack)}
       />
 
       <section ref={collectionRef} className="scroll-mt-4 space-y-4">
@@ -1498,20 +1552,29 @@ export function CofresView() {
 function PackHero({
   buttonRef,
   count,
+  featuredPack,
+  groups,
   hydrated,
   onOpen,
+  onSelectType,
   opening,
-  topPack,
+  selectedKey,
 }: {
   buttonRef: RefObject<HTMLButtonElement | null>;
   count: number;
+  featuredPack: Pack | null;
+  groups: PackGroup[];
   hydrated: boolean;
   onOpen: () => void;
+  onSelectType: (key: string) => void;
   opening: boolean;
-  topPack: Pack | null;
+  selectedKey: string | null;
 }) {
-  const special = topPack?.kind === "special";
+  const special = featuredPack?.kind === "special";
   const empty = count === 0;
+  // Cuántos sobres tienes del tipo seleccionado (para el chip de la píldora).
+  const selectedCount =
+    groups.find((group) => group.key === selectedKey)?.packs.length ?? 0;
 
   if (!hydrated) {
     // El skeleton replica la estructura real (pill + sobre + contador + label +
@@ -1552,8 +1615,13 @@ function PackHero({
         {empty
           ? "Sin sobres"
           : special
-            ? topPack?.title || "Drop especial"
+            ? featuredPack?.title || "Drop especial"
             : "Sobre diario"}
+        {!empty && selectedCount > 0 ? (
+          <span className="rounded-full bg-white/15 px-1.5 py-px text-[11px] font-bold leading-none">
+            ×{selectedCount}
+          </span>
+        ) : null}
       </span>
 
       <button
@@ -1591,7 +1659,7 @@ function PackHero({
             }`}
           >
             <Image
-              src={topPack?.image || "/sobre.png"}
+              src={featuredPack?.image || "/sobre.png"}
               alt="Sobre de cartas de la Triliporra 2026"
               fill
               priority
@@ -1615,6 +1683,48 @@ function PackHero({
       >
         {count === 1 ? "sobre por abrir" : "sobres por abrir"}
       </p>
+
+      {/* Estantería: una miniatura pequeña y sutil por tipo de sobre, con su
+          cantidad. Al pulsar se cambia el sobre destacado (el grande de arriba).
+          Solo aparece si hay más de un tipo disponible. */}
+      {!empty && groups.length > 1 ? (
+        <div className="z-10 mt-4 flex items-start justify-center gap-3">
+          {groups.map((group) => {
+            const isSel = group.key === selectedKey;
+            return (
+              <button
+                key={group.key}
+                type="button"
+                onClick={() => onSelectType(group.key)}
+                aria-pressed={isSel}
+                aria-label={`${group.label}: ${group.packs.length} ${
+                  group.packs.length === 1 ? "sobre" : "sobres"
+                }`}
+                className={`flex flex-col items-center gap-1 transition ${
+                  isSel ? "" : "opacity-40 hover:opacity-75"
+                }`}
+              >
+                <span
+                  className={`relative block aspect-[818/1206] w-7 overflow-hidden rounded-[3px] transition ${
+                    isSel ? "ring-1 ring-white/70" : ""
+                  }`}
+                >
+                  <Image
+                    src={group.image}
+                    alt=""
+                    fill
+                    sizes="32px"
+                    className="object-contain"
+                  />
+                </span>
+                <span className="text-[10px] font-bold leading-none tabular-nums text-zinc-300">
+                  ×{group.packs.length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       <button
         type="button"
