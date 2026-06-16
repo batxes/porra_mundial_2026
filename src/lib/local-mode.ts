@@ -93,11 +93,41 @@ export function setCurrentLocalEmail(email: string) {
 }
 
 export async function digest(value: string) {
-  const buffer = new TextEncoder().encode(value);
-  const hash = await crypto.subtle.digest("SHA-256", buffer);
-  return Array.from(new Uint8Array(hash))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  // `crypto.subtle` (Web Crypto) SOLO existe en contextos seguros: HTTPS o
+  // localhost. Al entrar por la IP de la LAN sin HTTPS (p.ej. el móvil en
+  // http://192.168.x.x) `crypto.subtle` es undefined y esto reventaba. En ese
+  // caso caemos a un hash JS determinista: es modo local/demo (solo se compara
+  // la contraseña en el MISMO dispositivo, no necesita ser criptográfico).
+  if (typeof crypto !== "undefined" && crypto.subtle) {
+    const buffer = new TextEncoder().encode(value);
+    const hash = await crypto.subtle.digest("SHA-256", buffer);
+    return Array.from(new Uint8Array(hash))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  return fallbackHash(value);
+}
+
+// Hash JS determinista (cyrb53) de respaldo para contextos no seguros, donde no
+// hay Web Crypto. Devuelve hex; NO es criptográfico, solo para el modo demo.
+function fallbackHash(value: string) {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < value.length; i++) {
+    const ch = value.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const hex = (x: number) => (x >>> 0).toString(16).padStart(8, "0");
+  // Dos pasadas más para alargar el hex y reducir colisiones (sigue siendo
+  // estable para el mismo input).
+  const h3 = Math.imul(h1 ^ 0x9e3779b9, 2246822507) >>> 0;
+  const h4 = Math.imul(h2 ^ 0x85ebca6b, 3266489909) >>> 0;
+  return hex(h1) + hex(h2) + hex(h3) + hex(h4);
 }
 
 export function currentLocalUser() {

@@ -18,6 +18,7 @@ import * as THREE from "three";
 import { PlayerCard } from "@/components/player-card";
 import { playersById } from "@/lib/data";
 import { positionAccent } from "@/lib/position-style";
+import { starPlayerIds } from "@/lib/star-players";
 
 type OpeningPack = {
   id: string;
@@ -240,6 +241,7 @@ const NEBULA_FRAGMENT = `
   uniform vec2 u_resolution;
   uniform float u_time;
   uniform float u_srgb;
+  uniform vec3 u_tint;
   float hash(vec2 p){
     p = fract(p * vec2(123.34, 456.21));
     p += dot(p, p + 45.32);
@@ -263,16 +265,18 @@ const NEBULA_FRAGMENT = `
     vec2 r = vec2(fbm(p + 4.0 * q + vec2(1.7, 9.2) + t * 0.4),
                   fbm(p + 4.0 * q + vec2(8.3, 2.8) - t * 0.3));
     float f = fbm(p + 4.0 * r);
-    vec3 deep = vec3(0.020, 0.045, 0.050);
-    vec3 teal = vec3(0.040, 0.150, 0.150);
-    vec3 cyan = vec3(0.060, 0.260, 0.330);
-    vec3 lime = vec3(0.130, 0.300, 0.110);
-    vec3 mist = vec3(0.300, 0.520, 0.430);
+    // Paleta derivada del tinte del sobre (u_tint): nebulosa monocroma con
+    // variación de luminancia (deep = base oscura, mid/bright = acentos, mist =
+    // bruma clara). Así el fondo cambia de color según el sobre.
+    vec3 deep   = u_tint * 0.16;
+    vec3 mid    = u_tint * 0.55;
+    vec3 bright = clamp(u_tint * 1.30, 0.0, 1.0);
+    vec3 mist   = mix(u_tint, vec3(1.0), 0.55) * 0.78;
     vec3 color = deep;
-    color = mix(color, cyan, clamp(f * f * 2.4, 0.0, 1.0));
-    color = mix(color, teal, clamp(length(q) * 0.9, 0.0, 1.0));
-    color = mix(color, lime, clamp(r.x * 0.5, 0.0, 1.0));
-    color = mix(color, mist, clamp((f - 0.55) * 1.7, 0.0, 1.0));
+    color = mix(color, bright, clamp(f * f * 2.4, 0.0, 1.0));
+    color = mix(color, mid,    clamp(length(q) * 0.9, 0.0, 1.0));
+    color = mix(color, bright, clamp(r.x * 0.5, 0.0, 1.0));
+    color = mix(color, mist,   clamp((f - 0.55) * 1.7, 0.0, 1.0));
     float vignette = smoothstep(1.2, 0.30, length(uv - 0.5));
     color *= mix(0.28, 1.0, vignette);
     color *= 0.92;
@@ -283,18 +287,38 @@ const NEBULA_FRAGMENT = `
     gl_FragColor = vec4(color, 1.0);
   }`;
 
+// Tinte de la nebulosa según el TIPO de sobre (su `flap`): el fondo cambia de
+// color con cada sobre. Valores en espacio de pantalla (sRGB-ish), un solo tono
+// dominante por sobre (el shader le saca la variación de luminancia).
+type NebulaTint = [number, number, number];
+const NEBULA_TINTS: Record<NonNullable<OpeningPack["flap"]>, NebulaTint> = {
+  green: [0.1, 0.34, 0.24], // diario / promesas: verde-teal de marca
+  white: [0.3, 0.36, 0.46], // Madrid: plata frío
+  black: [0.46, 0.33, 0.1], // sobre 21 (negro + oro): oro/ámbar
+  navy: [0.12, 0.2, 0.52], // estrellas (azul + oro): azul real
+};
+function nebulaTint(flap?: OpeningPack["flap"]): NebulaTint {
+  return NEBULA_TINTS[flap ?? "green"] ?? NEBULA_TINTS.green;
+}
+
 // Fondo de la escena 3D del sobre: el MISMO shader nebulosa como quad a pantalla
 // completa (RawShaderMaterial), detrás de todo (renderOrder -1, sin depth). El
 // vertex shader saca el quad directo en clip-space, ignorando la cámara, así que
 // llena la pantalla sea cual sea el encuadre.
-function SceneShaderBackground() {
+function SceneShaderBackground({
+  tint = NEBULA_TINTS.green,
+}: {
+  tint?: NebulaTint;
+}) {
   const matRef = useRef<THREE.RawShaderMaterial>(null);
   const uniforms = useMemo(
     () => ({
       u_time: { value: 0 },
       u_resolution: { value: new THREE.Vector2(1, 1) },
       u_srgb: { value: 1 },
+      u_tint: { value: new THREE.Vector3(tint[0], tint[1], tint[2]) },
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
   useFrame(({ gl }) => {
@@ -306,6 +330,8 @@ function SceneShaderBackground() {
     // gl es el WebGLRenderer; getDrawingBufferSize da el tamaño real del buffer
     // (canvas * pixelRatio), que es el espacio de gl_FragCoord.
     gl.getDrawingBufferSize(mat.uniforms.u_resolution.value);
+    // Tinte por sobre (por si cambia el sobre seleccionado sin remmontar).
+    mat.uniforms.u_tint.value.set(tint[0], tint[1], tint[2]);
   });
   return (
     <mesh renderOrder={-1} frustumCulled={false}>
@@ -1255,7 +1281,13 @@ function FocusedPack({
   return <PackPrimitive groupRef={groupRef} image={image} />;
 }
 
-function OpeningFallback({ image }: { image?: string }) {
+function OpeningFallback({
+  image,
+  tint = NEBULA_TINTS.green,
+}: {
+  image?: string;
+  tint?: NebulaTint;
+}) {
   const meshRef = useRef<THREE.Mesh>(null);
   const { size } = useThree();
   const texture = usePackTexture(image);
@@ -1274,7 +1306,7 @@ function OpeningFallback({ image }: { image?: string }) {
 
   return (
     <>
-      <SceneShaderBackground />
+      <SceneShaderBackground tint={tint} />
       <ambientLight color="#ffffff" intensity={1.7} />
       <pointLight color="#a7f600" intensity={4} position={[0, 0, 2.4]} />
       <Sparkles
@@ -1574,7 +1606,7 @@ function OverlayWorld({
 
   return (
     <>
-      <SceneShaderBackground />
+      <SceneShaderBackground tint={nebulaTint(selectedPack?.flap)} />
       <OpeningDimmer phase={phase} slashLine={slashLine} />
       <ambientLight color="#ffffff" intensity={1.55} />
       <directionalLight
@@ -1639,8 +1671,18 @@ function OverlayWorld({
 // cartas "floten" encima. Se mueve despacio (u_time), se monta solo en el
 // revelado y limpia su contexto al desmontar. Si no hay WebGL no pinta nada
 // (alpha 1 solo en lo dibujado) y queda el degradado CSS de reserva.
-function ShaderBackground() {
+function ShaderBackground({
+  tint = NEBULA_TINTS.green,
+}: {
+  tint?: NebulaTint;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
+  // El loop de WebGL se monta una vez ([]); para que el tinte pueda cambiar sin
+  // reinicializar el contexto, lo leemos de un ref que actualizamos por efecto.
+  const tintRef = useRef(tint);
+  useEffect(() => {
+    tintRef.current = tint;
+  }, [tint]);
 
   useEffect(() => {
     const canvas = ref.current;
@@ -1688,6 +1730,7 @@ function ShaderBackground() {
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     const uRes = gl.getUniformLocation(program, "u_resolution");
     const uTime = gl.getUniformLocation(program, "u_time");
+    const uTint = gl.getUniformLocation(program, "u_tint");
 
     let raf = 0;
     const render = () => {
@@ -1701,6 +1744,7 @@ function ShaderBackground() {
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.uniform2f(uRes, canvas.width, canvas.height);
       gl.uniform1f(uTime, performance.now() / 1000);
+      gl.uniform3f(uTint, tintRef.current[0], tintRef.current[1], tintRef.current[2]);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       raf = requestAnimationFrame(render);
     };
@@ -1728,6 +1772,12 @@ function ShaderBackground() {
   );
 }
 
+// Efecto "poke-holo" de hover en la carta protagonista del revelado: tilt 3D
+// que sigue al ratón + glare/holo por rareza. DESACTIVADO por ahora — en móvil
+// (sin hover real) se veía raro y queremos simplificar. El código se conserva
+// entero; basta poner esto en `true` para reactivarlo en el futuro.
+const CARD_HOVER_FX: boolean = false;
+
 // Revelado en HTML (reusa la carta del inventario). three.js solo se encarga
 // del sobre; al abrirlo, el Canvas se desmonta y entra esta capa: cartas una a
 // una con tap/swipe, abanico final, tilt 3D en CSS y barrido de brillo.
@@ -1737,12 +1787,14 @@ function RevealCards({
   onAdvance,
   pointsFor,
   title,
+  tint = NEBULA_TINTS.green,
 }: {
   cards: OpeningCard[];
   stackIndex: number;
   onAdvance: () => void;
   pointsFor: (playerId: string) => number;
   title?: string;
+  tint?: NebulaTint;
 }) {
   const done = stackIndex >= cards.length;
   // Acento de la carta visible (protagonista) para teñir el brillo del fondo.
@@ -1757,6 +1809,17 @@ function RevealCards({
     y: 0,
     id: null,
   });
+  // Caja estable de la carta (no se inclina) para medir la posición del ratón.
+  const stageRef = useRef<HTMLDivElement>(null);
+  // Hover de ratón sobre la carta protagonista: tilt 3D + brillo que siguen al
+  // puntero (estilo poke-holo). En táctil no aplica (ahí solo se arrastra).
+  const [hover, setHover] = useState({
+    rx: 0,
+    ry: 0,
+    mx: 50,
+    my: 50,
+    active: false,
+  });
 
   const onDown = (event: ReactPointerEvent) => {
     if (done || !event.isPrimary) return;
@@ -1764,12 +1827,38 @@ function RevealCards({
     setDrag({ x: 0, y: 0, active: true });
   };
   const onMove = (event: ReactPointerEvent) => {
-    if (start.current.id === null || event.pointerId !== start.current.id) {
+    // 1) Arrastre en curso: mueve la carta (tap/swipe para pasar de carta).
+    if (start.current.id !== null && event.pointerId === start.current.id) {
+      setDrag({
+        x: event.clientX - start.current.x,
+        y: event.clientY - start.current.y,
+        active: true,
+      });
       return;
     }
-    setDrag({
-      x: event.clientX - start.current.x,
-      y: event.clientY - start.current.y,
+    // 2) Si no, hover de ratón: la carta se inclina y brilla siguiendo al
+    // puntero. Solo ratón y solo mientras quede carta protagonista.
+    // (Desactivado por CARD_HOVER_FX mientras simplificamos.)
+    if (!CARD_HOVER_FX || done || event.pointerType !== "mouse") return;
+    const el = stageRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const px = (event.clientX - r.left) / r.width;
+    const py = (event.clientY - r.top) / r.height;
+    // Fuera de la carta (con un pequeño margen): vuelve a plano.
+    if (px < -0.08 || px > 1.08 || py < -0.08 || py > 1.08) {
+      setHover((h) => (h.active ? { ...h, active: false } : h));
+      return;
+    }
+    const max = 15;
+    // Mismo sentido que el arrastre: rotateY sigue al eje X del puntero y
+    // rotateX al inverso del eje Y (la carta gira "empujada" por el cursor).
+    setHover({
+      rx: clamp(-(py - 0.5) * 2 * max, -max, max),
+      ry: clamp((px - 0.5) * 2 * max, -max, max),
+      mx: px * 100,
+      my: py * 100,
       active: true,
     });
   };
@@ -1813,8 +1902,11 @@ function RevealCards({
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onUp}
+      onPointerLeave={() =>
+        setHover((h) => (h.active ? { ...h, active: false } : h))
+      }
     >
-      <ShaderBackground />
+      <ShaderBackground tint={tint} />
 
       {/* Brillo central que late y se tiñe del color de la carta visible. */}
       <div
@@ -1848,6 +1940,7 @@ function RevealCards({
       </div>
 
       <div
+        ref={stageRef}
         className="relative w-[64vw] max-w-[280px]"
         style={{ aspectRatio: "5 / 7", transformStyle: "preserve-3d" }}
       >
@@ -1872,11 +1965,30 @@ function RevealCards({
             scale = 1 - depth * 0.05;
             z = 40 - depth;
           }
-          const dragX = isHero ? drag.x : 0;
-          const dragY = isHero ? drag.y : 0;
-          const tiltY = isHero && drag.active ? clamp(drag.x / 16, -12, 12) : 0;
-          const tiltX =
-            isHero && drag.active ? clamp(-drag.y / 16, -12, 12) : 0;
+          // Con el efecto desactivado (CARD_HOVER_FX) la carta NO se mueve al
+          // pulsarla/arrastrarla. El tap/swipe para pasar de carta SIGUE
+          // funcionando: lo decide onUp con start.current (el ref), no este
+          // estado visual de arrastre.
+          const dragActive = CARD_HOVER_FX && isHero && drag.active;
+          const hoverActive =
+            CARD_HOVER_FX && isHero && hover.active && !drag.active;
+          const dragX = CARD_HOVER_FX && isHero ? drag.x : 0;
+          const dragY = CARD_HOVER_FX && isHero ? drag.y : 0;
+          const tiltY = dragActive
+            ? clamp(drag.x / 16, -12, 12)
+            : hoverActive
+              ? hover.ry
+              : 0;
+          const tiltX = dragActive
+            ? clamp(-drag.y / 16, -12, 12)
+            : hoverActive
+              ? hover.rx
+              : 0;
+          // Pop hacia el espectador al pasar el ratón (efecto 3D más marcado).
+          const lift = hoverActive ? 34 : 0;
+          // Rareza ALTA (legendaria) = shader holográfico espectacular; el resto
+          // (común), solo un brillo muy sutil. (Hoy solo hay común/legendaria.)
+          const legendary = starPlayerIds.has(card.playerId);
           return (
             <div
               key={card.id}
@@ -1885,11 +1997,12 @@ function RevealCards({
                 zIndex: z,
                 transform: `translate(calc(${x}% + ${dragX}px), calc(${y}% + ${
                   dragY * 0.35
-                }px)) rotateZ(${rot}deg) rotateY(${tiltY}deg) rotateX(${tiltX}deg) scale(${scale})`,
+                }px)) rotateZ(${rot}deg) rotateY(${tiltY}deg) rotateX(${tiltX}deg) translateZ(${lift}px) scale(${scale})`,
                 transformStyle: "preserve-3d",
-                transition:
-                  isHero && drag.active
-                    ? "none"
+                transition: dragActive
+                  ? "none"
+                  : hoverActive
+                    ? "transform 90ms ease-out"
                     : "transform 460ms cubic-bezier(0.2, 0.7, 0.25, 1)",
                 willChange: "transform",
               }}
@@ -1902,6 +2015,43 @@ function RevealCards({
                 />
                 {isHero ? (
                   <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg">
+                    {/* SHADER ESPECTACULAR (solo rareza alta): foil arcoíris que
+                        se desplaza con el puntero, en color-dodge sobre el navy
+                        oscuro de la carta -> brillo vivo tipo poke-holo.
+                        (Desactivado por CARD_HOVER_FX.) */}
+                    {CARD_HOVER_FX && legendary ? (
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          opacity: hoverActive ? 0.62 : 0,
+                          transition: "opacity 220ms ease",
+                          mixBlendMode: "color-dodge",
+                          backgroundSize: "230% 230%",
+                          backgroundPosition: `${hover.mx}% ${hover.my}%`,
+                          backgroundImage:
+                            "linear-gradient(115deg, transparent 6%, rgba(255,119,115,0.42) 18%, rgba(255,233,99,0.4) 30%, rgba(168,255,120,0.42) 42%, rgba(120,247,238,0.42) 54%, rgba(125,151,255,0.45) 66%, rgba(214,123,255,0.45) 78%, transparent 92%)",
+                        }}
+                      />
+                    ) : null}
+                    {/* Glare especular que sigue al ratón. Rareza alta = marcado;
+                        común = MUY sutil (solo un punto de luz tenue).
+                        (Desactivado por CARD_HOVER_FX.) */}
+                    {CARD_HOVER_FX ? (
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          opacity: hoverActive ? (legendary ? 0.6 : 0.16) : 0,
+                          transition: "opacity 200ms ease",
+                          background: `radial-gradient(circle at ${hover.mx}% ${hover.my}%, rgba(255,255,255,${
+                            legendary ? 0.85 : 0.55
+                          }), rgba(255,255,255,0.1) ${
+                            legendary ? 26 : 32
+                          }%, transparent 56%)`,
+                          mixBlendMode: "overlay",
+                        }}
+                      />
+                    ) : null}
+                    {/* Barrido único al revelarse la carta. */}
                     <div
                       className="absolute inset-y-[-30%] left-0 w-1/2"
                       style={{
@@ -2062,7 +2212,14 @@ export function PackOpeningOverlay({
             shadows
             style={{ height: "100%", touchAction: "none", width: "100%" }}
           >
-            <Suspense fallback={<OpeningFallback image={selectedPack?.image} />}>
+            <Suspense
+              fallback={
+                <OpeningFallback
+                  image={selectedPack?.image}
+                  tint={nebulaTint(selectedPack?.flap)}
+                />
+              }
+            >
               <OverlayWorld
                 onOpeningComplete={() => {
                   setStackIndex(0);
@@ -2102,6 +2259,7 @@ export function PackOpeningOverlay({
           onAdvance={onCardSwiped}
           pointsFor={pointsFor}
           title={selectedPack.title}
+          tint={nebulaTint(selectedPack.flap)}
         />
       )}
 
