@@ -12,6 +12,7 @@ import {
   currentLocalUser,
   defaultAdminEmail,
   digest,
+  ensureDemoUsers,
   ensureLocalAdminUser,
   getLocalAdminResults,
   getLocalPredictions,
@@ -276,6 +277,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshData = useCallback(async () => {
     if (!usingSupabase) {
       await ensureLocalAdminUser();
+      await ensureDemoUsers();
       await syncLocalState();
       setReady(true);
       return;

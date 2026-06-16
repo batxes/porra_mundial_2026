@@ -876,6 +876,7 @@ type LineupPlayerStats = {
   mvps: number;
   reds: number;
   missedPens: number;
+  points: number;
 };
 
 function lineupEventStats(playerIds: string[], results?: AdminResults) {
@@ -893,43 +894,47 @@ function lineupEventStats(playerIds: string[], results?: AdminResults) {
         mvps: 0,
         reds: 0,
         missedPens: 0,
+        points: 0,
       };
       const position = playersById.get(event.playerId)?.position;
 
+      let delta = 0;
       switch (String(event.type)) {
         case "gol":
         case "goal":
           entry.goals += 1;
-          totalPoints += position ? lineupGoalPointsByPosition[position] : 2;
+          delta = position ? lineupGoalPointsByPosition[position] : 2;
           break;
         case "penalti marcado":
         case "penalty_goal":
           entry.penaltyGoals += 1;
-          totalPoints += 1;
+          delta = 1;
           break;
         case "penalti parado":
         case "penalty_save":
           entry.saves += 1;
-          totalPoints += 2;
+          delta = 2;
           break;
         case "MVP":
         case "mvp":
           entry.mvps += 1;
-          totalPoints += 3;
+          delta = 3;
           break;
         case "roja":
         case "red_card":
           entry.reds += 1;
-          totalPoints -= 2;
+          delta = -2;
           break;
         case "penalti fallado":
         case "penalty_miss":
           entry.missedPens += 1;
-          totalPoints -= 1;
+          delta = -1;
           break;
         default:
           break;
       }
+      entry.points += delta;
+      totalPoints += delta;
       stats.set(event.playerId, entry);
     });
   });
@@ -1063,17 +1068,25 @@ function LineupSnapshotSlot({
             <span className="h-6 w-6 rounded-full border border-emerald-100 bg-emerald-600 sm:h-7 sm:w-7" />
           </span>
         )}
-        {player ? (
-          <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow">
-            <TeamFlag
-              teamId={player.team}
-              className="h-full w-full rounded-full"
-            />
+        {player && hasStats && stats ? (
+          <span
+            className={`absolute -bottom-1.5 left-1/2 flex h-4 min-w-4 -translate-x-1/2 items-center justify-center rounded-sm border border-white/80 bg-emerald-950/90 px-1 text-[9px] font-extrabold leading-none shadow sm:text-[10px] ${
+              stats.points >= 0 ? "text-[#a7f600]" : "text-rose-400"
+            }`}
+          >
+            {stats.points > 0 ? `+${stats.points}` : stats.points}
           </span>
         ) : null}
       </span>
-      <span className="max-w-full truncate text-[10px] font-bold leading-tight text-white drop-shadow sm:text-xs">
-        {player?.name || lineupPositionLabels[slot.position]}
+      <span className="mt-1.5 flex max-w-full items-center justify-center gap-1">
+        {player ? (
+          <span className="h-3 w-3 shrink-0 overflow-hidden rounded-sm sm:h-3.5 sm:w-3.5">
+            <TeamFlag teamId={player.team} className="h-full w-full" />
+          </span>
+        ) : null}
+        <span className="truncate text-[10px] font-bold leading-tight text-white drop-shadow sm:text-xs">
+          {player?.name || lineupPositionLabels[slot.position]}
+        </span>
       </span>
       {hasStats && stats ? (
         <span className="flex flex-wrap items-center justify-center gap-0.5">
