@@ -1567,6 +1567,19 @@ export function CofresView() {
   );
 }
 
+// Color del glow del hero según el sobre (misma paleta que las luces de la
+// escena 3D): verde diario/promesas, plata Madrid, oro sobre21, azul Estrellas.
+// Devuelve "r,g,b" para componer rgba(...).
+const PACK_GLOW: Record<NonNullable<Pack["flap"]>, string> = {
+  green: "167,246,0",
+  white: "215,227,255",
+  black: "255,210,77",
+  navy: "106,166,255",
+};
+function packGlowRgb(pack: Pack | null): string {
+  return PACK_GLOW[pack?.flap ?? "green"] ?? PACK_GLOW.green;
+}
+
 function PackHero({
   buttonRef,
   count,
@@ -1593,6 +1606,8 @@ function PackHero({
   // Cuántos sobres tienes del tipo seleccionado (para el chip de la píldora).
   const selectedCount =
     groups.find((group) => group.key === selectedKey)?.packs.length ?? 0;
+  // Color del glow según el sobre (verde, plata, oro o azul).
+  const glow = packGlowRgb(featuredPack);
 
   if (!hydrated) {
     // El skeleton replica la estructura real (pill + sobre + contador + label +
@@ -1612,13 +1627,14 @@ function PackHero({
     <section className="relative flex min-h-[58svh] flex-col items-center justify-center overflow-hidden py-6">
       <div
         aria-hidden
-        className={`pointer-events-none absolute inset-0 ${
+        className="pointer-events-none absolute inset-0"
+        style={
           empty
-            ? ""
-            : special
-              ? "bg-[radial-gradient(58%_46%_at_50%_42%,rgba(255,210,82,0.16),transparent_70%)]"
-              : "bg-[radial-gradient(58%_46%_at_50%_42%,rgba(167,246,0,0.16),transparent_70%)]"
-        }`}
+            ? undefined
+            : {
+                background: `radial-gradient(58% 46% at 50% 42%, rgba(${glow},0.16), transparent 70%)`,
+              }
+        }
       />
 
       <span
@@ -1654,6 +1670,19 @@ function PackHero({
         }
         className="group relative z-10 flex aspect-[818/1206] w-[clamp(190px,56vw,300px)] items-center justify-center rounded-2xl outline-none [perspective:1200px] focus-visible:ring-2 focus-visible:ring-[#a7f600]/60 disabled:cursor-default"
       >
+        {/* Glow del sobre: radial ESTÁTICO detrás (no flota ni se inclina ni
+            usa filter). Antes era un filter:drop-shadow sobre la capa animada +
+            preserve-3d, que en iOS Safari se rasterizaba como un RECTÁNGULO y
+            parpadeaba/desaparecía al hacer scroll. Color según el sobre. */}
+        {empty ? null : (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -inset-4 sm:-inset-6"
+            style={{
+              background: `radial-gradient(60% 56% at 50% 56%, rgba(${glow},0.42), rgba(${glow},0.12) 58%, transparent 80%)`,
+            }}
+          />
+        )}
         {/* Dos capas: la EXTERIOR flota (cofre-hero-float, transform propio); la
             INTERIOR hace el tilt de hover y el scale de active. Si fueran el
             mismo elemento, la animación en curso pisaría el transform del hover
@@ -1670,10 +1699,6 @@ function PackHero({
               empty
                 ? "opacity-40 grayscale"
                 : "group-hover:[transform:rotateX(6deg)_rotateY(-8deg)_translateY(-6px)] group-active:scale-[1.04]"
-            } ${
-              special
-                ? "drop-shadow-[0_18px_45px_rgba(255,210,82,0.4)]"
-                : "drop-shadow-[0_18px_45px_rgba(167,246,0,0.3)]"
             }`}
           >
             <Image

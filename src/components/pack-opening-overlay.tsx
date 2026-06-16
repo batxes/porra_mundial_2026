@@ -17,6 +17,7 @@ import * as THREE from "three";
 
 import { PlayerCard } from "@/components/player-card";
 import { playersById } from "@/lib/data";
+import { playerPhotoUrl } from "@/lib/format";
 import { positionAccent } from "@/lib/position-style";
 import { starPlayerIds } from "@/lib/star-players";
 
@@ -299,6 +300,20 @@ const NEBULA_TINTS: Record<NonNullable<OpeningPack["flap"]>, NebulaTint> = {
 };
 function nebulaTint(flap?: OpeningPack["flap"]): NebulaTint {
   return NEBULA_TINTS[flap ?? "green"] ?? NEBULA_TINTS.green;
+}
+
+// Acento VIVO por tipo de sobre para luces y partículas de la escena 3D (las
+// partículas no siempre verdes). Cohesivo con NEBULA_TINTS pero más saturado y
+// brillante (las luces necesitan pegar). Mismo criterio: verde diario, plata
+// Madrid, oro sobre21, azul Estrellas.
+const PACK_ACCENTS: Record<NonNullable<OpeningPack["flap"]>, string> = {
+  green: "#a7f600",
+  white: "#d7e3ff",
+  black: "#ffd24d",
+  navy: "#6aa6ff",
+};
+function packAccent(flap?: OpeningPack["flap"]): string {
+  return PACK_ACCENTS[flap ?? "green"] ?? PACK_ACCENTS.green;
 }
 
 // Fondo de la escena 3D del sobre: el MISMO shader nebulosa como quad a pantalla
@@ -1012,7 +1027,7 @@ function PackHalves({
       </group>
       <pointLight
         ref={glowRef}
-        color={pack.kind === "daily" ? "#a7f600" : "#ffd252"}
+        color={packAccent(pack.flap)}
         distance={15}
         intensity={0}
         position={[0, cutY + 0.3, focusedPackZ + 0.8]}
@@ -1284,9 +1299,11 @@ function FocusedPack({
 function OpeningFallback({
   image,
   tint = NEBULA_TINTS.green,
+  accent = PACK_ACCENTS.green,
 }: {
   image?: string;
   tint?: NebulaTint;
+  accent?: string;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const { size } = useThree();
@@ -1308,9 +1325,9 @@ function OpeningFallback({
     <>
       <SceneShaderBackground tint={tint} />
       <ambientLight color="#ffffff" intensity={1.7} />
-      <pointLight color="#a7f600" intensity={4} position={[0, 0, 2.4]} />
+      <pointLight color={accent} intensity={4} position={[0, 0, 2.4]} />
       <Sparkles
-        color="#a7f600"
+        color={accent}
         count={42}
         opacity={0.55}
         scale={[4, 3, 2]}
@@ -1508,7 +1525,12 @@ function OpeningParticles({
   const spawn = useCallback(() => {
     if (!groupRef.current) return;
     const texture = getSoftGlowTexture();
-    const colors = [accent, "#ffffff", "#d8ff8a"];
+    // Tercer tono = acento aclarado (antes era verde fijo): así las partículas
+    // van con el color del sobre, no siempre verdes.
+    const accentLight = new THREE.Color(accent)
+      .lerp(new THREE.Color("#ffffff"), 0.55)
+      .getStyle();
+    const colors = [accent, "#ffffff", accentLight];
     const origin = new THREE.Vector3(
       0,
       cutLayout(size.width).cutY,
@@ -1602,7 +1624,7 @@ function OverlayWorld({
   slashPath: SlashPoint[];
 }) {
   const selectedPack = packs[selectedIndex] || packs[0];
-  const accent = selectedPack?.kind === "daily" ? "#a7f600" : "#ffd252";
+  const accent = packAccent(selectedPack?.flap);
 
   return (
     <>
@@ -1615,14 +1637,14 @@ function OverlayWorld({
         position={[2.8, 3.8, 5]}
       />
       <directionalLight
-        color="#a7f600"
+        color={accent}
         intensity={1.1}
         position={[-3, -1.5, 4]}
       />
       <FlashEffects accent={accent} phase={phase} />
       <OpeningParticles accent={accent} phase={phase} />
       <Sparkles
-        color="#a7f600"
+        color={accent}
         count={phase === "carousel" ? 42 : 96}
         opacity={0.68}
         scale={[5.2, 3.4, 2.7]}
@@ -2114,6 +2136,24 @@ export function PackOpeningOverlay({
     [selectedPack],
   );
 
+  // Las fotos de los jugadores son REMOTAS (api-sports), así que al revelar a
+  // veces aparecían tarde (el "efecto raro" de la carta sin foto que luego
+  // pega un pop). Las precargamos en cuanto se conoce el mazo —mientras dura el
+  // sobre 3D y el slash hay margen de sobra— para que en el revelado ya estén
+  // en caché.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    for (const card of cards) {
+      const player = playersById.get(card.playerId);
+      const url = player ? playerPhotoUrl(player) : "";
+      if (url) {
+        const img = new window.Image();
+        img.decoding = "async";
+        img.src = url;
+      }
+    }
+  }, [cards]);
+
   // "Desliza para cortar el sobre" se muestra ENCIMA del sobre; abajo solo queda
   // el estado de apertura. El revelado usa pips + CTA (más abajo).
   const bottomHint = phase === "opening" ? "Abriendo el sobre..." : "";
@@ -2217,6 +2257,7 @@ export function PackOpeningOverlay({
                 <OpeningFallback
                   image={selectedPack?.image}
                   tint={nebulaTint(selectedPack?.flap)}
+                  accent={packAccent(selectedPack?.flap)}
                 />
               }
             >
