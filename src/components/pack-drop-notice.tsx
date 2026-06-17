@@ -204,14 +204,14 @@ export function PackDropWatcher({
       ? "¡Es hora de renovar tu once!"
       : "Es hora de renovar tu once";
   const subtitle = isPremier
-    ? "Roba un jugador de la premier."
+    ? "Por el fallo de la actualización de antes, roba un jugador de la premier."
     : variant === "launch"
       ? "Tienes 3 sobres de bienvenida esperando. ¡Suerte!"
       : `Te traigo ${total} sobre${total === 1 ? "" : "s"} de fichajes. Ábrelos y mete un crack en tu once.`;
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 pb-6 pt-16 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="pack-drop-title"
@@ -219,70 +219,69 @@ export function PackDropWatcher({
         if (event.target === event.currentTarget) close();
       }}
     >
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[#151515] text-white shadow-2xl shadow-black/50 motion-safe:animate-[cofre-modal-pop_220ms_cubic-bezier(0.2,0.9,0.3,1)_both]">
-        {/* Recorte con fondo transparente: se muestra ENTERO (object-contain) y
-            se funde con el modal. Se intuye quién es, sin nombrarlo. */}
-        <div className="relative mt-4 h-48 w-full">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#151515] p-5 text-white shadow-2xl shadow-black/50 motion-safe:animate-[cofre-modal-pop_220ms_cubic-bezier(0.2,0.9,0.3,1)_both]">
+        {/* Cabecera estilo recap de resultados: texto a la izquierda y la imagen
+            (Laporta/Florentino) a la derecha, asomando por arriba del modal. */}
+        <div className="mb-3 flex items-end justify-between gap-2">
+          <div className="min-w-0 pb-1">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-[#ffd252]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#ffd252] ring-1 ring-[#ffd252]/30">
+              {isPremier ? "Recompensa" : "Fichajes"}
+            </span>
+            <h3
+              id="pack-drop-title"
+              className="mt-2 text-base font-bold tracking-tight sm:text-xl"
+            >
+              {title}
+            </h3>
+            <p className="mt-1.5 text-[13px] leading-5 text-zinc-300 sm:text-sm">
+              {subtitle}
+            </p>
+          </div>
           <Image
             src={isPremier ? "/laporta.webp" : "/florentino.webp"}
             alt=""
-            fill
-            sizes="448px"
-            className="object-contain"
+            width={171}
+            height={128}
+            className="-mb-1 -mt-16 h-28 w-auto shrink-0 object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.35)] sm:-mt-20 sm:h-32"
             priority
           />
-          <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-md bg-[#ffd252]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#ffd252] ring-1 ring-[#ffd252]/30">
-            {isPremier ? "Premier" : "Fichajes"}
-          </span>
         </div>
 
-        <div className="px-5 pb-5 pt-1">
-          <h3
-            id="pack-drop-title"
-            className="text-base font-bold tracking-tight sm:text-xl"
-          >
-            {title}
-          </h3>
-          <p className="mt-1.5 text-[13px] leading-5 text-zinc-300 sm:text-sm">
-            {subtitle}
-          </p>
-
-          <div className="mt-4 space-y-2">
-            {items.map((item) => (
-              <div
-                key={item.title}
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5"
-              >
-                <span className="relative block aspect-[818/1206] w-9 shrink-0 overflow-hidden rounded-md">
-                  <Image
-                    src={item.image}
-                    alt=""
-                    fill
-                    sizes="36px"
-                    className="object-contain"
-                  />
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-bold">
-                  {item.title}
-                </span>
-                <span className="shrink-0 rounded-md bg-[#ffd252]/15 px-2 py-0.5 text-sm font-bold tabular-nums text-[#ffd252]">
-                  ×{item.qty}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              close();
-              router.push("/cofres");
-            }}
-            className="mt-4 w-full rounded-lg bg-[#a7f600] px-4 py-3 text-sm font-bold text-black shadow-lg shadow-[#a7f600]/10 transition hover:bg-[#c7ff43]"
-          >
-            Abrir ahora
-          </button>
+        <div className="space-y-2">
+          {items.map((item) => (
+            <div
+              key={item.title}
+              className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5"
+            >
+              <span className="relative block aspect-[818/1206] w-9 shrink-0 overflow-hidden rounded-md">
+                <Image
+                  src={item.image}
+                  alt=""
+                  fill
+                  sizes="36px"
+                  className="object-contain"
+                />
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-bold">
+                {item.title}
+              </span>
+              <span className="shrink-0 rounded-md bg-[#ffd252]/15 px-2 py-0.5 text-sm font-bold tabular-nums text-[#ffd252]">
+                ×{item.qty}
+              </span>
+            </div>
+          ))}
         </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            close();
+            router.push("/cofres");
+          }}
+          className="mt-4 w-full rounded-lg bg-[#a7f600] px-4 py-3 text-sm font-bold text-black shadow-lg shadow-[#a7f600]/10 transition hover:bg-[#c7ff43]"
+        >
+          Abrir ahora
+        </button>
       </div>
     </div>
   );
