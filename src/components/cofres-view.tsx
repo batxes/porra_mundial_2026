@@ -30,6 +30,7 @@ import { TOP150_PLAYER_IDS } from "@/lib/top150-players";
 import {
   cycleKeysSince,
   dailyCycleKey,
+  DAILY_FIRST_CYCLE,
   formatCountdownHMS,
   secondsUntilNextDailyCard,
 } from "@/lib/cofres";
@@ -540,29 +541,29 @@ export function CofresView() {
     [cycleKeys, drawSeed],
   );
 
-  // Sobres temáticos por ciclo (Promesas, Estrellas). Acumulan igual que el
-  // diario: por cada ciclo, uno de cada tipo; los no abiertos se quedan.
+  // Sobres temáticos de BIENVENIDA (Promesas, Estrellas): uno de cada, fijos al
+  // ciclo de activación. NO se renuevan solos cada día (solo el diario lo hace);
+  // se quedan hasta que los abras y los extra los suelta el admin. Por eso usan
+  // DAILY_FIRST_CYCLE como fecha y no `cycleKeys`.
   const themedPacks = useMemo<Pack[]>(
     () =>
-      cycleKeys.flatMap((dateKey) =>
-        THEMED_CONFIGS.map((cfg) => ({
-          id: `${cfg.pool}-${dateKey}`,
-          kind: "special" as const,
-          pool: cfg.pool,
-          dateKey,
-          title: cfg.title,
-          subtitle: cfg.subtitle,
-          playerIds: pickDeterministicPlayers(
-            `${cfg.pool}:${dateKey}:${drawSeed}`,
-            1,
-            cfg.ids,
-          ),
-          availableAt: `${dateKey}T00:00:00.000Z`,
-          image: cfg.image,
-          flap: cfg.flap,
-        })),
-      ),
-    [cycleKeys, drawSeed],
+      THEMED_CONFIGS.map((cfg) => ({
+        id: `${cfg.pool}-${DAILY_FIRST_CYCLE}`,
+        kind: "special" as const,
+        pool: cfg.pool,
+        dateKey: DAILY_FIRST_CYCLE,
+        title: cfg.title,
+        subtitle: cfg.subtitle,
+        playerIds: pickDeterministicPlayers(
+          `${cfg.pool}:${DAILY_FIRST_CYCLE}:${drawSeed}`,
+          1,
+          cfg.ids,
+        ),
+        availableAt: `${DAILY_FIRST_CYCLE}T00:00:00.000Z`,
+        image: cfg.image,
+        flap: cfg.flap,
+      })),
+    [drawSeed],
   );
 
   // A las 10:00 (Madrid) entra un ciclo nuevo de sobres: un timer se reprograma

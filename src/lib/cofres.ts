@@ -85,18 +85,18 @@ export function cycleKeysSince(
   return keys;
 }
 
-// Pools de los sobres temáticos disponibles por defecto en la estantería.
-// Madrid/Francia quedan solo como drops de admin. Mantener en sync con
+// Pools de los sobres temáticos de BIENVENIDA (uno de cada, no se renuevan
+// solos). Madrid/Francia quedan solo como drops de admin. Mantener en sync con
 // THEMED_CONFIGS de cofres-view.
 export const SHELF_THEMED_POOLS = ["sub21", "stars"] as const;
 
-// Todos los drop_ids disponibles ahora mismo: por cada ciclo (desde la
-// activación hasta hoy) el diario + los temáticos. Como acumulan, son varios.
+// drop_ids disponibles automáticamente: 1 diario por cada ciclo (desde la
+// activación hasta hoy, acumulan) + los temáticos de bienvenida (fijos al primer
+// ciclo). Los drops que suelta el admin NO se cuentan aquí (se ven en /cofres).
 export function availablePackIds(): string[] {
-  const ids: string[] = [];
-  for (const cycle of cycleKeysSince()) {
-    ids.push(`daily-${cycle}`);
-    for (const pool of SHELF_THEMED_POOLS) ids.push(`${pool}-${cycle}`);
+  const ids: string[] = cycleKeysSince().map((cycle) => `daily-${cycle}`);
+  for (const pool of SHELF_THEMED_POOLS) {
+    ids.push(`${pool}-${DAILY_FIRST_CYCLE}`);
   }
   return ids;
 }
