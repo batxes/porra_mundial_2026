@@ -159,11 +159,13 @@ export function PackDropWatcher({
             id="pack-drop-title"
             className="text-base font-bold tracking-tight sm:text-xl"
           >
-            {isLaunch ? "¡Ya están las cartas!" : "Es hora de renovar tu once"}
+            {isLaunch
+              ? "¡Es hora de renovar tu once!"
+              : "Es hora de renovar tu once"}
           </h3>
           <p className="mt-1.5 text-[13px] leading-5 text-zinc-300 sm:text-sm">
             {isLaunch
-              ? "Tienes 3 sobres de bienvenida esperando. Ábrelos y mete un crack en tu once."
+              ? "Tienes 3 sobres de bienvenida esperando. ¡Suerte!"
               : `Te traigo ${total} sobre${total === 1 ? "" : "s"} de fichajes. Ábrelos y mete un crack en tu once.`}
           </p>
 
