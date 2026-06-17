@@ -53,9 +53,9 @@ type Pack = {
   subtitle: string;
   playerIds: string[];
   dateKey?: string;
-  // Pool del servidor para los sobres temáticos (madrid/sub21/stars/francia).
+  // Pool del servidor para los sobres temáticos.
   // Si está, en prod se abre con open_themed_card_pack(p_pool, p_day).
-  pool?: "madrid" | "sub21" | "stars" | "francia";
+  pool?: "madrid" | "sub21" | "stars" | "francia" | "premier";
   availableAt: string;
   // Imagen del sobre para el overlay 3D y el hero. Por defecto /sobre.webp.
   image?: string;
@@ -110,6 +110,7 @@ type QueryResult<T> = Promise<{ data: T | null; error: QueryError }>;
 type QueryBuilder = {
   select: (columns: string) => QueryBuilder;
   eq: (column: string, value: unknown) => QueryBuilder;
+  like: (column: string, pattern: string) => QueryBuilder;
   lte: (column: string, value: unknown) => QueryBuilder;
   order: (column: string, options?: { ascending?: boolean }) => QueryBuilder;
   limit: (count: number) => QueryResult<unknown[]>;
@@ -257,10 +258,38 @@ const SUB21_PLAYER_IDS = [
   "arg-18", // Nico Paz
 ];
 
-// Sobres temáticos de la estantería por defecto (tras el diario): Promesas y
-// Estrellas. Mantener los `pool` en sync con SHELF_THEMED_POOLS de cofres.ts.
+// Sobre "Premier": 1 carta de un crack de la Premier League. Lista curada por id
+// (verificada contra el dataset). Se reparte como sobre de bienvenida extra.
+const PREMIER_PLAYER_IDS = [
+  "nor-09", // Erling Haaland
+  "eng-04", // Declan Rice
+  "eng-07", // Bukayo Saka
+  "ger-17", // Florian Wirtz
+  "ecu-23", // Moisés Caicedo
+  "fra-17", // William Saliba
+  "eng-17", // Morgan Rogers
+  "arg-24", // Enzo Fernández
+  "fra-24", // Rayan Cherki
+  "swe-09", // Alexander Isak
+  "gha-11", // Antoine Semenyo
+  "ned-08", // Ryan Gravenberch
+  "eng-08", // Elliot Anderson
+  "bel-11", // Jérémy Doku
+  "esp-18", // Martín Zubimendi
+  "cro-04", // Joško Gvardiol
+  "esp-24", // Marc Cucurella
+  "bra-22", // Gabriel Martinelli
+  "ger-07", // Kai Havertz
+  "nor-10", // Martin Ødegaard
+  "eng-18", // Anthony Gordon
+  "swe-17", // Viktor Gyökeres
+];
+
+// Sobres temáticos de la estantería por defecto (tras el diario): Promesas,
+// Estrellas y Premier (extra de compensación). Mantener los `pool` en sync con
+// SHELF_THEMED_POOLS de cofres.ts.
 const THEMED_CONFIGS: Array<{
-  pool: "sub21" | "stars";
+  pool: "sub21" | "stars" | "premier";
   title: string;
   subtitle: string;
   image: string;
@@ -282,6 +311,14 @@ const THEMED_CONFIGS: Array<{
     image: "/sobre-estrellas.webp",
     flap: "navy",
     ids: STAR_PLAYER_IDS,
+  },
+  {
+    pool: "premier",
+    title: "Sobre Premier",
+    subtitle: "1 crack de la Premier",
+    image: "/sobre-premier.webp",
+    flap: "royal",
+    ids: PREMIER_PLAYER_IDS,
   },
 ];
 
@@ -524,12 +561,13 @@ export function CofresView() {
   const openedKey = storageKey(userStorageId, "opened");
   const logKey = storageKey(userStorageId, "log");
 
-  // Sobre diario por ciclo (3 cartas con tiering). Acumulan: los no abiertos se
-  // quedan en la estantería; el [0] (ciclo actual) es el destacado.
+  // Sobre diario por ciclo (3 cartas con tiering). POR USUARIO: el id incluye el
+  // uid para que case con el drop del servidor (`daily-<fecha>-<uid>`). Acumulan;
+  // el [0] (ciclo actual) es el destacado.
   const dailyPacks = useMemo<Pack[]>(
     () =>
       cycleKeys.map((dateKey, index) => ({
-        id: `daily-${dateKey}`,
+        id: `daily-${dateKey}-${userStorageId}`,
         kind: "daily" as const,
         title:
           index === 0 ? "Sobre diario" : `Sobre ${formatPackDate(dateKey)}`,
@@ -538,17 +576,16 @@ export function CofresView() {
         dateKey,
         availableAt: `${dateKey}T00:00:00.000Z`,
       })),
-    [cycleKeys, drawSeed],
+    [cycleKeys, drawSeed, userStorageId],
   );
 
-  // Sobres temáticos de BIENVENIDA (Promesas, Estrellas): uno de cada, fijos al
-  // ciclo de activación. NO se renuevan solos cada día (solo el diario lo hace);
-  // se quedan hasta que los abras y los extra los suelta el admin. Por eso usan
-  // DAILY_FIRST_CYCLE como fecha y no `cycleKeys`.
+  // Sobres temáticos de BIENVENIDA (Promesas, Estrellas, Premier): uno de cada,
+  // fijos al ciclo de activación, NO se renuevan solos. POR USUARIO (id con uid →
+  // `<pool>-<fecha>-<uid>`). Se quedan hasta que los abras.
   const themedPacks = useMemo<Pack[]>(
     () =>
       THEMED_CONFIGS.map((cfg) => ({
-        id: `${cfg.pool}-${DAILY_FIRST_CYCLE}`,
+        id: `${cfg.pool}-${DAILY_FIRST_CYCLE}-${userStorageId}`,
         kind: "special" as const,
         pool: cfg.pool,
         dateKey: DAILY_FIRST_CYCLE,
@@ -563,7 +600,7 @@ export function CofresView() {
         image: cfg.image,
         flap: cfg.flap,
       })),
-    [drawSeed],
+    [drawSeed, userStorageId],
   );
 
   // A las 10:00 (Madrid) entra un ciclo nuevo de sobres: un timer se reprograma
@@ -769,6 +806,11 @@ export function CofresView() {
         .from("card_drops")
         .select("id, kind, label, player_ids, available_at, created_at")
         .eq("kind", "special")
+        // Solo drops de ADMIN (`special-<uuid>`). Los temáticos por usuario
+        // (`stars-<fecha>-<uid>`…) también son kind='special' y de lectura
+        // pública; sin este filtro inundarían el limit y los representaría dos
+        // veces (ya están en themedPacks).
+        .like("id", "special-%")
         .lte("available_at", new Date().toISOString())
         .order("created_at", { ascending: false })
         .limit(16),

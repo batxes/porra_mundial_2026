@@ -2165,6 +2165,7 @@ function SobresPromoBanner({ userId }: { userId: string }) {
       if (supabase) {
         void countUnopenedPacksRemote(
           supabase as unknown as { from: (t: string) => unknown },
+          userId,
         ).then((n) => {
           if (active) setUnopened(n);
         });

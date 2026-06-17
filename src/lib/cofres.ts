@@ -88,15 +88,19 @@ export function cycleKeysSince(
 // Pools de los sobres temáticos de BIENVENIDA (uno de cada, no se renuevan
 // solos). Madrid/Francia quedan solo como drops de admin. Mantener en sync con
 // THEMED_CONFIGS de cofres-view.
-export const SHELF_THEMED_POOLS = ["sub21", "stars"] as const;
+export const SHELF_THEMED_POOLS = ["sub21", "stars", "premier"] as const;
 
-// drop_ids disponibles automáticamente: 1 diario por cada ciclo (desde la
-// activación hasta hoy, acumulan) + los temáticos de bienvenida (fijos al primer
-// ciclo). Los drops que suelta el admin NO se cuentan aquí (se ven en /cofres).
-export function availablePackIds(): string[] {
-  const ids: string[] = cycleKeysSince().map((cycle) => `daily-${cycle}`);
+// drop_ids disponibles automáticamente PARA ESE USUARIO. Los sobres son por
+// usuario, así que el id lleva el uid: `daily-<ciclo>-<uid>` (uno por ciclo,
+// acumulan) + los temáticos de bienvenida `<pool>-<activación>-<uid>`. Los drops
+// de admin NO se cuentan aquí (se ven en /cofres).
+export function availablePackIds(userId: string): string[] {
+  const uid = userId || "guest";
+  const ids: string[] = cycleKeysSince().map(
+    (cycle) => `daily-${cycle}-${uid}`,
+  );
   for (const pool of SHELF_THEMED_POOLS) {
-    ids.push(`${pool}-${DAILY_FIRST_CYCLE}`);
+    ids.push(`${pool}-${DAILY_FIRST_CYCLE}-${uid}`);
   }
   return ids;
 }
@@ -107,8 +111,9 @@ export function availablePackIds(): string[] {
 export async function countUnopenedPacksRemote(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: { from: (t: string) => any },
+  userId: string,
 ): Promise<number> {
-  const available = availablePackIds();
+  const available = availablePackIds(userId);
   try {
     const { data, error } = await supabase
       .from("user_cards")
@@ -128,7 +133,7 @@ export async function countUnopenedPacksRemote(
 // Versión LOCAL (sin Supabase): cuántos sobres sin abrir, leyendo el estado que
 // /cofres guarda en localStorage (porra26_cards_<uid>_opened / _inventory).
 export function countUnopenedPacks(userId: string): number {
-  const available = availablePackIds();
+  const available = availablePackIds(userId);
   if (typeof window === "undefined") return available.length;
   const uid = userId || "guest";
   const readArray = (suffix: string): unknown[] => {
