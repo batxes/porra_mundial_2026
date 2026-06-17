@@ -21,6 +21,7 @@ import { initials, playerPhotoUrl } from "@/lib/format";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { calculatePlayerStandings } from "@/lib/scoring";
 import { STAR_PLAYER_IDS } from "@/lib/star-players";
+import { TOP150_PLAYER_IDS } from "@/lib/top150-players";
 import type { AdminEvent, AdminResults, Player, Position } from "@/lib/types";
 
 const PackOpeningOverlay = dynamic(
@@ -222,6 +223,10 @@ const DEMO_RESULTS: AdminResults = (() => {
 
 const dailyPackCount = 7;
 const localSpecialPacksKey = "porra26_card_special_packs";
+// Tutorial de bienvenida de /cofres: se muestra solo la primera visita (igual
+// que los intros de la porra). El botón "?" de la cabecera lo reabre cuando
+// quieras.
+const cofresIntroStorageKey = "porra26_cofres_intro_seen";
 
 // Sobre especial "Madrid": 1 sola carta de un jugador del Real Madrid. Como el
 // dataset no tiene campo de club, la plantilla es una lista CURADA por id de los
@@ -336,7 +341,7 @@ const DROP_TYPES: {
     key: "diario",
     kind: "daily",
     title: "Sobre diario",
-    subtitle: "3 cartas aleatorias",
+    subtitle: "3 cartas · 1 legendaria asegurada",
     image: "/sobre.webp",
     flap: "green",
     count: 3,
@@ -397,6 +402,27 @@ function pickDeterministicPlayers(
   }
 
   return pool.slice(0, count).map((player) => player.id);
+}
+
+// Tirada del sobre diario: 3 cartas con "pity" garantizado, todas distintas.
+//   índice 0 → totalmente aleatoria (cualquier jugador del Mundial)
+//   índice 1 → del Top-150 (jugadorazo asegurado)
+//   índice 2 → de rareza máxima (estrella/legendaria); cae como revelado final,
+//              que es el clímax del abanico.
+function pickDailyPlayers(seed: string): string[] {
+  const star = pickDeterministicPlayers(`${seed}:star`, 1, STAR_PLAYER_IDS);
+  const top = pickDeterministicPlayers(
+    `${seed}:top`,
+    1,
+    TOP150_PLAYER_IDS.filter((id) => !star.includes(id)),
+  );
+  const taken = new Set([...star, ...top]);
+  const random = pickDeterministicPlayers(
+    `${seed}:any`,
+    1,
+    data.players.map((player) => player.id).filter((id) => !taken.has(id)),
+  );
+  return [...random, ...top, ...star];
 }
 
 function madridTodayKey() {
@@ -586,6 +612,10 @@ export function CofresView() {
   const [dropTypeOpen, setDropTypeOpen] = useState(false);
   const [dropTypeKey, setDropTypeKey] = useState<string>(DROP_TYPES[0].key);
   const [dropQty, setDropQty] = useState(1);
+  // Tutorial de bienvenida (primera visita). `introQueuedRef` evita que el
+  // efecto lo vuelva a encolar tras cerrarlo en la misma sesión.
+  const [showIntro, setShowIntro] = useState(false);
+  const introQueuedRef = useRef(false);
 
   const userStorageId = user?.id || "guest";
   const inventoryKey = storageKey(userStorageId, "inventory");
@@ -602,8 +632,8 @@ export function CofresView() {
         kind: "daily" as const,
         title:
           index === 0 ? "Sobre diario" : `Sobre ${formatPackDate(dateKey)}`,
-        subtitle: "3 cartas aleatorias",
-        playerIds: pickDeterministicPlayers(`daily:${dateKey}:${drawSeed}`),
+        subtitle: "3 cartas · 1 legendaria asegurada",
+        playerIds: pickDailyPlayers(`daily:${dateKey}:${drawSeed}`),
         dateKey,
         availableAt: `${dateKey}T00:00:00.000Z`,
       };
@@ -1218,11 +1248,14 @@ export function CofresView() {
               subtitle: type.subtitle,
               image: type.image,
               flap: type.flap,
-              playerIds: pickDeterministicPlayers(
-                `drop:${id}:${Math.random()}`,
-                type.count,
-                type.pool,
-              ),
+              playerIds:
+                type.kind === "daily"
+                  ? pickDailyPlayers(`drop:${id}:${Math.random()}`)
+                  : pickDeterministicPlayers(
+                      `drop:${id}:${Math.random()}`,
+                      type.count,
+                      type.pool,
+                    ),
               availableAt: new Date().toISOString(),
             };
           });
@@ -1402,6 +1435,29 @@ export function CofresView() {
     }
   };
 
+  // Primera visita: en cuanto el hero está listo, abrimos el tutorial salvo que
+  // ya se haya visto (localStorage es la fuente de verdad). setState síncrono e
+  // idempotente: nada que cancelar (robusto bajo StrictMode y el render inicial).
+  useEffect(() => {
+    if (!hydrated || introQueuedRef.current) return;
+    try {
+      if (window.localStorage.getItem(cofresIntroStorageKey) === "1") return;
+    } catch {
+      // Si falla el storage, mostramos el tutorial igualmente esta sesión.
+    }
+    introQueuedRef.current = true;
+    setShowIntro(true);
+  }, [hydrated]);
+
+  const dismissIntro = () => {
+    try {
+      window.localStorage.setItem(cofresIntroStorageKey, "1");
+    } catch {
+      // Ignoramos fallos de storage.
+    }
+    setShowIntro(false);
+  };
+
   return (
     <div className="space-y-8">
       <SectionHeading
@@ -1410,6 +1466,15 @@ export function CofresView() {
         description="Abre tus sobres y mete a un crack en tu once pagando el coste de puntos al momento."
         actions={
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowIntro(true)}
+              aria-label="Cómo funcionan los sobres"
+              title="Cómo funciona"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-base font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"
+            >
+              ?
+            </button>
             <NextCardCountdown />
             {user?.isAdmin ? (
               <button
@@ -1846,6 +1911,8 @@ export function CofresView() {
           </div>
         </div>
       ) : null}
+
+      {showIntro ? <CofresIntroModal onClose={dismissIntro} /> : null}
 
       {opening && activePack ? (
         <PackOpeningOverlay
@@ -2901,3 +2968,381 @@ function SwapLogRow({ entry }: { entry: SwapLog }) {
     </div>
   );
 }
+
+// Tutorial de bienvenida de /cofres (primera visita). Tres pasos con mini-demos
+// en bucle, en la línea de los intros animados de la porra. Recalca los dos
+// puntos clave: el titular que sacas DESAPARECE y solo entran cartas con los
+// mismos puntos o menos. Reutiliza el lenguaje visual de los swaps (lima, rojo,
+// chips de puntos) para que se sienta parte de la misma pantalla.
+const introSteps = [
+  {
+    title: "Abre sobres, consigue cartas",
+    body: "Cada día recibes sobres. Ábrelos para sacar cartas de jugadores: cada carta vale los puntos que ese jugador suma de verdad (goles, MVP, paradas…).",
+  },
+  {
+    title: "Mete una carta en tu once",
+    body: "Elige una carta y cámbiala por un titular de tu once del mismo puesto.",
+  },
+  {
+    title: "La regla de oro: los puntos",
+    body: "No vale fichar a cualquiera para inflar tu marcador a posteriori.",
+  },
+  {
+    title: "Recuerda: no hay vuelta atrás",
+    body: "Si cambias a un jugador, desaparece de tu once para siempre. No podrás volver a ponerlo.",
+  },
+];
+
+function CofresIntroModal({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState(0);
+  const total = introSteps.length;
+  const isLast = step === total - 1;
+  const primaryRef = useRef<HTMLButtonElement>(null);
+
+  // Foco al botón principal en cada paso (accesibilidad) y Escape para saltar.
+  useEffect(() => {
+    primaryRef.current?.focus();
+  }, [step]);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const content = introSteps[step];
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cofres-intro-title"
+    >
+      <div className="relative flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#121212] text-white shadow-2xl shadow-black/60 motion-safe:animate-[cofre-modal-pop_240ms_cubic-bezier(0.2,0.9,0.3,1)_both]">
+        <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4">
+          <div className="flex items-center gap-2.5">
+            <span
+              aria-hidden
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a7f600]/15 text-base"
+            >
+              🃏
+            </span>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#a7f600]">
+              Cómo funcionan los sobres
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md px-2 py-1 text-xs font-bold text-zinc-500 transition hover:text-white"
+          >
+            Saltar
+          </button>
+        </div>
+
+        <div className="px-5 pt-5">
+          {/* Escenario animado: cambia por paso, alto fijo para que no salte. */}
+          <div className="relative mb-4 flex h-44 items-center justify-center overflow-hidden rounded-xl border border-white/[0.07] bg-gradient-to-b from-white/[0.05] to-transparent">
+            {step === 0 ? (
+              <IntroStageOpen />
+            ) : step === 1 ? (
+              <IntroStageVanish />
+            ) : step === 2 ? (
+              <IntroStagePoints />
+            ) : (
+              <IntroStageGone />
+            )}
+          </div>
+
+          <h3
+            id="cofres-intro-title"
+            className="text-xl font-bold tracking-tight text-white"
+          >
+            {content.title}
+          </h3>
+          <p className="mt-1.5 text-sm leading-6 text-zinc-300">{content.body}</p>
+        </div>
+
+        {/* Avisos clave: el que sale desaparece (rojo) y la regla de puntos. */}
+        {step === 1 ? (
+          <div className="mx-5 mt-3 flex items-start gap-2.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-3">
+            <span aria-hidden className="text-lg leading-none">
+              ⚠️
+            </span>
+            <p className="text-[13px] font-semibold leading-5 text-red-100">
+              El jugador que sacas{" "}
+              <span className="font-bold text-red-300">
+                desaparece para siempre
+              </span>
+              . El cambio es definitivo y no se puede deshacer.
+            </p>
+          </div>
+        ) : null}
+        {step === 2 ? (
+          <div className="mx-5 mt-3 flex items-start gap-2.5 rounded-xl border border-[#a7f600]/25 bg-[#a7f600]/[0.08] px-3.5 py-3">
+            <span aria-hidden className="text-lg leading-none">
+              🎯
+            </span>
+            <p className="text-[13px] font-semibold leading-5 text-[#d7ffa8]">
+              Tu carta debe valer los{" "}
+              <span className="font-bold text-[#a7f600]">
+                mismos puntos o menos
+              </span>{" "}
+              que el titular al que sustituye. Los empates valen.
+            </p>
+          </div>
+        ) : null}
+        {step === 3 ? (
+          <div className="mx-5 mt-3 flex items-start gap-2.5 rounded-xl border border-red-500/40 bg-red-500/15 px-3.5 py-3">
+            <span aria-hidden className="text-lg leading-none">
+              🚫
+            </span>
+            <p className="text-[13px] font-semibold leading-5 text-red-100">
+              Una vez hecho el cambio, ese jugador{" "}
+              <span className="font-bold text-red-300">se va para siempre</span>:
+              no se puede deshacer ni volver a ponerlo.
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-4 flex items-center justify-between gap-3 px-5 pb-5">
+          <div className="flex items-center gap-1.5" aria-hidden>
+            {introSteps.map((_, index) => (
+              <span
+                key={index}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  index === step ? "w-5 bg-[#a7f600]" : "w-1.5 bg-white/20"
+                }`}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            {step > 0 ? (
+              <button
+                type="button"
+                onClick={() => setStep((current) => Math.max(0, current - 1))}
+                className="rounded-lg border border-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/10"
+              >
+                Atrás
+              </button>
+            ) : null}
+            <button
+              ref={primaryRef}
+              type="button"
+              onClick={() => (isLast ? onClose() : setStep((c) => c + 1))}
+              className="rounded-lg bg-[#a7f600] px-5 py-2.5 text-sm font-bold text-black shadow-lg shadow-[#a7f600]/10 transition hover:bg-[#c7ff43]"
+            >
+              {isLast ? "¡Entendido!" : "Siguiente"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Paso 1: el sobre flota y una carta asoma de él, en bucle.
+function IntroStageOpen() {
+  return (
+    <div className="relative flex h-full w-full items-end justify-center pb-3">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(167,246,0,0.22), transparent 70%)",
+        }}
+      />
+      {/* La carta REAL que asoma va DETRÁS del sobre (sin z) para que parezca
+          salir de él. */}
+      <div
+        aria-hidden
+        className="absolute bottom-6 left-1/2 w-[64px] -translate-x-1/2 motion-safe:animate-[cofres-intro-emerge_3.2s_ease-in-out_infinite]"
+      >
+        <PlayerCard playerId="esp-19" points={5} selected />
+      </div>
+      <span className="relative z-10 block h-28 w-[76px] motion-safe:animate-[cofre-hero-float_5s_ease-in-out_infinite]">
+        <Image
+          src="/sobre.webp"
+          alt=""
+          fill
+          sizes="80px"
+          className="object-contain"
+        />
+      </span>
+    </div>
+  );
+}
+
+// Paso 2: el titular (carta real) se desvanece con un puff y tu carta real entra
+// en su hueco. Mismo lenguaje que el modal de confirmar (Sale rojo / Entra lima).
+// El cambio del ejemplo respeta la regla: tu carta (3) ≤ titular (4).
+function IntroStageVanish() {
+  return (
+    <div className="relative flex h-full w-full items-center justify-center gap-2.5 px-2">
+      <div className="relative flex flex-col items-center">
+        <span className="mb-1.5 rounded-full border border-red-500/40 bg-red-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-red-300">
+          Sale
+        </span>
+        <div className="relative w-[82px]">
+          <span
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-red-400/60 motion-safe:animate-[cofres-intro-puff_3.2s_ease-in-out_infinite]"
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -right-2 -top-2 z-20 text-lg motion-safe:animate-[cofres-intro-puff_3.2s_ease-in-out_infinite]"
+          >
+            💨
+          </span>
+          <div className="motion-safe:animate-[cofres-intro-vanish_3.2s_ease-in-out_infinite]">
+            <PlayerCard playerId="eng-10" points={4} />
+          </div>
+        </div>
+      </div>
+
+      <span aria-hidden className="shrink-0 text-lg text-white/70">
+        ⇄
+      </span>
+
+      <div className="flex flex-col items-center">
+        <span className="mb-1.5 rounded-full border border-[#a7f600]/40 bg-[#a7f600]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-[#a7f600]">
+          Entra
+        </span>
+        <div className="w-[82px] motion-safe:animate-[cofres-intro-enter_3.2s_ease-in-out_infinite]">
+          <PlayerCard playerId="fra-10" points={3} selected />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Paso 4: recordatorio final. El titular (carta real) se desvanece y deja un
+// hueco vacío y bloqueado: no hay forma de devolverlo. Recalca que es para
+// siempre y sin vuelta atrás.
+function IntroStageGone() {
+  return (
+    <div className="relative flex h-full w-full items-center justify-center gap-4">
+      <div className="relative w-[82px]">
+        {/* Hueco vacío y bloqueado que queda al irse el titular (fondo). */}
+        <div className="flex aspect-[5/7] flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-red-400/30 bg-red-500/[0.05]">
+          <span aria-hidden className="text-2xl opacity-80">
+            🔒
+          </span>
+          <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-red-300/70">
+            Hueco vacío
+          </span>
+        </div>
+        <span
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-red-400/60 motion-safe:animate-[cofres-intro-puff_3.2s_ease-in-out_infinite]"
+        />
+        {/* La carta REAL se desvanece por encima y revela el hueco bloqueado. */}
+        <div className="absolute inset-0 z-20 motion-safe:animate-[cofres-intro-vanish_3.2s_ease-in-out_infinite]">
+          <PlayerCard playerId="eng-10" points={4} />
+        </div>
+      </div>
+
+      {/* Símbolo "no vuelve": flecha de deshacer tachada. */}
+      <div className="flex flex-col items-center gap-1.5">
+        <span className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-red-400/60 bg-red-500/10 text-red-300">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-6 w-6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M9 14 4 9l5-5" />
+            <path d="M4 9h10a6 6 0 0 1 0 12H8" />
+          </svg>
+          <span
+            aria-hidden
+            className="absolute left-1/2 top-1/2 h-0.5 w-12 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full bg-red-400"
+          />
+        </span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-red-300">
+          No vuelve
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Paso 3: dos comparaciones (✓ entra / ✗ no entra) según la regla de puntos.
+function IntroStagePoints() {
+  return (
+    <div className="flex h-full w-full flex-col justify-center gap-3 px-4">
+      <IntroCompareRow cardPts={3} titularPts={5} ok />
+      <IntroCompareRow cardPts={6} titularPts={4} ok={false} delayed />
+    </div>
+  );
+}
+
+function IntroCompareRow({
+  cardPts,
+  titularPts,
+  ok,
+  delayed = false,
+}: {
+  cardPts: number;
+  titularPts: number;
+  ok: boolean;
+  delayed?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-center gap-2">
+      <IntroPointChip label="Tu carta" pts={cardPts} tone="lime" />
+      <span aria-hidden className="text-xs font-bold text-zinc-500">
+        vs
+      </span>
+      <IntroPointChip label="Titular" pts={titularPts} tone="neutral" />
+      <span
+        aria-hidden
+        className={`ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-black motion-safe:animate-[cofres-intro-verdict_3s_ease-in-out_infinite] ${
+          delayed ? "motion-safe:[animation-delay:1.1s]" : ""
+        } ${ok ? "bg-[#a7f600] text-black" : "bg-red-500 text-white"}`}
+      >
+        {ok ? "✓" : "✗"}
+      </span>
+    </div>
+  );
+}
+
+function IntroPointChip({
+  label,
+  pts,
+  tone,
+}: {
+  label: string;
+  pts: number;
+  tone: "lime" | "neutral";
+}) {
+  const lime = tone === "lime";
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 ${
+        lime
+          ? "border-[#a7f600]/40 bg-[#a7f600]/10"
+          : "border-white/[0.12] bg-white/[0.05]"
+      }`}
+    >
+      <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+        {label}
+      </span>
+      <span
+        className={`text-sm font-bold leading-none tabular-nums ${
+          lime ? "text-[#a7f600]" : "text-white"
+        }`}
+      >
+        {formatSigned(pts)}
+      </span>
+    </span>
+  );
+}
+

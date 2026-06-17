@@ -2178,7 +2178,15 @@ function RevealCards({
           // que queda mostrada al terminar (done + revelada), justo antes de
           // entrar al inventario.
           const showcase = isHero || (done && revealed);
-          const holoHero = showcase && legendary;
+          // El "pop"/giro 3D (translateZ + giroscopio) SOLO en sobres de UNA
+          // carta, donde no hay abanico que romper. En sobres de varias lo
+          // desactivamos por completo: cualquier rotación 3D en un contexto
+          // preserve-3d puede colar una carta por delante o ENTRE las demás (la
+          // profundidad manda sobre el z-index). La legendaria sigue luciendo
+          // (marco dorado, estrella y foil 2D vía holoShader); solo se queda
+          // quieta y mantiene su orden en el abanico.
+          const holoHero =
+            legendary && cards.length === 1 && (isHero || (done && revealed));
           return (
             <div
               key={card.id}

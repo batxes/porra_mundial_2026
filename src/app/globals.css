@@ -1012,3 +1012,100 @@ summary {
     transform: translate3d(0, 0, 0) rotate(0deg);
   }
 }
+
+/* Tutorial de primera visita en /cofres: mini-demos en bucle que enseñan a abrir
+   sobres, que el titular que sacas DESAPARECE y la regla de puntos. Se aplican
+   con motion-safe en el JSX, así que respetan prefers-reduced-motion. */
+
+/* Paso 1: la carta asoma del sobre, se mantiene arriba y se reinicia. */
+@keyframes cofres-intro-emerge {
+  0%,
+  10% {
+    opacity: 0;
+    transform: translateY(36px) scale(0.7);
+  }
+
+  44%,
+  80% {
+    opacity: 1;
+    transform: translateY(-34px) scale(1);
+  }
+
+  92%,
+  100% {
+    opacity: 0;
+    transform: translateY(-34px) scale(1);
+  }
+}
+
+/* Paso 2: el titular que sale se desvanece (se difumina, encoge y gira). */
+@keyframes cofres-intro-vanish {
+  0%,
+  28% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateX(0) scale(1) rotate(0deg);
+  }
+
+  60%,
+  100% {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateX(-12px) scale(0.5) rotate(-10deg);
+  }
+}
+
+/* Paso 2: anillo/puff que estalla justo cuando el titular desaparece. */
+@keyframes cofres-intro-puff {
+  0%,
+  30% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+
+  50% {
+    opacity: 0.85;
+    transform: scale(1.15);
+  }
+
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+}
+
+/* Paso 2: tu carta entra y ocupa el hueco que deja el titular. */
+@keyframes cofres-intro-enter {
+  0%,
+  38% {
+    opacity: 0;
+    transform: translateX(26px) scale(0.82);
+  }
+
+  66%,
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Paso 3: el veredicto (✓ / ✗) hace un pop al aparecer. */
+@keyframes cofres-intro-verdict {
+  0%,
+  18% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+
+  42% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+
+  58%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
