@@ -519,10 +519,9 @@ export function CofresView() {
   const [query, setQuery] = useState("");
   const [positionFilter, setPositionFilter] = useState<Position | "all">("all");
   const [hydrated, setHydrated] = useState(false);
-  // En modo Supabase, true solo cuando loadSupabaseCards ha traído el inventario.
-  // Hasta entonces la estantería NO se muestra "abrible" (si no, al recargar
-  // openedIds está vacío 1s y parece que tienes todos los sobres sin abrir → se
-  // podían reabrir). En local/demo se marca al instante.
+  // En modo Supabase con sesión, true solo cuando loadSupabaseCards ha traído el
+  // inventario. Lo pone EXCLUSIVAMENTE loadSupabaseCards (no el efecto de
+  // hidratación, que en el primer render aún no sabe si hay sesión).
   const [cardsLoaded, setCardsLoaded] = useState(false);
   const [activePack, setActivePack] = useState<Pack | null>(null);
   const [opening, setOpening] = useState(false);
@@ -746,6 +745,14 @@ export function CofresView() {
     }
     return opened;
   }, [inventory, openedPackIds, userStorageId]);
+  // ¿Sabemos ya qué sobres tiene abiertos? Hasta entonces NO mostramos la
+  // estantería (skeleton), para no enseñar los sobres "abribles" un instante y
+  // que luego desaparezcan al cargar (y poder reabrirlos = cartas repetidas).
+  //  - sin sesión resuelta (`!ready`): aún no sabemos → espera.
+  //  - local / sin login: el estado es síncrono → listo.
+  //  - Supabase con sesión: listo solo cuando loadSupabaseCards terminó.
+  const inventoryReady =
+    ready && (!usingSupabase || !user || cardsLoaded);
   const packs = useMemo(
     // El DIARIO (destacado), luego Promesas y Estrellas; todos acumulan por
     // ciclo. Madrid y Francia quedan solo como drops de admin (pools en SQL).
@@ -947,19 +954,19 @@ export function CofresView() {
       // de verdad es `loadSupabaseCards` (tampoco leemos el localStorage local,
       // su setState podría pisar el inventario real con datos viejos). En ambos
       // casos solo marcamos hydrated para quitar el skeleton.
-      if (usingSupabase && user) {
-        // La fuente de verdad es loadSupabaseCards: marcamos hydrated (quita el
-        // skeleton del resto) pero NO cardsLoaded (lo pone loadSupabaseCards al
-        // terminar). Así la estantería no se muestra abrible con el inventario
-        // aún sin cargar.
+      if (usingSupabase) {
+        // Modo Supabase (logueado o no, o con la sesión aún cargando): la fuente
+        // de verdad es loadSupabaseCards; NO leemos localStorage ni marcamos
+        // cardsLoaded aquí. La estantería se gatea con `inventoryReady` (espera a
+        // que cargue el inventario antes de mostrarse abrible).
         setHydrated(true);
         return;
       }
       if (CARDS_DEMO) {
         setHydrated(true);
-        setCardsLoaded(true);
         return;
       }
+      // Local real (sin Supabase): el localStorage es síncrono, mostramos ya.
       setInventory(readJson<InventoryCard[]>(inventoryKey, []));
       setOpenedPackIds(readJson<string[]>(openedKey, []));
       setSwapLog(readJson<SwapLog[]>(logKey, []));
@@ -967,7 +974,6 @@ export function CofresView() {
       setSelectedCardId("");
       setOpening(false);
       setHydrated(true);
-      setCardsLoaded(true);
     }, 0);
     return () => window.clearTimeout(timer);
   }, [inventoryKey, logKey, openedKey, usingSupabase, user]);
@@ -1138,9 +1144,9 @@ export function CofresView() {
   const openPack = useCallback(
     async (pack: Pack) => {
       if (opening || preparing) return;
-      // Aún cargando el inventario de Supabase: no dejamos abrir (openedIds no es
-      // fiable todavía; evita reabrir un sobre ya abierto durante el F5).
-      if (usingSupabase && !cardsLoaded) return;
+      // Inventario aún sin cargar (openedIds no es fiable): no dejamos abrir, así
+      // se evita reabrir un sobre ya abierto durante el F5 (cartas repetidas).
+      if (!inventoryReady) return;
 
       if (openedIds.has(pack.id)) {
         setMessage("Sobre ya abierto. Sus cartas ya están en tu colección.");
@@ -1186,7 +1192,7 @@ export function CofresView() {
       openPackInStorage,
       usingSupabase,
       user,
-      cardsLoaded,
+      inventoryReady,
     ],
   );
 
@@ -1429,7 +1435,7 @@ export function CofresView() {
             onSelectType={setSelectedTypeKey}
             count={unopenedCount}
             opening={opening || preparing}
-            hydrated={hydrated && cardsLoaded}
+            hydrated={hydrated && inventoryReady}
             buttonRef={heroButtonRef}
             onOpen={() => {
               if (featuredPack) void openPack(featuredPack);
