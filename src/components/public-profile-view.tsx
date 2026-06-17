@@ -1,6 +1,7 @@
 "use client";
 
 import { EmptyState, PredictionSnapshot, PredictionSnapshotSkeleton, PrimaryLink, ProfileScoreCard, ProfileScoreCardSkeleton, SectionHeading } from "@/components/common";
+import { ProfileFichajes } from "@/components/profile-fichajes";
 import { ProfileJornadaFeed } from "@/components/profile-jornada-feed";
 import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
@@ -60,6 +61,7 @@ export function PublicProfileView({ userId }: { userId: string }) {
         recorrido={
           <ProfileJornadaFeed profile={profile} results={adminResults} />
         }
+        belowLineup={<ProfileFichajes userId={profile.id} />}
         maskUnstarted={!user || (user.id !== profile.id && !user.isAdmin)}
       />
     </div>

@@ -369,6 +369,96 @@ export function PlayerAvatar({
   );
 }
 
+// Foto de jugador con badge de puntos para el feed de swaps: el que sale va
+// atenuado/gris, el que entra a color (badge lima). Compartido /cofres + home.
+function SwapPlayerChip({
+  player,
+  points,
+  faded,
+}: {
+  player?: Player;
+  points: number;
+  faded?: boolean;
+}) {
+  const photo = player ? playerPhotoUrl(player) : "";
+  return (
+    <span className="relative shrink-0">
+      <span
+        className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-md border border-white/10 bg-zinc-900 text-[10px] font-bold text-[#a7f600] ${
+          faded ? "opacity-45 grayscale" : ""
+        }`}
+      >
+        {photo ? (
+          <Image
+            src={photo}
+            alt=""
+            fill
+            sizes="40px"
+            className="object-cover"
+            unoptimized
+          />
+        ) : player ? (
+          initials(player.name)
+        ) : null}
+      </span>
+      <span
+        className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full px-1.5 text-[10px] font-bold leading-tight tabular-nums ${
+          faded ? "bg-zinc-700 text-zinc-200" : "bg-[#a7f600] text-black"
+        }`}
+      >
+        {points}
+      </span>
+    </span>
+  );
+}
+
+// Fila del feed de swaps de la comunidad: usuario + el cambio (sale → entra) con
+// las fotos y los puntos de cada jugador. Compartida por /cofres y la home.
+export function CommunitySwapRow({
+  userName,
+  inPlayerId,
+  outPlayerId,
+  pointsIn,
+  pointsOut,
+}: {
+  userName: string;
+  inPlayerId: string;
+  outPlayerId: string;
+  pointsIn: number;
+  pointsOut: number;
+}) {
+  const inPlayer = playersById.get(inPlayerId);
+  const outPlayer = playersById.get(outPlayerId);
+  return (
+    <div className="flex items-center gap-3 py-3">
+      <span className="flex shrink-0 items-center gap-2">
+        <SwapPlayerChip player={outPlayer} points={pointsOut} faded />
+        <svg
+          viewBox="0 0 24 24"
+          className="size-3.5 shrink-0 text-zinc-600"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+        <SwapPlayerChip player={inPlayer} points={pointsIn} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <strong className="truncate text-sm font-semibold text-white">
+          {userName}
+        </strong>
+        <span className="truncate text-xs text-zinc-500">
+          {outPlayer?.name || "Jugador"} → {inPlayer?.name || "Jugador"}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 export function TeamPicker({
   label,
   value,
@@ -2401,6 +2491,7 @@ export function PredictionSnapshot({
   profile,
   showBracket = true,
   recorrido,
+  belowLineup,
   maskUnstarted = false,
   results,
   scorecard,
@@ -2413,6 +2504,7 @@ export function PredictionSnapshot({
   profile?: UserProfile;
   showBracket?: boolean;
   recorrido?: React.ReactNode;
+  belowLineup?: React.ReactNode;
   maskUnstarted?: boolean;
   results?: AdminResults;
   scorecard?: Scorecard;
@@ -2512,6 +2604,7 @@ export function PredictionSnapshot({
               playerName={playerName}
             />
             <LineupSnapshot prediction={safePrediction} results={results} />
+            {belowLineup}
           </div>
         </MaskableSection>
       ) : null}

@@ -1109,3 +1109,27 @@ summary {
     transform: scale(1);
   }
 }
+
+/* Flotación suave del sobre en el banner promo de la home (estilo caja gacha). */
+@keyframes sobre-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Deriva lenta del fondo "shader" abstracto del banner de sobres en la home. */
+@keyframes bannerShader {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.15);
+  }
+
+  50% {
+    transform: translate3d(-6%, 4%, 0) scale(1.3);
+  }
+}

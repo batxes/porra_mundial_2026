@@ -19,6 +19,7 @@ import {
   TeamPicker,
   WolfBadge,
 } from "@/components/common";
+import { AdminDropTab } from "@/components/admin-drop-tab";
 import { PlayerSearchModal } from "@/components/player-search-modal";
 import { toDbEventType, useAppContext } from "@/lib/app-context";
 import { playersById, schedule, teamsById } from "@/lib/data";
@@ -26,11 +27,12 @@ import { translateSlot } from "@/lib/format";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import type { AdminEvent, ProviderSummary, UserProfile } from "@/lib/types";
 
-type AdminTab = "partidos" | "usuarios" | "proveedor";
+type AdminTab = "partidos" | "usuarios" | "sobres" | "proveedor";
 
 const adminTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "partidos", label: "Resultados y eventos" },
   { id: "usuarios", label: "Usuarios" },
+  { id: "sobres", label: "Sobres" },
   { id: "proveedor", label: "API externa" },
 ];
 
@@ -469,6 +471,12 @@ export function AdminView() {
               </p>
             )}
           </div>
+        </Card>
+      ) : null}
+
+      {activeTab === "sobres" ? (
+        <Card className="space-y-4">
+          <AdminDropTab />
         </Card>
       ) : null}
 

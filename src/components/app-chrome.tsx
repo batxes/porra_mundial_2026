@@ -68,6 +68,7 @@ const links = [
   // usePathname no incluye la query.
   { href: "/porra?section=results&goto=next", label: "Jugar", match: "/porra" },
   { href: "/clasificacion", label: "Clasificación" },
+  { href: "/cofres", label: "Sobres" },
   { href: "/como-funciona", label: "Reglas" },
 ];
 
@@ -224,7 +225,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
 
           <nav
             className={`mt-3 grid gap-1 md:hidden ${
-              user?.isAdmin ? "grid-cols-5" : "grid-cols-4"
+              user?.isAdmin ? "grid-cols-6" : "grid-cols-5"
             }`}
           >
             {links.map((link) => {

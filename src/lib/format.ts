@@ -6,10 +6,14 @@ export function flagUrl(team: Team) {
   return `https://flagcdn.com/w80/${team.code}.png`;
 }
 
+// Placeholder para los jugadores sin foto (ni override fotmob ni api-sports).
+export const NO_PIC_URL = "/player-photos/fotmob/no-pic.png";
+
 export function playerPhotoUrl(player: Player) {
   if (player.photo) return player.photo;
   if (playerPhotoOverrides[player.id]) return playerPhotoOverrides[player.id];
-  return player.apiPlayerId ? `https://media.api-sports.io/football/players/${player.apiPlayerId}.png` : "";
+  if (player.apiPlayerId) return `https://media.api-sports.io/football/players/${player.apiPlayerId}.png`;
+  return NO_PIC_URL;
 }
 
 export function formatDate(date: string) {

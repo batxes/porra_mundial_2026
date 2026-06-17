@@ -12,8 +12,13 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import { Card, Notice, SectionHeading, TeamFlag } from "@/components/common";
-import { packDropEventName } from "@/components/pack-drop-notice";
+import {
+  Card,
+  CommunitySwapRow,
+  Notice,
+  SectionHeading,
+  TeamFlag,
+} from "@/components/common";
 import { PlayerCard } from "@/components/player-card";
 import { useAppContext } from "@/lib/app-context";
 import { data, playersById, teamsById } from "@/lib/data";
@@ -22,6 +27,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { calculatePlayerStandings } from "@/lib/scoring";
 import { STAR_PLAYER_IDS } from "@/lib/star-players";
 import { TOP150_PLAYER_IDS } from "@/lib/top150-players";
+import { formatCountdownHMS, secondsUntilNextDailyCard } from "@/lib/cofres";
 import type { AdminEvent, AdminResults, Player, Position } from "@/lib/types";
 
 const PackOpeningOverlay = dynamic(
@@ -41,6 +47,9 @@ type Pack = {
   subtitle: string;
   playerIds: string[];
   dateKey?: string;
+  // Pool del servidor para los sobres temáticos (madrid/sub21/stars/francia).
+  // Si está, en prod se abre con open_themed_card_pack(p_pool, p_day).
+  pool?: "madrid" | "sub21" | "stars" | "francia";
   availableAt: string;
   // Imagen del sobre para el overlay 3D y el hero. Por defecto /sobre.webp.
   image?: string;
@@ -71,6 +80,7 @@ type InventoryCard = {
 
 type SwapLog = {
   id: string;
+  userId: string;
   userName: string;
   inPlayerId: string;
   outPlayerId: string;
@@ -284,71 +294,6 @@ const FRANCE_PLAYER_IDS = [
   "fra-02", // Malo Gusto
 ];
 
-// Tipos de sobre que un admin puede SOLTAR como drop (modal "Soltar drop").
-// Cada uno crea un pack extra de ese tipo (misma imagen/flap/pool que el sobre
-// permanente, así se agrupa con él en la estantería y suma a su contador).
-const DROP_TYPES: {
-  key: string;
-  kind: PackKind;
-  title: string;
-  subtitle: string;
-  image: string;
-  flap: NonNullable<Pack["flap"]>;
-  pool?: string[];
-  count: number;
-}[] = [
-  {
-    key: "estrellas",
-    kind: "special",
-    title: "Sobre Estrellas",
-    subtitle: "1 estrella mundial",
-    image: "/sobre-estrellas.webp",
-    flap: "navy",
-    pool: STAR_PLAYER_IDS,
-    count: 1,
-  },
-  {
-    key: "madrid",
-    kind: "special",
-    title: "Sobre Madrid",
-    subtitle: "1 carta del Real Madrid",
-    image: "/sobre-madrid.webp",
-    flap: "white",
-    pool: MADRID_PLAYER_IDS,
-    count: 1,
-  },
-  {
-    key: "sub21",
-    kind: "special",
-    title: "Sobre Promesas",
-    subtitle: "1 promesa sub-21",
-    image: "/sobre21.webp",
-    flap: "black",
-    pool: SUB21_PLAYER_IDS,
-    count: 1,
-  },
-  {
-    key: "francia",
-    kind: "special",
-    title: "Sobre Francia",
-    subtitle: "1 internacional francés",
-    image: "/sobre-francia.webp",
-    flap: "royal",
-    pool: FRANCE_PLAYER_IDS,
-    count: 1,
-  },
-  {
-    key: "diario",
-    kind: "daily",
-    title: "Sobre diario",
-    subtitle: "3 cartas · 1 legendaria asegurada",
-    image: "/sobre.webp",
-    flap: "green",
-    count: 3,
-  },
-];
-type DropType = (typeof DROP_TYPES)[number];
-
 function storageKey(userId: string, suffix: string) {
   return `porra26_cards_${userId || "guest"}_${suffix}`;
 }
@@ -451,34 +396,6 @@ function formatPackDate(key: string) {
   }).format(new Date(`${key}T12:00:00Z`));
 }
 
-// Segundos hasta el próximo reparto de carta diaria: las 10:00 (hora de Madrid).
-function secondsUntilNextDailyCard() {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Madrid",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(new Date());
-  const value = (type: string) =>
-    Number(parts.find((part) => part.type === type)?.value || 0);
-  let hour = value("hour");
-  if (hour === 24) hour = 0; // algunos locales devuelven "24" a medianoche
-  const secondsOfDay = hour * 3600 + value("minute") * 60 + value("second");
-  const target = 10 * 3600;
-  return secondsOfDay < target
-    ? target - secondsOfDay
-    : target - secondsOfDay + 86400;
-}
-
-function formatCountdownHMS(totalSeconds: number) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-}
-
 function formatSigned(value: number) {
   return value > 0 ? `+${value}` : String(value);
 }
@@ -564,7 +481,7 @@ function cardFromRemote(row: {
 // Modo demo de los cofres: los sobres/cartas NO tocan Supabase (todo en
 // localStorage, robusto aunque las tablas no estén en prod) y los CAMBIOS DE
 // JUGADOR (swaps) están deshabilitados. Poner en false para reactivarlo.
-const CARDS_DEMO: boolean = true;
+const CARDS_DEMO: boolean = false;
 
 export function CofresView() {
   const {
@@ -583,12 +500,21 @@ export function CofresView() {
   const [swapLog, setSwapLog] = useState<SwapLog[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string>("");
   const [inventoryTab, setInventoryTab] = useState<"unused" | "used">("unused");
+  // Tab de página (arriba, tras el título): los sobres (hero + colección) o el
+  // feed de swaps de la comunidad.
+  const [pageTab, setPageTab] = useState<"sobres" | "swaps">("sobres");
+  const [swapQuery, setSwapQuery] = useState("");
+  const [swapsMineOnly, setSwapsMineOnly] = useState(false);
   const [newCardIds, setNewCardIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [positionFilter, setPositionFilter] = useState<Position | "all">("all");
   const [hydrated, setHydrated] = useState(false);
   const [activePack, setActivePack] = useState<Pack | null>(null);
   const [opening, setOpening] = useState(false);
+  // En prod pedimos las cartas al servidor ANTES de abrir el overlay, para que
+  // el revelado muestre exactamente lo que queda en la colección (no la tirada
+  // de cliente). `preparing` enseña el spinner del botón mientras llega el RPC.
+  const [preparing, setPreparing] = useState(false);
   // Semilla del "tiro" de los sobres ESPECIALES. Vacía en el render inicial
   // (determinista → sin hydration mismatch en SSR); al ABRIR se pone a
   // Math.random() y los especiales re-tiran carta aleatoria. Los diarios NO la
@@ -600,6 +526,11 @@ export function CofresView() {
   const collectionRef = useRef<HTMLElement>(null);
   const wasOpening = useRef(false);
   const justAcceptedRef = useRef(false);
+  // Cartas ya pedidas al servidor en openPack (prod), a la espera de que el
+  // usuario corte el sobre. Se consumen en acceptPackOpening.
+  const pendingCardsRef = useRef<{ packId: string; cards: InventoryCard[] } | null>(
+    null,
+  );
   const [demoXi, setDemoXi] = useState(seedXi);
   const [pendingSwap, setPendingSwap] = useState<SwapCandidate | null>(null);
   const [lastSwap, setLastSwap] = useState<{
@@ -607,11 +538,6 @@ export function CofresView() {
     outPlayerId: string;
   } | null>(null);
   const [swapBusy, setSwapBusy] = useState(false);
-  const [dropBusy, setDropBusy] = useState(false);
-  // Modal de admin para elegir qué tipo de sobre soltar como drop, y cuántos.
-  const [dropTypeOpen, setDropTypeOpen] = useState(false);
-  const [dropTypeKey, setDropTypeKey] = useState<string>(DROP_TYPES[0].key);
-  const [dropQty, setDropQty] = useState(1);
   // Tutorial de bienvenida (primera visita). `introQueuedRef` evita que el
   // efecto lo vuelva a encolar tras cerrarlo en la misma sesión.
   const [showIntro, setShowIntro] = useState(false);
@@ -625,19 +551,22 @@ export function CofresView() {
   const dailyPacks = useMemo<Pack[]>(() => {
     const today = madridTodayKey();
     // En demo solo 1 sobre diario (para probar); en real, los 7 históricos.
-    return Array.from({ length: CARDS_DEMO ? 1 : dailyPackCount }, (_, index) => {
-      const dateKey = shiftDateKey(today, -index);
-      return {
-        id: `daily-${dateKey}`,
-        kind: "daily" as const,
-        title:
-          index === 0 ? "Sobre diario" : `Sobre ${formatPackDate(dateKey)}`,
-        subtitle: "3 cartas · 1 legendaria asegurada",
-        playerIds: pickDailyPlayers(`daily:${dateKey}:${drawSeed}`),
-        dateKey,
-        availableAt: `${dateKey}T00:00:00.000Z`,
-      };
-    });
+    return Array.from(
+      { length: CARDS_DEMO ? 1 : dailyPackCount },
+      (_, index) => {
+        const dateKey = shiftDateKey(today, -index);
+        return {
+          id: `daily-${dateKey}`,
+          kind: "daily" as const,
+          title:
+            index === 0 ? "Sobre diario" : `Sobre ${formatPackDate(dateKey)}`,
+          subtitle: "3 cartas · 1 legendaria asegurada",
+          playerIds: pickDailyPlayers(`daily:${dateKey}:${drawSeed}`),
+          dateKey,
+          availableAt: `${dateKey}T00:00:00.000Z`,
+        };
+      },
+    );
   }, [drawSeed]);
 
   // Sobre Madrid: especial SIEMPRE disponible, con su propia imagen y 1 sola
@@ -645,8 +574,10 @@ export function CofresView() {
   const madridPack = useMemo<Pack>(() => {
     const today = madridTodayKey();
     return {
-      id: "special-madrid",
+      id: `madrid-${today}`,
       kind: "special",
+      pool: "madrid",
+      dateKey: today,
       title: "Sobre Madrid",
       subtitle: "1 carta del Real Madrid",
       playerIds: pickDeterministicPlayers(
@@ -665,8 +596,10 @@ export function CofresView() {
   const sub21Pack = useMemo<Pack>(() => {
     const today = madridTodayKey();
     return {
-      id: "special-sub21",
+      id: `sub21-${today}`,
       kind: "special",
+      pool: "sub21",
+      dateKey: today,
       title: "Sobre Promesas",
       subtitle: "1 promesa sub-21",
       playerIds: pickDeterministicPlayers(
@@ -686,8 +619,10 @@ export function CofresView() {
   const starsPack = useMemo<Pack>(() => {
     const today = madridTodayKey();
     return {
-      id: "special-estrellas",
+      id: `stars-${today}`,
       kind: "special",
+      pool: "stars",
+      dateKey: today,
       title: "Sobre Estrellas",
       subtitle: "1 estrella mundial",
       playerIds: pickDeterministicPlayers(
@@ -706,8 +641,10 @@ export function CofresView() {
   const francePack = useMemo<Pack>(() => {
     const today = madridTodayKey();
     return {
-      id: "special-francia",
+      id: `francia-${today}`,
       kind: "special",
+      pool: "francia",
+      dateKey: today,
       title: "Sobre Francia",
       subtitle: "1 internacional francés",
       playerIds: pickDeterministicPlayers(
@@ -786,6 +723,15 @@ export function CofresView() {
   const selectedPlayer = selectedCard
     ? playersById.get(selectedCard.playerId)
     : null;
+  // Feed de swaps filtrado: "Míos" (por userId) + buscador por nombre.
+  const filteredSwaps = useMemo(() => {
+    const q = normalizeSearch(swapQuery.trim());
+    return swapLog.filter((entry) => {
+      if (swapsMineOnly && entry.userId !== (user?.id || "")) return false;
+      if (q && !normalizeSearch(entry.userName).includes(q)) return false;
+      return true;
+    });
+  }, [swapLog, swapQuery, swapsMineOnly, user]);
   const normalizedQuery = normalizeSearch(query.trim());
   const shownUnused = useMemo(
     () =>
@@ -824,14 +770,7 @@ export function CofresView() {
       ...dailyPacks,
       ...specialPacks,
     ],
-    [
-      dailyPacks,
-      francePack,
-      madridPack,
-      starsPack,
-      sub21Pack,
-      specialPacks,
-    ],
+    [dailyPacks, francePack, madridPack, starsPack, sub21Pack, specialPacks],
   );
   const unopenedPacks = useMemo(
     () => packs.filter((pack) => !openedIds.has(pack.id)),
@@ -891,8 +830,11 @@ export function CofresView() {
   const overlayPacks = useMemo(() => {
     if (!activePack) return unopenedPacks.length ? unopenedPacks : packs;
     const pool = unopenedPacks.length ? unopenedPacks : packs;
+    // El activePack lleva las cartas REALES del servidor (pre-fetch); sustituye
+    // al del pool (que trae la tirada de cliente) para que el overlay revele lo
+    // correcto. Si no estaba, lo añadimos delante.
     return pool.some((pack) => pack.id === activePack.id)
-      ? pool
+      ? pool.map((pack) => (pack.id === activePack.id ? activePack : pack))
       : [activePack, ...pool];
   }, [activePack, packs, unopenedPacks]);
 
@@ -923,7 +865,7 @@ export function CofresView() {
       supabase
         .from("card_swaps")
         .select(
-          "id, in_player_id, out_player_id, points_in, points_out, delta, created_at, profiles(display_name)",
+          "id, user_id, in_player_id, out_player_id, points_in, points_out, delta, created_at, profiles(display_name)",
         )
         .order("created_at", { ascending: false })
         .limit(20),
@@ -946,7 +888,12 @@ export function CofresView() {
           available_at?: string;
           created_at?: string;
         }>
-      ).map(packFromDrop),
+      )
+        // Solo los drops de ADMIN (id `special-<uuid>`). Los temáticos por día
+        // (`madrid-<fecha>`, etc.) también son kind='special' en la BBDD, pero ya
+        // los representan los memos fijos (madridPack…); incluirlos duplicaría.
+        .filter((drop) => drop.id.startsWith("special-"))
+        .map(packFromDrop),
     );
     setInventory(
       (
@@ -964,6 +911,7 @@ export function CofresView() {
       (
         (swaps || []) as Array<{
           id: string;
+          user_id?: string;
           in_player_id: string;
           out_player_id: string;
           points_in: number;
@@ -981,6 +929,7 @@ export function CofresView() {
           : row.profiles;
         return {
           id: row.id,
+          userId: row.user_id || "",
           userName: profile?.display_name || "Jugador",
           inPlayerId: row.in_player_id,
           outPlayerId: row.out_player_id,
@@ -1110,10 +1059,14 @@ export function CofresView() {
         const supabase = getSupabaseBrowserClient() as SupabaseLike | null;
         if (!supabase)
           throw new Error("No se ha podido conectar con Supabase.");
-        const rpcName =
-          pack.kind === "daily" ? "open_daily_card_pack" : "open_card_drop";
-        const params =
-          pack.kind === "daily"
+        const rpcName = pack.pool
+          ? "open_themed_card_pack"
+          : pack.kind === "daily"
+            ? "open_daily_card_pack"
+            : "open_card_drop";
+        const params = pack.pool
+          ? { p_pool: pack.pool, p_day: pack.dateKey || madridTodayKey() }
+          : pack.kind === "daily"
             ? { p_day: pack.dateKey || pack.id.replace("daily-", "") }
             : { p_drop_id: pack.id };
         const { data: rows, error } = await supabase.rpc(rpcName, params);
@@ -1154,7 +1107,14 @@ export function CofresView() {
         return;
       }
 
-      const cards = await openPackInStorage(pack);
+      // En prod las cartas ya se pidieron en openPack (para revelar lo real);
+      // aquí las consumimos. En local/demo se generan en el momento.
+      const stash = pendingCardsRef.current;
+      const cards =
+        stash && stash.packId === pack.id
+          ? stash.cards
+          : await openPackInStorage(pack);
+      pendingCardsRef.current = null;
       setInventory((current) => {
         const existingIds = new Set(current.map((card) => card.id));
         return [
@@ -1180,8 +1140,8 @@ export function CofresView() {
   );
 
   const openPack = useCallback(
-    (pack: Pack) => {
-      if (opening) return;
+    async (pack: Pack) => {
+      if (opening || preparing) return;
 
       const alreadyOpenedCards = inventory.filter(
         (card) => card.packId === pack.id,
@@ -1190,103 +1150,40 @@ export function CofresView() {
         setMessage("Sobre ya abierto. Sus cartas ya están en tu colección.");
         return;
       }
+      setMessage("");
 
-      // Re-tira los ESPECIALES para que la carta sea aleatoria en cada apertura
-      // (los diarios no usan drawSeed). Math.random aquí es seguro: es un evento
-      // de cliente, no el render (no hay hydration mismatch).
+      if (usingSupabase && user) {
+        // Prod: pide las cartas al servidor ANTES de abrir el overlay y revela
+        // exactamente esas (así el revelado == la colección). Si el RPC falla,
+        // avisamos y NO abrimos el overlay (no se queda colgado).
+        setPreparing(true);
+        try {
+          const cards = await openPackInStorage(pack);
+          pendingCardsRef.current = { packId: pack.id, cards };
+          setActivePack({
+            ...pack,
+            playerIds: cards.map((card) => card.playerId),
+          });
+          setOpening(true);
+        } catch (caught) {
+          setMessage(
+            caught instanceof Error
+              ? caught.message
+              : "No se ha podido abrir el sobre.",
+          );
+        } finally {
+          setPreparing(false);
+        }
+        return;
+      }
+
+      // Local/demo: la tirada es de cliente; re-tira los ESPECIALES por apertura
+      // para que la carta sea aleatoria. Math.random es seguro (evento, no render).
       setDrawSeed(String(Math.random()));
       setActivePack(pack);
-      setMessage("");
       setOpening(true);
     },
-    [inventory, opening],
-  );
-
-  const releaseSpecialDrop = useCallback(
-    async (type: DropType, qty: number) => {
-      if (dropBusy) return;
-      const count = Math.max(1, Math.min(50, Math.floor(qty) || 1));
-      setDropBusy(true);
-      setMessage("");
-
-      try {
-        if (usingSupabase && user) {
-          const supabase = getSupabaseBrowserClient() as SupabaseLike | null;
-          if (!supabase)
-            throw new Error("No se ha podido conectar con Supabase.");
-          const createdPacks: Pack[] = [];
-          for (let i = 0; i < count; i += 1) {
-            const { data: rows, error } = await supabase.rpc(
-              "admin_create_card_drop",
-              { p_label: type.title },
-            );
-            if (error) throw new Error(error.message);
-            const created = (
-              rows as Array<{
-                id: string;
-                kind: PackKind;
-                label: string;
-                player_ids: string[];
-                available_at?: string;
-                created_at?: string;
-              }> | null
-            )?.[0];
-            if (created) createdPacks.push(packFromDrop(created));
-          }
-          setSpecialPacks((current) => [...createdPacks, ...current]);
-        } else {
-          // Demo: N packs locales del tipo elegido, cada uno con carta(s)
-          // aleatoria(s) de su pool (Math.random/Date.now son seguros: evento
-          // de cliente, no render).
-          const stamp = Date.now();
-          const packs: Pack[] = Array.from({ length: count }, (_, i) => {
-            const id = `${type.key}-drop-${stamp}-${i}`;
-            return {
-              id,
-              kind: type.kind,
-              title: type.title,
-              subtitle: type.subtitle,
-              image: type.image,
-              flap: type.flap,
-              playerIds:
-                type.kind === "daily"
-                  ? pickDailyPlayers(`drop:${id}:${Math.random()}`)
-                  : pickDeterministicPlayers(
-                      `drop:${id}:${Math.random()}`,
-                      type.count,
-                      type.pool,
-                    ),
-              availableAt: new Date().toISOString(),
-            };
-          });
-          setSpecialPacks((current) => [...packs, ...current]);
-        }
-        setDropTypeOpen(false);
-        // Aviso "Florentino te regala fichajes" (lo recoge PackDropWatcher).
-        window.dispatchEvent(
-          new CustomEvent(packDropEventName, {
-            detail: {
-              items: [{ title: type.title, image: type.image, qty: count }],
-            },
-          }),
-        );
-        toast.success("¡Drop soltado!", {
-          description: `${count} × ${type.title} ${
-            count === 1 ? "disponible" : "disponibles"
-          } para todos.`,
-        });
-      } catch (error) {
-        const msg =
-          error instanceof Error
-            ? error.message
-            : "No se ha podido soltar el drop.";
-        setMessage(msg);
-        toast.error("No se ha podido soltar el drop", { description: msg });
-      } finally {
-        setDropBusy(false);
-      }
-    },
-    [dropBusy, usingSupabase, user],
+    [inventory, opening, preparing, openPackInStorage, usingSupabase, user],
   );
 
   const candidateFor = useCallback(
@@ -1297,12 +1194,13 @@ export function CofresView() {
       const alreadyInXi = selectedPlayer
         ? activeXi.includes(selectedPlayer.id)
         : false;
-      // Solo puedes meter una carta con los MISMOS puntos o MENOS que el
-      // titular al que sustituye (no sirve para subir tu marcador a posteriori;
-      // los empates sí valen).
-      const cardEqualOrLower = inPoints <= outPoints;
+      // La carta debe valer MENOS puntos que el titular al que sustituye (no
+      // sirve para subir el marcador a posteriori). El empate solo vale si la
+      // carta está a 0. MISMA regla que el SQL apply_card_swap y app-context.
+      const cardEligible =
+        inPoints < outPoints || (inPoints === 0 && outPoints >= 0);
       const eligible = Boolean(
-        selectedPlayer && samePosition && !alreadyInXi && cardEqualOrLower,
+        selectedPlayer && samePosition && !alreadyInXi && cardEligible,
       );
 
       let reason = "Disponible";
@@ -1310,7 +1208,7 @@ export function CofresView() {
       else if (!samePosition)
         reason = `Solo ${positionLabel[selectedPlayer.position]}`;
       else if (alreadyInXi) reason = "Ya esta en tu once";
-      else if (!cardEqualOrLower)
+      else if (!cardEligible)
         reason = `Tiene menos puntos que tu carta (${formatSigned(outPoints)})`;
 
       return {
@@ -1343,6 +1241,7 @@ export function CofresView() {
     setSwapLog((current) => [
       {
         id: crypto.randomUUID(),
+        userId: user?.id || "",
         userName: user?.name || "Demo",
         inPlayerId: card.playerId,
         outPlayerId: candidate.outPlayer.id,
@@ -1409,6 +1308,7 @@ export function CofresView() {
       setSwapLog((current) => [
         {
           id: crypto.randomUUID(),
+          userId: user.id,
           userName: user.name,
           inPlayerId: selectedPlayer.id,
           outPlayerId: pendingSwap.outPlayer.id,
@@ -1463,9 +1363,9 @@ export function CofresView() {
       <SectionHeading
         eyebrow="Sobres"
         title="Cartas de la Triliporra"
-        description="Abre tus sobres y mete a un crack en tu once pagando el coste de puntos al momento."
+        description="Añade un crack a tu once pagando su coste."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:flex-nowrap sm:justify-end">
             <button
               type="button"
               onClick={() => setShowIntro(true)}
@@ -1476,19 +1376,6 @@ export function CofresView() {
               ?
             </button>
             <NextCardCountdown />
-            {user?.isAdmin ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setDropQty(1);
-                  setDropTypeOpen(true);
-                }}
-                disabled={dropBusy}
-                className="inline-flex items-center justify-center rounded-lg border border-[#ffd252]/30 bg-[#ffd252] px-4 py-2 text-sm font-bold text-black transition hover:bg-[#ffdd7a] disabled:opacity-60"
-              >
-                {dropBusy ? "Soltando..." : "Soltar drop"}
-              </button>
-            ) : null}
           </div>
         }
       />
@@ -1500,287 +1387,357 @@ export function CofresView() {
       </div>
       {message ? <Notice tone="neutral">{message}</Notice> : null}
 
-      <PackHero
-        featuredPack={featuredPack}
-        groups={packGroups}
-        selectedKey={featuredGroup?.key ?? null}
-        onSelectType={setSelectedTypeKey}
-        count={unopenedCount}
-        opening={opening}
-        hydrated={hydrated}
-        buttonRef={heroButtonRef}
-        onOpen={() => featuredPack && openPack(featuredPack)}
-      />
-
-      <section ref={collectionRef} className="scroll-mt-4 space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="h-px flex-1 bg-white/[0.08]" />
-          <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#a7f600]">
-            Tu colección
-          </span>
-          <span className="h-px flex-1 bg-white/[0.08]" />
+      <div className="flex justify-center">
+        <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] p-1 text-sm font-bold">
+          <button
+            type="button"
+            aria-pressed={pageTab === "sobres"}
+            onClick={() => setPageTab("sobres")}
+            className={`rounded-lg px-5 py-2 transition ${
+              pageTab === "sobres"
+                ? "bg-zinc-200 text-zinc-900"
+                : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
+            }`}
+          >
+            Sobres
+          </button>
+          <button
+            type="button"
+            aria-pressed={pageTab === "swaps"}
+            onClick={() => setPageTab("swaps")}
+            className={`rounded-lg px-5 py-2 transition ${
+              pageTab === "swaps"
+                ? "bg-zinc-200 text-zinc-900"
+                : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
+            }`}
+          >
+            Swaps
+          </button>
         </div>
+      </div>
 
-        <div className="grid gap-6 xl:h-[clamp(540px,calc(100vh_-_6rem),820px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,440px)]">
-          <Card className="space-y-4 xl:flex xl:flex-col xl:overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-bold tracking-tight text-white">
-                  Tus cartas
-                </h2>
-                <p className="text-sm text-zinc-500">
-                  {unusedCards.length
-                    ? `${unusedCards.length} sin usar${
-                        usedCards.length
-                          ? ` · ${usedCards.length} en tu once`
-                          : ""
-                      }`
-                    : usedCards.length
-                      ? `${usedCards.length} en tu once`
-                      : "Tu colección está vacía"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {selectedCard ? (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCardId("")}
-                    className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/10"
-                  >
-                    Quitar selección
-                  </button>
-                ) : null}
-                <div className="flex rounded-lg border border-white/10 bg-black/20 p-0.5 text-xs font-bold">
-                  <button
-                    type="button"
-                    aria-pressed={inventoryTab === "unused"}
-                    onClick={() => setInventoryTab("unused")}
-                    className={`rounded-md px-3 py-1.5 transition ${
-                      inventoryTab === "unused"
-                        ? "bg-[#a7f600] text-black"
-                        : "text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    Sin usar
-                    {unusedCards.length ? (
-                      <span className="ml-1 opacity-70">
-                        {unusedCards.length}
-                      </span>
-                    ) : null}
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={inventoryTab === "used"}
-                    onClick={() => setInventoryTab("used")}
-                    className={`rounded-md px-3 py-1.5 transition ${
-                      inventoryTab === "used"
-                        ? "bg-[#a7f600] text-black"
-                        : "text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    Usadas
-                    {usedCards.length ? (
-                      <span className="ml-1 opacity-70">
-                        {usedCards.length}
-                      </span>
-                    ) : null}
-                  </button>
-                </div>
-              </div>
+      {pageTab === "sobres" ? (
+        <>
+          <PackHero
+            featuredPack={featuredPack}
+            groups={packGroups}
+            selectedKey={featuredGroup?.key ?? null}
+            onSelectType={setSelectedTypeKey}
+            count={unopenedCount}
+            opening={opening || preparing}
+            hydrated={hydrated}
+            buttonRef={heroButtonRef}
+            onOpen={() => {
+              if (featuredPack) void openPack(featuredPack);
+            }}
+          />
+
+          <section ref={collectionRef} className="scroll-mt-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-white/[0.08]" />
+              <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#a7f600]">
+                Mi colección
+              </span>
+              <span className="h-px flex-1 bg-white/[0.08]" />
             </div>
 
-            {hydrated && (unusedCards.length > 0 || usedCards.length > 0) ? (
-              <div className="relative">
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Buscar jugador, país o puesto"
-                  aria-label="Buscar en tu colección"
-                  className="w-full rounded-lg border border-white/10 bg-black/20 py-2 pl-9 pr-9 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-[#a7f600]/40"
-                />
-                {query ? (
-                  <button
-                    type="button"
-                    onClick={() => setQuery("")}
-                    aria-label="Limpiar búsqueda"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-bold text-zinc-400 transition hover:text-white"
-                  >
-                    ✕
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-
-            {hydrated && (unusedCards.length > 0 || usedCards.length > 0) ? (
-              <div className="flex flex-wrap gap-1.5">
-                {(["all", "POR", "DEF", "MED", "DEL"] as const).map((pos) => (
-                  <button
-                    key={pos}
-                    type="button"
-                    aria-pressed={positionFilter === pos}
-                    onClick={() => setPositionFilter(pos)}
-                    className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
-                      positionFilter === pos
-                        ? "bg-[#a7f600] text-black"
-                        : "border border-white/10 bg-black/20 text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    {pos === "all" ? "Todos" : pos}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            <div className="team-picker-scroll -ml-1 -mr-2 max-h-[60vh] overflow-y-auto pl-1 pr-2 pt-1 xl:max-h-none xl:min-h-0 xl:flex-1">
-              {!hydrated ? (
-                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-                  {Array.from({ length: 10 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="aspect-[5/7] animate-pulse rounded-lg bg-white/[0.04]"
-                    />
-                  ))}
-                </div>
-              ) : inventoryTab === "unused" ? (
-                unusedCards.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-white/[0.12] bg-white/[0.03] px-4 py-10 text-center">
-                    <p className="text-sm font-semibold text-zinc-300">
-                      Aún no tienes cartas sin usar.
-                    </p>
-                    <p className="mt-1 text-sm text-zinc-500">
-                      Abre un sobre de arriba para conseguir cartas.
+            <div className="grid gap-6 xl:h-[clamp(540px,calc(100vh_-_6rem),820px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,440px)]">
+              <Card className="space-y-4 xl:flex xl:flex-col xl:overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-bold tracking-tight text-white">
+                      Tus cartas
+                    </h2>
+                    <p className="text-sm text-zinc-500">
+                      {unusedCards.length
+                        ? `${unusedCards.length} sin usar${
+                            usedCards.length
+                              ? ` · ${usedCards.length} en tu once`
+                              : ""
+                          }`
+                        : usedCards.length
+                          ? `${usedCards.length} en tu once`
+                          : "Tu colección está vacía"}
                     </p>
                   </div>
-                ) : shownUnused.length ? (
-                  <div
-                    className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5"
-                    style={{ perspective: "1000px" }}
-                  >
-                    {shownUnused.map((card, index) => (
+                  <div className="flex items-center gap-2">
+                    {selectedCard ? (
                       <button
-                        key={card.id}
                         type="button"
-                        aria-pressed={selectedCardId === card.id}
-                        onClick={() => {
-                          setNewCardIds((current) =>
-                            current.filter((id) => id !== card.id),
-                          );
-                          setLastSwap(null);
-                          setSelectedCardId((current) =>
-                            current === card.id ? "" : card.id,
-                          );
-                        }}
-                        style={{
-                          animationDelay: `${Math.min(index, 9) * 45}ms`,
-                        }}
-                        className={`cofre-card-reveal relative rounded-lg text-left outline-none transition focus-visible:ring-2 focus-visible:ring-[#a7f600]/60 ${
-                          selectedCardId === card.id
-                            ? "scale-[1.03]"
-                            : "hover:-translate-y-1"
+                        onClick={() => setSelectedCardId("")}
+                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/10"
+                      >
+                        Quitar selección
+                      </button>
+                    ) : null}
+                    <div className="flex rounded-lg border border-white/10 bg-black/20 p-0.5 text-xs font-bold">
+                      <button
+                        type="button"
+                        aria-pressed={inventoryTab === "unused"}
+                        onClick={() => setInventoryTab("unused")}
+                        className={`rounded-md px-3 py-1.5 transition ${
+                          inventoryTab === "unused"
+                            ? "bg-[#a7f600] text-black"
+                            : "text-zinc-400 hover:text-white"
                         }`}
                       >
-                        <PlayerCard
-                          playerId={card.playerId}
-                          points={pointsFor(card.playerId)}
-                          selected={selectedCardId === card.id}
-                        />
-                        {newCardIds.includes(card.id) ? (
-                          <span className="absolute left-1/2 top-1.5 z-10 -translate-x-1/2 rounded-full bg-[#a7f600] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.1em] text-black shadow-md shadow-black/40">
-                            NEW
+                        Sin usar
+                        {unusedCards.length ? (
+                          <span className="ml-1 opacity-70">
+                            {unusedCards.length}
                           </span>
                         ) : null}
                       </button>
-                    ))}
-                  </div>
-                ) : (
-                  <NoSearchResults query={query} />
-                )
-              ) : usedCards.length === 0 ? (
-                <div className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-8 text-center text-sm text-zinc-500">
-                  Todavía no has usado ninguna carta.
-                </div>
-              ) : shownUsed.length ? (
-                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-                  {shownUsed.map((card) => (
-                    <div
-                      key={card.id}
-                      className="relative rounded-lg opacity-60"
-                    >
-                      <PlayerCard
-                        playerId={card.playerId}
-                        points={pointsFor(card.playerId)}
-                      />
-                      <span className="absolute left-2 top-2 rounded-md border border-[#a7f600]/30 bg-[#a7f600]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#a7f600]">
-                        En el once
-                      </span>
+                      <button
+                        type="button"
+                        aria-pressed={inventoryTab === "used"}
+                        onClick={() => setInventoryTab("used")}
+                        className={`rounded-md px-3 py-1.5 transition ${
+                          inventoryTab === "used"
+                            ? "bg-[#a7f600] text-black"
+                            : "text-zinc-400 hover:text-white"
+                        }`}
+                      >
+                        Usadas
+                        {usedCards.length ? (
+                          <span className="ml-1 opacity-70">
+                            {usedCards.length}
+                          </span>
+                        ) : null}
+                      </button>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              ) : (
-                <NoSearchResults query={query} />
-              )}
+
+                {hydrated &&
+                (unusedCards.length > 0 || usedCards.length > 0) ? (
+                  <div className="relative">
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m21 21-4.3-4.3" />
+                    </svg>
+                    <input
+                      type="search"
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder="Buscar jugador, país o puesto"
+                      aria-label="Buscar en tu colección"
+                      className="w-full rounded-lg border border-white/10 bg-black/20 py-2 pl-9 pr-9 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-[#a7f600]/40"
+                    />
+                    {query ? (
+                      <button
+                        type="button"
+                        onClick={() => setQuery("")}
+                        aria-label="Limpiar búsqueda"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-bold text-zinc-400 transition hover:text-white"
+                      >
+                        ✕
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {hydrated &&
+                (unusedCards.length > 0 || usedCards.length > 0) ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(["all", "POR", "DEF", "MED", "DEL"] as const).map(
+                      (pos) => (
+                        <button
+                          key={pos}
+                          type="button"
+                          aria-pressed={positionFilter === pos}
+                          onClick={() => setPositionFilter(pos)}
+                          className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
+                            positionFilter === pos
+                              ? "bg-[#a7f600] text-black"
+                              : "border border-white/10 bg-black/20 text-zinc-400 hover:text-white"
+                          }`}
+                        >
+                          {pos === "all" ? "Todos" : pos}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                ) : null}
+
+                <div className="team-picker-scroll -ml-1 -mr-2 max-h-[60vh] overflow-y-auto pl-1 pr-2 pt-1 xl:max-h-none xl:min-h-0 xl:flex-1">
+                  {!hydrated ? (
+                    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+                      {Array.from({ length: 10 }).map((_, index) => (
+                        <div
+                          key={index}
+                          className="aspect-[5/7] animate-pulse rounded-lg bg-white/[0.04]"
+                        />
+                      ))}
+                    </div>
+                  ) : inventoryTab === "unused" ? (
+                    unusedCards.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-white/[0.12] bg-white/[0.03] px-4 py-10 text-center">
+                        <p className="text-sm font-semibold text-zinc-300">
+                          Aún no tienes cartas sin usar.
+                        </p>
+                        <p className="mt-1 text-sm text-zinc-500">
+                          Abre un sobre de arriba para conseguir cartas.
+                        </p>
+                      </div>
+                    ) : shownUnused.length ? (
+                      <div
+                        className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5"
+                        style={{ perspective: "1000px" }}
+                      >
+                        {shownUnused.map((card, index) => (
+                          <button
+                            key={card.id}
+                            type="button"
+                            aria-pressed={selectedCardId === card.id}
+                            onClick={() => {
+                              setNewCardIds((current) =>
+                                current.filter((id) => id !== card.id),
+                              );
+                              setLastSwap(null);
+                              setSelectedCardId((current) =>
+                                current === card.id ? "" : card.id,
+                              );
+                            }}
+                            style={{
+                              animationDelay: `${Math.min(index, 9) * 45}ms`,
+                            }}
+                            className={`cofre-card-reveal relative rounded-lg text-left outline-none transition focus-visible:ring-2 focus-visible:ring-[#a7f600]/60 ${
+                              selectedCardId === card.id
+                                ? "scale-[1.03]"
+                                : "hover:-translate-y-1"
+                            }`}
+                          >
+                            <PlayerCard
+                              playerId={card.playerId}
+                              points={pointsFor(card.playerId)}
+                              selected={selectedCardId === card.id}
+                            />
+                            {newCardIds.includes(card.id) ? (
+                              <span className="absolute left-1/2 top-1.5 z-10 -translate-x-1/2 rounded-full bg-[#a7f600] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.1em] text-black shadow-md shadow-black/40">
+                                NEW
+                              </span>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <NoSearchResults query={query} />
+                    )
+                  ) : usedCards.length === 0 ? (
+                    <div className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-8 text-center text-sm text-zinc-500">
+                      Todavía no has usado ninguna carta.
+                    </div>
+                  ) : shownUsed.length ? (
+                    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+                      {shownUsed.map((card) => (
+                        <div
+                          key={card.id}
+                          className="relative rounded-lg opacity-60"
+                        >
+                          <PlayerCard
+                            playerId={card.playerId}
+                            points={pointsFor(card.playerId)}
+                          />
+                          <span className="absolute left-2 top-2 rounded-md border border-[#a7f600]/30 bg-[#a7f600]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#a7f600]">
+                            En el once
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <NoSearchResults query={query} />
+                  )}
+                </div>
+              </Card>
+
+              <div ref={swapPanelRef} className="scroll-mt-4 xl:self-start">
+                <SwapPanel
+                  activeXi={activeXi}
+                  breakdownFor={breakdownFor}
+                  candidateFor={candidateFor}
+                  lastSwap={lastSwap}
+                  onClear={() => setSelectedCardId("")}
+                  onDismissResult={() => setLastSwap(null)}
+                  pointsFor={pointsFor}
+                  requestSwap={requestSwap}
+                  selectedCard={selectedCard}
+                  selectedPlayer={selectedPlayer}
+                />
+              </div>
             </div>
+          </section>
+        </>
+      ) : (
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-white/[0.08]" />
+            <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#a7f600]">
+              Swaps
+            </span>
+            <span className="h-px flex-1 bg-white/[0.08]" />
+          </div>
+          <Card className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight text-white">
+                  Swaps de la comunidad
+                </h2>
+                <p className="text-sm text-zinc-500">
+                  {swapLog.length
+                    ? `${swapLog.length} fichaje${swapLog.length === 1 ? "" : "s"} en total`
+                    : "Aquí aparecen los fichajes de todos los jugadores"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {user ? (
+                  <button
+                    type="button"
+                    aria-pressed={swapsMineOnly}
+                    onClick={() => setSwapsMineOnly((value) => !value)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+                      swapsMineOnly
+                        ? "border-transparent bg-[#a7f600] text-black"
+                        : "border-white/10 text-zinc-300 hover:bg-white/10"
+                    }`}
+                  >
+                    Míos
+                  </button>
+                ) : null}
+                <input
+                  type="text"
+                  value={swapQuery}
+                  onChange={(event) => setSwapQuery(event.target.value)}
+                  placeholder="Buscar por nombre"
+                  className="w-36 rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-white/25 sm:w-44"
+                />
+              </div>
+            </div>
+            {filteredSwaps.length ? (
+              <div className="divide-y divide-white/[0.06]">
+                {filteredSwaps.slice(0, 30).map((entry) => (
+                  <SwapLogRow key={entry.id} entry={entry} />
+                ))}
+              </div>
+            ) : (
+              <p className="py-10 text-center text-sm text-zinc-500">
+                {swapLog.length
+                  ? "Ningún fichaje coincide con el filtro."
+                  : "Todavía no hay swaps. Los fichajes de la comunidad aparecerán aquí."}
+              </p>
+            )}
           </Card>
-
-          <div ref={swapPanelRef} className="scroll-mt-4 xl:self-start">
-            <SwapPanel
-              activeXi={activeXi}
-              breakdownFor={breakdownFor}
-              candidateFor={candidateFor}
-              lastSwap={lastSwap}
-              onClear={() => setSelectedCardId("")}
-              onDismissResult={() => setLastSwap(null)}
-              pointsFor={pointsFor}
-              requestSwap={requestSwap}
-              selectedCard={selectedCard}
-              selectedPlayer={selectedPlayer}
-            />
-          </div>
-        </div>
-      </section>
-
-      <details className="group overflow-hidden rounded-lg border border-white/10 bg-[#151515] shadow-lg shadow-black/20">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 sm:px-5 [&::-webkit-details-marker]:hidden">
-          <div>
-            <h2 className="text-base font-bold tracking-tight text-white">
-              Swaps públicos
-            </h2>
-            <p className="text-xs text-zinc-500">
-              {swapLog.length
-                ? `${swapLog.length} fichaje${swapLog.length === 1 ? "" : "s"} en la comunidad`
-                : "Todos los fichajes de la comunidad quedan aquí"}
-            </p>
-          </div>
-          <span className="shrink-0 text-xs font-bold text-zinc-500 transition-transform group-open:rotate-180">
-            ▾
-          </span>
-        </summary>
-        <div className="border-t border-white/[0.06] px-4 pb-2 sm:px-5">
-          {swapLog.length ? (
-            <div className="divide-y divide-white/[0.06]">
-              {swapLog.slice(0, 12).map((entry) => (
-                <SwapLogRow key={entry.id} entry={entry} />
-              ))}
-            </div>
-          ) : (
-            <p className="py-5 text-sm text-zinc-500">Todavía no hay swaps.</p>
-          )}
-        </div>
-      </details>
+        </section>
+      )}
 
       {pendingSwap && selectedPlayer ? (
         <ConfirmSwapModal
@@ -1794,124 +1751,6 @@ export function CofresView() {
       ) : null}
 
       {/* Modal de admin: elegir qué tipo de sobre soltar como drop. */}
-      {dropTypeOpen ? (
-        <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setDropTypeOpen(false);
-          }}
-        >
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0f0f0f] p-5 text-white shadow-2xl shadow-black/60 motion-safe:animate-[cofre-modal-pop_220ms_cubic-bezier(0.2,0.9,0.3,1)_both]">
-            <div className="mb-1 flex items-center justify-between gap-3">
-              <h3 className="text-lg font-bold">Soltar drop</h3>
-              <button
-                type="button"
-                onClick={() => setDropTypeOpen(false)}
-                aria-label="Cerrar"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-zinc-300 transition hover:bg-white/10 hover:text-white"
-              >
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                >
-                  <path d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              </button>
-            </div>
-            <p className="mb-4 text-sm text-zinc-400">
-              Elige el tipo y cuántos sobres soltar para todos.
-            </p>
-            <div className="grid grid-cols-3 gap-2.5">
-              {DROP_TYPES.map((type) => {
-                const sel = type.key === dropTypeKey;
-                return (
-                  <button
-                    key={type.key}
-                    type="button"
-                    aria-pressed={sel}
-                    onClick={() => setDropTypeKey(type.key)}
-                    className={`flex flex-col items-center gap-2 rounded-xl border p-2.5 transition ${
-                      sel
-                        ? "border-[#ffd252] bg-[#ffd252]/10 ring-1 ring-[#ffd252]/40"
-                        : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.07]"
-                    }`}
-                  >
-                    <span className="relative block aspect-[818/1206] w-full overflow-hidden rounded-md">
-                      <Image
-                        src={type.image}
-                        alt=""
-                        fill
-                        sizes="100px"
-                        className="object-contain"
-                      />
-                    </span>
-                    <span className="text-[11px] font-bold capitalize leading-tight">
-                      {type.title.replace(/^Sobre\s+/i, "")}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5">
-              <span className="text-sm font-semibold text-zinc-300">
-                Cantidad
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  aria-label="Menos"
-                  onClick={() => setDropQty((q) => Math.max(1, q - 1))}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-lg font-bold text-white transition hover:bg-white/10"
-                >
-                  −
-                </button>
-                <span className="w-8 text-center text-lg font-bold tabular-nums">
-                  {dropQty}
-                </span>
-                <button
-                  type="button"
-                  aria-label="Más"
-                  onClick={() => setDropQty((q) => Math.min(50, q + 1))}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-lg font-bold text-white transition hover:bg-white/10"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setDropTypeOpen(false)}
-                disabled={dropBusy}
-                className="rounded-lg border border-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/10 disabled:opacity-60"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={dropBusy}
-                onClick={() => {
-                  const type = DROP_TYPES.find((t) => t.key === dropTypeKey);
-                  if (type) void releaseSpecialDrop(type, dropQty);
-                }}
-                className="rounded-lg bg-[#ffd252] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#ffdd7a] disabled:opacity-60"
-              >
-                {dropBusy ? "Soltando..." : `Soltar ${dropQty}`}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {showIntro ? <CofresIntroModal onClose={dismissIntro} /> : null}
 
       {opening && activePack ? (
@@ -2249,63 +2088,63 @@ function SwapPanel({
 
       {selectedPlayer ? (
         <div className="rounded-xl border border-[#a7f600]/30 bg-gradient-to-br from-[#a7f600]/[0.14] to-transparent p-3">
-        <div className="flex items-center gap-3">
-          <span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#a7f600]/40 bg-zinc-900">
-            {selectedPhoto ? (
-              <Image
-                src={selectedPhoto}
-                alt=""
-                fill
-                sizes="56px"
-                className="object-cover"
-                unoptimized
-              />
-            ) : (
-              <span className="text-sm font-bold text-[#a7f600]">
-                {initials(selectedPlayer.name)}
-              </span>
-            )}
-          </span>
-          <div className="min-w-0 flex-1">
-            <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[#a7f600]/80">
-              Entra a tu once
-            </span>
-            <p className="mt-0.5 flex items-center gap-1.5">
-              <TeamFlag
-                teamId={selectedPlayer.team}
-                className="h-3.5 w-5 shrink-0 rounded-sm"
-              />
-              <span className="min-w-0 truncate text-base font-bold text-white">
-                {selectedPlayer.name}
-              </span>
-            </p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {selectedBreakdown && hasAnyEvent(selectedBreakdown) ? (
-                <EventPills breakdown={selectedBreakdown} />
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#a7f600]/40 bg-zinc-900">
+              {selectedPhoto ? (
+                <Image
+                  src={selectedPhoto}
+                  alt=""
+                  fill
+                  sizes="56px"
+                  className="object-cover"
+                  unoptimized
+                />
               ) : (
-                <span className="text-[11px] text-zinc-400">
-                  Sin acciones todavía
+                <span className="text-sm font-bold text-[#a7f600]">
+                  {initials(selectedPlayer.name)}
                 </span>
               )}
+            </span>
+            <div className="min-w-0 flex-1">
+              <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[#a7f600]/80">
+                Entra a tu once
+              </span>
+              <p className="mt-0.5 flex items-center gap-1.5">
+                <TeamFlag
+                  teamId={selectedPlayer.team}
+                  className="h-3.5 w-5 shrink-0 rounded-sm"
+                />
+                <span className="min-w-0 truncate text-base font-bold text-white">
+                  {selectedPlayer.name}
+                </span>
+              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {selectedBreakdown && hasAnyEvent(selectedBreakdown) ? (
+                  <EventPills breakdown={selectedBreakdown} />
+                ) : (
+                  <span className="text-[11px] text-zinc-400">
+                    Sin acciones todavía
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="shrink-0 self-stretch text-right">
+              <span
+                className={`block text-3xl font-bold leading-none tabular-nums ${
+                  selectedPts > 0
+                    ? "text-[#a7f600]"
+                    : selectedPts < 0
+                      ? "text-rose-300"
+                      : "text-white"
+                }`}
+              >
+                {formatSigned(selectedPts)}
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+                puntos
+              </span>
             </div>
           </div>
-          <div className="shrink-0 self-stretch text-right">
-            <span
-              className={`block text-3xl font-bold leading-none tabular-nums ${
-                selectedPts > 0
-                  ? "text-[#a7f600]"
-                  : selectedPts < 0
-                    ? "text-rose-300"
-                    : "text-white"
-              }`}
-            >
-              {formatSigned(selectedPts)}
-            </span>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
-              puntos
-            </span>
-          </div>
-        </div>
         </div>
       ) : (
         <div className="flex items-center gap-3 rounded-xl border border-dashed border-white/[0.14] bg-white/[0.02] p-3">
@@ -2561,9 +2400,7 @@ function PitchPlayer({
       </button>
     );
   }
-  return (
-    <div className={`${base} ${dimmed ? "opacity-45" : ""}`}>{inner}</div>
-  );
+  return <div className={`${base} ${dimmed ? "opacity-45" : ""}`}>{inner}</div>;
 }
 
 function SwapPitch({
@@ -2730,26 +2567,6 @@ function EventPills({ breakdown }: { breakdown: PlayerBreakdown }) {
         </span>
       ))}
     </>
-  );
-}
-
-function MiniPlayerPhoto({ player }: { player: Player }) {
-  const photo = playerPhotoUrl(player);
-  return (
-    <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/10 bg-zinc-900 text-xs font-bold text-[#a7f600]">
-      {photo ? (
-        <Image
-          src={photo}
-          alt=""
-          fill
-          sizes="44px"
-          className="object-cover"
-          unoptimized
-        />
-      ) : (
-        initials(player.name)
-      )}
-    </span>
   );
 }
 
@@ -2938,34 +2755,17 @@ function SwapModalCard({
   );
 }
 
+// Foto del jugador con un badge de sus puntos. El que sale va atenuado (gris) y
+// el que entra a todo color; el badge del que entra resalta en lima.
 function SwapLogRow({ entry }: { entry: SwapLog }) {
-  const inPlayer = playersById.get(entry.inPlayerId);
-  const outPlayer = playersById.get(entry.outPlayerId);
-
   return (
-    <div className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex min-w-0 items-center gap-3">
-        {inPlayer ? <MiniPlayerPhoto player={inPlayer} /> : null}
-        <span className="min-w-0">
-          <span className="block text-sm font-bold text-white">
-            {entry.userName} ficho a {inPlayer?.name || "Jugador"}
-          </span>
-          <span className="block truncate text-xs text-zinc-500">
-            Sale {outPlayer?.name || "Jugador"} -{" "}
-            {formatSigned(entry.pointsOut)} a {formatSigned(entry.pointsIn)}
-          </span>
-        </span>
-      </div>
-      <span
-        className={`w-fit rounded-md border px-2 py-1 text-xs font-bold ${
-          entry.delta < 0
-            ? "border-rose-400/25 bg-rose-400/10 text-rose-200"
-            : "border-[#a7f600]/25 bg-[#a7f600]/10 text-[#a7f600]"
-        }`}
-      >
-        {formatSigned(entry.delta)} pts
-      </span>
-    </div>
+    <CommunitySwapRow
+      userName={entry.userName}
+      inPlayerId={entry.inPlayerId}
+      outPlayerId={entry.outPlayerId}
+      pointsIn={entry.pointsIn}
+      pointsOut={entry.pointsOut}
+    />
   );
 }
 
@@ -3062,7 +2862,9 @@ function CofresIntroModal({ onClose }: { onClose: () => void }) {
           >
             {content.title}
           </h3>
-          <p className="mt-1.5 text-sm leading-6 text-zinc-300">{content.body}</p>
+          <p className="mt-1.5 text-sm leading-6 text-zinc-300">
+            {content.body}
+          </p>
         </div>
 
         {/* Avisos clave: el que sale desaparece (rojo) y la regla de puntos. */}
@@ -3101,8 +2903,8 @@ function CofresIntroModal({ onClose }: { onClose: () => void }) {
             </span>
             <p className="text-[13px] font-semibold leading-5 text-red-100">
               Una vez hecho el cambio, ese jugador{" "}
-              <span className="font-bold text-red-300">se va para siempre</span>:
-              no se puede deshacer ni volver a ponerlo.
+              <span className="font-bold text-red-300">se va para siempre</span>
+              : no se puede deshacer ni volver a ponerlo.
             </p>
           </div>
         ) : null}
@@ -3345,4 +3147,3 @@ function IntroPointChip({
     </span>
   );
 }
-

@@ -14,6 +14,7 @@ import {
 import {
   Avatar,
   Card,
+  CommunitySwapRow,
   FinishedMatchCard,
   hasFinishedScore,
   MatchEventLine,
@@ -35,6 +36,12 @@ import {
   subscribeRankDelta,
 } from "@/components/results-recap";
 import { useAppContext } from "@/lib/app-context";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
+import {
+  countUnopenedPacks,
+  countUnopenedPacksRemote,
+  secondsUntilNextDailyCard,
+} from "@/lib/cofres";
 import { data, playersById, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
 import {
@@ -322,18 +329,21 @@ export function HomeView() {
       )}
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:gap-10">
-        <HomeFeedSection
-          currentUserId={user?.id || ""}
-          hasUser={Boolean(user)}
-          leaderboard={leaderboard}
-          nextMatchdayKey={nextMatchdayKey}
-          onScoreChange={changeHomePredictionScore}
-          prediction={prediction}
-          ready={ready}
-          results={adminResults}
-          saveState={user && homeSaveState !== "idle" ? homeSaveState : null}
-          upcomingMatches={upcomingMatches}
-        />
+        <div className="flex flex-col gap-6">
+          {user ? <SobresPromoBanner userId={user.id} /> : null}
+          <HomeFeedSection
+            currentUserId={user?.id || ""}
+            hasUser={Boolean(user)}
+            leaderboard={leaderboard}
+            nextMatchdayKey={nextMatchdayKey}
+            onScoreChange={changeHomePredictionScore}
+            prediction={prediction}
+            ready={ready}
+            results={adminResults}
+            saveState={user && homeSaveState !== "idle" ? homeSaveState : null}
+            upcomingMatches={upcomingMatches}
+          />
+        </div>
 
         <aside className="grid grid-cols-1 gap-6">
           <section className="space-y-3">
@@ -376,6 +386,8 @@ export function HomeView() {
               </div>
             )}
           </section>
+
+          <RecentSwapsFeed />
 
           {ready && topPlayers.length ? (
             <section className="space-y-3">
@@ -2087,6 +2099,290 @@ function reminderMatchWhen(match: Match) {
     year: "numeric",
   }).format(kickoff);
   return dayKey === madridTodayKey() ? `Hoy ${time}` : `Mañana ${time}`;
+}
+
+// Cuenta atrás hasta el próximo sobre diario (10:00 Madrid), en cajas estilo HUD
+// (HH : MM : SS).
+function NextSobreCountdown() {
+  const [remaining, setRemaining] = useState<number | null>(null);
+  useEffect(() => {
+    const tick = () => setRemaining(secondsUntilNextDailyCard());
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const total = remaining ?? 0;
+  const parts =
+    remaining == null
+      ? ["--", "--", "--"]
+      : [
+          pad(Math.floor(total / 3600)),
+          pad(Math.floor((total % 3600) / 60)),
+          pad(total % 60),
+        ];
+  const box =
+    "rounded-md border bg-black/50 px-1.5 py-0.5 text-base font-extrabold tabular-nums text-white shadow-[inset_0_0_8px_rgba(245,197,24,0.18)] sm:px-2 sm:text-xl";
+  // Borde inline: globals.css tiene un `* { border-color }` global (sin capa)
+  // que pisa las utilidades de color de borde de Tailwind; inline sí gana.
+  const boxStyle = { borderColor: "rgba(255,255,255,0.35)" };
+  const sep = "text-sm font-extrabold text-[#f5c518] sm:text-lg";
+  return (
+    <span className="flex items-center gap-1">
+      <span className={box} style={boxStyle}>
+        {parts[0]}
+      </span>
+      <span className={sep}>:</span>
+      <span className={box} style={boxStyle}>
+        {parts[1]}
+      </span>
+      <span className={sep}>:</span>
+      <span className={box} style={boxStyle}>
+        {parts[2]}
+      </span>
+    </span>
+  );
+}
+
+// Banner-hero estilo "case opening" (gacha / EA FC): marco HUD con esquinas,
+// titular a dos tonos, cuenta atrás segmentada hasta las 10:00, pill con los
+// sobres sin abrir, y los 3 sobres reales (estrellas · diario · francia) en
+// abanico. Va en la columna de Novedades.
+function SobresPromoBanner({ userId }: { userId: string }) {
+  const [unopened, setUnopened] = useState<number | null>(null);
+  useEffect(() => {
+    // setState diferido para no leer estado en el render (evita mismatch de
+    // hidratación y el lint de setState síncrono en effect). En prod (Supabase)
+    // el conteo es del servidor; en local, de localStorage.
+    let active = true;
+    const timer = window.setTimeout(() => {
+      const dailyId = `daily-${madridTodayKey()}`;
+      const supabase = getSupabaseBrowserClient();
+      if (supabase) {
+        void countUnopenedPacksRemote(
+          supabase as unknown as { from: (t: string) => unknown },
+          dailyId,
+        ).then((n) => {
+          if (active) setUnopened(n);
+        });
+      } else {
+        setUnopened(countUnopenedPacks(userId, dailyId));
+      }
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [userId]);
+
+  return (
+    <Link
+      href="/cofres"
+      style={{ borderColor: "rgba(255,255,255,0.22)" }}
+      className="group relative flex items-center gap-4 overflow-hidden rounded-sm border bg-[#0c0a04] px-6 py-4 sm:gap-6 sm:px-8 sm:py-5"
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(95%_170%_at_85%_-35%,rgba(214,160,40,0.5),transparent_55%),linear-gradient(150deg,#1c1407_0%,#0a0804_72%)]"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -inset-[25%] bg-[radial-gradient(45%_70%_at_72%_25%,rgba(245,197,24,0.5),transparent_60%),radial-gradient(50%_80%_at_92%_82%,rgba(234,160,20,0.55),transparent_55%),radial-gradient(38%_60%_at_52%_98%,rgba(249,115,22,0.32),transparent_60%)] blur-2xl motion-safe:animate-[bannerShader_16s_ease-in-out_infinite]"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(108deg,transparent_38%,rgba(255,255,255,0.07)_45%,transparent_49%,rgba(245,197,24,0.13)_58%,transparent_64%,rgba(255,255,255,0.05)_71%,transparent_76%)]"
+      />
+      <svg
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-full w-full opacity-60 [mask-image:linear-gradient(90deg,transparent,black_55%)] [-webkit-mask-image:linear-gradient(90deg,transparent,black_55%)]"
+      >
+        <pattern
+          id="sobreDots"
+          width="15"
+          height="15"
+          patternUnits="userSpaceOnUse"
+        >
+          <circle cx="2" cy="2" r="1" fill="rgba(255,255,255,0.1)" />
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#sobreDots)" />
+      </svg>
+      <svg
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.16] mix-blend-soft-light"
+      >
+        <filter id="sobreNoise">
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.9"
+            numOctaves="2"
+            stitchTiles="stitch"
+          />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#sobreNoise)" />
+      </svg>
+      <div className="relative min-w-0 flex-1">
+        <p className="uppercase">
+          <span className="block text-[11px] font-medium leading-none tracking-[0.25em] text-white sm:text-sm">
+            Cada día,
+          </span>
+          <span className="mt-1 block font-[family-name:var(--font-display)] text-2xl leading-none text-[#f5c518] sm:mt-1.5 sm:text-[2.6rem]">
+            Un sobre nuevo
+          </span>
+        </p>
+        <div className="mt-3">
+          <NextSobreCountdown />
+        </div>
+      </div>
+
+      <div className="flex shrink-0 flex-col items-center gap-1.5 sm:gap-2">
+        <div className="relative h-20 w-32 sm:h-28 sm:w-52">
+        <span
+          aria-hidden
+          className="absolute bottom-1 left-1/2 size-16 -translate-x-1/2 rounded-full bg-[#f5c518]/25 blur-2xl sm:size-24"
+        />
+        <Image
+          src="/sobre-estrellas.webp"
+          alt=""
+          width={100}
+          height={140}
+          unoptimized
+          priority
+          className="absolute bottom-1 left-0 z-10 h-16 w-12 -rotate-12 object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.55)] transition-transform duration-300 group-hover:-translate-x-0.5 group-hover:-rotate-[16deg] sm:h-24 sm:w-16"
+        />
+        <Image
+          src="/sobre-francia.webp"
+          alt=""
+          width={100}
+          height={140}
+          unoptimized
+          priority
+          className="absolute bottom-1 right-0 z-10 h-16 w-12 rotate-12 object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.55)] transition-transform duration-300 group-hover:translate-x-0.5 group-hover:rotate-[16deg] sm:h-24 sm:w-16"
+        />
+        <span className="absolute bottom-0 left-1/2 z-20 -translate-x-1/2">
+          <span className="block motion-safe:animate-[sobre-bob_3s_ease-in-out_infinite]">
+            <Image
+              src="/sobre.webp"
+              alt=""
+              width={120}
+              height={170}
+              unoptimized
+              priority
+              className="h-20 w-16 object-contain drop-shadow-[0_8px_16px_rgba(245,197,24,0.4)] transition-transform duration-300 group-hover:scale-110 sm:h-28 sm:w-24"
+            />
+          </span>
+        </span>
+        </div>
+        {unopened ? (
+          <span className="relative whitespace-nowrap text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
+            <span className="text-[#f5c518]">{unopened}</span> sobres sin abrir
+          </span>
+        ) : null}
+      </div>
+    </Link>
+  );
+}
+
+type RecentSwap = {
+  id: string;
+  userName: string;
+  inPlayerId: string;
+  outPlayerId: string;
+  pointsIn: number;
+  pointsOut: number;
+};
+
+type RecentSwapRowData = {
+  id: string;
+  in_player_id: string;
+  out_player_id: string;
+  points_in: number;
+  points_out: number;
+  created_at: string;
+  profiles?:
+    | { display_name?: string; is_hidden?: boolean }
+    | Array<{ display_name?: string; is_hidden?: boolean }>
+    | null;
+};
+
+// Feed de "ultimos cambios del once" (fichajes de cartas) para la home. Lee
+// card_swaps, que es de lectura publica en Supabase, asi que funciona sin login.
+// La seccion solo se muestra cuando hay actividad real: en modo demo
+// (CARDS_DEMO) los swaps estan deshabilitados y nada persiste, asi que estara
+// vacia hasta que las cartas corran sobre Supabase de verdad.
+function RecentSwapsFeed() {
+  const [swaps, setSwaps] = useState<RecentSwap[]>([]);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    let active = true;
+    void (async () => {
+      const { data: rows, error } = await supabase
+        .from("card_swaps")
+        .select(
+          "id, in_player_id, out_player_id, points_in, points_out, created_at, profiles(display_name, is_hidden)",
+        )
+        .order("created_at", { ascending: false })
+        .limit(8);
+      if (!active || error || !rows) return;
+      const mapped: RecentSwap[] = [];
+      for (const row of rows as RecentSwapRowData[]) {
+        const profile = Array.isArray(row.profiles)
+          ? row.profiles[0]
+          : row.profiles;
+        if (profile?.is_hidden) continue;
+        mapped.push({
+          id: row.id,
+          userName: profile?.display_name || "Jugador",
+          inPlayerId: row.in_player_id,
+          outPlayerId: row.out_player_id,
+          pointsIn: Number(row.points_in) || 0,
+          pointsOut: Number(row.points_out) || 0,
+        });
+      }
+      setSwaps(mapped);
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (swaps.length === 0) return null;
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-white">
+            Últimos cambios
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Quién ha cambiado su once
+          </p>
+        </div>
+        <Link
+          href="/cofres"
+          className="w-fit shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+        >
+          Ver más
+        </Link>
+      </div>
+
+      <div className="divide-y divide-white/[0.06]">
+        {swaps.map((swap) => (
+          <CommunitySwapRow
+            key={swap.id}
+            userName={swap.userName}
+            inPlayerId={swap.inPlayerId}
+            outPlayerId={swap.outPlayerId}
+            pointsIn={swap.pointsIn}
+            pointsOut={swap.pointsOut}
+          />
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function LeaderboardRow({
