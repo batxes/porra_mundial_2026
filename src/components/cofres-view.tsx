@@ -231,30 +231,12 @@ const DEMO_RESULTS: AdminResults = (() => {
   return { "demo-muestra": { homeScore: 0, awayScore: 0, events } };
 })();
 
-const dailyPackCount = 7;
+const dailyPackCount = 1;
 const localSpecialPacksKey = "porra26_card_special_packs";
 // Tutorial de bienvenida de /cofres: se muestra solo la primera visita (igual
 // que los intros de la porra). El botón "?" de la cabecera lo reabre cuando
 // quieras.
 const cofresIntroStorageKey = "porra26_cofres_intro_seen";
-
-// Sobre especial "Madrid": 1 sola carta de un jugador del Real Madrid. Como el
-// dataset no tiene campo de club, la plantilla es una lista CURADA por id de los
-// jugadores del Madrid presentes en el Mundial (+ Cucurella, recién fichado). Si
-// cambia el roster del Madrid, este es el ÚNICO sitio a tocar.
-const MADRID_PLAYER_IDS = [
-  "bel-01", // Courtois
-  "bra-07", // Vini Jr.
-  "bra-19", // Endrick
-  "eng-10", // Bellingham
-  "fra-08", // Tchouaméni
-  "fra-10", // Mbappé
-  "ger-02", // Rüdiger
-  "mar-10", // Brahim Díaz
-  "uru-08", // Valverde
-  "aut-08", // Alaba
-  "esp-24", // Cucurella
-];
 
 // Sobre "Promesas sub-21": 1 carta de un joven crack. Lista CURADA por id (el
 // dataset no trae edad/fecha de nacimiento). Si cambia, este es el ÚNICO sitio.
@@ -268,30 +250,6 @@ const SUB21_PLAYER_IDS = [
   "por-15", // João Neves
   "tur-08", // Arda Güler
   "arg-18", // Nico Paz
-];
-
-// Sobre "Selección Francia": 1 carta de un internacional francés. Todos del
-// combinado `fra` del dataset (verificado por apellido).
-const FRANCE_PLAYER_IDS = [
-  "fra-16", // Mike Maignan
-  "fra-05", // Jules Koundé
-  "fra-04", // Dayot Upamecano
-  "fra-17", // William Saliba
-  "fra-19", // Théo Hernández
-  "fra-08", // Aurélien Tchouaméni
-  "fra-14", // Adrien Rabiot
-  "fra-11", // Michael Olise
-  "fra-20", // Désiré Doué
-  "fra-07", // Ousmane Dembélé
-  "fra-10", // Kylian Mbappé
-  "fra-12", // Bradley Barcola
-  "fra-09", // Marcus Thuram
-  "fra-24", // Rayan Cherki
-  "fra-13", // N'Golo Kanté
-  "fra-06", // Manu Koné
-  "fra-18", // Warren Zaïre-Emery
-  "fra-21", // Lucas Hernández
-  "fra-02", // Malo Gusto
 ];
 
 function storageKey(userId: string, suffix: string) {
@@ -569,28 +527,6 @@ export function CofresView() {
     );
   }, [drawSeed]);
 
-  // Sobre Madrid: especial SIEMPRE disponible, con su propia imagen y 1 sola
-  // carta del roster del Madrid (semilla por día, determinista).
-  const madridPack = useMemo<Pack>(() => {
-    const today = madridTodayKey();
-    return {
-      id: `madrid-${today}`,
-      kind: "special",
-      pool: "madrid",
-      dateKey: today,
-      title: "Sobre Madrid",
-      subtitle: "1 carta del Real Madrid",
-      playerIds: pickDeterministicPlayers(
-        `madrid:${today}:${drawSeed}`,
-        1,
-        MADRID_PLAYER_IDS,
-      ),
-      availableAt: `${today}T00:00:00.000Z`,
-      image: "/sobre-madrid.webp",
-      flap: "white",
-    };
-  }, [drawSeed]);
-
   // Sobre Promesas sub-21: especial SIEMPRE disponible, 1 carta de un joven
   // crack de la lista curada (semilla por día, determinista).
   const sub21Pack = useMemo<Pack>(() => {
@@ -633,28 +569,6 @@ export function CofresView() {
       availableAt: `${today}T00:00:00.000Z`,
       image: "/sobre-estrellas.webp",
       flap: "navy",
-    };
-  }, [drawSeed]);
-
-  // Sobre Selección Francia: especial SIEMPRE disponible, 1 carta de un
-  // internacional francés de la lista curada (semilla por día, determinista).
-  const francePack = useMemo<Pack>(() => {
-    const today = madridTodayKey();
-    return {
-      id: `francia-${today}`,
-      kind: "special",
-      pool: "francia",
-      dateKey: today,
-      title: "Sobre Francia",
-      subtitle: "1 internacional francés",
-      playerIds: pickDeterministicPlayers(
-        `francia:${today}:${drawSeed}`,
-        1,
-        FRANCE_PLAYER_IDS,
-      ),
-      availableAt: `${today}T00:00:00.000Z`,
-      image: "/sobre-francia.webp",
-      flap: "royal",
     };
   }, [drawSeed]);
 
@@ -762,30 +676,25 @@ export function CofresView() {
     [inventory, openedPackIds],
   );
   const packs = useMemo(
-    () => [
-      madridPack,
-      sub21Pack,
-      starsPack,
-      francePack,
-      ...dailyPacks,
-      ...specialPacks,
-    ],
-    [dailyPacks, francePack, madridPack, starsPack, sub21Pack, specialPacks],
+    // De primeras: el DIARIO (destacado), luego Promesas y Estrellas. Madrid y
+    // Francia quedan solo como drops de admin (sus pools siguen en SQL).
+    () => [...dailyPacks, sub21Pack, starsPack, ...specialPacks],
+    [dailyPacks, starsPack, sub21Pack, specialPacks],
   );
   const unopenedPacks = useMemo(
     () => packs.filter((pack) => !openedIds.has(pack.id)),
     [openedIds, packs],
   );
-  // El sobre "de la cima": los especiales tienen prioridad (más hype); si no,
-  // el primero disponible (hoy primero, por el orden de `packs`).
+  // El sobre "de la cima": el DIARIO tiene prioridad (es el destacado por
+  // defecto); si no, el primero disponible (por el orden de `packs`).
   const topPack =
-    unopenedPacks.find((pack) => pack.kind === "special") ||
+    unopenedPacks.find((pack) => pack.kind === "daily") ||
     unopenedPacks[0] ||
     null;
   const unopenedCount = unopenedPacks.length;
 
-  // Agrupa los sobres sin abrir por tipo para la estantería del hero. Los
-  // especiales van primero (más hype), igual que el orden de `topPack`.
+  // Agrupa los sobres sin abrir por tipo para la estantería del hero. El diario
+  // va primero (es el destacado por defecto), igual que el orden de `topPack`.
   const packGroups = useMemo<PackGroup[]>(() => {
     const order: PackGroup[] = [];
     const byKey = new Map<string, PackGroup>();
@@ -808,18 +717,16 @@ export function CofresView() {
       }
       group.packs.push(pack);
     }
-    return order.sort((a, b) =>
-      // En demo el diario va PRIMERO (para probar rápido); en real, los
-      // especiales primero (más hype).
-      CARDS_DEMO
-        ? Number(b.kind === "daily") - Number(a.kind === "daily")
-        : Number(b.kind === "special") - Number(a.kind === "special"),
+    // El diario va PRIMERO (el destacado que sale para abrir); luego los
+    // especiales en su orden (Promesas, Estrellas).
+    return order.sort(
+      (a, b) => Number(b.kind === "daily") - Number(a.kind === "daily"),
     );
   }, [unopenedPacks]);
 
   // Tipo de sobre seleccionado en la estantería (null = el primero, que por el
-  // orden de `packGroups` es el especial de más hype). El sobre destacado es el
-  // primero sin abrir de ese tipo; ese es el que abre el botón.
+  // orden de `packGroups` es el diario). El sobre destacado es el primero sin
+  // abrir de ese tipo; ese es el que abre el botón.
   const [selectedTypeKey, setSelectedTypeKey] = useState<string | null>(null);
   const featuredGroup =
     packGroups.find((group) => group.key === selectedTypeKey) ||
@@ -890,8 +797,9 @@ export function CofresView() {
         }>
       )
         // Solo los drops de ADMIN (id `special-<uuid>`). Los temáticos por día
-        // (`madrid-<fecha>`, etc.) también son kind='special' en la BBDD, pero ya
-        // los representan los memos fijos (madridPack…); incluirlos duplicaría.
+        // (`sub21-<fecha>`, `stars-<fecha>`, etc.) también son kind='special' en
+        // la BBDD, pero ya los representan los memos fijos (sub21Pack/starsPack);
+        // incluirlos duplicaría.
         .filter((drop) => drop.id.startsWith("special-"))
         .map(packFromDrop),
     );

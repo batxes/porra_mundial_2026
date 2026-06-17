@@ -29,9 +29,10 @@ export function formatCountdownHMS(totalSeconds: number) {
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
 
-// Pools de los sobres temáticos (siempre disponibles). El drop_id real es
-// `${pool}-${YYYY-MM-DD}` (igual que en cofres-view y open_themed_card_pack).
-const THEMED_POOLS = ["madrid", "sub21", "stars", "francia"];
+// Pools de los sobres temáticos disponibles por defecto en la estantería. El
+// drop_id real es `${pool}-${YYYY-MM-DD}` (igual que en cofres-view y
+// open_themed_card_pack). Madrid/Francia quedan solo como drops de admin.
+const THEMED_POOLS = ["sub21", "stars"];
 
 // drop_ids disponibles HOY: 1 diario + los 4 temáticos del día. `dailyId` es
 // `daily-${madridTodayKey()}`, de donde sacamos la fecha para los temáticos.

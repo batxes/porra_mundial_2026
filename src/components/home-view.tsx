@@ -2146,7 +2146,7 @@ function NextSobreCountdown() {
 
 // Banner-hero estilo "case opening" (gacha / EA FC): marco HUD con esquinas,
 // titular a dos tonos, cuenta atrás segmentada hasta las 10:00, pill con los
-// sobres sin abrir, y los 3 sobres reales (estrellas · diario · francia) en
+// sobres sin abrir, y los 3 sobres reales (estrellas · diario · promesas) en
 // abanico. Va en la columna de Novedades.
 function SobresPromoBanner({ userId }: { userId: string }) {
   const [unopened, setUnopened] = useState<number | null>(null);
@@ -2251,7 +2251,7 @@ function SobresPromoBanner({ userId }: { userId: string }) {
           className="absolute bottom-1 left-0 z-10 h-16 w-12 -rotate-12 object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.55)] transition-transform duration-300 group-hover:-translate-x-0.5 group-hover:-rotate-[16deg] sm:h-24 sm:w-16"
         />
         <Image
-          src="/sobre-francia.webp"
+          src="/sobre21.webp"
           alt=""
           width={100}
           height={140}
