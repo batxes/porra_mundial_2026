@@ -2520,7 +2520,7 @@ function ConfirmSwapModal({
         {/* Las dos cartas con la flecha de canje en medio. */}
         <div className="flex items-center justify-center gap-2 px-4 py-6">
           <SwapModalCard
-            label="Sale"
+            label="Pierdes"
             tone="out"
             playerId={outPlayer.id}
             points={outPoints}
