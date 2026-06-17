@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { getSupabaseBrowserClient } from "@/lib/supabase";
+
 // Evento que dispara CofresView al soltar un drop. El watcher (montado global en
 // app-chrome) lo escucha y abre el aviso de Florentino. Mismo estilo que el
 // recap de resultados.
@@ -61,6 +63,13 @@ export function PackDropWatcher({
 
     let cancelled = false;
     let timer: number;
+    const markSeen = () => {
+      try {
+        window.localStorage.setItem(launchSeenKey, "1");
+      } catch {
+        // ignoramos fallos de storage
+      }
+    };
     const blockingModal = () =>
       document.querySelector(
         '[aria-labelledby="results-recap-title"], [aria-labelledby="cofres-intro-title"]',
@@ -74,7 +83,33 @@ export function PackDropWatcher({
       setIsLaunch(true);
       setItems(LAUNCH_ITEMS);
     };
-    timer = window.setTimeout(show, 800);
+
+    void (async () => {
+      // Cross-dispositivo: si el usuario YA ha abierto sobres (tiene cartas en
+      // Supabase), no le enseñamos el aviso aunque sea su primera vez en ESTE
+      // navegador, y lo marcamos visto. Así nunca le dice "tienes 3 sobres" si
+      // ya los abrió en otro dispositivo. (El contador ya lee de Supabase.)
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const supabase = getSupabaseBrowserClient() as any;
+        if (supabase) {
+          const { data } = await supabase
+            .from("user_cards")
+            .select("drop_id")
+            .limit(1);
+          if (cancelled) return;
+          if (Array.isArray(data) && data.length > 0) {
+            markSeen();
+            return;
+          }
+        }
+      } catch {
+        // si falla la consulta, mejor mostrar el aviso que ocultarlo
+      }
+      if (cancelled) return;
+      timer = window.setTimeout(show, 800);
+    })();
+
     return () => {
       cancelled = true;
       window.clearTimeout(timer);

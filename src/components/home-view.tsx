@@ -2229,7 +2229,7 @@ function SobresPromoBanner({ userId }: { userId: string }) {
           <span className="block text-[11px] font-medium leading-none tracking-[0.25em] text-white sm:text-sm">
             Actualiza tu once
           </span>
-          <span className="mt-1 block font-[family-name:var(--font-display)] text-2xl leading-none text-[#f5c518] sm:mt-1.5 sm:text-[2.6rem]">
+          <span className="mt-1 block font-[family-name:var(--font-display)] text-xl leading-none text-[#f5c518] sm:mt-1.5 sm:text-[2.6rem]">
             Sobre nuevo en
           </span>
         </p>
