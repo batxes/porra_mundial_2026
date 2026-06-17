@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 
 import { Card, Notice, SectionHeading, TeamFlag } from "@/components/common";
+import { packDropEventName } from "@/components/pack-drop-notice";
 import { PlayerCard } from "@/components/player-card";
 import { useAppContext } from "@/lib/app-context";
 import { data, playersById, teamsById } from "@/lib/data";
@@ -278,6 +279,71 @@ const FRANCE_PLAYER_IDS = [
   "fra-02", // Malo Gusto
 ];
 
+// Tipos de sobre que un admin puede SOLTAR como drop (modal "Soltar drop").
+// Cada uno crea un pack extra de ese tipo (misma imagen/flap/pool que el sobre
+// permanente, así se agrupa con él en la estantería y suma a su contador).
+const DROP_TYPES: {
+  key: string;
+  kind: PackKind;
+  title: string;
+  subtitle: string;
+  image: string;
+  flap: NonNullable<Pack["flap"]>;
+  pool?: string[];
+  count: number;
+}[] = [
+  {
+    key: "estrellas",
+    kind: "special",
+    title: "Sobre Estrellas",
+    subtitle: "1 estrella mundial",
+    image: "/sobre-estrellas.webp",
+    flap: "navy",
+    pool: STAR_PLAYER_IDS,
+    count: 1,
+  },
+  {
+    key: "madrid",
+    kind: "special",
+    title: "Sobre Madrid",
+    subtitle: "1 carta del Real Madrid",
+    image: "/sobre-madrid.webp",
+    flap: "white",
+    pool: MADRID_PLAYER_IDS,
+    count: 1,
+  },
+  {
+    key: "sub21",
+    kind: "special",
+    title: "Sobre Promesas",
+    subtitle: "1 promesa sub-21",
+    image: "/sobre21.webp",
+    flap: "black",
+    pool: SUB21_PLAYER_IDS,
+    count: 1,
+  },
+  {
+    key: "francia",
+    kind: "special",
+    title: "Sobre Francia",
+    subtitle: "1 internacional francés",
+    image: "/sobre-francia.webp",
+    flap: "royal",
+    pool: FRANCE_PLAYER_IDS,
+    count: 1,
+  },
+  {
+    key: "diario",
+    kind: "daily",
+    title: "Sobre diario",
+    subtitle: "3 cartas aleatorias",
+    image: "/sobre.webp",
+    flap: "green",
+    count: 3,
+  },
+];
+type DropType = (typeof DROP_TYPES)[number];
+
 function storageKey(userId: string, suffix: string) {
   return `porra26_cards_${userId || "guest"}_${suffix}`;
 }
@@ -516,6 +582,10 @@ export function CofresView() {
   } | null>(null);
   const [swapBusy, setSwapBusy] = useState(false);
   const [dropBusy, setDropBusy] = useState(false);
+  // Modal de admin para elegir qué tipo de sobre soltar como drop, y cuántos.
+  const [dropTypeOpen, setDropTypeOpen] = useState(false);
+  const [dropTypeKey, setDropTypeKey] = useState<string>(DROP_TYPES[0].key);
+  const [dropQty, setDropQty] = useState(1);
 
   const userStorageId = user?.id || "guest";
   const inventoryKey = storageKey(userStorageId, "inventory");
@@ -1102,59 +1172,89 @@ export function CofresView() {
     [inventory, opening],
   );
 
-  const releaseSpecialDrop = useCallback(async () => {
-    if (dropBusy) return;
-    setDropBusy(true);
-    setMessage("");
+  const releaseSpecialDrop = useCallback(
+    async (type: DropType, qty: number) => {
+      if (dropBusy) return;
+      const count = Math.max(1, Math.min(50, Math.floor(qty) || 1));
+      setDropBusy(true);
+      setMessage("");
 
-    try {
-      if (usingSupabase && user) {
-        const supabase = getSupabaseBrowserClient() as SupabaseLike | null;
-        if (!supabase)
-          throw new Error("No se ha podido conectar con Supabase.");
-        const { data: rows, error } = await supabase.rpc(
-          "admin_create_card_drop",
-          { p_label: "Drop especial" },
-        );
-        if (error) throw new Error(error.message);
-        const created = (
-          rows as Array<{
-            id: string;
-            kind: PackKind;
-            label: string;
-            player_ids: string[];
-            available_at?: string;
-            created_at?: string;
-          }> | null
-        )?.[0];
-        if (created) {
-          setSpecialPacks((current) => [packFromDrop(created), ...current]);
+      try {
+        if (usingSupabase && user) {
+          const supabase = getSupabaseBrowserClient() as SupabaseLike | null;
+          if (!supabase)
+            throw new Error("No se ha podido conectar con Supabase.");
+          const createdPacks: Pack[] = [];
+          for (let i = 0; i < count; i += 1) {
+            const { data: rows, error } = await supabase.rpc(
+              "admin_create_card_drop",
+              { p_label: type.title },
+            );
+            if (error) throw new Error(error.message);
+            const created = (
+              rows as Array<{
+                id: string;
+                kind: PackKind;
+                label: string;
+                player_ids: string[];
+                available_at?: string;
+                created_at?: string;
+              }> | null
+            )?.[0];
+            if (created) createdPacks.push(packFromDrop(created));
+          }
+          setSpecialPacks((current) => [...createdPacks, ...current]);
+        } else {
+          // Demo: N packs locales del tipo elegido, cada uno con carta(s)
+          // aleatoria(s) de su pool (Math.random/Date.now son seguros: evento
+          // de cliente, no render).
+          const stamp = Date.now();
+          const packs: Pack[] = Array.from({ length: count }, (_, i) => {
+            const id = `${type.key}-drop-${stamp}-${i}`;
+            return {
+              id,
+              kind: type.kind,
+              title: type.title,
+              subtitle: type.subtitle,
+              image: type.image,
+              flap: type.flap,
+              playerIds: pickDeterministicPlayers(
+                `drop:${id}:${Math.random()}`,
+                type.count,
+                type.pool,
+              ),
+              availableAt: new Date().toISOString(),
+            };
+          });
+          setSpecialPacks((current) => [...packs, ...current]);
         }
-        setMessage("Drop especial soltado.");
-        return;
+        setDropTypeOpen(false);
+        // Aviso "Florentino te regala fichajes" (lo recoge PackDropWatcher).
+        window.dispatchEvent(
+          new CustomEvent(packDropEventName, {
+            detail: {
+              items: [{ title: type.title, image: type.image, qty: count }],
+            },
+          }),
+        );
+        toast.success("¡Drop soltado!", {
+          description: `${count} × ${type.title} ${
+            count === 1 ? "disponible" : "disponibles"
+          } para todos.`,
+        });
+      } catch (error) {
+        const msg =
+          error instanceof Error
+            ? error.message
+            : "No se ha podido soltar el drop.";
+        setMessage(msg);
+        toast.error("No se ha podido soltar el drop", { description: msg });
+      } finally {
+        setDropBusy(false);
       }
-
-      const id = `special-${new Date().toISOString()}`;
-      const pack: Pack = {
-        id,
-        kind: "special",
-        title: "Drop especial",
-        subtitle: "3 cartas para todos",
-        playerIds: pickDeterministicPlayers(id),
-        availableAt: new Date().toISOString(),
-      };
-      setSpecialPacks((current) => [pack, ...current]);
-      setMessage("Drop especial creado en esta demo.");
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "No se ha podido soltar el drop.",
-      );
-    } finally {
-      setDropBusy(false);
-    }
-  }, [dropBusy, usingSupabase, user]);
+    },
+    [dropBusy, usingSupabase, user],
+  );
 
   const candidateFor = useCallback(
     (outPlayer: Player): SwapCandidate => {
@@ -1314,7 +1414,10 @@ export function CofresView() {
             {user?.isAdmin ? (
               <button
                 type="button"
-                onClick={() => void releaseSpecialDrop()}
+                onClick={() => {
+                  setDropQty(1);
+                  setDropTypeOpen(true);
+                }}
                 disabled={dropBusy}
                 className="inline-flex items-center justify-center rounded-lg border border-[#ffd252]/30 bg-[#ffd252] px-4 py-2 text-sm font-bold text-black transition hover:bg-[#ffdd7a] disabled:opacity-60"
               >
@@ -1623,6 +1726,125 @@ export function CofresView() {
           onCancel={() => setPendingSwap(null)}
           onConfirm={() => void confirmSwap()}
         />
+      ) : null}
+
+      {/* Modal de admin: elegir qué tipo de sobre soltar como drop. */}
+      {dropTypeOpen ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setDropTypeOpen(false);
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0f0f0f] p-5 text-white shadow-2xl shadow-black/60 motion-safe:animate-[cofre-modal-pop_220ms_cubic-bezier(0.2,0.9,0.3,1)_both]">
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <h3 className="text-lg font-bold">Soltar drop</h3>
+              <button
+                type="button"
+                onClick={() => setDropTypeOpen(false)}
+                aria-label="Cerrar"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-zinc-300 transition hover:bg-white/10 hover:text-white"
+              >
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                >
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+            <p className="mb-4 text-sm text-zinc-400">
+              Elige el tipo y cuántos sobres soltar para todos.
+            </p>
+            <div className="grid grid-cols-3 gap-2.5">
+              {DROP_TYPES.map((type) => {
+                const sel = type.key === dropTypeKey;
+                return (
+                  <button
+                    key={type.key}
+                    type="button"
+                    aria-pressed={sel}
+                    onClick={() => setDropTypeKey(type.key)}
+                    className={`flex flex-col items-center gap-2 rounded-xl border p-2.5 transition ${
+                      sel
+                        ? "border-[#ffd252] bg-[#ffd252]/10 ring-1 ring-[#ffd252]/40"
+                        : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.07]"
+                    }`}
+                  >
+                    <span className="relative block aspect-[818/1206] w-full overflow-hidden rounded-md">
+                      <Image
+                        src={type.image}
+                        alt=""
+                        fill
+                        sizes="100px"
+                        className="object-contain"
+                      />
+                    </span>
+                    <span className="text-[11px] font-bold capitalize leading-tight">
+                      {type.title.replace(/^Sobre\s+/i, "")}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5">
+              <span className="text-sm font-semibold text-zinc-300">
+                Cantidad
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="Menos"
+                  onClick={() => setDropQty((q) => Math.max(1, q - 1))}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-lg font-bold text-white transition hover:bg-white/10"
+                >
+                  −
+                </button>
+                <span className="w-8 text-center text-lg font-bold tabular-nums">
+                  {dropQty}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Más"
+                  onClick={() => setDropQty((q) => Math.min(50, q + 1))}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-lg font-bold text-white transition hover:bg-white/10"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setDropTypeOpen(false)}
+                disabled={dropBusy}
+                className="rounded-lg border border-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/10 disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={dropBusy}
+                onClick={() => {
+                  const type = DROP_TYPES.find((t) => t.key === dropTypeKey);
+                  if (type) void releaseSpecialDrop(type, dropQty);
+                }}
+                className="rounded-lg bg-[#ffd252] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#ffdd7a] disabled:opacity-60"
+              >
+                {dropBusy ? "Soltando..." : `Soltar ${dropQty}`}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {opening && activePack ? (
