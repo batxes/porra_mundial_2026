@@ -679,9 +679,7 @@ function jornadaUserSummary(
   results: AdminResults,
 ): JornadaUserSummary | null {
   if (!currentUserId) return null;
-  const profile = profiles.find(
-    (candidate) => candidate.id === currentUserId,
-  );
+  const profile = profiles.find((candidate) => candidate.id === currentUserId);
   if (!profile) return null;
 
   const numbers = new Set(matchNumbers);
@@ -1001,7 +999,11 @@ function JornadaCard({
           ) : null}
 
           {scorers.length ? (
-            <div className={userSummary ? "mt-3 border-t border-white/[0.07] pt-3" : ""}>
+            <div
+              className={
+                userSummary ? "mt-3 border-t border-white/[0.07] pt-3" : ""
+              }
+            >
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
                   Han puntuado{" "}
@@ -1160,7 +1162,10 @@ function JornadaScorerRow({
                   key={player.id}
                   className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] py-px pl-px pr-1.5 text-[10px] font-medium text-zinc-400"
                 >
-                  <PlayerAvatar player={player} className="size-4! text-[6px]" />
+                  <PlayerAvatar
+                    player={player}
+                    className="size-4! text-[6px]"
+                  />
                   {player.name}
                   <span
                     className={
@@ -1174,9 +1179,7 @@ function JornadaScorerRow({
               {xiRest !== 0 ? (
                 <span className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
                   Tu once
-                  <span
-                    className={xiRest >= 0 ? "text-white" : "text-red-400"}
-                  >
+                  <span className={xiRest >= 0 ? "text-white" : "text-red-400"}>
                     {xiRest > 0 ? `+${xiRest}` : xiRest}
                   </span>
                 </span>
@@ -1527,7 +1530,10 @@ function userMatchReport(
     } else if (entry.ruleCode.startsWith("player_")) {
       const playerId = eventPlayerById.get(entry.sourceRef);
       if (playerId) {
-        xiByPlayer.set(playerId, (xiByPlayer.get(playerId) || 0) + entry.points);
+        xiByPlayer.set(
+          playerId,
+          (xiByPlayer.get(playerId) || 0) + entry.points,
+        );
       } else {
         xiOther += entry.points;
       }
@@ -1730,35 +1736,35 @@ function MatchPicksModal({
             />
           </label>
           {user?.isWolf ? (
-              <div className="inline-flex shrink-0 rounded-xl border border-white/10 bg-white/[0.04] p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setWolfOnly(false)}
-                  aria-pressed={!wolfOnly}
-                  className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
-                    !wolfOnly
-                      ? "bg-zinc-200 text-zinc-900"
-                      : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
-                  }`}
-                >
-                  Todos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWolfOnly(true)}
-                  aria-pressed={wolfOnly}
-                  aria-label="Solo manada"
-                  title="Solo manada"
-                  className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
-                    wolfOnly
-                      ? "bg-zinc-100 text-zinc-900"
-                      : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
-                  }`}
-                >
-                  🐺
-                </button>
-              </div>
-            ) : null}
+            <div className="inline-flex shrink-0 rounded-xl border border-white/10 bg-white/[0.04] p-0.5">
+              <button
+                type="button"
+                onClick={() => setWolfOnly(false)}
+                aria-pressed={!wolfOnly}
+                className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
+                  !wolfOnly
+                    ? "bg-zinc-200 text-zinc-900"
+                    : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                type="button"
+                onClick={() => setWolfOnly(true)}
+                aria-pressed={wolfOnly}
+                aria-label="Solo manada"
+                title="Solo manada"
+                className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
+                  wolfOnly
+                    ? "bg-zinc-100 text-zinc-900"
+                    : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
+                }`}
+              >
+                🐺
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="team-picker-scroll -mr-2 min-h-0 space-y-1.5 overflow-y-auto pr-2">
@@ -1849,7 +1855,6 @@ function MatchPicksModal({
             </p>
           ) : null}
         </div>
-
       </div>
     </div>
   );
@@ -2222,10 +2227,10 @@ function SobresPromoBanner({ userId }: { userId: string }) {
       <div className="relative min-w-0 flex-1">
         <p className="uppercase">
           <span className="block text-[11px] font-medium leading-none tracking-[0.25em] text-white sm:text-sm">
-            Cada día,
+            Actualiza tu once
           </span>
           <span className="mt-1 block font-[family-name:var(--font-display)] text-2xl leading-none text-[#f5c518] sm:mt-1.5 sm:text-[2.6rem]">
-            Un sobre nuevo
+            Sobre nuevo en
           </span>
         </p>
         <div className="mt-3">
@@ -2235,41 +2240,41 @@ function SobresPromoBanner({ userId }: { userId: string }) {
 
       <div className="flex shrink-0 flex-col items-center gap-1.5 sm:gap-2">
         <div className="relative h-20 w-32 sm:h-28 sm:w-52">
-        <span
-          aria-hidden
-          className="absolute bottom-1 left-1/2 size-16 -translate-x-1/2 rounded-full bg-[#f5c518]/25 blur-2xl sm:size-24"
-        />
-        <Image
-          src="/sobre-estrellas.webp"
-          alt=""
-          width={100}
-          height={140}
-          unoptimized
-          priority
-          className="absolute bottom-1 left-0 z-10 h-16 w-12 -rotate-12 object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.55)] transition-transform duration-300 group-hover:-translate-x-0.5 group-hover:-rotate-[16deg] sm:h-24 sm:w-16"
-        />
-        <Image
-          src="/sobre21.webp"
-          alt=""
-          width={100}
-          height={140}
-          unoptimized
-          priority
-          className="absolute bottom-1 right-0 z-10 h-16 w-12 rotate-12 object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.55)] transition-transform duration-300 group-hover:translate-x-0.5 group-hover:rotate-[16deg] sm:h-24 sm:w-16"
-        />
-        <span className="absolute bottom-0 left-1/2 z-20 -translate-x-1/2">
-          <span className="block motion-safe:animate-[sobre-bob_3s_ease-in-out_infinite]">
-            <Image
-              src="/sobre.webp"
-              alt=""
-              width={120}
-              height={170}
-              unoptimized
-              priority
-              className="h-20 w-16 object-contain drop-shadow-[0_8px_16px_rgba(245,197,24,0.4)] transition-transform duration-300 group-hover:scale-110 sm:h-28 sm:w-24"
-            />
+          <span
+            aria-hidden
+            className="absolute bottom-1 left-1/2 size-16 -translate-x-1/2 rounded-full bg-[#f5c518]/25 blur-2xl sm:size-24"
+          />
+          <Image
+            src="/sobre-estrellas.webp"
+            alt=""
+            width={100}
+            height={140}
+            unoptimized
+            priority
+            className="absolute bottom-1 left-0 z-10 h-16 w-12 -rotate-12 object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.55)] transition-transform duration-300 group-hover:-translate-x-0.5 group-hover:-rotate-[16deg] sm:h-24 sm:w-16"
+          />
+          <Image
+            src="/sobre21.webp"
+            alt=""
+            width={100}
+            height={140}
+            unoptimized
+            priority
+            className="absolute bottom-1 right-0 z-10 h-16 w-12 rotate-12 object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.55)] transition-transform duration-300 group-hover:translate-x-0.5 group-hover:rotate-[16deg] sm:h-24 sm:w-16"
+          />
+          <span className="absolute bottom-0 left-1/2 z-20 -translate-x-1/2">
+            <span className="block motion-safe:animate-[sobre-bob_3s_ease-in-out_infinite]">
+              <Image
+                src="/sobre.webp"
+                alt=""
+                width={120}
+                height={170}
+                unoptimized
+                priority
+                className="h-20 w-16 object-contain drop-shadow-[0_8px_16px_rgba(245,197,24,0.4)] transition-transform duration-300 group-hover:scale-110 sm:h-28 sm:w-24"
+              />
+            </span>
           </span>
-        </span>
         </div>
         {unopened ? (
           <span className="relative whitespace-nowrap text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">

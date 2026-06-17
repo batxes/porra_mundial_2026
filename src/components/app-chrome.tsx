@@ -271,7 +271,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         onOpenChange={setAuthOpen}
       />
       <ResultsRecapWatcher />
-      <PackDropWatcher />
+      <PackDropWatcher launchReady={ready && Boolean(user)} />
     </>
   );
 }

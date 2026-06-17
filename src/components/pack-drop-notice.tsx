@@ -11,25 +11,67 @@ export const packDropEventName = "porra26-pack-drop";
 
 export type PackDropItem = { title: string; image: string; qty: number };
 
-// Aviso "Florentino te regala fichajes": modal con los sobres soltados + CTA a
-// /cofres. En demo salta al soltar (mismo navegador); en real lo dispararía un
-// watcher al entrar (mismo modal reutilizable).
-export function PackDropWatcher() {
+// Aviso ÚNICO de lanzamiento de las cartas: la primera vez que un usuario
+// (logueado) entra tras el deploy, le sale este modal con los 3 sobres de
+// bienvenida. Una vez visto, no vuelve (localStorage por navegador).
+const launchSeenKey = "porra26_cards_launch_seen";
+const LAUNCH_ITEMS: PackDropItem[] = [
+  { title: "Sobre diario", image: "/sobre.webp", qty: 1 },
+  { title: "Sobre Promesas", image: "/sobre21.webp", qty: 1 },
+  { title: "Sobre Estrellas", image: "/sobre-estrellas.webp", qty: 1 },
+];
+
+// Aviso "Florentino te regala fichajes": modal con los sobres + CTA a /cofres.
+// Se usa para (a) el LANZAMIENTO (a todos, una vez) y (b) los drops que suelta
+// el admin (evento `packDropEventName`, en el navegador del admin).
+export function PackDropWatcher({
+  launchReady = false,
+}: {
+  launchReady?: boolean;
+}) {
   const router = useRouter();
   const [items, setItems] = useState<PackDropItem[] | null>(null);
+  const [isLaunch, setIsLaunch] = useState(false);
 
   useEffect(() => {
     const onDrop = (event: Event) => {
       const detail = (event as CustomEvent<{ items?: PackDropItem[] }>).detail;
-      if (detail?.items?.length) setItems(detail.items);
+      if (detail?.items?.length) {
+        setIsLaunch(false);
+        setItems(detail.items);
+      }
     };
     window.addEventListener(packDropEventName, onDrop);
     return () => window.removeEventListener(packDropEventName, onDrop);
   }, []);
 
+  // Lanzamiento: una sola vez por navegador, en cuanto hay sesión lista.
+  useEffect(() => {
+    if (!launchReady) return;
+    let seen = true;
+    try {
+      seen = window.localStorage.getItem(launchSeenKey) === "1";
+    } catch {
+      seen = true; // sin storage no insistimos
+    }
+    if (seen) return;
+    const timer = window.setTimeout(() => {
+      setIsLaunch(true);
+      setItems(LAUNCH_ITEMS);
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [launchReady]);
+
   if (!items) return null;
   const total = items.reduce((sum, item) => sum + item.qty, 0);
-  const close = () => setItems(null);
+  const close = () => {
+    setItems(null);
+    try {
+      window.localStorage.setItem(launchSeenKey, "1");
+    } catch {
+      // ignoramos fallos de storage
+    }
+  };
 
   return (
     <div
@@ -63,11 +105,12 @@ export function PackDropWatcher() {
             id="pack-drop-title"
             className="text-base font-bold tracking-tight sm:text-xl"
           >
-            Es hora de renovar tu once
+            {isLaunch ? "¡Ya están las cartas!" : "Es hora de renovar tu once"}
           </h3>
           <p className="mt-1.5 text-[13px] leading-5 text-zinc-300 sm:text-sm">
-            Te traigo {total} sobre{total === 1 ? "" : "s"} de fichajes. Ábrelos
-            y mete un crack en tu once.
+            {isLaunch
+              ? "Tienes 3 sobres de bienvenida esperando. Ábrelos y mete un crack en tu once."
+              : `Te traigo ${total} sobre${total === 1 ? "" : "s"} de fichajes. Ábrelos y mete un crack en tu once.`}
           </p>
 
           <div className="mt-4 space-y-2">
