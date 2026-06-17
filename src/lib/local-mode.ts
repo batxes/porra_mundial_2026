@@ -8,7 +8,10 @@ import type {
 } from "@/lib/types";
 
 export const defaultAdminEmail = "admin@admin.admin";
-export const defaultAdminPasswordHash = "3812b8873bd75366c1fc7c4141c6f9ca5778067968883eaf9c4e0265582b7a1f";
+// Contraseña del admin local/demo. Conocida a propósito (solo aplica en modo
+// local/demo; en real la auth la lleva Supabase). El hash se calcula en runtime
+// con `digest`, así no hay que hardcodearlo. Login: admin@admin.admin / admin.
+export const defaultAdminPassword = "admin";
 
 export const avatarPresets = [
   { id: "green", label: "26" },
@@ -161,10 +164,11 @@ export function clearPendingPrediction() {
 export async function ensureLocalAdminUser() {
   const users = getLocalUsers();
   const admin = users.find((user) => user.email === defaultAdminEmail);
+  const passwordHash = await digest(defaultAdminPassword);
 
   if (admin) {
     admin.name = "admin";
-    admin.passwordHash = defaultAdminPasswordHash;
+    admin.passwordHash = passwordHash;
     admin.isAdmin = true;
     if (!admin.avatarUrl) admin.avatarUrl = "preset:gold";
     setLocalUsers(users);
@@ -175,7 +179,7 @@ export async function ensureLocalAdminUser() {
     id: "local-admin",
     name: "admin",
     email: defaultAdminEmail,
-    passwordHash: defaultAdminPasswordHash,
+    passwordHash,
     points: 0,
     isAdmin: true,
     avatarUrl: "preset:gold",
