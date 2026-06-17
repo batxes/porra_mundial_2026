@@ -2,20 +2,23 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { PlayerAvatar } from "@/components/common";
-import { playersById } from "@/lib/data";
+import { CommunitySwapRow } from "@/components/common";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 type Fichaje = {
   id: string;
   inPlayerId: string;
   outPlayerId: string;
+  pointsIn: number;
+  pointsOut: number;
 };
 
 type FichajeRow = {
   id: string;
   in_player_id: string;
   out_player_id: string;
+  points_in: number;
+  points_out: number;
 };
 
 // Accordion con los fichajes (swaps) de un usuario, para el resumen del perfil:
@@ -32,7 +35,9 @@ export function ProfileFichajes({ userId }: { userId: string }) {
     void (async () => {
       const { data: rows, error } = await supabase
         .from("card_swaps")
-        .select("id, in_player_id, out_player_id, created_at")
+        .select(
+          "id, in_player_id, out_player_id, points_in, points_out, created_at",
+        )
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(30);
@@ -42,6 +47,8 @@ export function ProfileFichajes({ userId }: { userId: string }) {
           id: row.id,
           inPlayerId: row.in_player_id,
           outPlayerId: row.out_player_id,
+          pointsIn: Number(row.points_in) || 0,
+          pointsOut: Number(row.points_out) || 0,
         })),
       );
     })();
@@ -84,30 +91,17 @@ export function ProfileFichajes({ userId }: { userId: string }) {
         </span>
       </summary>
       <div className="divide-y divide-white/[0.06] border-t border-white/[0.06] px-4">
-        {fichajes.map((fichaje) => {
-          const inPlayer = playersById.get(fichaje.inPlayerId);
-          const outPlayer = playersById.get(fichaje.outPlayerId);
-          return (
-            <div key={fichaje.id} className="flex items-center gap-3 py-2.5">
-              {inPlayer ? (
-                <PlayerAvatar
-                  player={inPlayer}
-                  className="size-8! text-[10px]"
-                />
-              ) : (
-                <span className="size-8 shrink-0 rounded-full bg-white/5" />
-              )}
-              <span className="flex min-w-0 flex-col">
-                <strong className="truncate text-sm font-semibold text-white">
-                  {inPlayer?.name || "Jugador"}
-                </strong>
-                <span className="truncate text-xs text-zinc-500">
-                  por {outPlayer?.name || "Jugador"}
-                </span>
-              </span>
-            </div>
-          );
-        })}
+        {fichajes.map((fichaje) => (
+          // Mismo diseño que el item de cambio de la home / swaps de /cofres,
+          // sin userName (es el dueño del perfil) ni enlace (ya estamos aquí).
+          <CommunitySwapRow
+            key={fichaje.id}
+            inPlayerId={fichaje.inPlayerId}
+            outPlayerId={fichaje.outPlayerId}
+            pointsIn={fichaje.pointsIn}
+            pointsOut={fichaje.pointsOut}
+          />
+        ))}
       </div>
     </details>
   );

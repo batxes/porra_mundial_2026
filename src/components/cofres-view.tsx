@@ -519,6 +519,11 @@ export function CofresView() {
   const [query, setQuery] = useState("");
   const [positionFilter, setPositionFilter] = useState<Position | "all">("all");
   const [hydrated, setHydrated] = useState(false);
+  // En modo Supabase, true solo cuando loadSupabaseCards ha traído el inventario.
+  // Hasta entonces la estantería NO se muestra "abrible" (si no, al recargar
+  // openedIds está vacío 1s y parece que tienes todos los sobres sin abrir → se
+  // podían reabrir). En local/demo se marca al instante.
+  const [cardsLoaded, setCardsLoaded] = useState(false);
   const [activePack, setActivePack] = useState<Pack | null>(null);
   const [opening, setOpening] = useState(false);
   // En prod pedimos las cartas al servidor ANTES de abrir el overlay, para que
@@ -803,7 +808,10 @@ export function CofresView() {
     if (!usingSupabase || !user) return;
 
     const supabase = getSupabaseBrowserClient() as SupabaseLike | null;
-    if (!supabase) return;
+    if (!supabase) {
+      setCardsLoaded(true);
+      return;
+    }
 
     const [
       { data: drops, error: dropsError },
@@ -841,6 +849,7 @@ export function CofresView() {
       setMessage(
         "La base todavia no tiene las tablas de cartas. Puedes probar la pantalla en modo local.",
       );
+      setCardsLoaded(true);
       return;
     }
 
@@ -907,6 +916,7 @@ export function CofresView() {
         };
       }),
     );
+    setCardsLoaded(true);
   }, [usingSupabase, user]);
 
   useEffect(() => {
@@ -925,8 +935,17 @@ export function CofresView() {
       // de verdad es `loadSupabaseCards` (tampoco leemos el localStorage local,
       // su setState podría pisar el inventario real con datos viejos). En ambos
       // casos solo marcamos hydrated para quitar el skeleton.
-      if (CARDS_DEMO || (usingSupabase && user)) {
+      if (usingSupabase && user) {
+        // La fuente de verdad es loadSupabaseCards: marcamos hydrated (quita el
+        // skeleton del resto) pero NO cardsLoaded (lo pone loadSupabaseCards al
+        // terminar). Así la estantería no se muestra abrible con el inventario
+        // aún sin cargar.
         setHydrated(true);
+        return;
+      }
+      if (CARDS_DEMO) {
+        setHydrated(true);
+        setCardsLoaded(true);
         return;
       }
       setInventory(readJson<InventoryCard[]>(inventoryKey, []));
@@ -936,6 +955,7 @@ export function CofresView() {
       setSelectedCardId("");
       setOpening(false);
       setHydrated(true);
+      setCardsLoaded(true);
     }, 0);
     return () => window.clearTimeout(timer);
   }, [inventoryKey, logKey, openedKey, usingSupabase, user]);
@@ -1109,6 +1129,9 @@ export function CofresView() {
   const openPack = useCallback(
     async (pack: Pack) => {
       if (opening || preparing) return;
+      // Aún cargando el inventario de Supabase: no dejamos abrir (openedIds no es
+      // fiable todavía; evita reabrir un sobre ya abierto durante el F5).
+      if (usingSupabase && !cardsLoaded) return;
 
       const alreadyOpenedCards = inventory.filter(
         (card) => card.packId === pack.id,
@@ -1150,7 +1173,15 @@ export function CofresView() {
       setActivePack(pack);
       setOpening(true);
     },
-    [inventory, opening, preparing, openPackInStorage, usingSupabase, user],
+    [
+      inventory,
+      opening,
+      preparing,
+      openPackInStorage,
+      usingSupabase,
+      user,
+      cardsLoaded,
+    ],
   );
 
   const candidateFor = useCallback(
@@ -1392,7 +1423,7 @@ export function CofresView() {
             onSelectType={setSelectedTypeKey}
             count={unopenedCount}
             opening={opening || preparing}
-            hydrated={hydrated}
+            hydrated={hydrated && cardsLoaded}
             buttonRef={heroButtonRef}
             onOpen={() => {
               if (featuredPack) void openPack(featuredPack);

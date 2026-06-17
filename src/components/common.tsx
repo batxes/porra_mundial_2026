@@ -422,7 +422,7 @@ export function CommunitySwapRow({
   pointsIn,
   pointsOut,
 }: {
-  userName: string;
+  userName?: string;
   userId?: string;
   inPlayerId: string;
   outPlayerId: string;
@@ -450,12 +450,22 @@ export function CommunitySwapRow({
         <SwapPlayerChip player={inPlayer} points={pointsIn} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <strong className="truncate text-sm font-semibold text-white">
-          {userName}
-        </strong>
-        <span className="truncate text-xs text-zinc-500">
-          {outPlayer?.name || "Jugador"} → {inPlayer?.name || "Jugador"}
-        </span>
+        {/* En el perfil (Fichajes) no pasamos userName porque es redundante: el
+            "saliente → entrante" pasa a ser la línea principal. */}
+        {userName ? (
+          <>
+            <strong className="truncate text-sm font-semibold text-white">
+              {userName}
+            </strong>
+            <span className="truncate text-xs text-zinc-500">
+              {outPlayer?.name || "Jugador"} → {inPlayer?.name || "Jugador"}
+            </span>
+          </>
+        ) : (
+          <span className="truncate text-sm font-semibold text-white">
+            {outPlayer?.name || "Jugador"} → {inPlayer?.name || "Jugador"}
+          </span>
+        )}
       </span>
     </>
   );

@@ -1,0 +1,12 @@
+-- Arda Güler (tur-08) estaba clasificado como delantero (DEL) en los datos de
+-- plantilla, pero es mediapunta/centrocampista. Lo reclasificamos a MED para que
+-- la BBDD coincida con los datos del cliente (data.js / generated/data.ts).
+--
+-- La posición se consulta siempre en vivo (las cartas solo guardan player_id),
+-- así que las cartas de Arda ya repartidas no se rompen: pasan a contar como MED.
+-- Esto sí cambia:
+--   * la elegibilidad de swaps (apply_card_swap exige misma posición in/out),
+--   * el valor de sus goles, ponderado por posición: DEL=2 → MED=6, tanto en
+--     card_player_points (cartas) como en el scoring de la porra.
+-- A 2026-06-17 no tiene ningún match_event, así que no hay recálculo retroactivo.
+update public.players set position = 'MED' where id = 'tur-08';

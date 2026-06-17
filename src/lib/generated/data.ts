@@ -7207,7 +7207,7 @@ export const porraData = {
       "id": "tur-08",
       "name": "Arda Güler",
       "team": "tur",
-      "position": "DEL"
+      "position": "MED"
     },
     {
       "id": "tur-09",

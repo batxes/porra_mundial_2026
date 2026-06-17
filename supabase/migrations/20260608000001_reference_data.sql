@@ -1209,7 +1209,7 @@ insert into public.players (id, team_id, display_name, position, squad_status, s
   ('tur-05', 'tur', 'Ozcan', 'MED', 'validated', '2026-06-08 00:00:00+00'),
   ('tur-06', 'tur', 'Orkun Kökçü', 'MED', 'validated', '2026-06-08 00:00:00+00'),
   ('tur-07', 'tur', 'Aktürkoğlu', 'DEL', 'validated', '2026-06-08 00:00:00+00'),
-  ('tur-08', 'tur', 'Arda Güler', 'DEL', 'validated', '2026-06-08 00:00:00+00'),
+  ('tur-08', 'tur', 'Arda Güler', 'MED', 'validated', '2026-06-08 00:00:00+00'),
   ('tur-09', 'tur', 'Deniz Gül', 'DEL', 'validated', '2026-06-08 00:00:00+00'),
   ('tur-10', 'tur', 'Çalhanoğlu', 'MED', 'validated', '2026-06-08 00:00:00+00'),
   ('tur-11', 'tur', 'Yildiz', 'DEL', 'validated', '2026-06-08 00:00:00+00'),
