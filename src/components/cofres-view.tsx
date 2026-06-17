@@ -730,10 +730,22 @@ export function CofresView() {
       ),
     [usedCards, normalizedQuery, positionFilter, pointsFor],
   );
-  const openedIds = useMemo(
-    () => new Set([...openedPackIds, ...inventory.map((card) => card.packId)]),
-    [inventory, openedPackIds],
-  );
+  const openedIds = useMemo(() => {
+    const opened = new Set([
+      ...openedPackIds,
+      ...inventory.map((card) => card.packId),
+    ]);
+    // Transición a sobres POR USUARIO: un sobre abierto en la era "igual para
+    // todos" tiene id compartido sin uid (p.ej. `daily-2026-06-17`). Lo contamos
+    // como abierto también en su id por-usuario `<id>-<uid>`, para no
+    // re-mostrarlo tras el cambio (bug de "tengo 4 sobres" al pasar a por-usuario).
+    const uuidTail =
+      /-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    for (const id of [...opened]) {
+      if (!uuidTail.test(id)) opened.add(`${id}-${userStorageId}`);
+    }
+    return opened;
+  }, [inventory, openedPackIds, userStorageId]);
   const packs = useMemo(
     // El DIARIO (destacado), luego Promesas y Estrellas; todos acumulan por
     // ciclo. Madrid y Francia quedan solo como drops de admin (pools en SQL).
@@ -1081,10 +1093,7 @@ export function CofresView() {
 
   const acceptPackOpening = useCallback(
     async (pack: Pack) => {
-      const alreadyOpenedCards = inventory.filter(
-        (card) => card.packId === pack.id,
-      );
-      if (alreadyOpenedCards.length) {
+      if (openedIds.has(pack.id)) {
         setActivePack(pack);
         setInventoryTab("unused");
         setQuery("");
@@ -1123,7 +1132,7 @@ export function CofresView() {
       // comunican (el Notice ni se llegaba a leer).
       setMessage("");
     },
-    [inventory, openPackInStorage],
+    [openedIds, openPackInStorage],
   );
 
   const openPack = useCallback(
@@ -1133,10 +1142,7 @@ export function CofresView() {
       // fiable todavía; evita reabrir un sobre ya abierto durante el F5).
       if (usingSupabase && !cardsLoaded) return;
 
-      const alreadyOpenedCards = inventory.filter(
-        (card) => card.packId === pack.id,
-      );
-      if (alreadyOpenedCards.length) {
+      if (openedIds.has(pack.id)) {
         setMessage("Sobre ya abierto. Sus cartas ya están en tu colección.");
         return;
       }
@@ -1174,7 +1180,7 @@ export function CofresView() {
       setOpening(true);
     },
     [
-      inventory,
+      openedIds,
       opening,
       preparing,
       openPackInStorage,
