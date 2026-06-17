@@ -29,27 +29,86 @@ export function formatCountdownHMS(totalSeconds: number) {
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
 
-// Pools de los sobres temáticos disponibles por defecto en la estantería. El
-// drop_id real es `${pool}-${YYYY-MM-DD}` (igual que en cofres-view y
-// open_themed_card_pack). Madrid/Francia quedan solo como drops de admin.
-const THEMED_POOLS = ["sub21", "stars"];
-
-// drop_ids disponibles HOY: 1 diario + los 4 temáticos del día. `dailyId` es
-// `daily-${madridTodayKey()}`, de donde sacamos la fecha para los temáticos.
-function availablePackIds(dailyId: string): string[] {
-  const today = dailyId.replace(/^daily-/, "");
-  return [dailyId, ...THEMED_POOLS.map((pool) => `${pool}-${today}`)];
+// Fecha (Madrid) y hora actuales en una sola lectura.
+function madridNow(): { dateKey: string; hour: number } {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const value = (type: string) =>
+    parts.find((part) => part.type === type)?.value || "";
+  let hour = Number(value("hour"));
+  if (hour === 24) hour = 0; // algunos locales devuelven "24" a medianoche
+  return {
+    dateKey: `${value("year")}-${value("month")}-${value("day")}`,
+    hour,
+  };
 }
 
-// Versión SUPABASE (prod): cuenta los sobres del día que el usuario aún no ha
-// abierto leyendo user_cards (lectura propia por RLS). Async; si algo falla,
-// devuelve el total disponible (mejor sobre-contar que ocultar el banner).
+// Suma `offset` días a una clave YYYY-MM-DD (usa mediodía UTC para no cruzar día
+// por DST). Comparar claves YYYY-MM-DD con < / >= es comparar cronológicamente.
+export function shiftDateKey(key: string, offset: number): string {
+  const date = new Date(`${key}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date.toISOString().slice(0, 10);
+}
+
+// Primer ciclo de sobres (activación de las cartas en prod). Los sobres se
+// generan desde aquí hasta el ciclo actual, así los no abiertos SE ACUMULAN.
+export const DAILY_FIRST_CYCLE = "2026-06-17";
+
+// Clave del ciclo actual, ANCLADA A LAS 10:00 (Madrid): cada periodo 10:00→10:00
+// es un ciclo, identificado por la fecha en la que empezó. Antes de las 10:00 el
+// ciclo sigue siendo el del día anterior. Así el sobre nuevo entra a las 10:00,
+// no a medianoche (coincide con secondsUntilNextDailyCard).
+export function dailyCycleKey(): string {
+  const { dateKey, hour } = madridNow();
+  return hour < 10 ? shiftDateKey(dateKey, -1) : dateKey;
+}
+
+// Todas las claves de ciclo desde `first` hasta el actual, de más nuevo a más
+// viejo (con tope de seguridad para no crecer sin límite).
+export function cycleKeysSince(
+  first: string = DAILY_FIRST_CYCLE,
+  cap = 90,
+): string[] {
+  const keys: string[] = [];
+  let key = dailyCycleKey();
+  for (let i = 0; i < cap && key >= first; i += 1) {
+    keys.push(key);
+    key = shiftDateKey(key, -1);
+  }
+  return keys;
+}
+
+// Pools de los sobres temáticos disponibles por defecto en la estantería.
+// Madrid/Francia quedan solo como drops de admin. Mantener en sync con
+// THEMED_CONFIGS de cofres-view.
+export const SHELF_THEMED_POOLS = ["sub21", "stars"] as const;
+
+// Todos los drop_ids disponibles ahora mismo: por cada ciclo (desde la
+// activación hasta hoy) el diario + los temáticos. Como acumulan, son varios.
+export function availablePackIds(): string[] {
+  const ids: string[] = [];
+  for (const cycle of cycleKeysSince()) {
+    ids.push(`daily-${cycle}`);
+    for (const pool of SHELF_THEMED_POOLS) ids.push(`${pool}-${cycle}`);
+  }
+  return ids;
+}
+
+// Versión SUPABASE (prod): cuenta los sobres que el usuario aún no ha abierto
+// leyendo user_cards (lectura propia por RLS). Async; si algo falla, devuelve el
+// total disponible (mejor sobre-contar que ocultar el banner).
 export async function countUnopenedPacksRemote(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: { from: (t: string) => any },
-  dailyId: string,
 ): Promise<number> {
-  const available = availablePackIds(dailyId);
+  const available = availablePackIds();
   try {
     const { data, error } = await supabase
       .from("user_cards")
@@ -68,9 +127,8 @@ export async function countUnopenedPacksRemote(
 
 // Versión LOCAL (sin Supabase): cuántos sobres sin abrir, leyendo el estado que
 // /cofres guarda en localStorage (porra26_cards_<uid>_opened / _inventory).
-// dailyId debe ser `daily-${madridTodayKey()}`.
-export function countUnopenedPacks(userId: string, dailyId: string): number {
-  const available = availablePackIds(dailyId);
+export function countUnopenedPacks(userId: string): number {
+  const available = availablePackIds();
   if (typeof window === "undefined") return available.length;
   const uid = userId || "guest";
   const readArray = (suffix: string): unknown[] => {

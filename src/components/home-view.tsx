@@ -2156,17 +2156,15 @@ function SobresPromoBanner({ userId }: { userId: string }) {
     // el conteo es del servidor; en local, de localStorage.
     let active = true;
     const timer = window.setTimeout(() => {
-      const dailyId = `daily-${madridTodayKey()}`;
       const supabase = getSupabaseBrowserClient();
       if (supabase) {
         void countUnopenedPacksRemote(
           supabase as unknown as { from: (t: string) => unknown },
-          dailyId,
         ).then((n) => {
           if (active) setUnopened(n);
         });
       } else {
-        setUnopened(countUnopenedPacks(userId, dailyId));
+        setUnopened(countUnopenedPacks(userId));
       }
     }, 0);
     return () => {

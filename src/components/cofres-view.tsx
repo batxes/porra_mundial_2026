@@ -27,7 +27,12 @@ import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { calculatePlayerStandings } from "@/lib/scoring";
 import { STAR_PLAYER_IDS } from "@/lib/star-players";
 import { TOP150_PLAYER_IDS } from "@/lib/top150-players";
-import { formatCountdownHMS, secondsUntilNextDailyCard } from "@/lib/cofres";
+import {
+  cycleKeysSince,
+  dailyCycleKey,
+  formatCountdownHMS,
+  secondsUntilNextDailyCard,
+} from "@/lib/cofres";
 import type { AdminEvent, AdminResults, Player, Position } from "@/lib/types";
 
 const PackOpeningOverlay = dynamic(
@@ -231,7 +236,6 @@ const DEMO_RESULTS: AdminResults = (() => {
   return { "demo-muestra": { homeScore: 0, awayScore: 0, events } };
 })();
 
-const dailyPackCount = 1;
 const localSpecialPacksKey = "porra26_card_special_packs";
 // Tutorial de bienvenida de /cofres: se muestra solo la primera visita (igual
 // que los intros de la porra). El botón "?" de la cabecera lo reabre cuando
@@ -250,6 +254,34 @@ const SUB21_PLAYER_IDS = [
   "por-15", // João Neves
   "tur-08", // Arda Güler
   "arg-18", // Nico Paz
+];
+
+// Sobres temáticos de la estantería por defecto (tras el diario): Promesas y
+// Estrellas. Mantener los `pool` en sync con SHELF_THEMED_POOLS de cofres.ts.
+const THEMED_CONFIGS: Array<{
+  pool: "sub21" | "stars";
+  title: string;
+  subtitle: string;
+  image: string;
+  flap: NonNullable<Pack["flap"]>;
+  ids: string[];
+}> = [
+  {
+    pool: "sub21",
+    title: "Sobre Promesas",
+    subtitle: "1 promesa sub-21",
+    image: "/sobre21.webp",
+    flap: "black",
+    ids: SUB21_PLAYER_IDS,
+  },
+  {
+    pool: "stars",
+    title: "Sobre Estrellas",
+    subtitle: "1 estrella mundial",
+    image: "/sobre-estrellas.webp",
+    flap: "navy",
+    ids: STAR_PLAYER_IDS,
+  },
 ];
 
 function storageKey(userId: string, suffix: string) {
@@ -326,24 +358,6 @@ function pickDailyPlayers(seed: string): string[] {
     data.players.map((player) => player.id).filter((id) => !taken.has(id)),
   );
   return [...random, ...top, ...star];
-}
-
-function madridTodayKey() {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: "Europe/Madrid",
-    year: "numeric",
-  }).formatToParts(new Date());
-  const value = (type: string) =>
-    parts.find((part) => part.type === type)?.value || "";
-  return `${value("year")}-${value("month")}-${value("day")}`;
-}
-
-function shiftDateKey(key: string, offset: number) {
-  const date = new Date(`${key}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + offset);
-  return date.toISOString().slice(0, 10);
 }
 
 function formatPackDate(key: string) {
@@ -478,6 +492,9 @@ export function CofresView() {
   // Math.random() y los especiales re-tiran carta aleatoria. Los diarios NO la
   // usan (siguen "iguales para todos").
   const [drawSeed, setDrawSeed] = useState("");
+  // Claves de ciclo (10:00→10:00) desde la activación hasta hoy. Un timer la
+  // actualiza al cruzar las 10:00 para que el sobre nuevo aparezca en vivo.
+  const [cycleKeys, setCycleKeys] = useState<string[]>(() => cycleKeysSince());
   const [message, setMessage] = useState("");
   const heroButtonRef = useRef<HTMLButtonElement>(null);
   const swapPanelRef = useRef<HTMLDivElement>(null);
@@ -506,71 +523,62 @@ export function CofresView() {
   const openedKey = storageKey(userStorageId, "opened");
   const logKey = storageKey(userStorageId, "log");
 
-  const dailyPacks = useMemo<Pack[]>(() => {
-    const today = madridTodayKey();
-    // En demo solo 1 sobre diario (para probar); en real, los 7 históricos.
-    return Array.from(
-      { length: CARDS_DEMO ? 1 : dailyPackCount },
-      (_, index) => {
-        const dateKey = shiftDateKey(today, -index);
-        return {
-          id: `daily-${dateKey}`,
-          kind: "daily" as const,
-          title:
-            index === 0 ? "Sobre diario" : `Sobre ${formatPackDate(dateKey)}`,
-          subtitle: "3 cartas · 1 legendaria asegurada",
-          playerIds: pickDailyPlayers(`daily:${dateKey}:${drawSeed}`),
+  // Sobre diario por ciclo (3 cartas con tiering). Acumulan: los no abiertos se
+  // quedan en la estantería; el [0] (ciclo actual) es el destacado.
+  const dailyPacks = useMemo<Pack[]>(
+    () =>
+      cycleKeys.map((dateKey, index) => ({
+        id: `daily-${dateKey}`,
+        kind: "daily" as const,
+        title:
+          index === 0 ? "Sobre diario" : `Sobre ${formatPackDate(dateKey)}`,
+        subtitle: "3 cartas · 1 legendaria asegurada",
+        playerIds: pickDailyPlayers(`daily:${dateKey}:${drawSeed}`),
+        dateKey,
+        availableAt: `${dateKey}T00:00:00.000Z`,
+      })),
+    [cycleKeys, drawSeed],
+  );
+
+  // Sobres temáticos por ciclo (Promesas, Estrellas). Acumulan igual que el
+  // diario: por cada ciclo, uno de cada tipo; los no abiertos se quedan.
+  const themedPacks = useMemo<Pack[]>(
+    () =>
+      cycleKeys.flatMap((dateKey) =>
+        THEMED_CONFIGS.map((cfg) => ({
+          id: `${cfg.pool}-${dateKey}`,
+          kind: "special" as const,
+          pool: cfg.pool,
           dateKey,
+          title: cfg.title,
+          subtitle: cfg.subtitle,
+          playerIds: pickDeterministicPlayers(
+            `${cfg.pool}:${dateKey}:${drawSeed}`,
+            1,
+            cfg.ids,
+          ),
           availableAt: `${dateKey}T00:00:00.000Z`,
-        };
-      },
-    );
-  }, [drawSeed]);
-
-  // Sobre Promesas sub-21: especial SIEMPRE disponible, 1 carta de un joven
-  // crack de la lista curada (semilla por día, determinista).
-  const sub21Pack = useMemo<Pack>(() => {
-    const today = madridTodayKey();
-    return {
-      id: `sub21-${today}`,
-      kind: "special",
-      pool: "sub21",
-      dateKey: today,
-      title: "Sobre Promesas",
-      subtitle: "1 promesa sub-21",
-      playerIds: pickDeterministicPlayers(
-        `sub21:${today}:${drawSeed}`,
-        1,
-        SUB21_PLAYER_IDS,
+          image: cfg.image,
+          flap: cfg.flap,
+        })),
       ),
-      availableAt: `${today}T00:00:00.000Z`,
-      image: "/sobre21.webp",
-      flap: "black",
-    };
-  }, [drawSeed]);
+    [cycleKeys, drawSeed],
+  );
 
-  // Sobre Estrellas: especial SIEMPRE disponible, 1 carta de un crack mundial de
-  // la lista curada (semilla por día, determinista). Estos jugadores salen como
-  // legendaria (ver star-players.ts).
-  const starsPack = useMemo<Pack>(() => {
-    const today = madridTodayKey();
-    return {
-      id: `stars-${today}`,
-      kind: "special",
-      pool: "stars",
-      dateKey: today,
-      title: "Sobre Estrellas",
-      subtitle: "1 estrella mundial",
-      playerIds: pickDeterministicPlayers(
-        `stars:${today}:${drawSeed}`,
-        1,
-        STAR_PLAYER_IDS,
-      ),
-      availableAt: `${today}T00:00:00.000Z`,
-      image: "/sobre-estrellas.webp",
-      flap: "navy",
+  // A las 10:00 (Madrid) entra un ciclo nuevo de sobres: un timer se reprograma
+  // a cada reparto y refresca la estantería en vivo (sin recargar).
+  useEffect(() => {
+    let timer: number;
+    const schedule = () => {
+      const ms = (secondsUntilNextDailyCard() + 2) * 1000;
+      timer = window.setTimeout(() => {
+        setCycleKeys(cycleKeysSince());
+        schedule();
+      }, ms);
     };
-  }, [drawSeed]);
+    schedule();
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const hasRealXi = prediction.xi.some((playerId) => playersById.has(playerId));
   const activeXi = hasRealXi ? prediction.xi : demoXi;
@@ -676,10 +684,10 @@ export function CofresView() {
     [inventory, openedPackIds],
   );
   const packs = useMemo(
-    // De primeras: el DIARIO (destacado), luego Promesas y Estrellas. Madrid y
-    // Francia quedan solo como drops de admin (sus pools siguen en SQL).
-    () => [...dailyPacks, sub21Pack, starsPack, ...specialPacks],
-    [dailyPacks, starsPack, sub21Pack, specialPacks],
+    // El DIARIO (destacado), luego Promesas y Estrellas; todos acumulan por
+    // ciclo. Madrid y Francia quedan solo como drops de admin (pools en SQL).
+    () => [...dailyPacks, ...themedPacks, ...specialPacks],
+    [dailyPacks, themedPacks, specialPacks],
   );
   const unopenedPacks = useMemo(
     () => packs.filter((pack) => !openedIds.has(pack.id)),
@@ -798,8 +806,8 @@ export function CofresView() {
       )
         // Solo los drops de ADMIN (id `special-<uuid>`). Los temáticos por día
         // (`sub21-<fecha>`, `stars-<fecha>`, etc.) también son kind='special' en
-        // la BBDD, pero ya los representan los memos fijos (sub21Pack/starsPack);
-        // incluirlos duplicaría.
+        // la BBDD, pero ya los representan los packs de la estantería
+        // (themedPacks); incluirlos duplicaría.
         .filter((drop) => drop.id.startsWith("special-"))
         .map(packFromDrop),
     );
@@ -973,7 +981,7 @@ export function CofresView() {
             ? "open_daily_card_pack"
             : "open_card_drop";
         const params = pack.pool
-          ? { p_pool: pack.pool, p_day: pack.dateKey || madridTodayKey() }
+          ? { p_pool: pack.pool, p_day: pack.dateKey || dailyCycleKey() }
           : pack.kind === "daily"
             ? { p_day: pack.dateKey || pack.id.replace("daily-", "") }
             : { p_drop_id: pack.id };
