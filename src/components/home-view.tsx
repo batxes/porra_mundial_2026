@@ -2289,6 +2289,7 @@ function SobresPromoBanner({ userId }: { userId: string }) {
 
 type RecentSwap = {
   id: string;
+  userId: string;
   userName: string;
   inPlayerId: string;
   outPlayerId: string;
@@ -2298,6 +2299,7 @@ type RecentSwap = {
 
 type RecentSwapRowData = {
   id: string;
+  user_id?: string;
   in_player_id: string;
   out_player_id: string;
   points_in: number;
@@ -2325,7 +2327,7 @@ function RecentSwapsFeed() {
       const { data: rows, error } = await supabase
         .from("card_swaps")
         .select(
-          "id, in_player_id, out_player_id, points_in, points_out, created_at, profiles(display_name, is_hidden)",
+          "id, user_id, in_player_id, out_player_id, points_in, points_out, created_at, profiles(display_name, is_hidden)",
         )
         .order("created_at", { ascending: false })
         .limit(8);
@@ -2338,6 +2340,7 @@ function RecentSwapsFeed() {
         if (profile?.is_hidden) continue;
         mapped.push({
           id: row.id,
+          userId: row.user_id || "",
           userName: profile?.display_name || "Jugador",
           inPlayerId: row.in_player_id,
           outPlayerId: row.out_player_id,
@@ -2366,7 +2369,7 @@ function RecentSwapsFeed() {
           </p>
         </div>
         <Link
-          href="/cofres"
+          href="/cofres?tab=swaps"
           className="w-fit shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10"
         >
           Ver más
@@ -2378,6 +2381,7 @@ function RecentSwapsFeed() {
           <CommunitySwapRow
             key={swap.id}
             userName={swap.userName}
+            userId={swap.userId}
             inPlayerId={swap.inPlayerId}
             outPlayerId={swap.outPlayerId}
             pointsIn={swap.pointsIn}

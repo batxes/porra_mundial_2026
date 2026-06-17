@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { PlayerAvatar } from "@/components/common";
 import { playersById } from "@/lib/data";
@@ -23,6 +23,7 @@ type FichajeRow = {
 // pública en Supabase). En demo / sin Supabase no hay datos → no se muestra.
 export function ProfileFichajes({ userId }: { userId: string }) {
   const [fichajes, setFichajes] = useState<Fichaje[]>([]);
+  const detailsRef = useRef<HTMLDetailsElement | null>(null);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -49,10 +50,26 @@ export function ProfileFichajes({ userId }: { userId: string }) {
     };
   }, [userId]);
 
+  // Al llegar con #fichajes (desde un swap en la home o en /cofres) abrimos el
+  // acordeón y hacemos scroll una vez que hay datos: el <details> solo existe en
+  // el DOM cuando fichajes.length > 0, así que esperamos a que carguen.
+  useEffect(() => {
+    if (fichajes.length === 0) return;
+    if (window.location.hash !== "#fichajes") return;
+    const details = detailsRef.current;
+    if (!details) return;
+    details.open = true;
+    details.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [fichajes]);
+
   if (fichajes.length === 0) return null;
 
   return (
-    <details className="group overflow-hidden rounded-lg border border-white/10 bg-black/20">
+    <details
+      ref={detailsRef}
+      id="fichajes"
+      className="group overflow-hidden rounded-lg border border-white/10 bg-black/20"
+    >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-bold tracking-tight text-white">

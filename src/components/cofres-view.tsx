@@ -603,6 +603,14 @@ export function CofresView() {
     [drawSeed, userStorageId],
   );
 
+  // Permite enlazar directo al tab de swaps con ?tab=swaps (p. ej. el "Ver más"
+  // de "Últimos cambios" en la home). Se lee tras montar para no romper el SSR
+  // ni provocar hydration mismatch.
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab === "swaps") setPageTab("swaps");
+  }, []);
+
   // A las 10:00 (Madrid) entra un ciclo nuevo de sobres: un timer se reprograma
   // a cada reparto y refresca la estantería en vivo (sin recargar).
   useEffect(() => {
@@ -2720,6 +2728,7 @@ function SwapLogRow({ entry }: { entry: SwapLog }) {
   return (
     <CommunitySwapRow
       userName={entry.userName}
+      userId={entry.userId}
       inPlayerId={entry.inPlayerId}
       outPlayerId={entry.outPlayerId}
       pointsIn={entry.pointsIn}

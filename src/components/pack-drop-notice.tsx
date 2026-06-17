@@ -30,6 +30,12 @@ const PREMIER_ITEMS: PackDropItem[] = [
   { title: "Sobre Premier", image: "/sobre-premier.webp", qty: 1 },
 ];
 
+// Bienvenida para usuarios nuevos: los 3 de siempre + el Premier de regalo.
+const LAUNCH_PLUS_PREMIER_ITEMS: PackDropItem[] = [
+  ...LAUNCH_ITEMS,
+  ...PREMIER_ITEMS,
+];
+
 // Otros modales prioritarios a los que ceder el paso (no solaparse).
 const blockingSelectorBase =
   '[aria-labelledby="results-recap-title"], [aria-labelledby="cofres-intro-title"]';
@@ -58,122 +64,77 @@ export function PackDropWatcher({
     return () => window.removeEventListener(packDropEventName, onDrop);
   }, []);
 
-  // Lanzamiento de las cartas: una vez por navegador. No sale si ya tienes
-  // cartas (cross-dispositivo). Cede el paso al recap de resultados y al tutorial.
+  // UN solo aviso por usuario, mutuamente excluyente (nunca los dos):
+  //  - Quien NO ha visto el lanzamiento y NO tiene cartas (nuevo) → bienvenida
+  //    (Florentino) con los 4 sobres, Premier incluido de regalo.
+  //  - Quien ya vio el lanzamiento O ya tiene cartas (entró antes) → solo el
+  //    Premier (Laporta), si no lo ha abierto ya.
+  // Una sola consulta a Supabase decide; cede el paso al recap y al tutorial.
   useEffect(() => {
     if (!launchReady) return;
-    let seen = true;
+    let launchSeen = true;
+    let premierSeen = true;
     try {
-      seen = window.localStorage.getItem(launchSeenKey) === "1";
+      launchSeen = window.localStorage.getItem(launchSeenKey) === "1";
+      premierSeen = window.localStorage.getItem(premierSeenKey) === "1";
     } catch {
-      seen = true;
+      return; // sin storage, no insistimos
     }
-    if (seen) return;
+    if (launchSeen && premierSeen) return;
 
     let cancelled = false;
     let timer: number;
-    const markSeen = () => {
-      try {
-        window.localStorage.setItem(launchSeenKey, "1");
-      } catch {
-        // ignoramos fallos de storage
-      }
-    };
-    const show = () => {
+    const show = (nextVariant: Variant, list: PackDropItem[]) => {
       if (cancelled) return;
       if (document.querySelector(blockingSelectorBase)) {
-        timer = window.setTimeout(show, 800);
+        timer = window.setTimeout(() => show(nextVariant, list), 800);
         return;
       }
-      setVariant("launch");
-      setItems(LAUNCH_ITEMS);
+      setVariant(nextVariant);
+      setItems(list);
     };
 
     void (async () => {
+      let hasCards = false;
+      let hasPremier = false;
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const supabase = getSupabaseBrowserClient() as any;
         if (supabase) {
-          const { data } = await supabase
-            .from("user_cards")
-            .select("drop_id")
-            .limit(1);
-          if (cancelled) return;
-          if (Array.isArray(data) && data.length > 0) {
-            markSeen();
-            return;
+          const { data } = await supabase.from("user_cards").select("drop_id");
+          if (Array.isArray(data)) {
+            hasCards = data.length > 0;
+            hasPremier = data.some(
+              (row: { drop_id?: unknown }) =>
+                typeof row.drop_id === "string" &&
+                row.drop_id.startsWith("premier-"),
+            );
           }
         }
       } catch {
-        // si falla la consulta, mejor mostrar el aviso que ocultarlo
+        // si falla, seguimos con lo que diga localStorage
       }
       if (cancelled) return;
-      timer = window.setTimeout(show, 800);
-    })();
 
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [launchReady]);
-
-  // Palanca (sobre Premier de compensación): una vez por navegador. No sale si ya
-  // abriste el Premier (user_cards `premier-%`). Cede el paso a los otros modales,
-  // incluido el de lanzamiento (mismo `pack-drop-title`), para no solaparse.
-  useEffect(() => {
-    if (!launchReady) return;
-    let seen = true;
-    try {
-      seen = window.localStorage.getItem(premierSeenKey) === "1";
-    } catch {
-      seen = true;
-    }
-    if (seen) return;
-
-    let cancelled = false;
-    let timer: number;
-    const markSeen = () => {
-      try {
-        window.localStorage.setItem(premierSeenKey, "1");
-      } catch {
-        // ignoramos fallos de storage
-      }
-    };
-    const show = () => {
-      if (cancelled) return;
-      if (
-        document.querySelector(
-          blockingSelectorBase + ', [aria-labelledby="pack-drop-title"]',
-        )
-      ) {
-        timer = window.setTimeout(show, 800);
-        return;
-      }
-      setVariant("premier");
-      setItems(PREMIER_ITEMS);
-    };
-
-    void (async () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const supabase = getSupabaseBrowserClient() as any;
-        if (supabase) {
-          const { data } = await supabase
-            .from("user_cards")
-            .select("drop_id")
-            .like("drop_id", "premier-%")
-            .limit(1);
-          if (cancelled) return;
-          if (Array.isArray(data) && data.length > 0) {
-            markSeen();
-            return;
-          }
+      if (!launchSeen && !hasCards) {
+        // Nuevo: bienvenida con los 4 sobres (incluye el Premier de regalo).
+        timer = window.setTimeout(
+          () => show("launch", LAUNCH_PLUS_PREMIER_ITEMS),
+          800,
+        );
+      } else if (!premierSeen && !hasPremier) {
+        // Entró antes: solo el Premier (Laporta) de compensación.
+        timer = window.setTimeout(() => show("premier", PREMIER_ITEMS), 800);
+      } else {
+        // Ya está todo servido (tiene cartas/Premier): marcamos para no volver a
+        // consultar en cada visita.
+        try {
+          window.localStorage.setItem(launchSeenKey, "1");
+          window.localStorage.setItem(premierSeenKey, "1");
+        } catch {
+          // ignoramos fallos de storage
         }
-      } catch {
-        // si falla la consulta, mejor mostrar el aviso que ocultarlo
       }
-      if (cancelled) return;
-      timer = window.setTimeout(show, 1200);
     })();
 
     return () => {
@@ -188,10 +149,12 @@ export function PackDropWatcher({
   const close = () => {
     setItems(null);
     try {
-      if (variant === "premier") {
-        window.localStorage.setItem(premierSeenKey, "1");
-      } else if (variant === "launch") {
+      // El lanzamiento (bienvenida) ya incluye el Premier, y el Premier implica
+      // haber pasado el lanzamiento: en ambos casos marcamos los dos para que no
+      // salga el otro aviso después. El drop de admin no marca nada.
+      if (variant === "launch" || variant === "premier") {
         window.localStorage.setItem(launchSeenKey, "1");
+        window.localStorage.setItem(premierSeenKey, "1");
       }
     } catch {
       // ignoramos fallos de storage
@@ -204,9 +167,9 @@ export function PackDropWatcher({
       ? "¡Es hora de renovar tu once!"
       : "Es hora de renovar tu once";
   const subtitle = isPremier
-    ? "Por el fallo de la actualización de antes, roba un jugador de la premier."
+    ? "Por el fallo de la app antes, roba un jugador de la Premier."
     : variant === "launch"
-      ? "Tienes 3 sobres de bienvenida esperando. ¡Suerte!"
+      ? "Tienes 4 sobres esperando, ¡con uno de la Premier de regalo! ¡Suerte!"
       : `Te traigo ${total} sobre${total === 1 ? "" : "s"} de fichajes. Ábrelos y mete un crack en tu once.`;
 
   return (
@@ -225,7 +188,7 @@ export function PackDropWatcher({
         <div className="mb-3 flex items-end justify-between gap-2">
           <div className="min-w-0 pb-1">
             <span className="inline-flex items-center gap-1.5 rounded-md bg-[#ffd252]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#ffd252] ring-1 ring-[#ffd252]/30">
-              {isPremier ? "Recompensa" : "Fichajes"}
+              {isPremier ? "Compensación" : "Fichajes"}
             </span>
             <h3
               id="pack-drop-title"

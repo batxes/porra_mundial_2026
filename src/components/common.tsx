@@ -416,12 +416,14 @@ function SwapPlayerChip({
 // las fotos y los puntos de cada jugador. Compartida por /cofres y la home.
 export function CommunitySwapRow({
   userName,
+  userId,
   inPlayerId,
   outPlayerId,
   pointsIn,
   pointsOut,
 }: {
   userName: string;
+  userId?: string;
   inPlayerId: string;
   outPlayerId: string;
   pointsIn: number;
@@ -429,8 +431,8 @@ export function CommunitySwapRow({
 }) {
   const inPlayer = playersById.get(inPlayerId);
   const outPlayer = playersById.get(outPlayerId);
-  return (
-    <div className="flex items-center gap-3 py-3">
+  const body = (
+    <>
       <span className="flex shrink-0 items-center gap-2">
         <SwapPlayerChip player={outPlayer} points={pointsOut} faded />
         <svg
@@ -455,8 +457,24 @@ export function CommunitySwapRow({
           {outPlayer?.name || "Jugador"} → {inPlayer?.name || "Jugador"}
         </span>
       </span>
-    </div>
+    </>
   );
+
+  // Con userId, la fila lleva al perfil público del autor y abre sus Fichajes:
+  // el hash #fichajes hace que ProfileFichajes despliegue el acordeón y haga
+  // scroll hasta él. Sin userId (p. ej. swaps locales/demo) queda como estática.
+  if (userId) {
+    return (
+      <Link
+        href={`/perfil/${encodeURIComponent(userId)}#fichajes`}
+        className="-mx-2 flex items-center gap-3 rounded-lg px-2 py-3 transition hover:bg-white/[0.04]"
+      >
+        {body}
+      </Link>
+    );
+  }
+
+  return <div className="flex items-center gap-3 py-3">{body}</div>;
 }
 
 export function TeamPicker({
