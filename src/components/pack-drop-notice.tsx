@@ -45,7 +45,10 @@ export function PackDropWatcher({
     return () => window.removeEventListener(packDropEventName, onDrop);
   }, []);
 
-  // Lanzamiento: una sola vez por navegador, en cuanto hay sesión lista.
+  // Lanzamiento: una sola vez por navegador, en cuanto hay sesión lista. Cede el
+  // paso a otros modales más prioritarios (el recap de resultados "en directo" y
+  // el tutorial de /cofres) para no solaparse: espera a que se cierren y sale
+  // después. Si no hay ninguno, sale enseguida.
   useEffect(() => {
     if (!launchReady) return;
     let seen = true;
@@ -55,11 +58,27 @@ export function PackDropWatcher({
       seen = true; // sin storage no insistimos
     }
     if (seen) return;
-    const timer = window.setTimeout(() => {
+
+    let cancelled = false;
+    let timer: number;
+    const blockingModal = () =>
+      document.querySelector(
+        '[aria-labelledby="results-recap-title"], [aria-labelledby="cofres-intro-title"]',
+      );
+    const show = () => {
+      if (cancelled) return;
+      if (blockingModal()) {
+        timer = window.setTimeout(show, 800); // reintenta hasta que se cierre
+        return;
+      }
       setIsLaunch(true);
       setItems(LAUNCH_ITEMS);
-    }, 600);
-    return () => window.clearTimeout(timer);
+    };
+    timer = window.setTimeout(show, 800);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [launchReady]);
 
   if (!items) return null;
