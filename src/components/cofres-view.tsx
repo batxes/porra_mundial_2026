@@ -74,6 +74,7 @@ type Pack = {
   image?: string;
   // Color del cacho que vuela al cortar en el overlay 3D (por defecto verde).
   flap?: PackFlap;
+  createdBy?: string | null;
 };
 
 // Sobres agrupados por TIPO para la estantería del hero (los diarios cuentan
@@ -394,6 +395,14 @@ function isResidualPositionAutoPack(id: string) {
   );
 }
 
+function isForeignPrivateSoberaDrop(
+  id: string,
+  createdBy: string | null | undefined,
+  userId: string,
+) {
+  return id.startsWith("special-sobera-") && createdBy !== userId;
+}
+
 function storageKey(userId: string, suffix: string) {
   return `porra26_cards_${userId || "guest"}_${suffix}`;
 }
@@ -526,6 +535,7 @@ function packFromDrop(row: {
   player_ids: string[];
   available_at?: string;
   created_at?: string;
+  created_by?: string | null;
 }): Pack {
   const visual = packVisualForTitle(row.label);
   return {
@@ -537,6 +547,7 @@ function packFromDrop(row: {
     availableAt: row.available_at || row.created_at || new Date().toISOString(),
     image: visual?.image,
     flap: visual?.flap,
+    createdBy: row.created_by,
   };
 }
 
@@ -913,7 +924,9 @@ export function CofresView() {
     ] = await Promise.all([
       supabase
         .from("card_drops")
-        .select("id, kind, label, player_ids, available_at, created_at")
+        .select(
+          "id, kind, label, player_ids, available_at, created_at, created_by",
+        )
         .eq("kind", "special")
         // Drops especiales visibles para este usuario: admin y quiz Sobera.
         // Los temáticos por usuario
@@ -956,6 +969,7 @@ export function CofresView() {
           player_ids: string[];
           available_at?: string;
           created_at?: string;
+          created_by?: string | null;
         }>
       )
         // Solo los drops especiales servidos como sobres sueltos. Los temáticos por día
@@ -965,7 +979,12 @@ export function CofresView() {
         .filter(
           (drop) =>
             drop.id.startsWith("special-") &&
-            !isResidualPositionAutoPack(drop.id),
+            !isResidualPositionAutoPack(drop.id) &&
+            !isForeignPrivateSoberaDrop(
+              drop.id,
+              drop.created_by,
+              user.id,
+            ),
         )
         .map(packFromDrop),
     );
@@ -1051,7 +1070,13 @@ export function CofresView() {
       setSwapLog(readJson<SwapLog[]>(logKey, []));
       setSpecialPacks(
         readJson<Pack[]>(localSpecialPacksKey, []).filter(
-          (pack) => !isResidualPositionAutoPack(pack.id),
+          (pack) =>
+            !isResidualPositionAutoPack(pack.id) &&
+            !isForeignPrivateSoberaDrop(
+              pack.id,
+              pack.createdBy,
+              userStorageId,
+            ),
         ),
       );
       setSelectedCardId("");
@@ -1059,7 +1084,7 @@ export function CofresView() {
       setHydrated(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [inventoryKey, logKey, openedKey, usingSupabase, user]);
+  }, [inventoryKey, logKey, openedKey, usingSupabase, user, userStorageId]);
 
   // Tras cerrar el overlay de apertura, devolvemos el foco al sobre del hero
   // (accesibilidad: el foco no se pierde en el body al desmontar el overlay).
