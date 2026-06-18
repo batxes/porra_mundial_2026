@@ -299,6 +299,8 @@ begin
 end;
 $$;
 
+drop function if exists public.sobera_quiz_status();
+
 create or replace function public.sobera_quiz_status()
 returns table (
   active boolean,
@@ -338,6 +340,8 @@ begin
   where s.id = true;
 end;
 $$;
+
+drop function if exists public.admin_sobera_quiz_status();
 
 create or replace function public.admin_sobera_quiz_status()
 returns table (
@@ -734,6 +738,8 @@ begin
   select v_quiz.id, v_score, v_awards;
 end;
 $$;
+
+drop function if exists public.complete_sobera_quiz(jsonb);
 
 create or replace function public.complete_sobera_quiz(p_answers jsonb)
 returns table (
