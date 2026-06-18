@@ -336,6 +336,38 @@ function packAccent(flap?: OpeningPack["flap"]): string {
   return PACK_ACCENTS[flap ?? "green"] ?? PACK_ACCENTS.green;
 }
 
+function readOpeningFxMode() {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return { android: false, stable: false };
+  }
+  const android = /\bAndroid\b/i.test(navigator.userAgent);
+  const reduceMotion =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return { android, stable: android || reduceMotion };
+}
+
+function useOpeningFxMode() {
+  const [mode, setMode] = useState(readOpeningFxMode);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setMode(readOpeningFxMode());
+    update();
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", update);
+      return () => media.removeEventListener("change", update);
+    }
+    media.addListener(update);
+    return () => media.removeListener(update);
+  }, []);
+
+  return mode;
+}
+
 // Vibración háptica al abrir el sobre / revelar cartas. Solo Android (y algunos
 // navegadores); iOS Safari NO soporta navigator.vibrate (es no-op). Se llama
 // desde handlers de gesto del usuario (corte/tap), que es lo que el API exige.
@@ -355,8 +387,10 @@ function vibrate(pattern: number | number[]) {
 // vertex shader saca el quad directo en clip-space, ignorando la cámara, así que
 // llena la pantalla sea cual sea el encuadre.
 function SceneShaderBackground({
+  stable = false,
   tint = NEBULA_TINTS.green,
 }: {
+  stable?: boolean;
   tint?: NebulaTint;
 }) {
   const matRef = useRef<THREE.RawShaderMaterial>(null);
@@ -375,7 +409,7 @@ function SceneShaderBackground({
     if (!mat) return;
     // Reloj compartido con el revelado HTML (performance.now): el patrón es
     // continuo al pasar de la escena 3D al revelado HTML, sin "recarga".
-    mat.uniforms.u_time.value = performance.now() / 1000;
+    mat.uniforms.u_time.value = stable ? 0 : performance.now() / 1000;
     // gl es el WebGLRenderer; getDrawingBufferSize da el tamaño real del buffer
     // (canvas * pixelRatio), que es el espacio de gl_FragCoord.
     gl.getDrawingBufferSize(mat.uniforms.u_resolution.value);
@@ -1332,10 +1366,12 @@ function FocusedPack({
 
 function OpeningFallback({
   image,
+  stableFx = false,
   tint = NEBULA_TINTS.green,
   accent = PACK_ACCENTS.green,
 }: {
   image?: string;
+  stableFx?: boolean;
   tint?: NebulaTint;
   accent?: string;
 }) {
@@ -1346,28 +1382,36 @@ function OpeningFallback({
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
     const viewportFit = size.width < 520 ? 0.86 : size.width < 820 ? 0.94 : 1;
-    const pulse = 1 + Math.sin(clock.elapsedTime * 5) * 0.025;
+    const pulse = stableFx ? 1 : 1 + Math.sin(clock.elapsedTime * 5) * 0.025;
     meshRef.current.scale.set(
       1.08 * viewportFit * pulse,
       1.62 * viewportFit * pulse,
       1,
     );
-    meshRef.current.rotation.z = Math.sin(clock.elapsedTime * 7) * 0.025;
+    meshRef.current.rotation.z = stableFx
+      ? 0
+      : Math.sin(clock.elapsedTime * 7) * 0.025;
   });
 
   return (
     <>
-      <SceneShaderBackground tint={tint} />
+      <SceneShaderBackground stable={stableFx} tint={tint} />
       <ambientLight color="#ffffff" intensity={1.7} />
-      <pointLight color={accent} intensity={4} position={[0, 0, 2.4]} />
-      <Sparkles
+      <pointLight
         color={accent}
-        count={42}
-        opacity={0.55}
-        scale={[4, 3, 2]}
-        size={1.8}
-        speed={0.36}
+        intensity={stableFx ? 1.8 : 4}
+        position={[0, 0, 2.4]}
       />
+      {!stableFx ? (
+        <Sparkles
+          color={accent}
+          count={42}
+          opacity={0.55}
+          scale={[4, 3, 2]}
+          size={1.8}
+          speed={0.36}
+        />
+      ) : null}
       <mesh ref={meshRef} position={[0, size.width < 520 ? -0.05 : -0.16, 0.4]}>
         <planeGeometry args={[1, 1.4]} />
         <meshBasicMaterial map={texture} toneMapped={false} />
@@ -1641,6 +1685,7 @@ function OverlayWorld({
   selectedIndex,
   slashLine,
   slashPath,
+  stableFx,
 }: {
   onOpeningComplete: () => void;
   onPackPick: (index: number) => void;
@@ -1656,13 +1701,17 @@ function OverlayWorld({
   selectedIndex: number;
   slashLine: SlashLineState | null;
   slashPath: SlashPoint[];
+  stableFx: boolean;
 }) {
   const selectedPack = packs[selectedIndex] || packs[0];
   const accent = packAccent(selectedPack?.flap);
 
   return (
     <>
-      <SceneShaderBackground tint={nebulaTint(selectedPack?.flap)} />
+      <SceneShaderBackground
+        stable={stableFx}
+        tint={nebulaTint(selectedPack?.flap)}
+      />
       <OpeningDimmer phase={phase} slashLine={slashLine} />
       <ambientLight color="#ffffff" intensity={1.55} />
       <directionalLight
@@ -1677,14 +1726,16 @@ function OverlayWorld({
       />
       <FlashEffects accent={accent} phase={phase} />
       <OpeningParticles accent={accent} phase={phase} />
-      <Sparkles
-        color={accent}
-        count={phase === "carousel" ? 42 : 96}
-        opacity={0.68}
-        scale={[5.2, 3.4, 2.7]}
-        size={2.0}
-        speed={0.52}
-      />
+      {!stableFx ? (
+        <Sparkles
+          color={accent}
+          count={phase === "carousel" ? 42 : 96}
+          opacity={0.68}
+          scale={[5.2, 3.4, 2.7]}
+          size={2.0}
+          speed={0.52}
+        />
+      ) : null}
       {phase === "carousel" ? (
         <CarouselPacks
           onPackPick={onPackPick}
@@ -2298,6 +2349,8 @@ export function PackOpeningOverlay({
   const [stackIndex, setStackIndex] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const fxMode = useOpeningFxMode();
+  const stableOpeningFx = fxMode.stable;
   const selectedPack = packs[selectedIndex] || packs[0];
   const cards = useMemo(
     () =>
@@ -2416,20 +2469,24 @@ export function PackOpeningOverlay({
         <div className="absolute inset-0">
           <Canvas
             camera={{ fov: 50, near: 0.1, far: 100, position: [0, 0, 8] }}
-            dpr={[1, 1.6]}
+            dpr={stableOpeningFx ? 1 : [1, 1.6]}
             gl={{
               alpha: false,
-              antialias: true,
+              antialias: !stableOpeningFx,
               localClippingEnabled: true,
+              powerPreference: stableOpeningFx
+                ? "low-power"
+                : "high-performance",
               toneMapping: THREE.NoToneMapping,
             }}
-            shadows
+            shadows={!stableOpeningFx}
             style={{ height: "100%", touchAction: "none", width: "100%" }}
           >
             <Suspense
               fallback={
                 <OpeningFallback
                   image={selectedPack?.image}
+                  stableFx={stableOpeningFx}
                   tint={nebulaTint(selectedPack?.flap)}
                   accent={packAccent(selectedPack?.flap)}
                 />
@@ -2453,17 +2510,20 @@ export function PackOpeningOverlay({
                 selectedIndex={selectedIndex}
                 slashLine={slashLine}
                 slashPath={slashPath}
+                stableFx={stableOpeningFx}
               />
-              <EffectComposer multisampling={0}>
-                <Bloom
-                  height={270}
-                  intensity={1.1}
-                  luminanceSmoothing={0.35}
-                  luminanceThreshold={0.72}
-                  mipmapBlur
-                  width={480}
-                />
-              </EffectComposer>
+              {!stableOpeningFx ? (
+                <EffectComposer multisampling={0}>
+                  <Bloom
+                    height={270}
+                    intensity={1.1}
+                    luminanceSmoothing={0.35}
+                    luminanceThreshold={0.72}
+                    mipmapBlur
+                    width={480}
+                  />
+                </EffectComposer>
+              ) : null}
             </Suspense>
           </Canvas>
         </div>
