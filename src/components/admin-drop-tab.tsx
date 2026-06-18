@@ -62,28 +62,13 @@ type QuizRewardDraft = {
 
 const LEGACY_CORRECT_ANSWERS = [1, 2, 2, 1];
 
-const DEFAULT_QUIZ_QUESTIONS: QuizQuestionDraft[] = [
-  {
-    question: "¿Quien fue el maximo goleador del Mundial de Francia 98?",
-    options: ["Ronaldo", "Davor Suker", "Christian Vieri", "Batistuta"],
-    correctIndex: 1,
-  },
-  {
-    question: "¿En que año debuto Morata con la seleccion española?",
-    options: ["2012", "2013", "2014", "2015"],
-    correctIndex: 2,
-  },
-  {
-    question: "¿Cuantos equipos ha descendido Lotina?",
-    options: ["3", "4", "5", "6"],
-    correctIndex: 2,
-  },
-  {
-    question: "¿Que seleccion gano el Mundial 2022?",
-    options: ["Francia", "Argentina", "Croacia", "Brasil"],
-    correctIndex: 1,
-  },
-];
+function createBlankQuestions() {
+  return Array.from({ length: 4 }, () => ({
+    correctIndex: 0,
+    options: ["", "", "", ""],
+    question: "",
+  }));
+}
 
 const DEFAULT_QUIZ_REWARDS: QuizRewardDraft[] = [
   { minScore: 1, pool: "defensas" },
@@ -132,64 +117,8 @@ function answerLabel(index: number) {
   return ["A", "B", "C", "D"][index] || String(index + 1);
 }
 
-function cloneDefaultQuestions() {
-  return DEFAULT_QUIZ_QUESTIONS.map((question) => ({
-    ...question,
-    options: [...question.options],
-  }));
-}
-
 function cloneDefaultRewards() {
   return DEFAULT_QUIZ_REWARDS.map((reward) => ({ ...reward }));
-}
-
-function quizQuestionsFromUnknown(value: unknown): QuizQuestionDraft[] {
-  if (!Array.isArray(value)) return cloneDefaultQuestions();
-  const parsed = value
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const row = item as {
-        correctIndex?: unknown;
-        options?: unknown;
-        question?: unknown;
-      };
-      if (typeof row.question !== "string" || !Array.isArray(row.options)) {
-        return null;
-      }
-      const options = row.options.map((option) =>
-        typeof option === "string" ? option : "",
-      );
-      while (options.length < 4) options.push("");
-      return {
-        correctIndex: Math.max(
-          0,
-          Math.min(3, Number(row.correctIndex) || 0),
-        ),
-        options: options.slice(0, 4),
-        question: row.question,
-      };
-    })
-    .filter((item): item is QuizQuestionDraft => Boolean(item));
-  return parsed.length === 4 ? parsed : cloneDefaultQuestions();
-}
-
-function quizRewardsFromUnknown(value: unknown): QuizRewardDraft[] {
-  if (!Array.isArray(value)) return cloneDefaultRewards();
-  const parsed = value
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const row = item as { minScore?: unknown; pool?: unknown };
-      const minScore = Number(row.minScore);
-      if (!Number.isFinite(minScore) || typeof row.pool !== "string") {
-        return null;
-      }
-      return {
-        minScore: Math.max(1, Math.min(4, Math.floor(minScore))),
-        pool: row.pool,
-      };
-    })
-    .filter((item): item is QuizRewardDraft => Boolean(item));
-  return parsed.length ? parsed : cloneDefaultRewards();
 }
 
 function cleanQuestionDrafts(questions: QuizQuestionDraft[]) {
@@ -278,9 +207,9 @@ export function AdminDropTab() {
   const [selectedStatsQuizId, setSelectedStatsQuizId] = useState<string | null>(
     null,
   );
-  const [quizTitle, setQuizTitle] = useState("SOBRE EXTRA");
+  const [quizTitle, setQuizTitle] = useState("");
   const [questionDrafts, setQuestionDrafts] = useState<QuizQuestionDraft[]>(
-    () => cloneDefaultQuestions(),
+    () => createBlankQuestions(),
   );
   const [rewardDrafts, setRewardDrafts] = useState<QuizRewardDraft[]>(() =>
     cloneDefaultRewards(),
@@ -290,11 +219,11 @@ export function AdminDropTab() {
   const [quizNotice, setQuizNotice] = useState("");
   const [quizFormBusy, setQuizFormBusy] = useState(false);
 
-  const loadQuizIntoForm = useCallback((row: QuizRow) => {
-    setQuizTitle(row.title || "SOBRE EXTRA");
-    setQuestionDrafts(quizQuestionsFromUnknown(row.questions));
-    setRewardDrafts(quizRewardsFromUnknown(row.rewards));
-  }, []);
+  const resetQuizForm = () => {
+    setQuizTitle("");
+    setQuestionDrafts(createBlankQuestions());
+    setRewardDrafts(cloneDefaultRewards());
+  };
 
   const loadQuizStatus = useCallback(async () => {
     if (!usingSupabase || !user?.isAdmin) return;
@@ -443,7 +372,7 @@ export function AdminDropTab() {
     );
   };
 
-  const saveQuiz = async (activate: boolean) => {
+  const saveQuiz = async () => {
     if (quizFormBusy) return;
     const questions = cleanQuestionDrafts(questionDrafts);
     const rewards = cleanRewardDrafts(rewardDrafts);
@@ -479,7 +408,7 @@ export function AdminDropTab() {
         | null;
       if (!supabase) throw new Error("No se ha podido conectar con Supabase.");
       const { data, error } = await supabase.rpc("admin_save_sobera_quiz", {
-        p_activate: activate,
+        p_activate: false,
         p_questions: questions,
         p_rewards: rewards,
         p_title: quizTitle.trim() || "SOBRE EXTRA",
@@ -487,7 +416,8 @@ export function AdminDropTab() {
       if (error) throw new Error(error.message);
       const row = firstRow<QuizRow>(data);
       if (row?.id) setSelectedStatsQuizId(row.id);
-      toast.success(activate ? "Ronda creada y activada" : "Ronda creada");
+      resetQuizForm();
+      toast.success("Ronda creada");
       void loadQuizStatus();
     } catch (error) {
       const rawMsg =
@@ -561,9 +491,6 @@ export function AdminDropTab() {
   const statsQuizId =
     selectedStatsQuizId || quizStatus?.active_quiz_id || quizRows[0]?.id || "";
   const selectedQuiz = quizRows.find((row) => row.id === statsQuizId) || null;
-  const selectedQuizActive = Boolean(
-    selectedQuiz && quizStatus?.active && selectedQuiz.id === activeQuiz?.id,
-  );
   const statsQuiz = selectedQuiz;
 
   return (
@@ -590,75 +517,77 @@ export function AdminDropTab() {
             ) : null}
           </div>
         </div>
-        <div className="mt-4 grid gap-3 rounded-xl border border-white/10 bg-black/18 p-3 md:grid-cols-[1fr_auto] md:items-end">
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
-              Ronda
-            </span>
-            <select
-              value={quizRows.length ? statsQuizId : "legacy"}
-              disabled={!quizRows.length}
-              onChange={(event) => setSelectedStatsQuizId(event.target.value)}
-              className="mt-2 w-full rounded-lg border border-white/10 bg-[#111] px-3 py-2.5 text-sm font-bold text-white outline-none transition focus:border-amber-200/70 disabled:opacity-70"
-            >
-              {quizRows.length ? (
-                quizRows.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.title || "SOBRE EXTRA"}
-                    {row.id === activeQuiz?.id && quizStatus?.active
-                      ? " (activa)"
-                      : ""}
-                  </option>
-                ))
-              ) : (
-                <option value="legacy">
-                  {quizStatus?.active ? "Quiz actual" : "Sin ronda activa"}
-                </option>
-              )}
-            </select>
-            <p className="mt-1 text-xs text-zinc-500">
-              {selectedQuiz
-                ? `${Number(selectedQuiz.total_attempts || 0)} completados`
-                : quizRows.length
-                  ? "Selecciona una ronda"
-                  : `${Number(quizStatus?.total_attempts || 0)} completados`}
+        <div className="mt-4 space-y-2">
+          {quizRows.length ? (
+            quizRows.map((row) => {
+              const rowActive = Boolean(
+                quizStatus?.active && row.id === activeQuiz?.id,
+              );
+              const selected = row.id === statsQuizId;
+              return (
+                <div
+                  key={row.id}
+                  className={`grid gap-3 rounded-xl border bg-black/18 p-3 md:grid-cols-[1fr_auto] md:items-center ${
+                    selected
+                      ? "border-amber-200/50"
+                      : "border-white/10"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStatsQuizId(row.id)}
+                    className="min-w-0 text-left"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-bold text-white">
+                        {row.title || "SOBRE EXTRA"}
+                      </p>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${
+                          rowActive
+                            ? "border-[#a7f600]/40 bg-[#a7f600]/12 text-[#a7f600]"
+                            : "border-white/10 bg-white/[0.05] text-zinc-400"
+                        }`}
+                      >
+                        {rowActive ? "Activa" : "Pausada"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {Number(row.total_attempts || 0)} completados
+                      {row.created_at ? ` - ${formatQuizDate(row.created_at)}` : ""}
+                    </p>
+                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStatsQuizId(row.id)}
+                      className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/10"
+                    >
+                      Ver stats
+                    </button>
+                    <button
+                      type="button"
+                      disabled={quizBusy || !usingSupabase}
+                      onClick={() =>
+                        void setQuizActive(rowActive ? false : true, row.id)
+                      }
+                      className={`rounded-lg px-3 py-2 text-xs font-bold transition disabled:opacity-60 ${
+                        rowActive
+                          ? "border border-white/10 text-white hover:bg-white/10"
+                          : "bg-amber-300 text-black hover:bg-amber-200"
+                      }`}
+                    >
+                      {quizBusy ? "Guardando..." : rowActive ? "Pausar" : "Activar"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <p className="rounded-xl border border-white/10 bg-black/18 px-3 py-4 text-sm text-zinc-400">
+              No hay rondas creadas todavia.
             </p>
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={!selectedQuiz}
-              onClick={() => selectedQuiz && loadQuizIntoForm(selectedQuiz)}
-              className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/10 disabled:opacity-60"
-            >
-              Duplicar
-            </button>
-            <button
-              type="button"
-              disabled={quizBusy || !usingSupabase || (quizRows.length > 0 && !selectedQuiz)}
-              onClick={() =>
-                void setQuizActive(
-                  quizRows.length ? !selectedQuizActive : !quizStatus?.active,
-                  selectedQuiz?.id || quizStatus?.active_quiz_id,
-                )
-              }
-              className={`rounded-lg px-3 py-2 text-xs font-bold transition disabled:opacity-60 ${
-                quizRows.length ? selectedQuizActive : quizStatus?.active
-                  ? "border border-white/10 text-white hover:bg-white/10"
-                  : "bg-amber-300 text-black hover:bg-amber-200"
-              }`}
-            >
-              {quizBusy
-                ? "Guardando..."
-                : quizRows.length
-                  ? selectedQuizActive
-                    ? "Pausar"
-                    : "Activar"
-                  : quizStatus?.active
-                    ? "Pausar"
-                    : "Activar"}
-            </button>
-          </div>
+          )}
         </div>
       </div>
 
@@ -793,29 +722,10 @@ export function AdminDropTab() {
             <button
               type="button"
               disabled={quizFormBusy || !usingSupabase}
-              onClick={() => void saveQuiz(false)}
-              className="rounded-lg border border-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/10 disabled:opacity-60"
-            >
-              {quizFormBusy ? "Creando..." : "Crear ronda"}
-            </button>
-            <button
-              type="button"
-              disabled={quizFormBusy || !usingSupabase}
-              onClick={() => void saveQuiz(true)}
+              onClick={() => void saveQuiz()}
               className="rounded-lg bg-[#a7f600] px-4 py-2.5 text-sm font-bold text-black transition hover:bg-[#c7ff43] disabled:opacity-60"
             >
-              Crear y activar
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setQuizTitle("SOBRE EXTRA");
-                setQuestionDrafts(cloneDefaultQuestions());
-                setRewardDrafts(cloneDefaultRewards());
-              }}
-              className="rounded-lg border border-white/10 px-4 py-2.5 text-sm font-bold text-zinc-300 transition hover:bg-white/10"
-            >
-              Nueva plantilla
+              {quizFormBusy ? "Creando..." : "Crear ronda"}
             </button>
           </div>
 
