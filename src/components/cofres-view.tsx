@@ -386,6 +386,14 @@ function packVisualForTitle(title: string) {
   );
 }
 
+function isResidualPositionAutoPack(id: string) {
+  return (
+    id.startsWith("defensas-") ||
+    id.startsWith("medios-") ||
+    id.startsWith("delanteros-")
+  );
+}
+
 function storageKey(userId: string, suffix: string) {
   return `porra26_cards_${userId || "guest"}_${suffix}`;
 }
@@ -819,7 +827,10 @@ export function CofresView() {
   const packs = useMemo(
     // El DIARIO (destacado), luego Promesas y Estrellas; todos acumulan por
     // ciclo. Madrid y Francia quedan solo como drops de admin (pools en SQL).
-    () => [...dailyPacks, ...themedPacks, ...specialPacks],
+    () =>
+      [...dailyPacks, ...themedPacks, ...specialPacks].filter(
+        (pack) => !isResidualPositionAutoPack(pack.id),
+      ),
     [dailyPacks, themedPacks, specialPacks],
   );
   const unopenedPacks = useMemo(
@@ -951,7 +962,11 @@ export function CofresView() {
         // (`sub21-<fecha>`, `stars-<fecha>`, etc.) también son kind='special' en
         // la BBDD, pero ya los representan los packs de la estantería
         // (themedPacks); incluirlos duplicaría.
-        .filter((drop) => drop.id.startsWith("special-"))
+        .filter(
+          (drop) =>
+            drop.id.startsWith("special-") &&
+            !isResidualPositionAutoPack(drop.id),
+        )
         .map(packFromDrop),
     );
     setInventory(
@@ -1034,7 +1049,11 @@ export function CofresView() {
       setInventory(readJson<InventoryCard[]>(inventoryKey, []));
       setOpenedPackIds(readJson<string[]>(openedKey, []));
       setSwapLog(readJson<SwapLog[]>(logKey, []));
-      setSpecialPacks(readJson<Pack[]>(localSpecialPacksKey, []));
+      setSpecialPacks(
+        readJson<Pack[]>(localSpecialPacksKey, []).filter(
+          (pack) => !isResidualPositionAutoPack(pack.id),
+        ),
+      );
       setSelectedCardId("");
       setOpening(false);
       setHydrated(true);
