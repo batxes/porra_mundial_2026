@@ -307,7 +307,7 @@ window.PORRA_DATA = {
           "id": "arg-16",
           "name": "Almada",
           "team": "arg",
-          "position": "DEL"
+          "position": "MED"
       },
       {
           "id": "arg-17",
@@ -319,7 +319,7 @@ window.PORRA_DATA = {
           "id": "arg-18",
           "name": "Nico Paz",
           "team": "arg",
-          "position": "DEL"
+          "position": "MED"
       },
       {
           "id": "arg-19",
@@ -427,7 +427,7 @@ window.PORRA_DATA = {
           "id": "aus-10",
           "name": "Hrustic",
           "team": "aus",
-          "position": "DEL"
+          "position": "MED"
       },
       {
           "id": "aus-11",
@@ -1525,7 +1525,7 @@ window.PORRA_DATA = {
           "id": "cod-11",
           "name": "Kakuta",
           "team": "cod",
-          "position": "DEL"
+          "position": "MED"
       },
       {
           "id": "cod-12",
@@ -2329,7 +2329,7 @@ window.PORRA_DATA = {
           "id": "cze-15",
           "name": "Sulc",
           "team": "cze",
-          "position": "DEL"
+          "position": "MED"
       },
       {
           "id": "cze-16",
@@ -2923,7 +2923,7 @@ window.PORRA_DATA = {
           "id": "esp-10",
           "name": "Olmo",
           "team": "esp",
-          "position": "DEL"
+          "position": "MED"
       },
       {
           "id": "esp-11",
@@ -5203,7 +5203,7 @@ window.PORRA_DATA = {
           "id": "nor-26",
           "name": "Ryerson",
           "team": "nor",
-          "position": "DEL"
+          "position": "DEF"
       },
       {
           "id": "nzl-01",
@@ -5617,7 +5617,7 @@ window.PORRA_DATA = {
           "id": "par-17",
           "name": "R. Gamarra",
           "team": "par",
-          "position": "DEL"
+          "position": "MED"
       },
       {
           "id": "par-18",
@@ -5629,7 +5629,7 @@ window.PORRA_DATA = {
           "id": "par-19",
           "name": "Enciso",
           "team": "par",
-          "position": "DEL"
+          "position": "MED"
       },
       {
           "id": "par-20",
@@ -5887,7 +5887,7 @@ window.PORRA_DATA = {
           "id": "qat-10",
           "name": "Alhaydos",
           "team": "qat",
-          "position": "DEL"
+          "position": "MED"
       },
       {
           "id": "qat-11",
@@ -7075,7 +7075,7 @@ window.PORRA_DATA = {
           "id": "tur-26",
           "name": "Can Uzun",
           "team": "tur",
-          "position": "DEL"
+          "position": "MED"
       },
       {
           "id": "uru-01",
@@ -7297,7 +7297,7 @@ window.PORRA_DATA = {
           "id": "usa-11",
           "name": "Aaronson",
           "team": "usa",
-          "position": "DEL"
+          "position": "MED"
       },
       {
           "id": "usa-12",
