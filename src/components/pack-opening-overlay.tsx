@@ -336,36 +336,112 @@ function packAccent(flap?: OpeningPack["flap"]): string {
   return PACK_ACCENTS[flap ?? "green"] ?? PACK_ACCENTS.green;
 }
 
-function readOpeningFxMode() {
-  if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return { android: false, stable: false };
-  }
-  const android = /\bAndroid\b/i.test(navigator.userAgent);
-  const reduceMotion =
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  return { android, stable: android || reduceMotion };
+type OpeningFxDebugOptions = {
+  disableAntialias: boolean;
+  disableBloom: boolean;
+  disableSparkles: boolean;
+  freezeBackground: boolean;
+  lowDpr: boolean;
+};
+
+const openingFxDebugStorageKey = "porra26_cofres_opening_fx";
+const defaultOpeningFxDebugOptions: OpeningFxDebugOptions = {
+  disableAntialias: false,
+  disableBloom: false,
+  disableSparkles: false,
+  freezeBackground: false,
+  lowDpr: false,
+};
+
+function isAndroidBrowser() {
+  return (
+    typeof navigator !== "undefined" &&
+    /\bAndroid\b/i.test(navigator.userAgent)
+  );
 }
 
-function useOpeningFxMode() {
-  const [mode, setMode] = useState(readOpeningFxMode);
+function defaultOpeningFxOptionsForBrowser(): OpeningFxDebugOptions {
+  return {
+    ...defaultOpeningFxDebugOptions,
+    disableBloom: isAndroidBrowser(),
+  };
+}
+
+function parseOpeningFxDebugFlags(
+  value: string | null,
+  base: OpeningFxDebugOptions,
+): OpeningFxDebugOptions {
+  if (!value) return base;
+  const flags = new Set(
+    value
+      .split(/[,\s]+/)
+      .map((flag) => flag.trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const safe = flags.has("safe");
+  const forceBloom = flags.has("bloom") || flags.has("force-bloom");
+  return {
+    disableAntialias: base.disableAntialias || safe || flags.has("no-aa"),
+    disableBloom: forceBloom
+      ? false
+      : base.disableBloom || safe || flags.has("no-bloom"),
+    disableSparkles:
+      base.disableSparkles || safe || flags.has("no-sparkles"),
+    freezeBackground:
+      base.freezeBackground ||
+      safe ||
+      flags.has("static-bg") ||
+      flags.has("freeze-bg"),
+    lowDpr: base.lowDpr || safe || flags.has("low-dpr"),
+  };
+}
+
+function readOpeningFxDebugOptions() {
+  const base = defaultOpeningFxOptionsForBrowser();
+  if (typeof window === "undefined") return base;
+  const params = new URLSearchParams(window.location.search);
+  const urlValue = params.get("cofresFx");
+  if (urlValue === "reset") return base;
+  let storedValue: string | null = null;
+  try {
+    storedValue = window.localStorage.getItem(openingFxDebugStorageKey);
+  } catch {
+    storedValue = null;
+  }
+  return parseOpeningFxDebugFlags(urlValue || storedValue, base);
+}
+
+function useOpeningFxDebugOptions() {
+  const [options] = useState(readOpeningFxDebugOptions);
 
   useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-      return;
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const urlValue = params.get("cofresFx");
+    if (urlValue === null) return;
+    try {
+      if (urlValue === "reset") {
+        window.localStorage.removeItem(openingFxDebugStorageKey);
+      } else {
+        window.localStorage.setItem(openingFxDebugStorageKey, urlValue);
+      }
+    } catch {
+      // Si localStorage falla, el flag de URL sigue aplicando en esta visita.
     }
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setMode(readOpeningFxMode());
-    update();
-    if (typeof media.addEventListener === "function") {
-      media.addEventListener("change", update);
-      return () => media.removeEventListener("change", update);
-    }
-    media.addListener(update);
-    return () => media.removeListener(update);
   }, []);
 
-  return mode;
+  return options;
+}
+
+function openingFxDebugLabel(options: OpeningFxDebugOptions) {
+  const flags = [
+    options.disableAntialias ? "no-aa" : "",
+    options.disableBloom ? "no-bloom" : "",
+    options.disableSparkles ? "no-sparkles" : "",
+    options.freezeBackground ? "static-bg" : "",
+    options.lowDpr ? "low-dpr" : "",
+  ].filter(Boolean);
+  return flags.length ? flags.join(",") : "default";
 }
 
 // Vibración háptica al abrir el sobre / revelar cartas. Solo Android (y algunos
@@ -387,10 +463,10 @@ function vibrate(pattern: number | number[]) {
 // vertex shader saca el quad directo en clip-space, ignorando la cámara, así que
 // llena la pantalla sea cual sea el encuadre.
 function SceneShaderBackground({
-  stable = false,
+  freeze = false,
   tint = NEBULA_TINTS.green,
 }: {
-  stable?: boolean;
+  freeze?: boolean;
   tint?: NebulaTint;
 }) {
   const matRef = useRef<THREE.RawShaderMaterial>(null);
@@ -409,7 +485,7 @@ function SceneShaderBackground({
     if (!mat) return;
     // Reloj compartido con el revelado HTML (performance.now): el patrón es
     // continuo al pasar de la escena 3D al revelado HTML, sin "recarga".
-    mat.uniforms.u_time.value = stable ? 0 : performance.now() / 1000;
+    mat.uniforms.u_time.value = freeze ? 0 : performance.now() / 1000;
     // gl es el WebGLRenderer; getDrawingBufferSize da el tamaño real del buffer
     // (canvas * pixelRatio), que es el espacio de gl_FragCoord.
     gl.getDrawingBufferSize(mat.uniforms.u_resolution.value);
@@ -1365,13 +1441,13 @@ function FocusedPack({
 }
 
 function OpeningFallback({
+  debugFx = defaultOpeningFxDebugOptions,
   image,
-  stableFx = false,
   tint = NEBULA_TINTS.green,
   accent = PACK_ACCENTS.green,
 }: {
+  debugFx?: OpeningFxDebugOptions;
   image?: string;
-  stableFx?: boolean;
   tint?: NebulaTint;
   accent?: string;
 }) {
@@ -1382,27 +1458,21 @@ function OpeningFallback({
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
     const viewportFit = size.width < 520 ? 0.86 : size.width < 820 ? 0.94 : 1;
-    const pulse = stableFx ? 1 : 1 + Math.sin(clock.elapsedTime * 5) * 0.025;
+    const pulse = 1 + Math.sin(clock.elapsedTime * 5) * 0.025;
     meshRef.current.scale.set(
       1.08 * viewportFit * pulse,
       1.62 * viewportFit * pulse,
       1,
     );
-    meshRef.current.rotation.z = stableFx
-      ? 0
-      : Math.sin(clock.elapsedTime * 7) * 0.025;
+    meshRef.current.rotation.z = Math.sin(clock.elapsedTime * 7) * 0.025;
   });
 
   return (
     <>
-      <SceneShaderBackground stable={stableFx} tint={tint} />
+      <SceneShaderBackground freeze={debugFx.freezeBackground} tint={tint} />
       <ambientLight color="#ffffff" intensity={1.7} />
-      <pointLight
-        color={accent}
-        intensity={stableFx ? 1.8 : 4}
-        position={[0, 0, 2.4]}
-      />
-      {!stableFx ? (
+      <pointLight color={accent} intensity={4} position={[0, 0, 2.4]} />
+      {!debugFx.disableSparkles ? (
         <Sparkles
           color={accent}
           count={42}
@@ -1671,6 +1741,7 @@ function OpeningParticles({
 }
 
 function OverlayWorld({
+  debugFx,
   onOpeningComplete,
   onPackPick,
   onPackSettled,
@@ -1685,8 +1756,8 @@ function OverlayWorld({
   selectedIndex,
   slashLine,
   slashPath,
-  stableFx,
 }: {
+  debugFx: OpeningFxDebugOptions;
   onOpeningComplete: () => void;
   onPackPick: (index: number) => void;
   onPackSettled: (settled: boolean) => void;
@@ -1701,7 +1772,6 @@ function OverlayWorld({
   selectedIndex: number;
   slashLine: SlashLineState | null;
   slashPath: SlashPoint[];
-  stableFx: boolean;
 }) {
   const selectedPack = packs[selectedIndex] || packs[0];
   const accent = packAccent(selectedPack?.flap);
@@ -1709,7 +1779,7 @@ function OverlayWorld({
   return (
     <>
       <SceneShaderBackground
-        stable={stableFx}
+        freeze={debugFx.freezeBackground}
         tint={nebulaTint(selectedPack?.flap)}
       />
       <OpeningDimmer phase={phase} slashLine={slashLine} />
@@ -1726,7 +1796,7 @@ function OverlayWorld({
       />
       <FlashEffects accent={accent} phase={phase} />
       <OpeningParticles accent={accent} phase={phase} />
-      {!stableFx ? (
+      {!debugFx.disableSparkles ? (
         <Sparkles
           color={accent}
           count={phase === "carousel" ? 42 : 96}
@@ -2349,8 +2419,8 @@ export function PackOpeningOverlay({
   const [stackIndex, setStackIndex] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const fxMode = useOpeningFxMode();
-  const stableOpeningFx = fxMode.stable;
+  const debugFx = useOpeningFxDebugOptions();
+  const debugFxLabel = openingFxDebugLabel(debugFx);
   const selectedPack = packs[selectedIndex] || packs[0];
   const cards = useMemo(
     () =>
@@ -2463,36 +2533,35 @@ export function PackOpeningOverlay({
     <div
       className="fixed inset-0 z-[70] overflow-hidden bg-black text-white"
       data-cofres-opening-overlay
+      data-opening-fx={debugFxLabel}
       data-opening-phase={phase}
     >
       {phase !== "reveal" ? (
         <div className="absolute inset-0">
           <Canvas
             camera={{ fov: 50, near: 0.1, far: 100, position: [0, 0, 8] }}
-            dpr={stableOpeningFx ? 1 : [1, 1.6]}
+            dpr={debugFx.lowDpr ? 1 : [1, 1.6]}
             gl={{
               alpha: false,
-              antialias: !stableOpeningFx,
+              antialias: !debugFx.disableAntialias,
               localClippingEnabled: true,
-              powerPreference: stableOpeningFx
-                ? "low-power"
-                : "high-performance",
               toneMapping: THREE.NoToneMapping,
             }}
-            shadows={!stableOpeningFx}
+            shadows
             style={{ height: "100%", touchAction: "none", width: "100%" }}
           >
             <Suspense
               fallback={
                 <OpeningFallback
+                  debugFx={debugFx}
                   image={selectedPack?.image}
-                  stableFx={stableOpeningFx}
                   tint={nebulaTint(selectedPack?.flap)}
                   accent={packAccent(selectedPack?.flap)}
                 />
               }
             >
               <OverlayWorld
+                debugFx={debugFx}
                 onOpeningComplete={() => {
                   setStackIndex(0);
                   setPhase("reveal");
@@ -2510,9 +2579,8 @@ export function PackOpeningOverlay({
                 selectedIndex={selectedIndex}
                 slashLine={slashLine}
                 slashPath={slashPath}
-                stableFx={stableOpeningFx}
               />
-              {!stableOpeningFx ? (
+              {!debugFx.disableBloom ? (
                 <EffectComposer multisampling={0}>
                   <Bloom
                     height={270}
