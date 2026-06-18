@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { packDropEventName } from "@/components/pack-drop-notice";
@@ -13,13 +13,23 @@ import { getSupabaseBrowserClient } from "@/lib/supabase";
 type SupabaseRpcClient = {
   rpc: (
     fn: string,
-    params: Record<string, unknown>,
-  ) => Promise<{ error: { message: string } | null }>;
+    params?: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
 };
 
+type QuizAdminStatus = {
+  active?: boolean;
+  total_attempts?: number;
+  updated_at?: string | null;
+};
+
+function firstRow<T>(data: unknown): T | null {
+  return Array.isArray(data) ? ((data[0] as T | undefined) ?? null) : (data as T);
+}
+
 // Tipos de sobre que un admin puede soltar a todos. En Supabase se crean con el
-// RPC admin_create_card_drop. Los pools curados sueltan 1 carta, los pools por
-// puesto sueltan 3 cartas y "diario" suelta 3 cartas con tiering. `pool` null =
+// RPC admin_create_card_drop. Los pools curados y por puesto sueltan 1 carta;
+// "diario" suelta 3 cartas con tiering. `pool` null =
 // drop diario tiered.
 const DROP_OPTIONS = [
   {
@@ -77,6 +87,62 @@ export function AdminDropTab() {
   const [selectedKey, setSelectedKey] = useState(DROP_OPTIONS[0].key);
   const [qty, setQty] = useState(1);
   const [busy, setBusy] = useState(false);
+  const [quizStatus, setQuizStatus] = useState<QuizAdminStatus | null>(null);
+  const [quizBusy, setQuizBusy] = useState(false);
+  const [quizError, setQuizError] = useState("");
+
+  const loadQuizStatus = useCallback(async () => {
+    if (!usingSupabase || !user?.isAdmin) return;
+    const supabase = getSupabaseBrowserClient() as unknown as
+      | SupabaseRpcClient
+      | null;
+    if (!supabase) return;
+    const { data, error } = await supabase.rpc("admin_sobera_quiz_status");
+    if (error) {
+      setQuizError(error.message);
+      return;
+    }
+    setQuizError("");
+    setQuizStatus(firstRow<QuizAdminStatus>(data));
+  }, [usingSupabase, user?.isAdmin]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadQuizStatus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadQuizStatus]);
+
+  const setQuizActive = async (active: boolean) => {
+    if (quizBusy) return;
+    setQuizBusy(true);
+    setQuizError("");
+    try {
+      if (!usingSupabase || !user?.isAdmin) {
+        throw new Error("Solo disponible con Supabase y usuario admin.");
+      }
+      const supabase = getSupabaseBrowserClient() as unknown as
+        | SupabaseRpcClient
+        | null;
+      if (!supabase) throw new Error("No se ha podido conectar con Supabase.");
+      const { data, error } = await supabase.rpc(
+        "admin_set_sobera_quiz_active",
+        { p_active: active },
+      );
+      if (error) throw new Error(error.message);
+      setQuizStatus(firstRow<QuizAdminStatus>(data));
+      toast.success(active ? "Quiz Sobera activado" : "Quiz Sobera pausado");
+    } catch (error) {
+      const msg =
+        error instanceof Error
+          ? error.message
+          : "No se ha podido actualizar el quiz.";
+      setQuizError(msg);
+      toast.error("No se ha podido actualizar el quiz", { description: msg });
+    } finally {
+      setQuizBusy(false);
+    }
+  };
 
   const release = async () => {
     if (busy) return;
@@ -124,6 +190,45 @@ export function AdminDropTab() {
 
   return (
     <div className="space-y-5">
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-xl font-semibold text-white">Quiz Sobera</h3>
+            <p className="mt-1 text-sm text-zinc-400">
+              Al activarlo, el modal aparece a los usuarios que todavia no lo
+              hayan completado. Cada usuario solo puede reclamarlo una vez.
+            </p>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+              {quizStatus?.active ? "Activo" : "Pausado"} ·{" "}
+              {Number(quizStatus?.total_attempts || 0)} completados
+            </p>
+            {quizError ? (
+              <p className="mt-2 text-xs font-semibold text-rose-300">
+                {quizError}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={quizBusy || !usingSupabase}
+              onClick={() => void setQuizActive(!quizStatus?.active)}
+              className={`rounded-lg px-5 py-3 text-sm font-bold transition disabled:opacity-60 ${
+                quizStatus?.active
+                  ? "border border-white/10 text-white hover:bg-white/10"
+                  : "bg-[#a7f600] text-black hover:bg-[#c7ff43]"
+              }`}
+            >
+              {quizBusy
+                ? "Guardando..."
+                : quizStatus?.active
+                  ? "Pausar quiz"
+                  : "Activar quiz"}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div>
         <h3 className="text-xl font-semibold text-white">Soltar sobres</h3>
         <p className="mt-1 text-sm text-zinc-400">

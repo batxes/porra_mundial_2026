@@ -3,13 +3,21 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { AuthModal } from "@/components/auth-modal";
 import { Avatar } from "@/components/common";
 import { PackDropWatcher } from "@/components/pack-drop-notice";
 import { ResultsRecapWatcher } from "@/components/results-recap";
+import { SoberaQuizGate } from "@/components/sobera-quiz-gate";
 import { useAppContext } from "@/lib/app-context";
+import {
+  cardsChangedEventName,
+  countUnopenedPacks,
+  countUnopenedPacksRemote,
+  secondsUntilNextDailyCard,
+} from "@/lib/cofres";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
 import {
   currentTheme,
   saveTheme,
@@ -72,10 +80,74 @@ const links = [
   { href: "/como-funciona", label: "Reglas" },
 ];
 
+function formatPackBadgeCount(count: number) {
+  return count > 99 ? "99+" : String(count);
+}
+
+function useUnopenedPackCount(userId: string | null, usingSupabase: boolean) {
+  const pathname = usePathname();
+  const [packCount, setPackCount] = useState<{
+    count: number;
+    userId: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    let active = true;
+    let timer = 0;
+    let run = 0;
+
+    const refresh = () => {
+      const runId = (run += 1);
+      const supabase = usingSupabase ? getSupabaseBrowserClient() : null;
+      if (supabase) {
+        void countUnopenedPacksRemote(
+          supabase as unknown as { from: (t: string) => unknown },
+          userId,
+        ).then((nextCount) => {
+          if (active && runId === run) setPackCount({ count: nextCount, userId });
+        });
+        return;
+      }
+      if (active && runId === run) {
+        setPackCount({ count: countUnopenedPacks(userId), userId });
+      }
+    };
+
+    const scheduleDailyRefresh = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        refresh();
+        scheduleDailyRefresh();
+      }, (secondsUntilNextDailyCard() + 2) * 1000);
+    };
+
+    const onRefresh = () => refresh();
+    const initialTimer = window.setTimeout(refresh, 0);
+    scheduleDailyRefresh();
+    window.addEventListener("focus", onRefresh);
+    window.addEventListener("storage", onRefresh);
+    window.addEventListener(cardsChangedEventName, onRefresh);
+
+    return () => {
+      active = false;
+      window.clearTimeout(initialTimer);
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", onRefresh);
+      window.removeEventListener("storage", onRefresh);
+      window.removeEventListener(cardsChangedEventName, onRefresh);
+    };
+  }, [pathname, userId, usingSupabase]);
+
+  return packCount?.userId === userId ? packCount.count : null;
+}
+
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { ready, setAuthMode, usingSupabase, user } = useAppContext();
   const [authOpen, setAuthOpen] = useState(false);
+  const unopenedPackCount = useUnopenedPackCount(user?.id || null, usingSupabase);
 
   return (
     // Los modales globales van fuera del shell: `.app-shell > *` fuerza
@@ -120,10 +192,17 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
             <nav className="hidden items-center gap-1 md:flex">
               {links.map((link) => {
                 const active = pathname === (link.match ?? link.href);
+                const showPackBadge =
+                  link.href === "/cofres" && Boolean(unopenedPackCount);
                 return (
                   <Link
                     key={link.href}
                     href={link.href}
+                    aria-label={
+                      showPackBadge
+                        ? `${link.label}: ${unopenedPackCount} sobres sin abrir`
+                        : undefined
+                    }
                     // El link con query (?goto=next) no se prefetcha: el
                     // prefetch del segmento cacheado interfiere con el scroll
                     // al proximo partido al navegar desde el menu.
@@ -135,6 +214,11 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                     }`}
                   >
                     {link.label}
+                    {showPackBadge ? (
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#f5c518] px-1.5 text-[11px] font-extrabold leading-none text-black shadow-[0_0_14px_rgba(245,197,24,0.35)]">
+                        {formatPackBadgeCount(unopenedPackCount || 0)}
+                      </span>
+                    ) : null}
                   </Link>
                 );
               })}
@@ -230,18 +314,33 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           >
             {links.map((link) => {
               const active = pathname === (link.match ?? link.href);
+              const showPackBadge =
+                link.href === "/cofres" && Boolean(unopenedPackCount);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
+                  aria-label={
+                    showPackBadge
+                      ? `${link.label}: ${unopenedPackCount} sobres sin abrir`
+                      : undefined
+                  }
                   prefetch={link.match ? false : undefined}
-                  className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-center text-[11px] font-semibold transition sm:px-2 sm:text-xs ${
+                  className={`relative inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-center text-[11px] font-semibold transition sm:px-2 sm:text-xs ${
                     active
                       ? "bg-white text-black"
                       : "bg-white/[0.08] text-zinc-300"
                   }`}
                 >
                   <span className="truncate">{link.label}</span>
+                  {showPackBadge ? (
+                    <span
+                      aria-hidden="true"
+                      className={`absolute right-1.5 top-1.5 size-2 rounded-full bg-[#f5c518] ${
+                        active ? "ring-2 ring-white" : "ring-2 ring-[#0d0d0d]"
+                      }`}
+                    />
+                  ) : null}
                 </Link>
               );
             })}
@@ -272,6 +371,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       />
       <ResultsRecapWatcher />
       <PackDropWatcher launchReady={ready && Boolean(user)} />
+      <SoberaQuizGate />
     </>
   );
 }

@@ -1,6 +1,13 @@
 // Helpers de tiempo de los sobres, compartidos entre /cofres y la home (banner
 // promo). El reparto del sobre diario es a las 10:00 (hora de Madrid).
 
+export const cardsChangedEventName = "porra26:cards-changed";
+
+export function notifyCardsChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(cardsChangedEventName));
+}
+
 // Segundos hasta el próximo reparto de carta diaria: las 10:00 (hora de Madrid).
 export function secondsUntilNextDailyCard() {
   const parts = new Intl.DateTimeFormat("en-GB", {

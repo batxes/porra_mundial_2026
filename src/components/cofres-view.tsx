@@ -20,6 +20,7 @@ import {
   TeamFlag,
 } from "@/components/common";
 import { PlayerCard } from "@/components/player-card";
+import { soberaQuizCompletedEventName } from "@/components/sobera-quiz-modal";
 import { useAppContext } from "@/lib/app-context";
 import { data, playersById, teamsById } from "@/lib/data";
 import { initials, playerPhotoUrl } from "@/lib/format";
@@ -32,6 +33,7 @@ import {
   dailyCycleKey,
   DAILY_FIRST_CYCLE,
   formatCountdownHMS,
+  notifyCardsChanged,
   secondsUntilNextDailyCard,
 } from "@/lib/cofres";
 import type { AdminEvent, AdminResults, Player, Position } from "@/lib/types";
@@ -614,9 +616,10 @@ export function CofresView() {
   const justAcceptedRef = useRef(false);
   // Cartas ya pedidas al servidor en openPack (prod), a la espera de que el
   // usuario corte el sobre. Se consumen en acceptPackOpening.
-  const pendingCardsRef = useRef<{ packId: string; cards: InventoryCard[] } | null>(
-    null,
-  );
+  const pendingCardsRef = useRef<{
+    packId: string;
+    cards: InventoryCard[];
+  } | null>(null);
   const [demoXi, setDemoXi] = useState(seedXi);
   const [pendingSwap, setPendingSwap] = useState<SwapCandidate | null>(null);
   const [lastSwap, setLastSwap] = useState<{
@@ -812,8 +815,7 @@ export function CofresView() {
   //  - sin sesión resuelta (`!ready`): aún no sabemos → espera.
   //  - local / sin login: el estado es síncrono → listo.
   //  - Supabase con sesión: listo solo cuando loadSupabaseCards terminó.
-  const inventoryReady =
-    ready && (!usingSupabase || !user || cardsLoaded);
+  const inventoryReady = ready && (!usingSupabase || !user || cardsLoaded);
   const packs = useMemo(
     // El DIARIO (destacado), luego Promesas y Estrellas; todos acumulan por
     // ciclo. Madrid y Francia quedan solo como drops de admin (pools en SQL).
@@ -902,7 +904,8 @@ export function CofresView() {
         .from("card_drops")
         .select("id, kind, label, player_ids, available_at, created_at")
         .eq("kind", "special")
-        // Solo drops de ADMIN (`special-<uuid>`). Los temáticos por usuario
+        // Drops especiales visibles para este usuario: admin y quiz Sobera.
+        // Los temáticos por usuario
         // (`stars-<fecha>-<uid>`…) también son kind='special' y de lectura
         // pública; sin este filtro inundarían el limit y los representaría dos
         // veces (ya están en themedPacks).
@@ -944,7 +947,7 @@ export function CofresView() {
           created_at?: string;
         }>
       )
-        // Solo los drops de ADMIN (id `special-<uuid>`). Los temáticos por día
+        // Solo los drops especiales servidos como sobres sueltos. Los temáticos por día
         // (`sub21-<fecha>`, `stars-<fecha>`, etc.) también son kind='special' en
         // la BBDD, pero ya los representan los packs de la estantería
         // (themedPacks); incluirlos duplicaría.
@@ -1082,6 +1085,17 @@ export function CofresView() {
     return () => window.clearTimeout(timer);
   }, [loadSupabaseCards, ready, usingSupabase, user]);
 
+  useEffect(() => {
+    if (!usingSupabase || !user) return;
+    const onCompleted = () => {
+      setPageTab("sobres");
+      void loadSupabaseCards();
+    };
+    window.addEventListener(soberaQuizCompletedEventName, onCompleted);
+    return () =>
+      window.removeEventListener(soberaQuizCompletedEventName, onCompleted);
+  }, [loadSupabaseCards, usingSupabase, user]);
+
   // Persistencia local SOLO fuera de demo y fuera de Supabase. En demo
   // (CARDS_DEMO) NO escribimos: el estado es en memoria y se resetea en cada
   // F5 (a propósito). El gate `hydrated` evita además que el render inicial
@@ -1094,6 +1108,7 @@ export function CofresView() {
   useEffect(() => {
     if (!hydrated || CARDS_DEMO || (usingSupabase && user)) return;
     writeJson(openedKey, openedPackIds);
+    notifyCardsChanged();
   }, [hydrated, openedPackIds, openedKey, usingSupabase, user]);
 
   useEffect(() => {
@@ -1198,8 +1213,9 @@ export function CofresView() {
       // Sin mensaje: el auto-scroll a la colección y el badge "NUEVA" ya lo
       // comunican (el Notice ni se llegaba a leer).
       setMessage("");
+      if (usingSupabase && user) notifyCardsChanged();
     },
-    [openedIds, openPackInStorage],
+    [openedIds, openPackInStorage, usingSupabase, user],
   );
 
   const openPack = useCallback(
@@ -1696,7 +1712,7 @@ export function CofresView() {
                               selected={selectedCardId === card.id}
                             />
                             {newCardIds.includes(card.id) ? (
-                              <span className="absolute left-1/2 top-1.5 z-10 -translate-x-1/2 rounded-full bg-[#a7f600] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.1em] text-black shadow-md shadow-black/40">
+                              <span className="absolute left-1/2 top-1.5 z-10 -translate-x-1/2 rounded-full bg-[#a7f600] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.1em] text-black shadow-md shadow-black/40">
                                 NEW
                               </span>
                             ) : null}
@@ -1823,7 +1839,7 @@ export function CofresView() {
         />
       ) : null}
 
-      {/* Modal de admin: elegir qué tipo de sobre soltar como drop. */}
+      {/* Modales auxiliares de /cofres. */}
       {showIntro ? <CofresIntroModal onClose={dismissIntro} /> : null}
 
       {opening && activePack ? (
@@ -2425,11 +2441,11 @@ function PitchPlayer({
           {formatSigned(points)}
         </span>
         {entered ? (
-          <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#a7f600] text-[10px] font-black text-black shadow">
+          <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#a7f600] text-[10px] font-bold text-black shadow">
             ✓
           </span>
         ) : eligible ? (
-          <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#a7f600] text-[9px] font-black text-black shadow">
+          <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#a7f600] text-[9px] font-bold text-black shadow">
             ↔
           </span>
         ) : null}
@@ -3181,7 +3197,7 @@ function IntroCompareRow({
       <IntroPointChip label="Titular" pts={titularPts} tone="neutral" />
       <span
         aria-hidden
-        className={`ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-black motion-safe:animate-[cofres-intro-verdict_3s_ease-in-out_infinite] ${
+        className={`ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold motion-safe:animate-[cofres-intro-verdict_3s_ease-in-out_infinite] ${
           delayed ? "motion-safe:[animation-delay:1.1s]" : ""
         } ${ok ? "bg-[#a7f600] text-black" : "bg-red-500 text-white"}`}
       >
