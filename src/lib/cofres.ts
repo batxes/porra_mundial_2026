@@ -88,7 +88,14 @@ export function cycleKeysSince(
 // Pools de los sobres temáticos de BIENVENIDA (uno de cada, no se renuevan
 // solos). Madrid/Francia quedan solo como drops de admin. Mantener en sync con
 // THEMED_CONFIGS de cofres-view.
-export const SHELF_THEMED_POOLS = ["sub21", "stars", "premier"] as const;
+export const SHELF_THEMED_POOLS = [
+  "sub21",
+  "stars",
+  "premier",
+  "defensas",
+  "medios",
+  "delanteros",
+] as const;
 
 // drop_ids disponibles automáticamente PARA ESE USUARIO. Los sobres son por
 // usuario, así que el id lleva el uid: `daily-<ciclo>-<uid>` (uno por ciclo,

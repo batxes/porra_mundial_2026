@@ -29,7 +29,7 @@ type OpeningPack = {
   title: string;
   image?: string;
   // Color del cacho que vuela al cortar (por defecto verde de marca).
-  flap?: "green" | "white" | "black" | "navy" | "royal";
+  flap?: "green" | "white" | "black" | "navy" | "royal" | "red";
 };
 
 type OpeningCard = {
@@ -146,7 +146,7 @@ function usePackTexture(url?: string) {
 // variante.
 const packFlapTextures = new Map<string, THREE.CanvasTexture>();
 function getFlapTexture(
-  variant: "green" | "white" | "black" | "navy" | "royal" = "green",
+  variant: "green" | "white" | "black" | "navy" | "royal" | "red" = "green",
 ) {
   const cached = packFlapTextures.get(variant);
   if (cached) return cached;
@@ -190,6 +190,13 @@ function getFlapTexture(
       bottom: "#0a1330",
       sheen: "rgba(200,178,110,0.15)",
       line: "#b89a3e",
+    },
+    red: {
+      top: "#8d1717",
+      mid: "#5e0e12",
+      bottom: "#260507",
+      sheen: "rgba(255,188,84,0.18)",
+      line: "#ffb64d",
     },
     green: {
       top: "#327f27",
@@ -307,6 +314,7 @@ const NEBULA_TINTS: Record<NonNullable<OpeningPack["flap"]>, NebulaTint> = {
   black: [0.46, 0.33, 0.1], // sobre 21 (negro + oro): oro/ámbar
   navy: [0.12, 0.2, 0.52], // estrellas (azul + oro): azul real
   royal: [0.11, 0.19, 0.5], // Francia (azul + rojo + oro): azul royal
+  red: [0.52, 0.1, 0.08], // delanteros: rojo fuego
 };
 function nebulaTint(flap?: OpeningPack["flap"]): NebulaTint {
   return NEBULA_TINTS[flap ?? "green"] ?? NEBULA_TINTS.green;
@@ -322,6 +330,7 @@ const PACK_ACCENTS: Record<NonNullable<OpeningPack["flap"]>, string> = {
   black: "#ffd24d",
   navy: "#6aa6ff",
   royal: "#6a9bff", // Francia: azul royal
+  red: "#ff4e46",
 };
 function packAccent(flap?: OpeningPack["flap"]): string {
   return PACK_ACCENTS[flap ?? "green"] ?? PACK_ACCENTS.green;
@@ -2579,4 +2588,3 @@ export function PackOpeningOverlay({
     </div>
   );
 }
-

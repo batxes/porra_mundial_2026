@@ -15,12 +15,15 @@ export type PackDropItem = { title: string; image: string; qty: number };
 
 type Variant = "drop" | "launch" | "premier";
 
-// Aviso ÚNICO de lanzamiento de las cartas (3 sobres de bienvenida).
+// Aviso ÚNICO de lanzamiento de las cartas (sobres de bienvenida por defecto).
 const launchSeenKey = "porra26_cards_launch_seen";
 const LAUNCH_ITEMS: PackDropItem[] = [
   { title: "Sobre diario", image: "/sobre.webp", qty: 1 },
   { title: "Sobre Promesas", image: "/sobre21.webp", qty: 1 },
   { title: "Sobre Estrellas", image: "/sobre-estrellas.webp", qty: 1 },
+  { title: "Sobre Defensas", image: "/sobre-defensas.webp", qty: 1 },
+  { title: "Sobre Mediocentros", image: "/sobre-medios.webp", qty: 1 },
+  { title: "Sobre Delanteros", image: "/sobre-delanteros.webp", qty: 1 },
 ];
 
 // Aviso ÚNICO "¡Palanca!": sobre Premier de compensación. No sale si el usuario
@@ -30,7 +33,7 @@ const PREMIER_ITEMS: PackDropItem[] = [
   { title: "Sobre Premier", image: "/sobre-premier.webp", qty: 1 },
 ];
 
-// Bienvenida para usuarios nuevos: los 3 de siempre + el Premier de regalo.
+// Bienvenida para usuarios nuevos: sobres por defecto + Premier de regalo.
 const LAUNCH_PLUS_PREMIER_ITEMS: PackDropItem[] = [
   ...LAUNCH_ITEMS,
   ...PREMIER_ITEMS,
@@ -66,7 +69,7 @@ export function PackDropWatcher({
 
   // UN solo aviso por usuario, mutuamente excluyente (nunca los dos):
   //  - Quien NO ha visto el lanzamiento y NO tiene cartas (nuevo) → bienvenida
-  //    (Florentino) con los 4 sobres, Premier incluido de regalo.
+  //    (Florentino) con los sobres por defecto, Premier incluido de regalo.
   //  - Quien ya vio el lanzamiento O ya tiene cartas (entró antes) → solo el
   //    Premier (Laporta), si no lo ha abierto ya.
   // Una sola consulta a Supabase decide; cede el paso al recap y al tutorial.
@@ -117,7 +120,7 @@ export function PackDropWatcher({
       if (cancelled) return;
 
       if (!launchSeen && !hasCards) {
-        // Nuevo: bienvenida con los 4 sobres (incluye el Premier de regalo).
+        // Nuevo: bienvenida con los sobres por defecto (incluye el Premier).
         timer = window.setTimeout(
           () => show("launch", LAUNCH_PLUS_PREMIER_ITEMS),
           800,
@@ -169,7 +172,7 @@ export function PackDropWatcher({
   const subtitle = isPremier
     ? "Por el fallo de la app antes, roba un jugador de la Premier."
     : variant === "launch"
-      ? "Tienes 4 sobres esperando, ¡con uno de la Premier de regalo! ¡Suerte!"
+      ? `Tienes ${total} sobres esperando, ¡con uno de la Premier de regalo! ¡Suerte!`
       : `Te traigo ${total} sobre${total === 1 ? "" : "s"} de fichajes. Ábrelos y mete un crack en tu once.`;
 
   return (

@@ -45,6 +45,16 @@ const PackOpeningOverlay = dynamic(
 );
 
 type PackKind = "daily" | "special";
+type ThemedPool =
+  | "madrid"
+  | "sub21"
+  | "stars"
+  | "francia"
+  | "premier"
+  | "defensas"
+  | "medios"
+  | "delanteros";
+type PackFlap = "green" | "white" | "black" | "navy" | "royal" | "red";
 
 type Pack = {
   id: string;
@@ -55,12 +65,12 @@ type Pack = {
   dateKey?: string;
   // Pool del servidor para los sobres temáticos.
   // Si está, en prod se abre con open_themed_card_pack(p_pool, p_day).
-  pool?: "madrid" | "sub21" | "stars" | "francia" | "premier";
+  pool?: ThemedPool;
   availableAt: string;
   // Imagen del sobre para el overlay 3D y el hero. Por defecto /sobre.webp.
   image?: string;
   // Color del cacho que vuela al cortar en el overlay 3D (por defecto verde).
-  flap?: "green" | "white" | "black" | "navy" | "royal";
+  flap?: PackFlap;
 };
 
 // Sobres agrupados por TIPO para la estantería del hero (los diarios cuentan
@@ -286,14 +296,25 @@ const PREMIER_PLAYER_IDS = [
 ];
 
 // Sobres temáticos de la estantería por defecto (tras el diario): Promesas,
-// Estrellas y Premier (extra de compensación). Mantener los `pool` en sync con
-// SHELF_THEMED_POOLS de cofres.ts.
+// Estrellas, Premier y los tres sobres por puesto. Mantener los `pool` en sync
+// con SHELF_THEMED_POOLS de cofres.ts.
+const DEFENDER_PLAYER_IDS = data.players
+  .filter((player) => player.position === "DEF")
+  .map((player) => player.id);
+const MIDFIELDER_PLAYER_IDS = data.players
+  .filter((player) => player.position === "MED")
+  .map((player) => player.id);
+const FORWARD_PLAYER_IDS = data.players
+  .filter((player) => player.position === "DEL")
+  .map((player) => player.id);
+
 const THEMED_CONFIGS: Array<{
-  pool: "sub21" | "stars" | "premier";
+  pool: ThemedPool;
   title: string;
   subtitle: string;
   image: string;
-  flap: NonNullable<Pack["flap"]>;
+  flap: PackFlap;
+  count: number;
   ids: string[];
 }> = [
   {
@@ -302,6 +323,7 @@ const THEMED_CONFIGS: Array<{
     subtitle: "1 promesa sub-21",
     image: "/sobre21.webp",
     flap: "black",
+    count: 1,
     ids: SUB21_PLAYER_IDS,
   },
   {
@@ -310,6 +332,7 @@ const THEMED_CONFIGS: Array<{
     subtitle: "1 estrella mundial",
     image: "/sobre-estrellas.webp",
     flap: "navy",
+    count: 1,
     ids: STAR_PLAYER_IDS,
   },
   {
@@ -318,9 +341,65 @@ const THEMED_CONFIGS: Array<{
     subtitle: "1 crack de la Premier",
     image: "/sobre-premier.webp",
     flap: "royal",
+    count: 1,
     ids: PREMIER_PLAYER_IDS,
   },
+  {
+    pool: "defensas",
+    title: "Sobre Defensas",
+    subtitle: "3 defensas aleatorios",
+    image: "/sobre-defensas.webp",
+    flap: "navy",
+    count: 3,
+    ids: DEFENDER_PLAYER_IDS,
+  },
+  {
+    pool: "medios",
+    title: "Sobre Mediocentros",
+    subtitle: "3 medios aleatorios",
+    image: "/sobre-medios.webp",
+    flap: "green",
+    count: 3,
+    ids: MIDFIELDER_PLAYER_IDS,
+  },
+  {
+    pool: "delanteros",
+    title: "Sobre Delanteros",
+    subtitle: "3 delanteros aleatorios",
+    image: "/sobre-delanteros.webp",
+    flap: "red",
+    count: 3,
+    ids: FORWARD_PLAYER_IDS,
+  },
 ];
+
+const PACK_VISUALS = [
+  ...THEMED_CONFIGS,
+  {
+    title: "Sobre Madrid",
+    image: "/sobre-madrid.webp",
+    flap: "white" as PackFlap,
+  },
+  {
+    title: "Sobre Francia",
+    image: "/sobre-francia.webp",
+    flap: "royal" as PackFlap,
+  },
+];
+
+function normalizePackTitle(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function packVisualForTitle(title: string) {
+  const normalized = normalizePackTitle(title);
+  return PACK_VISUALS.find(
+    (visual) => normalizePackTitle(visual.title) === normalized,
+  );
+}
 
 function storageKey(userId: string, suffix: string) {
   return `porra26_cards_${userId || "guest"}_${suffix}`;
@@ -455,6 +534,7 @@ function packFromDrop(row: {
   available_at?: string;
   created_at?: string;
 }): Pack {
+  const visual = packVisualForTitle(row.label);
   return {
     id: row.id,
     kind: row.kind,
@@ -462,6 +542,8 @@ function packFromDrop(row: {
     subtitle: row.kind === "special" ? "Drop especial" : "Sobre diario",
     playerIds: row.player_ids || [],
     availableAt: row.available_at || row.created_at || new Date().toISOString(),
+    image: visual?.image,
+    flap: visual?.flap,
   };
 }
 
@@ -512,7 +594,11 @@ export function CofresView() {
   const [inventoryTab, setInventoryTab] = useState<"unused" | "used">("unused");
   // Tab de página (arriba, tras el título): los sobres (hero + colección) o el
   // feed de swaps de la comunidad.
-  const [pageTab, setPageTab] = useState<"sobres" | "swaps">("sobres");
+  const [pageTab, setPageTab] = useState<"sobres" | "swaps">(() => {
+    if (typeof window === "undefined") return "sobres";
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return tab === "swaps" ? "swaps" : "sobres";
+  });
   const [swapQuery, setSwapQuery] = useState("");
   const [swapsMineOnly, setSwapsMineOnly] = useState(false);
   const [newCardIds, setNewCardIds] = useState<string[]>([]);
@@ -583,9 +669,9 @@ export function CofresView() {
     [cycleKeys, drawSeed, userStorageId],
   );
 
-  // Sobres temáticos de BIENVENIDA (Promesas, Estrellas, Premier): uno de cada,
-  // fijos al ciclo de activación, NO se renuevan solos. POR USUARIO (id con uid →
-  // `<pool>-<fecha>-<uid>`). Se quedan hasta que los abras.
+  // Sobres temáticos de BIENVENIDA: uno de cada, fijos al ciclo de activación,
+  // NO se renuevan solos. POR USUARIO (id con uid → `<pool>-<fecha>-<uid>`). Se
+  // quedan hasta que los abras.
   const themedPacks = useMemo<Pack[]>(
     () =>
       THEMED_CONFIGS.map((cfg) => ({
@@ -597,7 +683,7 @@ export function CofresView() {
         subtitle: cfg.subtitle,
         playerIds: pickDeterministicPlayers(
           `${cfg.pool}:${DAILY_FIRST_CYCLE}:${drawSeed}`,
-          1,
+          cfg.count,
           cfg.ids,
         ),
         availableAt: `${DAILY_FIRST_CYCLE}T00:00:00.000Z`,
@@ -606,14 +692,6 @@ export function CofresView() {
       })),
     [drawSeed, userStorageId],
   );
-
-  // Permite enlazar directo al tab de swaps con ?tab=swaps (p. ej. el "Ver más"
-  // de "Últimos cambios" en la home). Se lee tras montar para no romper el SSR
-  // ni provocar hydration mismatch.
-  useEffect(() => {
-    const tab = new URLSearchParams(window.location.search).get("tab");
-    if (tab === "swaps") setPageTab("swaps");
-  }, []);
 
   // A las 10:00 (Madrid) entra un ciclo nuevo de sobres: un timer se reprograma
   // a cada reparto y refresca la estantería en vivo (sin recargar).
@@ -1346,8 +1424,7 @@ export function CofresView() {
   };
 
   // Primera visita: en cuanto el hero está listo, abrimos el tutorial salvo que
-  // ya se haya visto (localStorage es la fuente de verdad). setState síncrono e
-  // idempotente: nada que cancelar (robusto bajo StrictMode y el render inicial).
+  // ya se haya visto (localStorage es la fuente de verdad).
   useEffect(() => {
     if (!hydrated || introQueuedRef.current) return;
     try {
@@ -1355,8 +1432,11 @@ export function CofresView() {
     } catch {
       // Si falla el storage, mostramos el tutorial igualmente esta sesión.
     }
-    introQueuedRef.current = true;
-    setShowIntro(true);
+    const timer = window.setTimeout(() => {
+      introQueuedRef.current = true;
+      setShowIntro(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [hydrated]);
 
   const dismissIntro = () => {
@@ -1789,6 +1869,7 @@ const PACK_GLOW: Record<NonNullable<Pack["flap"]>, string> = {
   black: "255,210,77",
   navy: "106,166,255",
   royal: "96,150,255", // Francia: azul royal
+  red: "255,78,70",
 };
 function packGlowRgb(pack: Pack | null): string {
   return PACK_GLOW[pack?.flap ?? "green"] ?? PACK_GLOW.green;

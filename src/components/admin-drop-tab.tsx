@@ -18,9 +18,9 @@ type SupabaseRpcClient = {
 };
 
 // Tipos de sobre que un admin puede soltar a todos. En Supabase se crean con el
-// RPC admin_create_card_drop, que ahora respeta el pool: los temáticos sueltan 1
-// carta de su pool y "diario" suelta 3 cartas con tiering (random+top150+
-// legendaria). `pool` null = drop diario tiered.
+// RPC admin_create_card_drop. Los pools curados sueltan 1 carta, los pools por
+// puesto sueltan 3 cartas y "diario" suelta 3 cartas con tiering. `pool` null =
+// drop diario tiered.
 const DROP_OPTIONS = [
   {
     key: "estrellas",
@@ -45,6 +45,24 @@ const DROP_OPTIONS = [
     title: "Sobre Francia",
     image: "/sobre-francia.webp",
     pool: "francia",
+  },
+  {
+    key: "defensas",
+    title: "Sobre Defensas",
+    image: "/sobre-defensas.webp",
+    pool: "defensas",
+  },
+  {
+    key: "medios",
+    title: "Sobre Mediocentros",
+    image: "/sobre-medios.webp",
+    pool: "medios",
+  },
+  {
+    key: "delanteros",
+    title: "Sobre Delanteros",
+    image: "/sobre-delanteros.webp",
+    pool: "delanteros",
   },
   {
     key: "diario",
