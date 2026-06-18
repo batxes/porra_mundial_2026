@@ -23,8 +23,44 @@ type QuizAdminStatus = {
   updated_at?: string | null;
 };
 
+type QuizAttemptRow = {
+  answers?: unknown;
+  awarded_drop_ids?: string[];
+  completed_at?: string | null;
+  display_name?: string | null;
+  score?: number;
+  user_id?: string;
+};
+
+const SOBERA_CORRECT_ANSWERS = [1, 2, 2, 1];
+
 function firstRow<T>(data: unknown): T | null {
   return Array.isArray(data) ? ((data[0] as T | undefined) ?? null) : (data as T);
+}
+
+function rows<T>(data: unknown): T[] {
+  return Array.isArray(data) ? (data as T[]) : [];
+}
+
+function formatQuizDate(value?: string | null) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+  }).format(new Date(value));
+}
+
+function formatAwardCount(ids?: string[]) {
+  const count = ids?.length || 0;
+  return `${count} sobre${count === 1 ? "" : "s"}`;
+}
+
+function quizAnswerIndexes(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((item) => (typeof item === "number" ? item : null))
+    : [];
 }
 
 // Tipos de sobre que un admin puede soltar a todos. En Supabase se crean con el
@@ -88,6 +124,7 @@ export function AdminDropTab() {
   const [qty, setQty] = useState(1);
   const [busy, setBusy] = useState(false);
   const [quizStatus, setQuizStatus] = useState<QuizAdminStatus | null>(null);
+  const [quizAttempts, setQuizAttempts] = useState<QuizAttemptRow[]>([]);
   const [quizBusy, setQuizBusy] = useState(false);
   const [quizError, setQuizError] = useState("");
 
@@ -102,8 +139,16 @@ export function AdminDropTab() {
       setQuizError(error.message);
       return;
     }
+    const { data: attemptsData, error: attemptsError } = await supabase.rpc(
+      "admin_sobera_quiz_attempts",
+    );
+    if (attemptsError) {
+      setQuizError(attemptsError.message);
+      return;
+    }
     setQuizError("");
     setQuizStatus(firstRow<QuizAdminStatus>(data));
+    setQuizAttempts(rows<QuizAttemptRow>(attemptsData));
   }, [usingSupabase, user?.isAdmin]);
 
   useEffect(() => {
@@ -131,6 +176,7 @@ export function AdminDropTab() {
       );
       if (error) throw new Error(error.message);
       setQuizStatus(firstRow<QuizAdminStatus>(data));
+      void loadQuizStatus();
       toast.success(active ? "Quiz Sobera activado" : "Quiz Sobera pausado");
     } catch (error) {
       const msg =
@@ -229,6 +275,53 @@ export function AdminDropTab() {
         </div>
       </div>
 
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h4 className="text-base font-semibold text-white">
+              Resultados Sobera
+            </h4>
+            <p className="mt-1 text-xs text-zinc-400">
+              Últimos {quizAttempts.length} intentos completados.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadQuizStatus()}
+            className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/10"
+          >
+            Actualizar
+          </button>
+        </div>
+        <div className="mt-3 max-h-72 overflow-auto rounded-lg border border-white/10">
+          {quizAttempts.length ? (
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead className="sticky top-0 bg-[#171717] text-[11px] uppercase tracking-[0.12em] text-zinc-400">
+                <tr>
+                  <th className="px-3 py-2 font-bold">Usuario</th>
+                  <th className="px-3 py-2 font-bold">Aciertos</th>
+                  <th className="px-3 py-2 font-bold">Detalle</th>
+                  <th className="px-3 py-2 font-bold">Premios</th>
+                  <th className="px-3 py-2 font-bold">Fecha</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {quizAttempts.map((attempt) => (
+                  <QuizAttemptRowView
+                    attempt={attempt}
+                    key={`${attempt.user_id}-${attempt.completed_at}`}
+                  />
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="px-3 py-4 text-sm text-zinc-400">
+              Aún no hay intentos completados.
+            </p>
+          )}
+        </div>
+      </div>
+
       <div>
         <h3 className="text-xl font-semibold text-white">Soltar sobres</h3>
         <p className="mt-1 text-sm text-zinc-400">
@@ -306,5 +399,45 @@ export function AdminDropTab() {
         </button>
       </div>
     </div>
+  );
+}
+
+function QuizAttemptRowView({ attempt }: { attempt: QuizAttemptRow }) {
+  const answers = quizAnswerIndexes(attempt.answers);
+  return (
+    <tr>
+      <td className="px-3 py-2 font-semibold text-white">
+        {attempt.display_name || "Usuario"}
+      </td>
+      <td className="px-3 py-2 font-bold text-[#a7f600]">
+        {Number(attempt.score || 0)}/4
+      </td>
+      <td className="px-3 py-2">
+        <div className="flex gap-1">
+          {SOBERA_CORRECT_ANSWERS.map((correct, index) => {
+            const hit = answers[index] === correct;
+            return (
+              <span
+                key={index}
+                className={`grid h-6 w-6 place-items-center rounded-md text-[11px] font-bold ${
+                  hit
+                    ? "bg-[#a7f600] text-black"
+                    : "bg-white/[0.06] text-zinc-400"
+                }`}
+                title={`Pregunta ${index + 1}: ${hit ? "acertada" : "fallada"}`}
+              >
+                {index + 1}
+              </span>
+            );
+          })}
+        </div>
+      </td>
+      <td className="px-3 py-2 text-zinc-300">
+        {formatAwardCount(attempt.awarded_drop_ids)}
+      </td>
+      <td className="px-3 py-2 text-zinc-400">
+        {formatQuizDate(attempt.completed_at)}
+      </td>
+    </tr>
   );
 }
