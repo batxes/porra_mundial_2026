@@ -105,6 +105,22 @@ export function availablePackIds(userId: string): string[] {
   return ids;
 }
 
+// Un id por-usuario termina en `-<uuid>`. Los compartidos de la era "igual para
+// todos" (p.ej. `daily-2026-06-17`) no.
+const UUID_TAIL =
+  /-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Reconciliación transición: un sobre abierto con id COMPARTIDO (sin uid) cuenta
+// como abierto también en su id por-usuario `<id>-<uid>`. Sin esto, a quien abrió
+// en la era "igual para todos" el contador se lo seguía contando como sin abrir.
+// Igual que el gate de la estantería en cofres-view.
+function withLegacyOpened(opened: Set<string>, uid: string): Set<string> {
+  for (const id of [...opened]) {
+    if (!UUID_TAIL.test(id)) opened.add(`${id}-${uid}`);
+  }
+  return opened;
+}
+
 // Versión SUPABASE (prod): cuenta los sobres que el usuario aún no ha abierto
 // leyendo user_cards (lectura propia por RLS). Async; si algo falla, devuelve el
 // total disponible (mejor sobre-contar que ocultar el banner).
@@ -113,16 +129,20 @@ export async function countUnopenedPacksRemote(
   supabase: { from: (t: string) => any },
   userId: string,
 ): Promise<number> {
+  const uid = userId || "guest";
   const available = availablePackIds(userId);
   try {
     const { data, error } = await supabase
       .from("user_cards")
       .select("drop_id");
     if (error || !data) return available.length;
-    const opened = new Set(
-      (data as Array<{ drop_id?: unknown }>)
-        .map((row) => row.drop_id)
-        .filter((id): id is string => typeof id === "string"),
+    const opened = withLegacyOpened(
+      new Set(
+        (data as Array<{ drop_id?: unknown }>)
+          .map((row) => row.drop_id)
+          .filter((id): id is string => typeof id === "string"),
+      ),
+      uid,
     );
     return available.filter((id) => !opened.has(id)).length;
   } catch {
@@ -153,5 +173,6 @@ export function countUnopenedPacks(userId: string): number {
     const packId = (card as { packId?: unknown })?.packId;
     if (typeof packId === "string") opened.add(packId);
   }
+  withLegacyOpened(opened, uid);
   return available.filter((id) => !opened.has(id)).length;
 }
