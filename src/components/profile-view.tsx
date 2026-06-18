@@ -271,7 +271,8 @@ export function ProfileOptionsView() {
               minLength={2}
               maxLength={40}
               required
-              className="mt-3 w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-base text-white outline-none ring-cyan-400 transition focus:ring-2"
+              disabled
+              className="opacity-50 cursor-not-allowed mt-3 w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-base text-white outline-none ring-cyan-400 transition focus:ring-2"
             />
           </label>
 

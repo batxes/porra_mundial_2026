@@ -745,6 +745,12 @@ function HomeFeedSection({
   upcomingMatches: Match[];
 }) {
   const jornadas = useMemo(() => buildJornadas(results), [results]);
+  const mobileOpenJornadaDate =
+    jornadas.find((jornada) =>
+      jornada.matches.some((item) => item.status === "live"),
+    )?.date ||
+    jornadas[0]?.date ||
+    "";
   const hasContent = upcomingMatches.length > 0 || jornadas.length > 0;
 
   return (
@@ -795,10 +801,13 @@ function HomeFeedSection({
             );
             return (
               <JornadaCard
-                key={jornada.date}
+                key={`${jornada.date}-${
+                  jornada.date === mobileOpenJornadaDate ? "open" : "closed"
+                }`}
                 jornada={jornada}
                 scorers={scorers}
                 currentUserId={currentUserId}
+                defaultOpenMobile={jornada.date === mobileOpenJornadaDate}
                 standings={jornadaGeneralStandings(leaderboard, jornada.date)}
                 userSummary={jornadaUserSummary(
                   leaderboard,
@@ -911,18 +920,21 @@ function UpcomingJornadaCard({
 
 function JornadaCard({
   currentUserId,
+  defaultOpenMobile,
   jornada,
   scorers,
   standings,
   userSummary,
 }: {
   currentUserId: string;
+  defaultOpenMobile: boolean;
   jornada: Jornada;
   scorers: JornadaScorer[];
   standings: Map<string, JornadaGeneralStanding>;
   userSummary: JornadaUserSummary | null;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(defaultOpenMobile);
   const [picksMatch, setPicksMatch] = useState<JornadaMatch | null>(null);
   const [reportScorer, setReportScorer] = useState<{
     profile: UserProfile;
@@ -931,15 +943,53 @@ function JornadaCard({
   const visibleScorers = expanded
     ? scorers
     : scorers.slice(0, jornadaScorersCollapsed);
+  const hasLiveMatch = jornada.matches.some((item) => item.status === "live");
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-white/10 px-4 py-3">
+      <div className="hidden border-b border-white/10 px-4 py-3 sm:block">
         <h3 className="truncate text-sm font-bold text-white first-letter:capitalize">
           {formatDate(jornada.date)}
         </h3>
       </div>
 
+      <button
+        type="button"
+        onClick={() => setMobileOpen((value) => !value)}
+        aria-expanded={mobileOpen}
+        className="flex w-full items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-left transition hover:bg-white/[0.03] sm:hidden"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 16 16"
+            className={`h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform ${
+              mobileOpen ? "rotate-90" : ""
+            }`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M6 4l4 4-4 4" />
+          </svg>
+          <span className="min-w-0 truncate text-sm font-bold text-white first-letter:capitalize">
+            {formatDate(jornada.date)}
+          </span>
+          <span className="shrink-0 text-xs font-medium text-zinc-500">
+            &middot; {jornada.matches.length}
+          </span>
+        </span>
+        {hasLiveMatch ? (
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-2 py-0.5 text-[11px] font-bold text-rose-200">
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
+            En juego
+          </span>
+        ) : null}
+      </button>
+
+      <div className={mobileOpen ? "block" : "hidden sm:block"}>
       <div className="divide-y divide-white/10">
         {jornada.matches.map((item) => (
           <JornadaMatchRow
@@ -949,24 +999,6 @@ function JornadaCard({
           />
         ))}
       </div>
-
-      {picksMatch ? (
-        <MatchPicksModal
-          item={picksMatch}
-          onClose={() => setPicksMatch(null)}
-        />
-      ) : null}
-
-      {reportScorer ? (
-        <JornadaUserReportModal
-          profile={reportScorer.profile}
-          jornadaPoints={reportScorer.points}
-          jornada={jornada}
-          general={standings.get(reportScorer.profile.id)}
-          isCurrentUser={reportScorer.profile.id === currentUserId}
-          onClose={() => setReportScorer(null)}
-        />
-      ) : null}
 
       {scorers.length || userSummary ? (
         <div className="border-t border-white/10 bg-white/[0.015] px-4 py-3">
@@ -1064,6 +1096,25 @@ function JornadaCard({
           Aun nadie ha puntuado en esta jornada.
         </div>
       )}
+      </div>
+
+      {picksMatch ? (
+        <MatchPicksModal
+          item={picksMatch}
+          onClose={() => setPicksMatch(null)}
+        />
+      ) : null}
+
+      {reportScorer ? (
+        <JornadaUserReportModal
+          profile={reportScorer.profile}
+          jornadaPoints={reportScorer.points}
+          jornada={jornada}
+          general={standings.get(reportScorer.profile.id)}
+          isCurrentUser={reportScorer.profile.id === currentUserId}
+          onClose={() => setReportScorer(null)}
+        />
+      ) : null}
     </Card>
   );
 }
@@ -2076,7 +2127,8 @@ function ResultsReminderModal({
             Ahora no
           </button>
           <Link
-            href="/porra?section=results"
+            href="/porra?section=results&goto=next"
+            prefetch={false}
             onClick={onClose}
             className="inline-flex items-center justify-center rounded-lg bg-[#a7f600] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#c7ff43]"
           >
