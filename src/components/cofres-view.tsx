@@ -54,6 +54,7 @@ type ThemedPool =
   | "defensas"
   | "medios"
   | "delanteros";
+type ShelfThemedPool = Extract<ThemedPool, "sub21" | "stars" | "premier">;
 type PackFlap = "green" | "white" | "black" | "navy" | "royal" | "red";
 
 type Pack = {
@@ -296,20 +297,10 @@ const PREMIER_PLAYER_IDS = [
 ];
 
 // Sobres temáticos de la estantería por defecto (tras el diario): Promesas,
-// Estrellas, Premier y los tres sobres por puesto. Mantener los `pool` en sync
-// con SHELF_THEMED_POOLS de cofres.ts.
-const DEFENDER_PLAYER_IDS = data.players
-  .filter((player) => player.position === "DEF")
-  .map((player) => player.id);
-const MIDFIELDER_PLAYER_IDS = data.players
-  .filter((player) => player.position === "MED")
-  .map((player) => player.id);
-const FORWARD_PLAYER_IDS = data.players
-  .filter((player) => player.position === "DEL")
-  .map((player) => player.id);
-
+// Estrellas y Premier. Mantener los `pool` en sync con SHELF_THEMED_POOLS de
+// cofres.ts. Los sobres por puesto existen solo como drops de admin.
 const THEMED_CONFIGS: Array<{
-  pool: ThemedPool;
+  pool: ShelfThemedPool;
   title: string;
   subtitle: string;
   image: string;
@@ -344,46 +335,38 @@ const THEMED_CONFIGS: Array<{
     count: 1,
     ids: PREMIER_PLAYER_IDS,
   },
-  {
-    pool: "defensas",
-    title: "Sobre Defensas",
-    subtitle: "3 defensas aleatorios",
-    image: "/sobre-defensas.webp",
-    flap: "navy",
-    count: 3,
-    ids: DEFENDER_PLAYER_IDS,
-  },
-  {
-    pool: "medios",
-    title: "Sobre Mediocentros",
-    subtitle: "3 medios aleatorios",
-    image: "/sobre-medios.webp",
-    flap: "green",
-    count: 3,
-    ids: MIDFIELDER_PLAYER_IDS,
-  },
-  {
-    pool: "delanteros",
-    title: "Sobre Delanteros",
-    subtitle: "3 delanteros aleatorios",
-    image: "/sobre-delanteros.webp",
-    flap: "red",
-    count: 3,
-    ids: FORWARD_PLAYER_IDS,
-  },
 ];
 
-const PACK_VISUALS = [
-  ...THEMED_CONFIGS,
+const PACK_VISUALS: Array<{
+  title: string;
+  image: string;
+  flap: PackFlap;
+}> = [
+  ...THEMED_CONFIGS.map(({ title, image, flap }) => ({ title, image, flap })),
   {
     title: "Sobre Madrid",
     image: "/sobre-madrid.webp",
-    flap: "white" as PackFlap,
+    flap: "white",
   },
   {
     title: "Sobre Francia",
     image: "/sobre-francia.webp",
-    flap: "royal" as PackFlap,
+    flap: "royal",
+  },
+  {
+    title: "Sobre Defensas",
+    image: "/sobre-defensas.webp",
+    flap: "navy",
+  },
+  {
+    title: "Sobre Mediocentros",
+    image: "/sobre-medios.webp",
+    flap: "green",
+  },
+  {
+    title: "Sobre Delanteros",
+    image: "/sobre-delanteros.webp",
+    flap: "red",
   },
 ];
 

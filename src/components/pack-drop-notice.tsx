@@ -21,9 +21,6 @@ const LAUNCH_ITEMS: PackDropItem[] = [
   { title: "Sobre diario", image: "/sobre.webp", qty: 1 },
   { title: "Sobre Promesas", image: "/sobre21.webp", qty: 1 },
   { title: "Sobre Estrellas", image: "/sobre-estrellas.webp", qty: 1 },
-  { title: "Sobre Defensas", image: "/sobre-defensas.webp", qty: 1 },
-  { title: "Sobre Mediocentros", image: "/sobre-medios.webp", qty: 1 },
-  { title: "Sobre Delanteros", image: "/sobre-delanteros.webp", qty: 1 },
 ];
 
 // Aviso ÚNICO "¡Palanca!": sobre Premier de compensación. No sale si el usuario
