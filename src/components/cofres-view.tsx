@@ -409,12 +409,18 @@ function isAutomaticUserPackId(id: string) {
   return /^(daily|sub21|stars|premier)-\d{4}-\d{2}-\d{2}-/i.test(id);
 }
 
-function isForeignPrivateSoberaDrop(
+// Premios privados POR USUARIO (quiz Sobera y ruleta): solo los ve su dueño.
+// Sin esto, los `special-ruleta-`/`special-sobera-` de otros se colaban en la
+// estantería (y al abrirlos el servidor respondía "Sobre no disponible").
+function isForeignPrivateDrop(
   id: string,
   createdBy: string | null | undefined,
   userId: string,
 ) {
-  return id.startsWith("special-sobera-") && createdBy !== userId;
+  return (
+    (id.startsWith("special-sobera-") || id.startsWith("special-ruleta-")) &&
+    createdBy !== userId
+  );
 }
 
 function storageKey(userId: string, suffix: string) {
@@ -1046,7 +1052,7 @@ export function CofresView() {
           (drop) =>
             drop.id.startsWith("special-") &&
             !isResidualPositionAutoPack(drop.id) &&
-            !isForeignPrivateSoberaDrop(drop.id, drop.created_by, user.id),
+            !isForeignPrivateDrop(drop.id, drop.created_by, user.id),
         )
         .map(packFromDrop),
     );
@@ -1150,7 +1156,7 @@ export function CofresView() {
         readJson<Pack[]>(localSpecialPacksKey, []).filter(
           (pack) =>
             !isResidualPositionAutoPack(pack.id) &&
-            !isForeignPrivateSoberaDrop(pack.id, pack.createdBy, userStorageId),
+            !isForeignPrivateDrop(pack.id, pack.createdBy, userStorageId),
         ),
       );
       setSelectedCardId("");
