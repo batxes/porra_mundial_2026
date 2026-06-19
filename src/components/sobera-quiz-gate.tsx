@@ -25,6 +25,11 @@ type QuizStatusRow = {
 };
 
 type QuizRpcClient = {
+  auth: {
+    getSession: () => Promise<{
+      data: { session: { user?: unknown } | null };
+    }>;
+  };
   rpc: (
     fn: string,
     params?: Record<string, unknown>,
@@ -133,6 +138,14 @@ export function SoberaQuizGate() {
       | QuizRpcClient
       | null;
     if (!supabase) return;
+    // Verifica una sesión REAL (no solo el `user` cacheado): si la sesión de
+    // Supabase no existe/está caducada, no mostramos el quiz (una sesión "zombi"
+    // lo enseñaría y al completarlo fallaría con "No autenticado").
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session?.user) {
+      setOpen(false);
+      return;
+    }
     const { data, error } = await supabase.rpc("sobera_quiz_status");
     if (error) return;
     const status = firstRow<QuizStatusRow>(data);
@@ -149,7 +162,14 @@ export function SoberaQuizGate() {
         !dismissedHere,
     );
     setQuiz(nextQuiz);
-    setOpen(shouldOpen);
+    // No cerramos un modal ya abierto por un refresco (tras completar, el server
+    // marca completed=true y el siguiente poll lo cerraba de golpe). Igual que la
+    // ruleta: solo lo cierra el usuario o que se desactive el quiz.
+    setOpen((prev) => {
+      if (shouldOpen) return true;
+      if (prev && Boolean(status?.active)) return true;
+      return false;
+    });
   }, [ready, usingSupabase, user]);
 
   useEffect(() => {

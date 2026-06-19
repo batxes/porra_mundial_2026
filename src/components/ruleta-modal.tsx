@@ -243,10 +243,12 @@ export function RuletaModal({
         onCompleted?.(spinResult);
       }, SPIN_MS);
     } catch (error) {
-      const msg =
-        error instanceof Error
-          ? error.message
-          : "No se ha podido girar la ruleta.";
+      const raw = error instanceof Error ? error.message : "";
+      // Si el giro falla por sesión (token caducado/zombi), mensaje claro en vez
+      // del crudo "No autenticado".
+      const msg = /autenticad/i.test(raw)
+        ? "Inicia sesión para jugar la ruleta."
+        : raw || "No se ha podido girar la ruleta.";
       setErrorMsg(msg);
       setSpinState("error");
       setPhase("ready");

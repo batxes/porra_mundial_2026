@@ -22,6 +22,11 @@ type RuletaStatusRow = {
 };
 
 type RuletaRpcClient = {
+  auth: {
+    getSession: () => Promise<{
+      data: { session: { user?: unknown } | null };
+    }>;
+  };
   rpc: (
     fn: string,
     params?: Record<string, unknown>,
@@ -81,6 +86,15 @@ export function RuletaGate() {
       | RuletaRpcClient
       | null;
     if (!supabase) return;
+    // Verifica una sesión REAL (no solo el `user` cacheado): si la sesión de
+    // Supabase no existe/está caducada, no mostramos la ruleta. Antes una sesión
+    // "zombi" (usuario cacheado sin token válido) la enseñaba y al girar fallaba
+    // con "No autenticado".
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session?.user) {
+      setOpen(false);
+      return;
+    }
     const { data, error } = await supabase.rpc("ruleta_status");
     if (error) return;
     const status = firstRow<RuletaStatusRow>(data);
