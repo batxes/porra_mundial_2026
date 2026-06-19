@@ -155,9 +155,15 @@ export async function countUnopenedPacksRemote(
       ),
       uid,
     );
+    // Solo nos interesan los sobres automáticos (los de `available`); ignoramos
+    // el resto de drops del usuario (forge-, sobera-, ruleta-…) para no meter
+    // ruido en el set.
     if (!openedDropsError && Array.isArray(openedDrops)) {
+      const availableSet = new Set(available);
       openedDrops.forEach((row: { id?: unknown }) => {
-        if (typeof row.id === "string") opened.add(row.id);
+        if (typeof row.id === "string" && availableSet.has(row.id)) {
+          opened.add(row.id);
+        }
       });
     }
     return available.filter((id) => !opened.has(id)).length;
