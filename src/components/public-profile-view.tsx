@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
+
 import { EmptyState, PredictionSnapshot, PredictionSnapshotSkeleton, PrimaryLink, ProfileScoreCard, ProfileScoreCardSkeleton, SectionHeading } from "@/components/common";
+import { PlayerDetailModal } from "@/components/player-detail-modal";
 import { ProfileFichajes } from "@/components/profile-fichajes";
 import { ProfileJornadaFeed } from "@/components/profile-jornada-feed";
 import { useAppContext } from "@/lib/app-context";
@@ -8,6 +11,7 @@ import { schedule } from "@/lib/data";
 
 export function PublicProfileView({ userId }: { userId: string }) {
   const { adminResults, leaderboard, playerName, ready, user } = useAppContext();
+  const [modalPlayerId, setModalPlayerId] = useState<string | null>(null);
   const profile = leaderboard.find((candidate) => candidate.id === userId) || null;
   const rankingPosition = profile
     ? leaderboard.filter(
@@ -63,7 +67,15 @@ export function PublicProfileView({ userId }: { userId: string }) {
         }
         belowLineup={<ProfileFichajes userId={profile.id} />}
         maskUnstarted={!user || (user.id !== profile.id && !user.isAdmin)}
+        onPlayerClick={setModalPlayerId}
       />
+
+      {modalPlayerId ? (
+        <PlayerDetailModal
+          playerId={modalPlayerId}
+          onClose={() => setModalPlayerId(null)}
+        />
+      ) : null}
     </div>
   );
 }

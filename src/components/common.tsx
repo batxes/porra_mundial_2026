@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAppContext } from "@/lib/app-context";
 import { data, playersById, teamsById } from "@/lib/data";
+import { positionAccent } from "@/lib/position-style";
 import {
   flagUrl,
   formatScheduleDate,
@@ -225,6 +226,40 @@ export function RankNumber({ position }: { position: number }) {
   return (
     <span
       className={`${podium} bg-clip-text text-base font-extrabold text-transparent`}
+    >
+      {position}
+    </span>
+  );
+}
+
+const positionFullLabels: Record<Position, string> = {
+  POR: "Portero",
+  DEF: "Defensa",
+  MED: "Centrocampista",
+  DEL: "Delantero",
+};
+
+// Badge de puesto (POR/DEF/MED/DEL) con el color del puesto, el mismo lenguaje
+// visual que las cartas: `positionAccent` da el color por puesto (oro portero,
+// cian defensa, verde medio, rosa delantero).
+export function PositionBadge({
+  position,
+  className = "",
+}: {
+  position: Position;
+  className?: string;
+}) {
+  const accent = positionAccent[position];
+
+  return (
+    <span
+      title={positionFullLabels[position]}
+      className={`inline-flex shrink-0 select-none items-center rounded-md px-1.5 py-[2px] text-[10px] font-bold uppercase leading-none tracking-[0.06em] ${className}`}
+      style={{
+        color: accent.text,
+        backgroundColor: `rgba(${accent.rgb}, 0.14)`,
+        border: `1px solid rgba(${accent.rgb}, 0.32)`,
+      }}
     >
       {position}
     </span>
@@ -1072,9 +1107,11 @@ const lineupLegendItems = [
 function LineupSnapshot({
   prediction,
   results,
+  onPlayerClick,
 }: {
   prediction: Prediction;
   results?: AdminResults;
+  onPlayerClick?: (playerId: string) => void;
 }) {
   const formation = prediction.xiFormation || "4-3-3";
   const slots = assignPlayersToSlots(prediction.xi, formation);
@@ -1144,6 +1181,7 @@ function LineupSnapshot({
                     key={slot.id}
                     slot={slot}
                     stats={slot.playerId ? stats.get(slot.playerId) : undefined}
+                    onPlayerClick={onPlayerClick}
                   />
                 ))}
               </div>
@@ -1158,9 +1196,11 @@ function LineupSnapshot({
 function LineupSnapshotSlot({
   slot,
   stats,
+  onPlayerClick,
 }: {
   slot: SnapshotLineupSlot;
   stats?: LineupPlayerStats;
+  onPlayerClick?: (playerId: string) => void;
 }) {
   const player = slot.playerId ? playersById.get(slot.playerId) : null;
   const hasStats = Boolean(
@@ -1172,15 +1212,25 @@ function LineupSnapshotSlot({
       stats.reds ||
       stats.missedPens),
   );
+  const avatarClass =
+    "h-9 w-9 rounded-full border-2 border-white bg-white text-xs text-emerald-900 shadow-lg sm:h-11 sm:w-11";
 
   return (
     <div className="mx-auto flex w-12 flex-col items-center gap-0.5 text-center sm:w-[4.5rem]">
       <span className="relative inline-flex">
         {player ? (
-          <PlayerAvatar
-            player={player}
-            className="h-9 w-9 rounded-full border-2 border-white bg-white text-xs text-emerald-900 shadow-lg sm:h-11 sm:w-11"
-          />
+          onPlayerClick ? (
+            <button
+              type="button"
+              onClick={() => onPlayerClick(player.id)}
+              aria-label={`Ver ${player.name}`}
+              className="rounded-full transition hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              <PlayerAvatar player={player} className={avatarClass} />
+            </button>
+          ) : (
+            <PlayerAvatar player={player} className={avatarClass} />
+          )
         ) : (
           <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-700 shadow-[0_0_0_3px_#10b981] sm:h-11 sm:w-11">
             <span className="h-6 w-6 rounded-full border border-emerald-100 bg-emerald-600 sm:h-7 sm:w-7" />
@@ -2523,6 +2573,7 @@ export function PredictionSnapshot({
   maskUnstarted = false,
   results,
   scorecard,
+  onPlayerClick,
 }: {
   bracketLayout?: "responsive" | "mobile";
   editHref?: string;
@@ -2536,6 +2587,7 @@ export function PredictionSnapshot({
   maskUnstarted?: boolean;
   results?: AdminResults;
   scorecard?: Scorecard;
+  onPlayerClick?: (playerId: string) => void;
 }) {
   const maskedUntilTournament = maskUnstarted && !hasTournamentStarted();
   const safePrediction = prediction || emptyPrediction();
@@ -2631,7 +2683,11 @@ export function PredictionSnapshot({
               scorecard={scorecard}
               playerName={playerName}
             />
-            <LineupSnapshot prediction={safePrediction} results={results} />
+            <LineupSnapshot
+              prediction={safePrediction}
+              results={results}
+              onPlayerClick={onPlayerClick}
+            />
             {belowLineup}
           </div>
         </MaskableSection>

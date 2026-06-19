@@ -20,6 +20,7 @@ import {
   ProfileScoreCardSkeleton,
   SectionHeading,
 } from "@/components/common";
+import { PlayerDetailModal } from "@/components/player-detail-modal";
 import { ProfileJornadaFeed } from "@/components/profile-jornada-feed";
 import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
@@ -120,6 +121,7 @@ export function ProfileView() {
     ready,
     user,
   } = useAppContext();
+  const [modalPlayerId, setModalPlayerId] = useState<string | null>(null);
 
   if (!ready) return <ProfileLoading />;
   if (!user) return <UnauthenticatedProfile />;
@@ -165,7 +167,15 @@ export function ProfileView() {
             <ProfileJornadaFeed profile={ownProfile} results={adminResults} />
           ) : undefined
         }
+        onPlayerClick={setModalPlayerId}
       />
+
+      {modalPlayerId ? (
+        <PlayerDetailModal
+          playerId={modalPlayerId}
+          onClose={() => setModalPlayerId(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -35,6 +35,7 @@ import {
   readRankBeforeUpdate,
   subscribeRankDelta,
 } from "@/components/results-recap";
+import { PlayerDetailModal } from "@/components/player-detail-modal";
 import { useAppContext } from "@/lib/app-context";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import {
@@ -96,6 +97,7 @@ export function HomeView() {
     () => calculatePlayerStandings(adminResults, data.players).slice(0, 10),
     [adminResults],
   );
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [homeSaveState, setHomeSaveState] = useState<HomeSaveState>("idle");
   const [reminderMatches, setReminderMatches] = useState<Match[]>([]);
   const rankBeforeUpdate = useSyncExternalStore(
@@ -414,6 +416,7 @@ export function HomeView() {
                     key={row.player.id}
                     row={row}
                     position={index + 1}
+                    onSelect={setSelectedPlayerId}
                   />
                 ))}
               </div>
@@ -427,6 +430,12 @@ export function HomeView() {
           matches={reminderMatches}
           prediction={prediction}
           onClose={() => setReminderMatches([])}
+        />
+      ) : null}
+      {selectedPlayerId ? (
+        <PlayerDetailModal
+          playerId={selectedPlayerId}
+          onClose={() => setSelectedPlayerId(null)}
         />
       ) : null}
     </div>
@@ -2484,12 +2493,18 @@ function LeaderboardRow({
 function TopPlayerRow({
   row,
   position,
+  onSelect,
 }: {
   row: PlayerStandingRow;
   position: number;
+  onSelect: (playerId: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+    <button
+      type="button"
+      onClick={() => onSelect(row.player.id)}
+      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a7f600]"
+    >
       <span
         className="flex w-6 shrink-0 items-center justify-center text-sm font-bold text-zinc-300"
         aria-label={`Puesto ${position}`}
@@ -2513,7 +2528,7 @@ function TopPlayerRow({
         {row.points}
         <span className="ml-0.5 text-xs font-semibold text-zinc-500">pts</span>
       </span>
-    </div>
+    </button>
   );
 }
 

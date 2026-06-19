@@ -9,6 +9,7 @@ import {
   EmptyState,
   LeaderboardRowsSkeleton,
   PlayerAvatar,
+  PositionBadge,
   ProBadge,
   RankNumber,
   SectionHeading,
@@ -17,24 +18,19 @@ import {
   WolfBadge,
 } from "@/components/common";
 import { LeaderboardEvolution } from "@/components/leaderboard-evolution";
+import { PlayerDetailModal } from "@/components/player-detail-modal";
 import { useAppContext } from "@/lib/app-context";
 import { data, teamsById } from "@/lib/data";
+import { buildPlayerOwnersMap } from "@/lib/player-owners";
 import {
   calculatePlayerStandings,
   type PlayerStandingRow,
 } from "@/lib/scoring";
-import type { Position, UserProfile } from "@/lib/types";
+import type { UserProfile } from "@/lib/types";
 
 type LeaderboardFilter = "all" | "pro" | "players" | "wolf";
 
 const PLAYERS_PAGE_SIZE = 25;
-
-const positionLabels: Record<Position, string> = {
-  POR: "Portero",
-  DEF: "Defensa",
-  MED: "Centrocampista",
-  DEL: "Delantero",
-};
 
 function normalizeSearch(value: string) {
   return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -62,6 +58,11 @@ export function LeaderboardView() {
   const playerStandings = useMemo(
     () => calculatePlayerStandings(adminResults, data.players),
     [adminResults],
+  );
+  // Mapa jugador -> participantes que lo tienen en su once (ver player-owners).
+  const playerOwners = useMemo(
+    () => buildPlayerOwnersMap(fullLeaderboard),
+    [fullLeaderboard],
   );
   const visible =
     filter === "pro"
@@ -144,7 +145,7 @@ export function LeaderboardView() {
           <LeaderboardRowsSkeleton rows={8} />
         </Card>
       ) : filter === "players" ? (
-        <PlayerLeaderboard standings={playerStandings} />
+        <PlayerLeaderboard standings={playerStandings} owners={playerOwners} />
       ) : !leaderboard.length ? (
         <EmptyState
           icon="0"
@@ -194,17 +195,48 @@ export function LeaderboardView() {
   );
 }
 
-function PlayerLeaderboard({ standings }: { standings: PlayerStandingRow[] }) {
+function PlayerLeaderboard({
+  standings,
+  owners,
+}: {
+  standings: PlayerStandingRow[];
+  owners: Map<string, UserProfile[]>;
+}) {
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PLAYERS_PAGE_SIZE);
+  const [selected, setSelected] = useState<string | null>(null);
 
   const normalized = normalizeSearch(query.trim());
+  const searchableStandings = useMemo(() => {
+    if (!normalized) return standings;
+
+    const scoredRows = new Map(
+      standings.map((row) => [row.player.id, row] as const),
+    );
+
+    return data.players
+      .map(
+        (player) =>
+          scoredRows.get(player.id) || {
+            player,
+            points: 0,
+            goals: 0,
+            mvps: 0,
+          },
+      )
+      .sort(
+        (a, b) =>
+          b.points - a.points ||
+          b.goals - a.goals ||
+          a.player.name.localeCompare(b.player.name),
+      );
+  }, [normalized, standings]);
   const filtered = normalized
-    ? standings.filter(({ player }) => {
+    ? searchableStandings.filter(({ player }) => {
         const team = teamsById.get(player.team)?.name || "";
         return normalizeSearch(`${player.name} ${team}`).includes(normalized);
       })
-    : standings;
+    : searchableStandings;
   const visible = filtered.slice(0, limit);
 
   if (!standings.length) {
@@ -258,6 +290,8 @@ function PlayerLeaderboard({ standings }: { standings: PlayerStandingRow[] }) {
                 key={row.player.id}
                 row={row}
                 position={rankFor(filtered, index)}
+                owners={owners.get(row.player.id)}
+                onSelect={setSelected}
               />
             ))}
           </div>
@@ -272,6 +306,13 @@ function PlayerLeaderboard({ standings }: { standings: PlayerStandingRow[] }) {
           ) : null}
         </Card>
       )}
+
+      {selected ? (
+        <PlayerDetailModal
+          playerId={selected}
+          onClose={() => setSelected(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -279,14 +320,20 @@ function PlayerLeaderboard({ standings }: { standings: PlayerStandingRow[] }) {
 function PlayerRankRow({
   row,
   position,
+  owners,
+  onSelect,
 }: {
   row: PlayerStandingRow;
   position: number;
+  owners?: UserProfile[];
+  onSelect: (playerId: string) => void;
 }) {
-  const teamName = teamsById.get(row.player.team)?.name || "Sin país";
-
   return (
-    <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
+    <button
+      type="button"
+      onClick={() => onSelect(row.player.id)}
+      className="grid w-full grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left transition hover:bg-white/5"
+    >
       <span
         className="flex h-8 w-8 items-center justify-center text-sm font-bold text-zinc-300"
         aria-label={`Puesto ${position}`}
@@ -296,34 +343,17 @@ function PlayerRankRow({
       <span className="flex min-w-0 items-center gap-3">
         <PlayerAvatar player={row.player} className="size-10! text-xs" />
         <span className="min-w-0">
-          <strong className="block truncate text-sm text-white">
-            {row.player.name}
-          </strong>
-          <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-zinc-500">
+          <span className="flex min-w-0 items-center gap-2">
             <TeamFlag
               teamId={row.player.team}
-              className="h-3.5 w-[18px] rounded-sm"
+              className="h-3.5 w-[18px] shrink-0 rounded-sm"
             />
-            <span className="truncate">{teamName}</span>
-            <span>·</span>
-            <span className="whitespace-nowrap">
-              {positionLabels[row.player.position]}
-            </span>
-            {row.goals > 0 ? (
-              <>
-                <span>·</span>
-                <span className="whitespace-nowrap">
-                  {row.goals} {row.goals === 1 ? "gol" : "goles"}
-                </span>
-              </>
-            ) : null}
-            {row.mvps > 0 ? (
-              <>
-                <span>·</span>
-                <span className="whitespace-nowrap">{row.mvps} MVP</span>
-              </>
-            ) : null}
+            <strong className="min-w-0 truncate text-sm text-white">
+              {row.player.name}
+            </strong>
+            <PositionBadge position={row.player.position} />
           </span>
+          {owners?.length ? <OwnersStack owners={owners} /> : null}
         </span>
       </span>
       <span className="text-right">
@@ -332,7 +362,39 @@ function PlayerRankRow({
         </strong>
         <span className="text-xs font-semibold text-zinc-500">pts</span>
       </span>
-    </div>
+    </button>
+  );
+}
+
+const OWNERS_AVATAR_LIMIT = 6;
+
+// Avatares apilados de los participantes que tienen al futbolista en su once.
+// Es solo un adelanto visual; la lista completa esta en el modal de detalle.
+function OwnersStack({ owners }: { owners: UserProfile[] }) {
+  const shown = owners.slice(0, OWNERS_AVATAR_LIMIT);
+  const extra = owners.length - shown.length;
+
+  return (
+    <span className="mt-1.5 flex items-center gap-2">
+      <span className="flex -space-x-2">
+        {shown.map((owner) => (
+          <Avatar
+            key={owner.id}
+            name={owner.name}
+            avatarUrl={owner.avatarUrl}
+            className="size-6! text-[9px]! ring-2 ring-zinc-900"
+          />
+        ))}
+        {extra > 0 ? (
+          <span className="z-10 flex size-6 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[9px] font-bold text-zinc-200 ring-2 ring-zinc-900">
+            +{extra}
+          </span>
+        ) : null}
+      </span>
+      <span className="text-xs font-semibold text-zinc-400">
+        {owners.length} {owners.length === 1 ? "lo tiene" : "lo tienen"}
+      </span>
+    </span>
   );
 }
 

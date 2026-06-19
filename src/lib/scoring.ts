@@ -507,3 +507,112 @@ export function calculatePlayerStandings(adminResults: AdminResults, allPlayers:
     (a, b) => b.points - a.points || b.goals - a.goals || a.player.name.localeCompare(b.player.name),
   );
 }
+
+export type PlayerBreakdownItem = {
+  ruleCode: string;
+  count: number;
+  pointsEach: number;
+  points: number;
+};
+
+export type PlayerBreakdownMatchEvent = {
+  ruleCode: string;
+  minute: number | string;
+  points: number;
+};
+
+export type PlayerBreakdownMatch = {
+  matchNumber: number;
+  opponentTeamId: string;
+  points: number;
+  events: PlayerBreakdownMatchEvent[];
+};
+
+export type PlayerBreakdown = {
+  total: number;
+  goals: number;
+  mvps: number;
+  items: PlayerBreakdownItem[];
+  matches: PlayerBreakdownMatch[];
+};
+
+// Orden estable de los tipos de evento en el desglose (goles primero, sanciones
+// al final), independiente de en que partido caigan.
+const breakdownOrder = [
+  "player_goal",
+  "player_penalty_goal",
+  "player_match_mvp",
+  "player_penalty_save",
+  "player_penalty_miss",
+  "player_red_card",
+];
+
+// Desglose de los puntos de UN futbolista: de donde salen (por tipo de evento,
+// con los goles ya ponderados por puesto) y partido a partido. Misma logica de
+// puntuacion que calculatePlayerStandings, filtrada a un jugador.
+export function calculatePlayerBreakdown(
+  player: Player,
+  adminResults: AdminResults,
+): PlayerBreakdown {
+  const items = new Map<string, PlayerBreakdownItem>();
+  const matches: PlayerBreakdownMatch[] = [];
+  let total = 0;
+  let goals = 0;
+  let mvps = 0;
+
+  Object.entries(adminResults || {}).forEach(([key, result]) => {
+    const matchEvents: PlayerBreakdownMatchEvent[] = [];
+    let matchPoints = 0;
+
+    (result.events || []).forEach((event) => {
+      if (event.playerId !== player.id) return;
+      const rule = eventRules[String(event.type) as keyof typeof eventRules];
+      if (!rule) return;
+
+      const points =
+        rule.ruleCode === "player_goal"
+          ? goalPointsByPosition[player.position]
+          : rule.points;
+
+      total += points;
+      matchPoints += points;
+      if (rule.ruleCode === "player_goal" || rule.ruleCode === "player_penalty_goal") goals += 1;
+      if (rule.ruleCode === "player_match_mvp") mvps += 1;
+
+      matchEvents.push({ ruleCode: rule.ruleCode, minute: event.minute, points });
+
+      const item = items.get(rule.ruleCode) || {
+        ruleCode: rule.ruleCode,
+        count: 0,
+        pointsEach: points,
+        points: 0,
+      };
+      item.count += 1;
+      item.points += points;
+      item.pointsEach = points;
+      items.set(rule.ruleCode, item);
+    });
+
+    if (matchEvents.length) {
+      const matchNumber = Number(key);
+      const homeTeamId = result.homeTeamId || "";
+      const opponentTeamId =
+        homeTeamId === player.team ? result.awayTeamId || "" : homeTeamId;
+      matches.push({
+        matchNumber: Number.isFinite(matchNumber) ? matchNumber : 0,
+        opponentTeamId,
+        points: matchPoints,
+        events: matchEvents,
+      });
+    }
+  });
+
+  const sortedItems = Array.from(items.values()).sort(
+    (a, b) =>
+      breakdownOrder.indexOf(a.ruleCode) - breakdownOrder.indexOf(b.ruleCode) ||
+      b.points - a.points,
+  );
+  matches.sort((a, b) => a.matchNumber - b.matchNumber);
+
+  return { total, goals, mvps, items: sortedItems, matches };
+}
