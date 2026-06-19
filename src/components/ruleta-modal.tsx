@@ -275,14 +275,8 @@ export function RuletaModal({
           className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-[#a7f600]"
         />
 
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Cerrar ruleta"
-          className="absolute right-3 top-3 z-40 grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/[0.08] text-sm font-black leading-none text-zinc-200 transition hover:bg-white/[0.14] hover:text-white"
-        >
-          x
-        </button>
+        {/* Sin botón X: la ruleta se juega; se cierra al terminar con el botón
+            de resultado ("Abrir en cofres" / "Cerrar"). */}
 
         {/* Cabecera */}
         <div className="relative z-10 flex flex-col items-center px-5 pt-5 text-center">
