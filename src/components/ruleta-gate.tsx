@@ -97,7 +97,16 @@ export function RuletaGate() {
         !dismissedHere,
     );
     setRuleta(nextRuleta);
-    setOpen(shouldOpen);
+    // Un refresco de estado (intervalo/foco) NO debe cerrar un modal ya abierto:
+    // tras girar, el servidor marca completed=true y el siguiente poll lo
+    // desmontaba de golpe, cortando el premio. Abrimos cuando toca; si ya está
+    // abierto, lo mantenemos mientras la ruleta siga activa (lo cierra el usuario
+    // con closeModal/onOpenPacks, o se cierra si el admin pausa la ruleta).
+    setOpen((prev) => {
+      if (shouldOpen) return true;
+      if (prev && Boolean(status?.active)) return true;
+      return false;
+    });
   }, [ready, usingSupabase, user]);
 
   useEffect(() => {
