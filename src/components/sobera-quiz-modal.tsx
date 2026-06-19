@@ -233,7 +233,7 @@ export function SoberaQuizModal({
       aria-modal="true"
       aria-labelledby="sobera-quiz-title"
     >
-      <div className="relative grid w-full max-w-xl overflow-hidden rounded-2xl border border-amber-300/25 bg-[#080808] shadow-2xl shadow-black/70">
+      <div className="theme-dark relative grid w-full max-w-xl overflow-hidden rounded-2xl border border-amber-300/25 bg-[#080808] shadow-2xl shadow-black/70">
         <button
           type="button"
           onClick={onClose}

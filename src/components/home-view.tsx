@@ -2235,7 +2235,7 @@ function SobresPromoBanner({ userId }: { userId: string }) {
     <Link
       href="/cofres"
       style={{ borderColor: "rgba(255,255,255,0.22)" }}
-      className="group relative flex items-center gap-4 overflow-hidden rounded-sm border bg-[#0c0a04] px-6 py-4 sm:gap-6 sm:px-8 sm:py-5"
+      className="theme-dark group relative flex items-center gap-4 overflow-hidden rounded-sm border bg-[#0c0a04] px-6 py-4 sm:gap-6 sm:px-8 sm:py-5"
     >
       <span
         aria-hidden
