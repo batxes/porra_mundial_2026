@@ -405,6 +405,10 @@ function isResidualPositionAutoPack(id: string) {
   );
 }
 
+function isAutomaticUserPackId(id: string) {
+  return /^(daily|sub21|stars|premier)-\d{4}-\d{2}-\d{2}-/i.test(id);
+}
+
 function isForeignPrivateSoberaDrop(
   id: string,
   createdBy: string | null | undefined,
@@ -573,11 +577,14 @@ function cardFromRemote(row: {
   const drop = Array.isArray(row.card_drops)
     ? row.card_drops[0]
     : row.card_drops;
+  const fallbackTitle = row.drop_id.startsWith("forge-")
+    ? "Forja"
+    : row.drop_id;
   return {
     id: String(row.card_id || row.id || crypto.randomUUID()),
     playerId: row.player_id,
     packId: row.drop_id,
-    packTitle: drop?.label || row.drop_id,
+    packTitle: drop?.label || fallbackTitle,
     acquiredAt: row.created_at || new Date().toISOString(),
     usedAt: row.used_at,
     remote: true,
@@ -973,6 +980,7 @@ export function CofresView() {
       { data: drops, error: dropsError },
       { data: cards, error: cardsError },
       { data: swaps },
+      { data: openedDrops },
     ] = await Promise.all([
       supabase
         .from("card_drops")
@@ -1002,6 +1010,12 @@ export function CofresView() {
         )
         .order("created_at", { ascending: false })
         .limit(20),
+      supabase
+        .from("card_drops")
+        .select("id")
+        .eq("created_by", user.id)
+        .lte("available_at", new Date().toISOString())
+        .limit(500),
     ]);
 
     if (dropsError || cardsError) {
@@ -1047,6 +1061,22 @@ export function CofresView() {
           card_drops?: { label?: string } | Array<{ label?: string }> | null;
         }>
       ).map(cardFromRemote),
+    );
+    setOpenedPackIds(
+      [
+        ...new Set(
+          (
+            (openedDrops || []) as Array<{
+              id?: unknown;
+            }>
+          )
+            .map((row) => row.id)
+            .filter(
+              (id): id is string =>
+                typeof id === "string" && isAutomaticUserPackId(id),
+            ),
+        ),
+      ],
     );
     setSwapLog(
       (
@@ -1467,16 +1497,23 @@ export function CofresView() {
     forgeCardsInStorage,
   ]);
 
-  // Confirma la forja (al cerrar el revelado): quita las 4 cartas del inventario
-  // y mete la legendaria, limpia la selección y lleva a la colección.
+  // Confirma la forja (al cerrar el revelado): marca las 4 cartas como usadas
+  // y mete la legendaria. No las borramos: conservar su packId evita que el
+  // sobre original vuelva a aparecer como sin abrir al refrescar.
   const finishForge = useCallback(() => {
     if (!forgeActive) return;
-    const removeIds = new Set(forgeActive.inputs.map((card) => card.id));
+    const consumedIds = new Set(forgeActive.inputs.map((card) => card.id));
     const { resultCard } = forgeActive;
-    setInventory((current) => [
-      resultCard,
-      ...current.filter((card) => !removeIds.has(card.id)),
-    ]);
+    const consumedAt = new Date().toISOString();
+    setInventory((current) => {
+      const existingIds = new Set(current.map((card) => card.id));
+      const next = current.map((card) =>
+        consumedIds.has(card.id)
+          ? { ...card, usedAt: card.usedAt || consumedAt }
+          : card,
+      );
+      return existingIds.has(resultCard.id) ? next : [resultCard, ...next];
+    });
     setForgeSelection([]);
     setNewCardIds([resultCard.id]);
     setForgeActive(null);
@@ -1485,8 +1522,8 @@ export function CofresView() {
     setQuery("");
     setPositionFilter("all");
     if (usingSupabase && user) {
-      // Reconcilia con el servidor (fuente de verdad): el RPC ya consumió las 4
-      // y creó la legendaria. El setInventory de arriba da feedback instantáneo;
+      // Reconcilia con el servidor (fuente de verdad): el RPC ya marcó como
+      // usadas las 4 y creó la legendaria. El setInventory de arriba da feedback instantáneo;
       // esto garantiza que el inventario quede idéntico a la BBDD.
       void loadSupabaseCards();
       notifyCardsChanged();
@@ -1818,11 +1855,11 @@ export function CofresView() {
                       {unusedCards.length
                         ? `${unusedCards.length} sin usar${
                             usedCards.length
-                              ? ` · ${usedCards.length} en tu once`
+                              ? ` · ${usedCards.length} usadas`
                               : ""
                           }`
                         : usedCards.length
-                          ? `${usedCards.length} en tu once`
+                          ? `${usedCards.length} usadas`
                           : "Tu colección está vacía"}
                     </p>
                   </div>
@@ -2015,7 +2052,7 @@ export function CofresView() {
                             points={pointsFor(card.playerId)}
                           />
                           <span className="absolute left-2 top-2 rounded-md border border-[#a7f600]/30 bg-[#a7f600]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#a7f600]">
-                            En el once
+                            Usada
                           </span>
                         </div>
                       ))}

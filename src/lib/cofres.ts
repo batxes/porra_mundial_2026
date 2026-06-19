@@ -139,9 +139,13 @@ export async function countUnopenedPacksRemote(
   const uid = userId || "guest";
   const available = availablePackIds(userId);
   try {
-    const { data, error } = await supabase
-      .from("user_cards")
-      .select("drop_id");
+    const [
+      { data, error },
+      { data: openedDrops, error: openedDropsError },
+    ] = await Promise.all([
+      supabase.from("user_cards").select("drop_id"),
+      supabase.from("card_drops").select("id").eq("created_by", uid),
+    ]);
     if (error || !data) return available.length;
     const opened = withLegacyOpened(
       new Set(
@@ -151,6 +155,11 @@ export async function countUnopenedPacksRemote(
       ),
       uid,
     );
+    if (!openedDropsError && Array.isArray(openedDrops)) {
+      openedDrops.forEach((row: { id?: unknown }) => {
+        if (typeof row.id === "string") opened.add(row.id);
+      });
+    }
     return available.filter((id) => !opened.has(id)).length;
   } catch {
     return available.length;
