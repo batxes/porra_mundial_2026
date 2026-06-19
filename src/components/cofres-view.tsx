@@ -2060,6 +2060,7 @@ export function CofresView() {
             pointsFor={pointsFor}
             onToggle={toggleForgeCard}
             onForge={() => void startForge()}
+            onShowIntro={() => setShowForjaIntro(true)}
             hydrated={hydrated && inventoryReady}
           />
         </section>
@@ -2192,6 +2193,7 @@ function ForgePanel({
   hydrated,
   inputs,
   onForge,
+  onShowIntro,
   onToggle,
   pointsFor,
   samePosition,
@@ -2201,6 +2203,7 @@ function ForgePanel({
   hydrated: boolean;
   inputs: InventoryCard[];
   onForge: () => void;
+  onShowIntro: () => void;
   onToggle: (cardId: string) => void;
   pointsFor: (playerId: string) => number;
   samePosition: Position | null;
@@ -2233,9 +2236,20 @@ function ForgePanel({
   return (
     <Card className="space-y-6">
       <div className="space-y-1 text-center">
-        <h2 className="text-xl font-bold tracking-tight text-white">
-          Forja una legendaria
-        </h2>
+        <div className="flex items-center justify-center gap-2">
+          <h2 className="text-xl font-bold tracking-tight text-white">
+            Forja una legendaria
+          </h2>
+          <button
+            type="button"
+            onClick={onShowIntro}
+            aria-label="Cómo funciona la forja"
+            title="Cómo funciona"
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#f7c84a]/30 bg-[#f7c84a]/10 text-sm font-bold text-[#f7c84a] transition hover:bg-[#f7c84a]/20"
+          >
+            ?
+          </button>
+        </div>
         <p className="mx-auto max-w-md text-sm text-zinc-400">
           Funde 4 cartas en 1 de máxima rareza. Si las 4 son del mismo puesto,
           la legendaria saldrá de ese puesto.
