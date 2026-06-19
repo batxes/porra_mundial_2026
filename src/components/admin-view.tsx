@@ -20,6 +20,7 @@ import {
   WolfBadge,
 } from "@/components/common";
 import { AdminDropTab } from "@/components/admin-drop-tab";
+import { AdminMaintenanceTab } from "@/components/admin-maintenance-tab";
 import { AdminRuletaTab } from "@/components/admin-ruleta-tab";
 import { PlayerSearchModal } from "@/components/player-search-modal";
 import { toDbEventType, useAppContext } from "@/lib/app-context";
@@ -28,7 +29,13 @@ import { translateSlot } from "@/lib/format";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import type { AdminEvent, ProviderSummary, UserProfile } from "@/lib/types";
 
-type AdminTab = "partidos" | "usuarios" | "sobres" | "ruleta" | "proveedor";
+type AdminTab =
+  | "partidos"
+  | "usuarios"
+  | "sobres"
+  | "ruleta"
+  | "proveedor"
+  | "mantenimiento";
 
 const adminTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "partidos", label: "Resultados y eventos" },
@@ -36,6 +43,7 @@ const adminTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "sobres", label: "Sobres" },
   { id: "ruleta", label: "Ruleta" },
   { id: "proveedor", label: "API externa" },
+  { id: "mantenimiento", label: "Mantenimiento" },
 ];
 
 export function AdminView() {
@@ -485,6 +493,12 @@ export function AdminView() {
       {activeTab === "ruleta" ? (
         <Card className="space-y-4">
           <AdminRuletaTab />
+        </Card>
+      ) : null}
+
+      {activeTab === "mantenimiento" ? (
+        <Card className="space-y-4">
+          <AdminMaintenanceTab />
         </Card>
       ) : null}
 

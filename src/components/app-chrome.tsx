@@ -144,11 +144,113 @@ function useUnopenedPackCount(userId: string | null, usingSupabase: boolean) {
   return packCount?.userId === userId ? packCount.count : null;
 }
 
+type MaintenanceState = {
+  maintenance: boolean;
+  message: string | null;
+  loaded: boolean;
+};
+
+// Lee el modo mantenimiento (RPC público) al montar y al volver a foco. En modo
+// demo (sin Supabase) nunca hay mantenimiento.
+function useMaintenance(usingSupabase: boolean): MaintenanceState {
+  const [state, setState] = useState<MaintenanceState>(() => ({
+    maintenance: false,
+    message: null,
+    // En modo demo (sin Supabase) no hay nada que cargar: el estado ya está
+    // resuelto (sin mantenimiento). Con Supabase, lo resuelve el efecto.
+    loaded: !usingSupabase,
+  }));
+
+  useEffect(() => {
+    // Sin Supabase no hay mantenimiento: el default (maintenance:false) ya hace
+    // que el gate no bloquee, así que no tocamos el estado (evita setState
+    // síncrono en el efecto).
+    if (!usingSupabase) return;
+    const supabase = getSupabaseBrowserClient() as unknown as {
+      rpc: (
+        fn: string,
+        params?: Record<string, unknown>,
+      ) => Promise<{ data: unknown; error: unknown }>;
+    } | null;
+    if (!supabase) return;
+    let active = true;
+    const read = () => {
+      void supabase
+        .rpc("maintenance_status")
+        .then(({ data }) => {
+          if (!active) return;
+          const row = (Array.isArray(data) ? data[0] : data) as {
+            maintenance?: boolean;
+            maintenance_message?: string | null;
+          } | null;
+          setState({
+            maintenance: Boolean(row?.maintenance),
+            message: row?.maintenance_message ?? null,
+            loaded: true,
+          });
+        })
+        .catch(() => {
+          if (active) setState((current) => ({ ...current, loaded: true }));
+        });
+    };
+    const timer = window.setTimeout(read, 0);
+    const onFocus = () => read();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [usingSupabase]);
+
+  return state;
+}
+
+// Pantalla que ven los usuarios (no-admin) con el mantenimiento activo.
+function MaintenanceScreen({ message }: { message: string | null }) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center text-white">
+      <Image
+        src="/logo.png"
+        alt=""
+        width={72}
+        height={72}
+        className="h-16 w-16 object-contain"
+        priority
+      />
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold tracking-tight">
+          Estamos en mantenimiento
+        </h1>
+        <p className="max-w-md text-sm text-zinc-400">
+          {message ||
+            "Estamos haciendo ajustes en la Triliporra. Volvemos enseguida."}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="rounded-lg bg-[#a7f600] px-5 py-2.5 text-sm font-bold text-black transition hover:bg-[#c7ff43]"
+      >
+        Reintentar
+      </button>
+    </div>
+  );
+}
+
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { ready, setAuthMode, usingSupabase, user } = useAppContext();
   const [authOpen, setAuthOpen] = useState(false);
   const unopenedPackCount = useUnopenedPackCount(user?.id || null, usingSupabase);
+  const maintenance = useMaintenance(usingSupabase);
+
+  // Con mantenimiento activo, todos menos el admin ven la pantalla de
+  // mantenimiento. Gateamos con `ready` (sabemos ya si eres admin) para no
+  // bloquear al admin durante la carga de sesión.
+  if (maintenance.loaded && maintenance.maintenance && ready && !user?.isAdmin) {
+    return <MaintenanceScreen message={maintenance.message} />;
+  }
 
   return (
     // Los modales globales van fuera del shell: `.app-shell > *` fuerza
@@ -158,6 +260,12 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         {!usingSupabase ? (
         <div className="bg-amber-400 px-4 py-1.5 text-center text-xs font-bold text-black">
           Modo demo · los datos se guardan solo en este navegador (localStorage)
+        </div>
+      ) : null}
+      {usingSupabase && maintenance.maintenance && user?.isAdmin ? (
+        <div className="bg-rose-600 px-4 py-1.5 text-center text-xs font-bold text-white">
+          Mantenimiento ACTIVO · solo tú (admin) ves la web. Los demás ven la
+          pantalla de mantenimiento.
         </div>
       ) : null}
       <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#0d0d0d]/86 backdrop-blur">
