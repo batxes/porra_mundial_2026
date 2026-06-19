@@ -46,6 +46,14 @@ const PackOpeningOverlay = dynamic(
   { ssr: false },
 );
 
+const CardUpgradeOverlay = dynamic(
+  () =>
+    import("@/components/card-upgrade-overlay").then(
+      (mod) => mod.CardUpgradeOverlay,
+    ),
+  { ssr: false },
+);
+
 type PackKind = "daily" | "special";
 type ThemedPool =
   | "madrid"
@@ -257,6 +265,8 @@ const localSpecialPacksKey = "porra26_card_special_packs";
 // que los intros de la porra). El botón "?" de la cabecera lo reabre cuando
 // quieras.
 const cofresIntroStorageKey = "porra26_cofres_intro_seen";
+// Tutorial de la pestaña Forja: se muestra la primera vez que entras en ella.
+const forjaIntroStorageKey = "porra26_forja_intro_seen";
 
 // Sobre "Promesas sub-21": 1 carta de un joven crack. Lista CURADA por id (el
 // dataset no trae edad/fecha de nacimiento). Si cambia, este es el ÚNICO sitio.
@@ -598,11 +608,20 @@ export function CofresView() {
   const [inventoryTab, setInventoryTab] = useState<"unused" | "used">("unused");
   // Tab de página (arriba, tras el título): los sobres (hero + colección) o el
   // feed de swaps de la comunidad.
-  const [pageTab, setPageTab] = useState<"sobres" | "swaps">(() => {
-    if (typeof window === "undefined") return "sobres";
-    const tab = new URLSearchParams(window.location.search).get("tab");
-    return tab === "swaps" ? "swaps" : "sobres";
-  });
+  // Inicial "sobres" SIEMPRE (igual en SSR y en el primer render del cliente)
+  // para no romper la hidratación; la pestaña de la URL (?tab=swaps/forja) se
+  // aplica tras montar (efecto de abajo). Antes el initializer leía la URL solo
+  // en cliente → mismatch de aria-pressed en los botones de pestaña.
+  const [pageTab, setPageTab] = useState<"sobres" | "swaps" | "forja">(
+    "sobres",
+  );
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const tab = new URLSearchParams(window.location.search).get("tab");
+      if (tab === "swaps" || tab === "forja") setPageTab(tab);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
   const [swapQuery, setSwapQuery] = useState("");
   const [swapsMineOnly, setSwapsMineOnly] = useState(false);
   const [newCardIds, setNewCardIds] = useState<string[]>([]);
@@ -646,10 +665,22 @@ export function CofresView() {
     outPlayerId: string;
   } | null>(null);
   const [swapBusy, setSwapBusy] = useState(false);
+  // Forja (upgrade): selección de hasta 4 cartas comunes a fundir, estado del
+  // botón y la fusión en curso (cartas de entrada + carta legendaria forjada
+  // que el overlay revela). `forgeActive` no nulo => overlay abierto.
+  const [forgeSelection, setForgeSelection] = useState<string[]>([]);
+  const [forgeBusy, setForgeBusy] = useState(false);
+  const [forgeActive, setForgeActive] = useState<{
+    inputs: InventoryCard[];
+    resultCard: InventoryCard;
+  } | null>(null);
   // Tutorial de bienvenida (primera visita). `introQueuedRef` evita que el
   // efecto lo vuelva a encolar tras cerrarlo en la misma sesión.
   const [showIntro, setShowIntro] = useState(false);
   const introQueuedRef = useRef(false);
+  // Tutorial de la Forja (primera vez que abres esa pestaña).
+  const [showForjaIntro, setShowForjaIntro] = useState(false);
+  const forjaIntroQueuedRef = useRef(false);
 
   const userStorageId = user?.id || "guest";
   const inventoryKey = storageKey(userStorageId, "inventory");
@@ -778,6 +809,27 @@ export function CofresView() {
   const selectedPlayer = selectedCard
     ? playersById.get(selectedCard.playerId)
     : null;
+  // Forja: se puede fundir CUALQUIER carta sin usar (comunes o legendarias; 4
+  // legendarias → otra legendaria). El premio siempre es legendaria.
+  const forgeableCards = unusedCards;
+  // Cartas seleccionadas, resueltas a InventoryCard y filtradas a las que aún
+  // existen y siguen siendo forjables (si una se usa/desaparece, se cae sola).
+  const forgeInputs = useMemo(() => {
+    const byId = new Map(forgeableCards.map((card) => [card.id, card]));
+    return forgeSelection
+      .map((id) => byId.get(id))
+      .filter((card): card is InventoryCard => Boolean(card));
+  }, [forgeSelection, forgeableCards]);
+  // Puesto común de las 4 entradas (null si están mezcladas o no hay 4).
+  const forgeSamePosition = useMemo<Position | null>(() => {
+    if (forgeInputs.length !== 4) return null;
+    const positions = new Set(
+      forgeInputs
+        .map((card) => playersById.get(card.playerId)?.position)
+        .filter((position): position is Position => Boolean(position)),
+    );
+    return positions.size === 1 ? ([...positions][0] as Position) : null;
+  }, [forgeInputs]);
   // Feed de swaps filtrado: "Míos" (por userId) + buscador por nombre.
   const filteredSwaps = useMemo(() => {
     const q = normalizeSearch(swapQuery.trim());
@@ -980,11 +1032,7 @@ export function CofresView() {
           (drop) =>
             drop.id.startsWith("special-") &&
             !isResidualPositionAutoPack(drop.id) &&
-            !isForeignPrivateSoberaDrop(
-              drop.id,
-              drop.created_by,
-              user.id,
-            ),
+            !isForeignPrivateSoberaDrop(drop.id, drop.created_by, user.id),
         )
         .map(packFromDrop),
     );
@@ -1072,11 +1120,7 @@ export function CofresView() {
         readJson<Pack[]>(localSpecialPacksKey, []).filter(
           (pack) =>
             !isResidualPositionAutoPack(pack.id) &&
-            !isForeignPrivateSoberaDrop(
-              pack.id,
-              pack.createdBy,
-              userStorageId,
-            ),
+            !isForeignPrivateSoberaDrop(pack.id, pack.createdBy, userStorageId),
         ),
       );
       setSelectedCardId("");
@@ -1317,6 +1361,144 @@ export function CofresView() {
     ],
   );
 
+  // Añade/quita una carta de la selección de la forja (tope de 4).
+  const toggleForgeCard = useCallback((cardId: string) => {
+    setForgeSelection((current) => {
+      if (current.includes(cardId))
+        return current.filter((id) => id !== cardId);
+      if (current.length >= 4) return current;
+      return [...current, cardId];
+    });
+  }, []);
+
+  // Resuelve la carta forjada: en prod la decide el servidor (RPC, que también
+  // consume las 4 y guarda la nueva); en local/demo se calcula igual que el SQL
+  // (mismo puesto → legendaria de ese puesto; mezcla → aleatoria).
+  const forgeCardsInStorage = useCallback(
+    async (
+      cardIds: string[],
+      inputs: InventoryCard[],
+    ): Promise<InventoryCard> => {
+      if (usingSupabase && user) {
+        const supabase = getSupabaseBrowserClient() as SupabaseLike | null;
+        if (!supabase)
+          throw new Error("No se ha podido conectar con Supabase.");
+        const { data: rows, error } = await supabase.rpc("apply_card_upgrade", {
+          p_card_ids: cardIds,
+        });
+        if (error) throw new Error(error.message);
+        const row = (
+          (rows || []) as Array<{
+            card_id: string;
+            drop_id: string;
+            card_index?: number;
+            player_id: string;
+            used_at?: string | null;
+            created_at?: string;
+          }>
+        )[0];
+        if (!row) throw new Error("La forja no ha devuelto ninguna carta.");
+        return cardFromRemote({ ...row, card_drops: { label: "Forja" } });
+      }
+
+      const positions = new Set(
+        inputs
+          .map((card) => playersById.get(card.playerId)?.position)
+          .filter((position): position is Position => Boolean(position)),
+      );
+      const samePosition = positions.size === 1 ? [...positions][0] : null;
+      const pool = samePosition
+        ? STAR_PLAYER_IDS.filter(
+            (id) => playersById.get(id)?.position === samePosition,
+          )
+        : STAR_PLAYER_IDS;
+      const candidates = pool.length ? pool : STAR_PLAYER_IDS;
+      const resultPlayerId =
+        candidates[Math.floor(Math.random() * candidates.length)];
+      const id = `forge-${crypto.randomUUID()}`;
+      return {
+        id,
+        playerId: resultPlayerId,
+        packId: id,
+        packTitle: "Forja",
+        acquiredAt: new Date().toISOString(),
+        usedAt: null,
+        remote: false,
+      };
+    },
+    [usingSupabase, user],
+  );
+
+  // Lanza la forja: valida las 4 entradas, pide/forja la carta y abre el
+  // overlay. NO toca el inventario aún (lo hace finishForge al revelar), igual
+  // que el sobre. En prod el RPC ya ha consumido/guardado en BBDD.
+  const startForge = useCallback(async () => {
+    if (forgeBusy) return;
+    const byId = new Map(unusedCards.map((card) => [card.id, card]));
+    const inputs = forgeSelection
+      .map((id) => byId.get(id))
+      .filter((card): card is InventoryCard => Boolean(card));
+    if (inputs.length !== 4) return;
+    // En prod las cartas vienen de Supabase (remote); una local no se puede forjar.
+    if (usingSupabase && user && inputs.some((card) => !card.remote)) {
+      setMessage(
+        "Hay cartas locales en la selección. Recarga e inténtalo de nuevo.",
+      );
+      return;
+    }
+    setForgeBusy(true);
+    setMessage("");
+    try {
+      const resultCard = await forgeCardsInStorage(forgeSelection, inputs);
+      setForgeActive({ inputs, resultCard });
+    } catch (caught) {
+      setMessage(
+        caught instanceof Error ? caught.message : "No se ha podido forjar.",
+      );
+    } finally {
+      setForgeBusy(false);
+    }
+  }, [
+    forgeBusy,
+    forgeSelection,
+    unusedCards,
+    usingSupabase,
+    user,
+    forgeCardsInStorage,
+  ]);
+
+  // Confirma la forja (al cerrar el revelado): quita las 4 cartas del inventario
+  // y mete la legendaria, limpia la selección y lleva a la colección.
+  const finishForge = useCallback(() => {
+    if (!forgeActive) return;
+    const removeIds = new Set(forgeActive.inputs.map((card) => card.id));
+    const { resultCard } = forgeActive;
+    setInventory((current) => [
+      resultCard,
+      ...current.filter((card) => !removeIds.has(card.id)),
+    ]);
+    setForgeSelection([]);
+    setNewCardIds([resultCard.id]);
+    setForgeActive(null);
+    setInventoryTab("unused");
+    setPageTab("sobres");
+    setQuery("");
+    setPositionFilter("all");
+    if (usingSupabase && user) {
+      // Reconcilia con el servidor (fuente de verdad): el RPC ya consumió las 4
+      // y creó la legendaria. El setInventory de arriba da feedback instantáneo;
+      // esto garantiza que el inventario quede idéntico a la BBDD.
+      void loadSupabaseCards();
+      notifyCardsChanged();
+    }
+    window.setTimeout(() => {
+      collectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 80);
+  }, [forgeActive, usingSupabase, user, loadSupabaseCards]);
+
   const candidateFor = useCallback(
     (outPlayer: Player): SwapCandidate => {
       const inPoints = selectedPlayer ? pointsFor(selectedPlayer.id) : 0;
@@ -1491,6 +1673,45 @@ export function CofresView() {
     setShowIntro(false);
   };
 
+  // Tutorial de Maldini la primera vez (máxima difusión): salta al entrar a
+  // /cofres (pestaña Sobres) o a Forja, si aún no se ha visto. Nunca a la vez
+  // que el tutorial de sobres (guard `showIntro`): a un usuario nuevo le salen
+  // en secuencia (sobres → forja), no apilados.
+  useEffect(() => {
+    if (
+      !hydrated ||
+      (pageTab !== "sobres" && pageTab !== "forja") ||
+      showIntro ||
+      forjaIntroQueuedRef.current
+    ) {
+      return;
+    }
+    try {
+      if (window.localStorage.getItem(forjaIntroStorageKey) === "1") return;
+      // No apilar con el tutorial de sobres: si aún no se ha visto, va a salir
+      // (su setShowIntro está diferido, por eso `showIntro` todavía no basta).
+      // Esperamos; al cerrarlo su key pasa a "1" y este efecto reintenta
+      // (depende de `showIntro`).
+      if (window.localStorage.getItem(cofresIntroStorageKey) !== "1") return;
+    } catch {
+      // Si falla el storage, mostramos el tutorial igualmente esta sesión.
+    }
+    const timer = window.setTimeout(() => {
+      forjaIntroQueuedRef.current = true;
+      setShowForjaIntro(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [hydrated, pageTab, showIntro]);
+
+  const dismissForjaIntro = () => {
+    try {
+      window.localStorage.setItem(forjaIntroStorageKey, "1");
+    } catch {
+      // Ignoramos fallos de storage.
+    }
+    setShowForjaIntro(false);
+  };
+
   return (
     <div className="space-y-8">
       <SectionHeading
@@ -1533,6 +1754,18 @@ export function CofresView() {
             }`}
           >
             Sobres
+          </button>
+          <button
+            type="button"
+            aria-pressed={pageTab === "forja"}
+            onClick={() => setPageTab("forja")}
+            className={`rounded-lg px-5 py-2 transition ${
+              pageTab === "forja"
+                ? "bg-[#f7c84a] text-black"
+                : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
+            }`}
+          >
+            Forja
           </button>
           <button
             type="button"
@@ -1810,6 +2043,26 @@ export function CofresView() {
             </div>
           </section>
         </>
+      ) : pageTab === "forja" ? (
+        <section className="space-y-6">
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-white/[0.08]" />
+            <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#f7c84a]">
+              Forja
+            </span>
+            <span className="h-px flex-1 bg-white/[0.08]" />
+          </div>
+          <ForgePanel
+            forgeable={forgeableCards}
+            inputs={forgeInputs}
+            samePosition={forgeSamePosition}
+            busy={forgeBusy}
+            pointsFor={pointsFor}
+            onToggle={toggleForgeCard}
+            onForge={() => void startForge()}
+            hydrated={hydrated && inventoryReady}
+          />
+        </section>
       ) : (
         <section className="space-y-4">
           <div className="flex items-center gap-3">
@@ -1885,6 +2138,7 @@ export function CofresView() {
 
       {/* Modales auxiliares de /cofres. */}
       {showIntro ? <CofresIntroModal onClose={dismissIntro} /> : null}
+      {showForjaIntro ? <ForjaIntroModal onClose={dismissForjaIntro} /> : null}
 
       {opening && activePack ? (
         <PackOpeningOverlay
@@ -1897,6 +2151,18 @@ export function CofresView() {
           onClose={() => setOpening(false)}
           packs={overlayPacks}
           pointsFor={pointsFor}
+        />
+      ) : null}
+
+      {forgeActive ? (
+        <CardUpgradeOverlay
+          inputs={forgeActive.inputs.map((card) => ({
+            id: card.id,
+            playerId: card.playerId,
+          }))}
+          resultPlayerId={forgeActive.resultCard.playerId}
+          pointsFor={pointsFor}
+          onDone={finishForge}
         />
       ) : null}
     </div>
@@ -1916,6 +2182,273 @@ const PACK_GLOW: Record<NonNullable<Pack["flap"]>, string> = {
 };
 function packGlowRgb(pack: Pack | null): string {
   return PACK_GLOW[pack?.flap ?? "green"] ?? PACK_GLOW.green;
+}
+
+// Panel de la Forja: 4 ranuras para cartas comunes + previsualización del premio
+// + el picker de tu colección. El botón Upgrade dispara la fusión (overlay).
+function ForgePanel({
+  busy,
+  forgeable,
+  hydrated,
+  inputs,
+  onForge,
+  onToggle,
+  pointsFor,
+  samePosition,
+}: {
+  busy: boolean;
+  forgeable: InventoryCard[];
+  hydrated: boolean;
+  inputs: InventoryCard[];
+  onForge: () => void;
+  onToggle: (cardId: string) => void;
+  pointsFor: (playerId: string) => number;
+  samePosition: Position | null;
+}) {
+  const ready = inputs.length === 4;
+  const statusText = !ready
+    ? `${inputs.length}/4 cartas seleccionadas`
+    : samePosition
+      ? `Saldrá una legendaria de ${positionLabel[samePosition].toLowerCase()}`
+      : "Saldrá una legendaria aleatoria";
+
+  // Buscador + filtro por puesto del picker (estado propio, no toca el del
+  // inventario de la pestaña Sobres).
+  const [pickerQuery, setPickerQuery] = useState("");
+  const [pickerPosition, setPickerPosition] = useState<Position | "all">("all");
+  const normalizedQuery = normalizeSearch(pickerQuery.trim());
+  const shown = useMemo(
+    () =>
+      sortCardsByPoints(
+        forgeable.filter(
+          (card) =>
+            cardMatchesQuery(card, normalizedQuery) &&
+            cardMatchesPosition(card, pickerPosition),
+        ),
+        pointsFor,
+      ),
+    [forgeable, normalizedQuery, pickerPosition, pointsFor],
+  );
+
+  return (
+    <Card className="space-y-6">
+      <div className="space-y-1 text-center">
+        <h2 className="text-xl font-bold tracking-tight text-white">
+          Forja una legendaria
+        </h2>
+        <p className="mx-auto max-w-md text-sm text-zinc-400">
+          Funde 4 cartas en 1 de máxima rareza. Si las 4 son del mismo puesto,
+          la legendaria saldrá de ese puesto.
+        </p>
+      </div>
+
+      {/* Altar: 4 ranuras → premio. */}
+      <div className="flex flex-col items-center gap-4 lg:flex-row lg:justify-center lg:gap-7">
+        <div className="grid grid-cols-4 gap-2 sm:gap-3">
+          {Array.from({ length: 4 }).map((_, index) => {
+            const card = inputs[index];
+            if (!card) {
+              return (
+                <div
+                  key={`slot-${index}`}
+                  className="flex aspect-[5/7] w-[68px] flex-col items-center justify-center rounded-lg border border-dashed border-[#f7c84a]/25 bg-white/[0.02] text-[#f7c84a]/50 sm:w-[84px]"
+                >
+                  <span className="text-2xl font-bold leading-none">+</span>
+                  <span className="mt-1 text-[9px] font-bold uppercase tracking-wide">
+                    carta
+                  </span>
+                </div>
+              );
+            }
+            return (
+              <button
+                key={card.id}
+                type="button"
+                onClick={() => onToggle(card.id)}
+                disabled={busy}
+                aria-label={`Quitar ${playersById.get(card.playerId)?.name ?? "carta"}`}
+                className="group relative w-[68px] rounded-lg outline-none transition focus-visible:ring-2 focus-visible:ring-[#f7c84a]/60 disabled:opacity-60 sm:w-[84px]"
+              >
+                <PlayerCard
+                  playerId={card.playerId}
+                  points={pointsFor(card.playerId)}
+                />
+                <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 opacity-0 transition group-hover:bg-black/45 group-hover:opacity-100">
+                  <span className="rounded-full bg-black/70 px-2 py-1 text-[10px] font-bold text-white">
+                    Quitar
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <span
+          aria-hidden="true"
+          className="rotate-90 text-2xl font-bold text-[#f7c84a] lg:rotate-0"
+        >
+          →
+        </span>
+
+        {/* Previsualización del premio (legendaria misteriosa). */}
+        <div
+          className="flex aspect-[5/7] w-[92px] flex-col items-center justify-center rounded-lg border sm:w-[108px]"
+          style={{
+            borderColor: "rgba(247,200,74,0.6)",
+            background:
+              "radial-gradient(70% 60% at 50% 38%, rgba(247,200,74,0.22), rgba(10,15,26,0.95))",
+            boxShadow: ready ? "0 0 26px rgba(247,200,74,0.28)" : "none",
+          }}
+        >
+          <span className="text-3xl text-[#f7c84a]">✦</span>
+          <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#f7c84a]">
+            Legendaria
+          </span>
+        </div>
+      </div>
+
+      {/* Estado + botón. */}
+      <div className="flex flex-col items-center gap-3">
+        <span className="text-sm font-semibold text-zinc-300">
+          {statusText}
+        </span>
+        <button
+          type="button"
+          onClick={onForge}
+          disabled={!ready || busy}
+          className="w-full max-w-xs rounded-full bg-[#f7c84a] px-8 py-3.5 text-base font-bold uppercase tracking-wide text-black shadow-2xl shadow-[#f7c84a]/20 transition hover:bg-[#ffd966] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+        >
+          {busy ? "Forjando…" : "Upgrade"}
+        </button>
+      </div>
+
+      {/* Picker: tus cartas sin usar (buscador + filtro por puesto). */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <span className="h-px flex-1 bg-white/[0.08]" />
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">
+            Tus cartas
+          </span>
+          <span className="h-px flex-1 bg-white/[0.08]" />
+        </div>
+
+        {hydrated && forgeable.length > 0 ? (
+          <>
+            <div className="relative">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input
+                type="search"
+                value={pickerQuery}
+                onChange={(event) => setPickerQuery(event.target.value)}
+                placeholder="Buscar jugador, país o puesto"
+                aria-label="Buscar entre tus cartas"
+                className="w-full rounded-lg border border-white/10 bg-black/20 py-2 pl-9 pr-9 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-[#f7c84a]/40"
+              />
+              {pickerQuery ? (
+                <button
+                  type="button"
+                  onClick={() => setPickerQuery("")}
+                  aria-label="Limpiar búsqueda"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-bold text-zinc-400 transition hover:text-white"
+                >
+                  ✕
+                </button>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(["all", "POR", "DEF", "MED", "DEL"] as const).map((pos) => (
+                <button
+                  key={pos}
+                  type="button"
+                  aria-pressed={pickerPosition === pos}
+                  onClick={() => setPickerPosition(pos)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
+                    pickerPosition === pos
+                      ? "bg-[#f7c84a] text-black"
+                      : "border border-white/10 bg-black/20 text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  {pos === "all" ? "Todos" : pos}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : null}
+
+        {!hydrated ? (
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div
+                key={index}
+                className="aspect-[5/7] animate-pulse rounded-lg bg-white/[0.04]"
+              />
+            ))}
+          </div>
+        ) : forgeable.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-white/[0.12] bg-white/[0.03] px-4 py-10 text-center">
+            <p className="text-sm font-semibold text-zinc-300">
+              No tienes cartas sin usar.
+            </p>
+            <p className="mt-1 text-sm text-zinc-500">
+              Abre sobres para conseguir cartas que forjar.
+            </p>
+          </div>
+        ) : shown.length === 0 ? (
+          <NoSearchResults query={pickerQuery} />
+        ) : (
+          <div
+            className="grid grid-cols-3 gap-3 pt-3 sm:grid-cols-4 lg:grid-cols-5"
+            style={{ perspective: "1000px" }}
+          >
+            {shown.map((card) => {
+              const order = inputs.findIndex((item) => item.id === card.id);
+              const selected = order >= 0;
+              const full = inputs.length >= 4;
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  aria-pressed={selected}
+                  disabled={busy || (!selected && full)}
+                  onClick={() => onToggle(card.id)}
+                  className={`relative rounded-lg text-left outline-none transition focus-visible:ring-2 focus-visible:ring-[#f7c84a]/60 ${
+                    selected
+                      ? "scale-[1.03]"
+                      : full
+                        ? "opacity-40"
+                        : "hover:-translate-y-1"
+                  }`}
+                >
+                  <PlayerCard
+                    playerId={card.playerId}
+                    points={pointsFor(card.playerId)}
+                    selected={selected}
+                  />
+                  {selected ? (
+                    <span className="absolute right-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#f7c84a] text-xs font-bold text-black shadow-md shadow-black/40">
+                      {order + 1}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
 }
 
 function PackHero({
@@ -2927,6 +3460,231 @@ const introSteps = [
     body: "Si cambias a un jugador, desaparece de tu once para siempre. No podrás volver a ponerlo.",
   },
 ];
+
+const forjaIntroSteps = [
+  {
+    title: "Forja nuevo talento",
+    body: "Convierte las cartas que ya no necesitas en cracks de máxima rareza.",
+  },
+  {
+    title: "4 cartas → 1 legendaria",
+    body: "Elige 4 cartas cualesquiera de tu colección y fúndelas. A cambio recibes 1 carta legendaria garantizada.",
+  },
+  {
+    title: "Mismo puesto, misma posición",
+    body: "Si las 4 cartas son del mismo puesto, la legendaria saldrá de ese puesto. Si mezclas puestos, será de uno aleatorio.",
+  },
+];
+
+// Escenario paso 1: Maldini estático, grande y anclado al fondo del rectángulo
+// (object-bottom). La imagen es apaisada (160x120): al rellenar el alto del
+// recuadro ocupa casi todo el ancho.
+function ForjaStageMaldini() {
+  return (
+    <div className="relative h-full w-full">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute bottom-2 left-1/2 h-28 w-48 -translate-x-1/2 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(247,200,74,0.3), transparent 70%)",
+        }}
+      />
+      <Image
+        src="/maldini.webp"
+        alt="Paolo Maldini"
+        fill
+        sizes="320px"
+        className="z-10 object-contain object-bottom"
+      />
+    </div>
+  );
+}
+
+// Escenario paso 2: 4 cartas → 1 legendaria dorada.
+function ForjaStageFuse() {
+  const ids = ["por-15", "arg-24", "tur-08", "tur-20"];
+  return (
+    <div className="flex h-full w-full items-center justify-center gap-2.5 px-3">
+      <div className="grid grid-cols-2 gap-1">
+        {ids.map((id) => (
+          <div key={id} className="w-9">
+            <PlayerCard playerId={id} points={0} />
+          </div>
+        ))}
+      </div>
+      <span aria-hidden className="text-2xl text-[#f7c84a]">
+        →
+      </span>
+      <div
+        className="flex aspect-[5/7] w-[58px] flex-col items-center justify-center rounded-lg border"
+        style={{
+          borderColor: "rgba(247,200,74,0.6)",
+          background:
+            "radial-gradient(70% 60% at 50% 38%, rgba(247,200,74,0.22), rgba(10,15,26,0.95))",
+          boxShadow: "0 0 22px rgba(247,200,74,0.3)",
+        }}
+      >
+        <span className="text-2xl text-[#f7c84a]">✦</span>
+      </div>
+    </div>
+  );
+}
+
+// Escenario paso 3: 4 del mismo puesto → legendaria de ese puesto.
+function ForjaStagePosition() {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 px-3">
+      <div className="flex items-center gap-2">
+        {[0, 1, 2, 3].map((index) => (
+          <span
+            key={index}
+            className="rounded-md bg-white/[0.08] px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-sky-300"
+          >
+            DEF
+          </span>
+        ))}
+      </div>
+      <span aria-hidden className="text-xl text-[#f7c84a]">
+        ↓
+      </span>
+      <span className="rounded-md border border-[#f7c84a]/50 bg-[#f7c84a]/15 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-[#f7c84a]">
+        ★ Legendaria DEF
+      </span>
+    </div>
+  );
+}
+
+function ForjaIntroModal({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState(0);
+  const total = forjaIntroSteps.length;
+  const isLast = step === total - 1;
+  const primaryRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    primaryRef.current?.focus();
+  }, [step]);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const content = forjaIntroSteps[step];
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="forja-intro-title"
+    >
+      <div className="relative flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#f7c84a]/20 bg-[#121212] text-white shadow-2xl shadow-black/60 motion-safe:animate-[cofre-modal-pop_240ms_cubic-bezier(0.2,0.9,0.3,1)_both]">
+        <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4">
+          <div className="flex items-center gap-2.5">
+            <span
+              aria-hidden
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f7c84a]/15 text-base"
+            >
+              🔨
+            </span>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#f7c84a]">
+              Cómo funciona la forja
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md px-2 py-1 text-xs font-bold text-zinc-500 transition hover:text-white"
+          >
+            Saltar
+          </button>
+        </div>
+
+        <div className="px-5 pt-5">
+          <div className="relative mb-4 flex h-44 items-center justify-center overflow-hidden rounded-xl border border-white/[0.07] bg-gradient-to-b from-[#f7c84a]/[0.08] to-transparent">
+            {step === 0 ? (
+              <ForjaStageMaldini />
+            ) : step === 1 ? (
+              <ForjaStageFuse />
+            ) : (
+              <ForjaStagePosition />
+            )}
+          </div>
+
+          <h3
+            id="forja-intro-title"
+            className="text-xl font-bold tracking-tight text-white"
+          >
+            {content.title}
+          </h3>
+          <p className="mt-1.5 text-sm leading-6 text-zinc-300">
+            {content.body}
+          </p>
+        </div>
+
+        {step === 1 ? (
+          <div className="mx-5 mt-3 flex items-start gap-2.5 rounded-xl border border-[#f7c84a]/25 bg-[#f7c84a]/[0.08] px-3.5 py-3">
+            <span aria-hidden className="text-lg leading-none">
+              ✨
+            </span>
+            <p className="text-[13px] font-semibold leading-5 text-[#ffe6a3]">
+              La legendaria está{" "}
+              <span className="font-bold text-[#f7c84a]">garantizada</span>. Las
+              4 cartas que metes se consumen.
+            </p>
+          </div>
+        ) : null}
+        {step === 2 ? (
+          <div className="mx-5 mt-3 flex items-start gap-2.5 rounded-xl border border-[#f7c84a]/25 bg-[#f7c84a]/[0.08] px-3.5 py-3">
+            <span aria-hidden className="text-lg leading-none">
+              🎯
+            </span>
+            <p className="text-[13px] font-semibold leading-5 text-[#ffe6a3]">
+              Junta 4 del{" "}
+              <span className="font-bold text-[#f7c84a]">mismo puesto</span>{" "}
+              para asegurar la posición de tu nueva estrella.
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-4 flex items-center justify-between gap-3 px-5 pb-5">
+          <div className="flex items-center gap-1.5" aria-hidden>
+            {forjaIntroSteps.map((_, index) => (
+              <span
+                key={index}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  index === step ? "w-5 bg-[#f7c84a]" : "w-1.5 bg-white/20"
+                }`}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            {step > 0 ? (
+              <button
+                type="button"
+                onClick={() => setStep((current) => Math.max(0, current - 1))}
+                className="rounded-lg border border-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/10"
+              >
+                Atrás
+              </button>
+            ) : null}
+            <button
+              ref={primaryRef}
+              type="button"
+              onClick={() => (isLast ? onClose() : setStep((c) => c + 1))}
+              className="rounded-lg bg-[#f7c84a] px-5 py-2.5 text-sm font-bold text-black shadow-lg shadow-[#f7c84a]/10 transition hover:bg-[#ffd966]"
+            >
+              {isLast ? "¡A forjar!" : "Siguiente"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function CofresIntroModal({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState(0);
