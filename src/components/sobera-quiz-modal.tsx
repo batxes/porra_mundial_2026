@@ -234,6 +234,14 @@ export function SoberaQuizModal({
       aria-labelledby="sobera-quiz-title"
     >
       <div className="relative grid w-full max-w-xl overflow-hidden rounded-2xl border border-amber-300/25 bg-[#080808] shadow-2xl shadow-black/70">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar quiz"
+          className="absolute right-3 top-3 z-30 grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-black/45 text-lg font-bold leading-none text-white transition hover:bg-white/10"
+        >
+          x
+        </button>
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(245,197,24,0.18),transparent_34%,rgba(167,246,0,0.08)_68%,transparent)]"
@@ -582,7 +590,7 @@ function ResultPanel({
         })}
       </div>
 
-      <div className="mt-4 flex justify-center">
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
         <button
           type="button"
           disabled={saving}
@@ -597,6 +605,15 @@ function ResultPanel({
                 : "Cerrar"
               : "Reintentar"}
         </button>
+        {submitState === "error" ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/10"
+          >
+            Salir
+          </button>
+        ) : null}
       </div>
     </div>
   );

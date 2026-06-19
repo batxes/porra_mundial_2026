@@ -117,9 +117,11 @@ export function SoberaQuizGate() {
   const [open, setOpen] = useState(false);
   const [quiz, setQuiz] = useState<SoberaQuizConfig | null>(null);
   const completedQuizRef = useRef<string | null>(null);
+  const dismissedQuizRef = useRef<string | null>(null);
 
   useEffect(() => {
     completedQuizRef.current = null;
+    dismissedQuizRef.current = null;
   }, [user?.id]);
 
   const checkStatus = useCallback(async () => {
@@ -137,8 +139,14 @@ export function SoberaQuizGate() {
     const nextQuiz = quizConfigFromStatus(status);
     const alreadyCompletedHere =
       Boolean(nextQuiz?.id) && completedQuizRef.current === nextQuiz?.id;
+    const dismissedHere =
+      Boolean(nextQuiz?.id) && dismissedQuizRef.current === nextQuiz?.id;
     const shouldOpen = Boolean(
-      status?.active && !status.completed && nextQuiz && !alreadyCompletedHere,
+      status?.active &&
+        !status.completed &&
+        nextQuiz &&
+        !alreadyCompletedHere &&
+        !dismissedHere,
     );
     setQuiz(nextQuiz);
     setOpen(shouldOpen);
@@ -172,8 +180,9 @@ export function SoberaQuizGate() {
   }, []);
 
   const closeModal = useCallback(() => {
+    if (quiz?.id) dismissedQuizRef.current = quiz.id;
     setOpen(false);
-  }, []);
+  }, [quiz]);
 
   const goToPacks = useCallback(() => {
     setOpen(false);
