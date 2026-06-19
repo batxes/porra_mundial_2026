@@ -9,6 +9,7 @@ import { AuthModal } from "@/components/auth-modal";
 import { Avatar } from "@/components/common";
 import { PackDropWatcher } from "@/components/pack-drop-notice";
 import { ResultsRecapWatcher } from "@/components/results-recap";
+import { RuletaGate } from "@/components/ruleta-gate";
 import { SoberaQuizGate } from "@/components/sobera-quiz-gate";
 import { useAppContext } from "@/lib/app-context";
 import {
@@ -372,6 +373,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       <ResultsRecapWatcher />
       <PackDropWatcher launchReady={ready && Boolean(user)} />
       <SoberaQuizGate />
+      <RuletaGate />
     </>
   );
 }
