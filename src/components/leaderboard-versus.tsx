@@ -255,16 +255,6 @@ export function LeaderboardVersus({
       return { ...jornada, totalA, totalB };
     });
 
-    const balance = jornadas.reduce(
-      (acc, jornada) => {
-        if (jornada.totalA > jornada.totalB) acc.a += 1;
-        else if (jornada.totalB > jornada.totalA) acc.b += 1;
-        else acc.tie += 1;
-        return acc;
-      },
-      { a: 0, b: 0, tie: 0 },
-    );
-
     const catA = categoryTotals(profileA);
     const catB = categoryTotals(profileB);
     const labelSet = new Set([...catA.keys(), ...catB.keys()]);
@@ -340,7 +330,6 @@ export function LeaderboardVersus({
       mapA,
       mapB,
       jornadas,
-      balance,
       categories,
       onceA,
       onceB,
@@ -479,7 +468,6 @@ export function LeaderboardVersus({
           <div className="vs-card-in" style={cssVars({ "--vs-i": 3 })}>
             <JornadasBattle
               jornadas={model.jornadas}
-              balance={model.balance}
               mapA={model.mapA}
               mapB={model.mapB}
               results={adminResults}
@@ -1188,30 +1176,29 @@ function PickIcon({
 
 function JornadasBattle({
   jornadas,
-  balance,
   mapA,
   mapB,
   results,
 }: {
   jornadas: Array<FinishedJornada & { totalA: number; totalB: number }>;
-  balance: { a: number; b: number; tie: number };
   mapA: Map<number, number>;
   mapB: Map<number, number>;
   results: AdminResults;
 }) {
   const colorFor = useColorFor();
+  // Total de puntos de cada uno en las jornadas (suma del desglose de abajo).
+  const totalA = jornadas.reduce((sum, jornada) => sum + jornada.totalA, 0);
+  const totalB = jornadas.reduce((sum, jornada) => sum + jornada.totalB, 0);
   return (
     <Card className="rounded-2xl">
       <SectionKicker
         title="Jornada a jornada"
         right={
           jornadas.length ? (
-            <span className="flex items-center gap-1 text-xs font-bold tabular-nums">
-              <span style={{ color: colorFor("a") }}>{balance.a}</span>
-              <span className="text-zinc-600">·</span>
-              <span className="text-zinc-400">{balance.tie}</span>
-              <span className="text-zinc-600">·</span>
-              <span style={{ color: colorFor("b") }}>{balance.b}</span>
+            <span className="flex items-center gap-1.5 text-xs font-bold tabular-nums">
+              <span style={{ color: colorFor("a") }}>{totalA}</span>
+              <span className="text-[10px] font-semibold text-zinc-600">vs</span>
+              <span style={{ color: colorFor("b") }}>{totalB}</span>
             </span>
           ) : null
         }
