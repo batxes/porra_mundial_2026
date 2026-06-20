@@ -167,6 +167,28 @@ export function toDbEventType(type: string) {
 const AppContext = createContext<AppContextValue | null>(null);
 
 const scoring = createEngine({ data, schedule });
+const supabasePageSize = 1000;
+const scoreEntriesSelect =
+  "user_id, match_id, rule_code, points, explanation, source_ref";
+
+async function fetchAllSupabaseRows<T>(
+  queryPage: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message?: string } | null }>,
+) {
+  const rows: T[] = [];
+  for (let from = 0; ; from += supabasePageSize) {
+    const { data, error } = await queryPage(
+      from,
+      from + supabasePageSize - 1,
+    );
+    if (error) throw new Error(error.message || "No se pudieron cargar datos.");
+    const page = Array.isArray(data) ? data : [];
+    rows.push(...page);
+    if (page.length < supabasePageSize) return rows;
+  }
+}
 
 function scorecardForUser(userId: string, prediction: Prediction, adminResults: AdminResults) {
   return scoring.calculateScorecard(normalizePrediction(prediction), adminResults, userId);
@@ -318,14 +340,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const tournamentResponse = await supabase.from("tournaments").select("id, slug").eq("slug", "world-cup-2026").maybeSingle();
     const tournamentId = tournamentResponse.data?.id;
 
-    const [{ data: profiles }, { data: predictions }, { data: matches }, { data: events }, { data: scoreEntries }] = await Promise.all([
+    const [{ data: profiles }, { data: predictions }, { data: matches }, { data: events }, scoreEntries] = await Promise.all([
       supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
       tournamentId
         ? supabase.from("predictions").select("user_id, selections, completion_percent, is_definitive").eq("tournament_id", tournamentId)
         : Promise.resolve({ data: [] as any[], error: null }),
       supabase.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, status, stage").eq("status", "validated"),
       supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute"),
-      supabase.from("score_entries").select("user_id, match_id, rule_code, points, explanation, source_ref"),
+      fetchAllSupabaseRows<Record<string, unknown>>((from, to) =>
+        supabase.from("score_entries").select(scoreEntriesSelect).range(from, to),
+      ),
     ]);
 
     const results: AdminResults = {};
@@ -358,7 +382,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ((predictions || []) as any[]).map((item: any) => [item.user_id, normalizePrediction(item.selections as Prediction)]),
     );
     const entriesByUser = new Map<string, Array<Record<string, unknown>>>();
-    (scoreEntries || []).forEach((entry: any) => {
+    scoreEntries.forEach((entry: any) => {
       const userEntries = entriesByUser.get(entry.user_id) || [];
       userEntries.push(entry);
       entriesByUser.set(entry.user_id, userEntries);
@@ -457,11 +481,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const supabase = getSupabaseBrowserClient() as any;
     if (!supabase) return;
 
-    const [{ data: profiles }, { data: matches }, { data: events }, { data: scoreEntries }] = await Promise.all([
+    const [{ data: profiles }, { data: matches }, { data: events }, scoreEntries] = await Promise.all([
       supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
       supabase.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, status, stage").eq("status", "validated"),
       supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute"),
-      supabase.from("score_entries").select("user_id, match_id, rule_code, points, explanation, source_ref"),
+      fetchAllSupabaseRows<Record<string, unknown>>((from, to) =>
+        supabase.from("score_entries").select(scoreEntriesSelect).range(from, to),
+      ),
     ]);
 
     const results: AdminResults = {};
@@ -491,7 +517,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
 
     const entriesByUser = new Map<string, Array<Record<string, unknown>>>();
-    (scoreEntries || []).forEach((entry: any) => {
+    scoreEntries.forEach((entry: any) => {
       const userEntries = entriesByUser.get(entry.user_id) || [];
       userEntries.push(entry);
       entriesByUser.set(entry.user_id, userEntries);
