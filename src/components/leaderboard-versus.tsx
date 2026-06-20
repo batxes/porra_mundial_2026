@@ -1221,61 +1221,7 @@ function JornadasBattle({
       />
       {jornadas.length ? (
         <>
-          <div className="mt-3 flex items-end gap-1.5">
-            {[...jornadas].reverse().map((jornada, i, arr) => {
-              const winner: Side | null =
-                jornada.totalA === jornada.totalB
-                  ? null
-                  : jornada.totalA > jornada.totalB
-                    ? "a"
-                    : "b";
-              const color = winner
-                ? colorFor(winner)
-                : "rgba(255,255,255,0.18)";
-              const isLast = i === arr.length - 1;
-              return (
-                <span
-                  key={jornada.date}
-                  title={`${shortDate(jornada.date)}: ${jornada.totalA}-${jornada.totalB}`}
-                  className="min-w-[6px] flex-1 origin-bottom rounded-full transition-transform duration-200 motion-safe:hover:scale-y-[1.4]"
-                  style={{
-                    backgroundColor: color,
-                    height: isLast ? "14px" : "10px",
-                    boxShadow: isLast
-                      ? "0 0 0 1.5px rgba(255,255,255,0.45)"
-                      : "none",
-                  }}
-                />
-              );
-            })}
-          </div>
-          <div className="mt-2 flex items-center justify-between gap-2 text-[10px] font-semibold text-zinc-500">
-            <span className="shrink-0">
-              {shortDate(jornadas[jornadas.length - 1].date)}
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="flex items-center gap-1">
-                <span
-                  className="size-1.5 rounded-full"
-                  style={{ background: colorFor("a") }}
-                />
-                gana
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="size-1.5 rounded-full bg-white/20" />
-                empate
-              </span>
-              <span className="flex items-center gap-1">
-                <span
-                  className="size-1.5 rounded-full"
-                  style={{ background: colorFor("b") }}
-                />
-                gana
-              </span>
-            </span>
-            <span className="shrink-0">{shortDate(jornadas[0].date)}</span>
-          </div>
-          <div className="mt-4 space-y-2.5">
+          <div className="mt-3 space-y-2.5">
             {jornadas.map((jornada, index) => (
               <JornadaCompareCard
                 key={jornada.date}
@@ -1650,20 +1596,27 @@ function FeedDuelRow({
   return (
     <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2 rounded-lg bg-black/20 px-2 py-2">
       <MatchPoints points={pointsA} align="start" />
-      <div className="flex min-w-0 items-center justify-center gap-2">
-        <TeamFlag
-          teamId={homeTeamId}
-          className="size-5 shrink-0 rounded-full border border-white/15 object-cover"
-        />
+      <div className="grid min-w-0 grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <span className="flex min-w-0 items-center justify-end gap-1.5">
+          <span className="hidden min-w-0 truncate text-xs font-bold text-white sm:block">
+            {homeName}
+          </span>
+          <TeamFlag
+            teamId={homeTeamId}
+            className="size-5 shrink-0 rounded-full border border-white/15 object-cover"
+          />
+        </span>
         <span className="shrink-0 rounded-md bg-white/[0.07] px-1.5 py-0.5 text-xs font-bold tabular-nums text-white">
           {result.homeScore}-{result.awayScore}
         </span>
-        <TeamFlag
-          teamId={awayTeamId}
-          className="size-5 shrink-0 rounded-full border border-white/15 object-cover"
-        />
-        <span className="min-w-0 truncate text-xs font-bold text-white">
-          {homeName} · {awayName}
+        <span className="flex min-w-0 items-center justify-start gap-1.5">
+          <TeamFlag
+            teamId={awayTeamId}
+            className="size-5 shrink-0 rounded-full border border-white/15 object-cover"
+          />
+          <span className="hidden min-w-0 truncate text-xs font-bold text-white sm:block">
+            {awayName}
+          </span>
         </span>
       </div>
       <MatchPoints points={pointsB} align="end" />
