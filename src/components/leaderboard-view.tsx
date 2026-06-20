@@ -18,6 +18,7 @@ import {
   WolfBadge,
 } from "@/components/common";
 import { LeaderboardEvolution } from "@/components/leaderboard-evolution";
+import { LeaderboardVersus } from "@/components/leaderboard-versus";
 import { PlayerDetailModal } from "@/components/player-detail-modal";
 import { useAppContext } from "@/lib/app-context";
 import { data, teamsById } from "@/lib/data";
@@ -39,7 +40,7 @@ function normalizeSearch(value: string) {
 export function LeaderboardView() {
   const { leaderboard: fullLeaderboard, adminResults, ready, user } = useAppContext();
   const [filter, setFilter] = useState<LeaderboardFilter>("all");
-  const [view, setView] = useState<"table" | "chart">("table");
+  const [view, setView] = useState<"table" | "chart" | "vs">("table");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -134,6 +135,12 @@ export function LeaderboardView() {
                 label="Evolución"
                 onClick={() => setView("chart")}
               />
+              <ViewTab
+                active={view === "vs"}
+                kind="vs"
+                label="VS"
+                onClick={() => setView("vs")}
+              />
             </div>
           ) : null}
         </div>
@@ -177,6 +184,13 @@ export function LeaderboardView() {
             subgroup={filter === "wolf"}
           />
         </Card>
+      ) : view === "vs" ? (
+        <LeaderboardVersus
+          key={filter}
+          leaderboard={visible}
+          adminResults={adminResults}
+          currentUserId={user?.id}
+        />
       ) : (
         <Card className="overflow-hidden p-0">
           <LeaderboardHeaderRow />
@@ -452,7 +466,7 @@ function ViewTab({
   onClick,
 }: {
   active: boolean;
-  kind: "table" | "chart";
+  kind: "table" | "chart" | "vs";
   label: string;
   onClick: () => void;
 }) {
@@ -483,8 +497,13 @@ function ViewTab({
             <line x1="2.5" y1="8" x2="13.5" y2="8" />
             <line x1="2.5" y1="12" x2="13.5" y2="12" />
           </>
-        ) : (
+        ) : kind === "chart" ? (
           <polyline points="2 11 6 7 9 9 14 3" />
+        ) : (
+          <>
+            <polyline points="4 4 7 8 4 12" />
+            <polyline points="12 4 9 8 12 12" />
+          </>
         )}
       </svg>
       {label}

@@ -2325,7 +2325,7 @@ function SobresPromoBanner({ userId }: { userId: string }) {
             className="absolute bottom-1 right-0 z-10 h-16 w-12 rotate-12 object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.55)] transition-transform duration-300 group-hover:translate-x-0.5 group-hover:rotate-[16deg] sm:h-24 sm:w-16"
           />
           <span className="absolute bottom-0 left-1/2 z-20 -translate-x-1/2">
-            <span className="block motion-safe:animate-[sobre-bob_3s_ease-in-out_infinite]">
+            <span className="block">
               <Image
                 src="/sobre.webp"
                 alt=""

@@ -567,6 +567,27 @@ summary {
     animation: auth-modal-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
+  /* === Vista VS / Duelo (clasificacion): entrada escalonada, pop del numero
+     clave, latido del lider y dibujo del grafico de momentum. Definidas dentro
+     de este @media para respetar prefers-reduced-motion (se aplican a pelo en
+     el JSX, como cofre-card-reveal). === */
+  .vs-card-in {
+    animation: vs-card-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--vs-i, 0) * 70ms);
+  }
+
+  .vs-pop {
+    animation: vs-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  .vs-leader-glow {
+    animation: vs-leader-glow 2600ms ease-in-out infinite;
+  }
+
+  .duel-momentum-draw {
+    animation: duel-momentum-draw 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
   .results-intro-counter {
     animation: results-intro-count 5000ms ease-in-out infinite;
   }
@@ -903,6 +924,68 @@ summary {
   }
 }
 
+/* === Vista VS / Duelo === */
+/* Estado base del trazo de momentum: con reduced-motion (sin el @media de
+   arriba) la linea se ve entera; el keyframe solo la "dibuja" si hay motion. */
+.duel-momentum-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+@keyframes vs-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vs-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(1.14);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes vs-leader-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px var(--vs-leader, #a7f600),
+      0 0 0 0 rgba(0, 0, 0, 0);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 2px var(--vs-leader, #a7f600),
+      0 0 18px 2px var(--vs-leader, #a7f600);
+  }
+}
+
+@keyframes duel-momentum-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 @keyframes results-banner-spin {
   to {
     --results-banner-angle: 360deg;
@@ -1225,18 +1308,6 @@ summary {
   100% {
     opacity: 1;
     transform: scale(1);
-  }
-}
-
-/* Flotación suave del sobre en el banner promo de la home (estilo caja gacha). */
-@keyframes sobre-bob {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-5px);
   }
 }
 

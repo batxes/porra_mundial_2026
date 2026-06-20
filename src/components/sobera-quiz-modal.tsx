@@ -86,8 +86,9 @@ export function SoberaQuizModal({
   const [timeLeftMs, setTimeLeftMs] = useState(questionTimeMs);
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [submitError, setSubmitError] = useState("");
-  const [serverResult, setServerResult] =
-    useState<SoberaQuizCompletion | null>(null);
+  const [serverResult, setServerResult] = useState<SoberaQuizCompletion | null>(
+    null,
+  );
   const nextTimerRef = useRef<number | null>(null);
   const submitStartedRef = useRef(false);
 
@@ -139,9 +140,8 @@ export function SoberaQuizModal({
     setSubmitState("saving");
     setSubmitError("");
     try {
-      const supabase = getSupabaseBrowserClient() as unknown as
-        | QuizRpcClient
-        | null;
+      const supabase =
+        getSupabaseBrowserClient() as unknown as QuizRpcClient | null;
       if (!supabase) throw new Error("No se ha podido conectar con Supabase.");
       const payload = answers.map((answer) => answer.selectedIndex);
       const { data, error } = await supabase.rpc("complete_sobera_quiz", {
@@ -158,7 +158,7 @@ export function SoberaQuizModal({
         awardedDropIds: Array.isArray(
           (row as { awarded_drop_ids?: unknown } | null)?.awarded_drop_ids,
         )
-          ? ((row as { awarded_drop_ids: string[] }).awarded_drop_ids || [])
+          ? (row as { awarded_drop_ids: string[] }).awarded_drop_ids || []
           : [],
       };
       setServerResult(result);
@@ -528,7 +528,7 @@ function ResultPanel({
       <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-200">
         Resultado
       </p>
-      <h3 className="mt-2 text-3xl font-black leading-none text-white sm:text-4xl">
+      <h3 className="mt-2 text-3xl font-bold leading-none text-white sm:text-4xl">
         {score === null ? ".../" : `${score}/`}
         {questionCount}
       </h3>

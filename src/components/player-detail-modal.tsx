@@ -12,7 +12,9 @@ import { positionAccent } from "@/lib/position-style";
 import { getPlayerOwners } from "@/lib/player-owners";
 import { calculatePlayerBreakdown } from "@/lib/scoring";
 
-const scheduleByNumber = new Map(schedule.map((match) => [match.number, match]));
+const scheduleByNumber = new Map(
+  schedule.map((match) => [match.number, match]),
+);
 
 // Etiquetas y emoji por tipo de evento, en el contexto del futbolista (no "de tu
 // once"). El plural es para el resumen por tipo; el corto, para cada evento.
@@ -89,7 +91,9 @@ function SectionTitle({
       <h3 className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-zinc-500">
         {children}
       </h3>
-      {meta ? <span className="shrink-0 text-xs font-bold text-zinc-500">{meta}</span> : null}
+      {meta ? (
+        <span className="shrink-0 text-xs font-bold text-zinc-500">{meta}</span>
+      ) : null}
     </div>
   );
 }
@@ -112,7 +116,7 @@ function StatTile({
 
   return (
     <div className="rounded-lg border border-white/[0.08] bg-black/20 px-3 py-2.5">
-      <p className={`text-lg font-black leading-none tabular-nums ${toneClass}`}>
+      <p className={`text-lg font-bold leading-none tabular-nums ${toneClass}`}>
         {value}
       </p>
       <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">
@@ -185,7 +189,9 @@ export function PlayerDetailModal({
             backgroundImage: "url(/cardbg.png)",
             backgroundSize: "520px auto",
             backgroundPosition: "top center",
-            filter: accent.bgRotate ? `hue-rotate(${accent.bgRotate}deg)` : undefined,
+            filter: accent.bgRotate
+              ? `hue-rotate(${accent.bgRotate}deg)`
+              : undefined,
           }}
         />
         <div
@@ -222,7 +228,11 @@ export function PlayerDetailModal({
         <div className="relative overflow-y-auto px-4 pb-4 pt-5 sm:px-5 sm:pb-5">
           <div className="grid gap-5 sm:grid-cols-[190px_minmax(0,1fr)] sm:items-center">
             <div className="mx-auto w-44 max-w-full sm:w-full">
-              <PlayerCard playerId={player.id} points={breakdown.total} featured />
+              <PlayerCard
+                playerId={player.id}
+                points={breakdown.total}
+                featured
+              />
             </div>
 
             <div className="min-w-0 pt-1 text-center sm:pr-10 sm:text-left">
@@ -231,22 +241,27 @@ export function PlayerDetailModal({
               </p>
               <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <h2 className="text-2xl font-black leading-tight tracking-tight text-white sm:text-3xl">
+                  <h2 className="text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl">
                     {player.name}
                   </h2>
                   <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                     <PositionBadge position={player.position} />
-                    <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-bold" style={accentStyle}>
+                    <span
+                      className="inline-flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-bold"
+                      style={accentStyle}
+                    >
                       <TeamFlag
                         teamId={player.team}
                         className="h-3 w-[18px] rounded-sm"
                       />
-                      <span className="truncate">{team?.name || player.team}</span>
+                      <span className="truncate">
+                        {team?.name || player.team}
+                      </span>
                     </span>
                   </div>
                 </div>
                 <span
-                  className={`inline-flex shrink-0 items-center justify-center rounded-xl border px-3.5 py-2 text-xl font-black leading-none tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] ${pointsSurface(
+                  className={`inline-flex shrink-0 items-center justify-center rounded-xl border px-3.5 py-2 text-xl font-bold leading-none tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] ${pointsSurface(
                     breakdown.total,
                   )}`}
                 >
@@ -308,7 +323,7 @@ export function PlayerDetailModal({
                         </span>
                       </span>
                       <span
-                        className={`shrink-0 text-sm font-black tabular-nums ${pointsTone(
+                        className={`shrink-0 text-sm font-bold tabular-nums ${pointsTone(
                           item.points,
                         )}`}
                       >
@@ -325,7 +340,9 @@ export function PlayerDetailModal({
             <DetailPanel className="p-3.5 sm:p-4">
               <SectionTitle
                 meta={
-                  breakdown.matches.length ? `${breakdown.matches.length}` : undefined
+                  breakdown.matches.length
+                    ? `${breakdown.matches.length}`
+                    : undefined
                 }
               >
                 Partido a partido
@@ -362,7 +379,7 @@ export function PlayerDetailModal({
                             ) : null}
                           </span>
                           <span
-                            className={`shrink-0 text-sm font-black tabular-nums ${pointsTone(
+                            className={`shrink-0 text-sm font-bold tabular-nums ${pointsTone(
                               entry.points,
                             )}`}
                           >
@@ -384,7 +401,9 @@ export function PlayerDetailModal({
                                 key={index}
                                 className="inline-flex items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.05] px-2 py-0.5 text-[11px] font-semibold text-zinc-300"
                               >
-                                <span aria-hidden>{eventEmoji[ev.ruleCode]}</span>
+                                <span aria-hidden>
+                                  {eventEmoji[ev.ruleCode]}
+                                </span>
                                 {eventShortLabels[ev.ruleCode] || ev.ruleCode}
                                 {showMinute ? (
                                   <span className="text-zinc-500">
@@ -400,7 +419,9 @@ export function PlayerDetailModal({
                   })}
                 </ul>
               ) : (
-                <EmptyPanel>No hay partidos puntuados para este jugador.</EmptyPanel>
+                <EmptyPanel>
+                  No hay partidos puntuados para este jugador.
+                </EmptyPanel>
               )}
             </DetailPanel>
           </div>

@@ -197,9 +197,8 @@ export function RuletaModal({
       if (spinFn) {
         spinResult = await spinFn();
       } else {
-        const supabase = getSupabaseBrowserClient() as unknown as
-          | RuletaRpcClient
-          | null;
+        const supabase =
+          getSupabaseBrowserClient() as unknown as RuletaRpcClient | null;
         if (!supabase) {
           throw new Error("No se ha podido conectar con Supabase.");
         }
@@ -282,7 +281,7 @@ export function RuletaModal({
 
         {/* Cabecera */}
         <div className="relative z-10 flex flex-col items-center px-5 pt-5 text-center">
-          <span className="inline-flex rounded-md border border-[#a7f600]/30 bg-[#a7f600]/12 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#a7f600]">
+          <span className="inline-flex rounded-md border border-[#a7f600]/30 bg-[#a7f600]/12 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#a7f600]">
             Minijuego
           </span>
           <h2
@@ -317,7 +316,7 @@ export function RuletaModal({
               <section className="mt-1 w-full max-w-[340px]">
                 <div className="flex items-center gap-3">
                   <span className="h-px flex-1 bg-white/10" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.26em] text-[#a7f600]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.26em] text-[#a7f600]">
                     Premios
                   </p>
                   <span className="h-px flex-1 bg-white/10" />
@@ -337,7 +336,7 @@ export function RuletaModal({
                           className="object-contain"
                         />
                       </div>
-                      <span className="mt-0.5 w-full text-center text-[7px] font-black uppercase leading-tight text-zinc-300 sm:text-[8px]">
+                      <span className="mt-0.5 w-full text-center text-[7px] font-bold uppercase leading-tight text-zinc-300 sm:text-[8px]">
                         {segment.label === "Mediocentros"
                           ? "Medios"
                           : segment.label}
@@ -350,7 +349,7 @@ export function RuletaModal({
             <button
               type="button"
               onClick={() => setPhase("ready")}
-              className="mt-5 w-full max-w-[280px] rounded-lg bg-[#a7f600] px-5 py-3.5 text-base font-black uppercase tracking-[0.14em] text-black shadow-[0_12px_30px_rgba(167,246,0,0.18)] transition hover:bg-[#c7ff43]"
+              className="mt-5 w-full max-w-[280px] rounded-lg bg-[#a7f600] px-5 py-3.5 text-base font-bold uppercase tracking-[0.14em] text-black shadow-[0_12px_30px_rgba(167,246,0,0.18)] transition hover:bg-[#c7ff43]"
             >
               A jugar
             </button>
@@ -373,429 +372,456 @@ export function RuletaModal({
               className={`relative mt-2 aspect-square w-full ${wheelMaxWidthClass} rounded-full bg-[#080808] p-1.5 shadow-[0_0_34px_rgba(245,197,24,0.18),0_22px_54px_rgba(0,0,0,0.45)]`}
             >
               <div className="relative h-full w-full">
-            {/* Acento fijo del marco */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 z-0 rounded-full bg-[radial-gradient(circle,rgba(245,197,24,0.22),transparent_62%)] blur-md"
-            />
-
-            {/* Rueda giratoria (solo las casillas) */}
-            <div
-              className="absolute inset-0 z-10"
-              style={{
-                transform: `rotate(${rotation}deg)`,
-                transition: spinAnimating
-                  ? `transform ${SPIN_MS}ms cubic-bezier(0.12, 0.78, 0.18, 1)`
-                  : "none",
-              }}
-            >
-              <svg
-                viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
-                className="h-full w-full"
-              >
-                <defs>
-                  <radialGradient id="ruletaShade" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.08" />
-                    <stop offset="48%" stopColor="#000000" stopOpacity="0.03" />
-                    <stop offset="100%" stopColor="#000000" stopOpacity="0.36" />
-                  </radialGradient>
-                  <pattern
-                    id="ruletaTexture"
-                    width="9"
-                    height="9"
-                    patternUnits="userSpaceOnUse"
-                  >
-                    <path
-                      d="M0 8 L8 0 M-2 2 L2 -2 M7 10 L10 7"
-                      stroke="#ffffff"
-                      strokeOpacity="0.13"
-                      strokeWidth="0.55"
-                    />
-                  </pattern>
-                  <filter
-                    id="ruletaPackShadow"
-                    x="-40%"
-                    y="-40%"
-                    width="180%"
-                    height="180%"
-                  >
-                    <feDropShadow
-                      dx="0"
-                      dy="2"
-                      stdDeviation="2"
-                      floodColor="#000000"
-                      floodOpacity="0.7"
-                    />
-                  </filter>
-                </defs>
-
-                <circle
-                  cx={WHEEL_CENTER}
-                  cy={WHEEL_CENTER}
-                  r={FACE_RADIUS}
-                  fill="#101010"
+                {/* Acento fijo del marco */}
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 z-0 rounded-full bg-[radial-gradient(circle,rgba(245,197,24,0.22),transparent_62%)] blur-md"
                 />
-                {wedges.map((wedge) => (
-                  <g key={`wedge-${wedge.key}`}>
-                    <path d={wedge.d} fill={wedge.color} />
-                    <path
-                      d={wedge.d}
-                      fill="url(#ruletaTexture)"
-                      opacity="0.38"
-                    />
-                  </g>
-                ))}
-                <circle
-                  cx={WHEEL_CENTER}
-                  cy={WHEEL_CENTER}
-                  r={FACE_RADIUS}
-                  fill="url(#ruletaShade)"
-                />
-                {dividers.map((divider) => (
-                  <line
-                    key={`div-${divider.key}`}
-                    x1={divider.x0}
-                    y1={divider.y0}
-                    x2={divider.x1}
-                    y2={divider.y1}
-                    stroke="#f9d66d"
-                    strokeOpacity="0.9"
-                    strokeWidth="1.4"
-                  />
-                ))}
-                {wedges.map((wedge) => (
-                  <g
-                    key={`content-${wedge.key}`}
-                    transform={`rotate(${wedge.rotate} ${WHEEL_CENTER} ${WHEEL_CENTER})`}
+
+                {/* Rueda giratoria (solo las casillas) */}
+                <div
+                  className="absolute inset-0 z-10"
+                  style={{
+                    transform: `rotate(${rotation}deg)`,
+                    transition: spinAnimating
+                      ? `transform ${SPIN_MS}ms cubic-bezier(0.12, 0.78, 0.18, 1)`
+                      : "none",
+                  }}
+                >
+                  <svg
+                    viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
+                    className="h-full w-full"
                   >
-                    <text
-                      x={WHEEL_CENTER}
-                      y={WHEEL_CENTER - LABEL_RADIUS}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fontSize="13"
-                      fontWeight="900"
-                      fill="#ffffff"
-                      stroke="rgba(0,0,0,0.72)"
-                      strokeWidth="2.8"
-                      paintOrder="stroke"
-                    >
-                      {wedge.label}
-                    </text>
-                    {wedge.image ? (
-                      <image
-                        href={wedge.image}
-                        x={WHEEL_CENTER - IMAGE_W / 2}
-                        y={WHEEL_CENTER - IMAGE_RADIUS - IMAGE_H / 2}
-                        width={IMAGE_W}
-                        height={IMAGE_H}
-                        preserveAspectRatio="xMidYMid meet"
-                        filter="url(#ruletaPackShadow)"
+                    <defs>
+                      <radialGradient
+                        id="ruletaShade"
+                        cx="50%"
+                        cy="50%"
+                        r="50%"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="#ffffff"
+                          stopOpacity="0.08"
+                        />
+                        <stop
+                          offset="48%"
+                          stopColor="#000000"
+                          stopOpacity="0.03"
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#000000"
+                          stopOpacity="0.36"
+                        />
+                      </radialGradient>
+                      <pattern
+                        id="ruletaTexture"
+                        width="9"
+                        height="9"
+                        patternUnits="userSpaceOnUse"
+                      >
+                        <path
+                          d="M0 8 L8 0 M-2 2 L2 -2 M7 10 L10 7"
+                          stroke="#ffffff"
+                          strokeOpacity="0.13"
+                          strokeWidth="0.55"
+                        />
+                      </pattern>
+                      <filter
+                        id="ruletaPackShadow"
+                        x="-40%"
+                        y="-40%"
+                        width="180%"
+                        height="180%"
+                      >
+                        <feDropShadow
+                          dx="0"
+                          dy="2"
+                          stdDeviation="2"
+                          floodColor="#000000"
+                          floodOpacity="0.7"
+                        />
+                      </filter>
+                    </defs>
+
+                    <circle
+                      cx={WHEEL_CENTER}
+                      cy={WHEEL_CENTER}
+                      r={FACE_RADIUS}
+                      fill="#101010"
+                    />
+                    {wedges.map((wedge) => (
+                      <g key={`wedge-${wedge.key}`}>
+                        <path d={wedge.d} fill={wedge.color} />
+                        <path
+                          d={wedge.d}
+                          fill="url(#ruletaTexture)"
+                          opacity="0.38"
+                        />
+                      </g>
+                    ))}
+                    <circle
+                      cx={WHEEL_CENTER}
+                      cy={WHEEL_CENTER}
+                      r={FACE_RADIUS}
+                      fill="url(#ruletaShade)"
+                    />
+                    {dividers.map((divider) => (
+                      <line
+                        key={`div-${divider.key}`}
+                        x1={divider.x0}
+                        y1={divider.y0}
+                        x2={divider.x1}
+                        y2={divider.y1}
+                        stroke="#f9d66d"
+                        strokeOpacity="0.9"
+                        strokeWidth="1.4"
                       />
-                    ) : null}
+                    ))}
+                    {wedges.map((wedge) => (
+                      <g
+                        key={`content-${wedge.key}`}
+                        transform={`rotate(${wedge.rotate} ${WHEEL_CENTER} ${WHEEL_CENTER})`}
+                      >
+                        <text
+                          x={WHEEL_CENTER}
+                          y={WHEEL_CENTER - LABEL_RADIUS}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fontSize="13"
+                          fontWeight="900"
+                          fill="#ffffff"
+                          stroke="rgba(0,0,0,0.72)"
+                          strokeWidth="2.8"
+                          paintOrder="stroke"
+                        >
+                          {wedge.label}
+                        </text>
+                        {wedge.image ? (
+                          <image
+                            href={wedge.image}
+                            x={WHEEL_CENTER - IMAGE_W / 2}
+                            y={WHEEL_CENTER - IMAGE_RADIUS - IMAGE_H / 2}
+                            width={IMAGE_W}
+                            height={IMAGE_H}
+                            preserveAspectRatio="xMidYMid meet"
+                            filter="url(#ruletaPackShadow)"
+                          />
+                        ) : null}
+                      </g>
+                    ))}
+                  </svg>
+                </div>
+
+                {/* Marco fijo: aro dorado, bombillas y centro */}
+                <svg
+                  viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
+                  className="pointer-events-none absolute inset-0 z-20 h-full w-full"
+                >
+                  <defs>
+                    <linearGradient id="ruletaGold" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#fff0b7" />
+                      <stop offset="48%" stopColor="#f4b73b" />
+                      <stop offset="100%" stopColor="#7a430e" />
+                    </linearGradient>
+                    <radialGradient id="ruletaHub" cx="50%" cy="38%" r="65%">
+                      <stop offset="0%" stopColor="#f4ffd7" />
+                      <stop offset="55%" stopColor="#a7f600" />
+                      <stop offset="100%" stopColor="#315405" />
+                    </radialGradient>
+                    <filter
+                      id="ruletaBulbGlow"
+                      x="-90%"
+                      y="-90%"
+                      width="280%"
+                      height="280%"
+                    >
+                      <feDropShadow
+                        dx="0"
+                        dy="0"
+                        stdDeviation="1.3"
+                        floodColor="#fbbf24"
+                        floodOpacity="0.65"
+                      />
+                    </filter>
+                    <filter
+                      id="ruletaGreenGlow"
+                      x="-80%"
+                      y="-80%"
+                      width="260%"
+                      height="260%"
+                    >
+                      <feDropShadow
+                        dx="0"
+                        dy="0"
+                        stdDeviation="2.5"
+                        floodColor="#a7f600"
+                        floodOpacity="0.85"
+                      />
+                    </filter>
+                  </defs>
+
+                  <circle
+                    cx={WHEEL_CENTER}
+                    cy={WHEEL_CENTER}
+                    r={140}
+                    fill="none"
+                    stroke="#060606"
+                    strokeWidth="18"
+                  />
+                  <circle
+                    cx={WHEEL_CENTER}
+                    cy={WHEEL_CENTER}
+                    r={141}
+                    fill="none"
+                    stroke="url(#ruletaGold)"
+                    strokeWidth="3.2"
+                  />
+                  <circle
+                    cx={WHEEL_CENTER}
+                    cy={WHEEL_CENTER}
+                    r={134}
+                    fill="none"
+                    stroke="#292929"
+                    strokeWidth="9"
+                  />
+                  <circle
+                    cx={WHEEL_CENTER}
+                    cy={WHEEL_CENTER}
+                    r={128.8}
+                    fill="none"
+                    stroke="#f8d96f"
+                    strokeOpacity="0.95"
+                    strokeWidth="2.4"
+                  />
+                  <circle
+                    cx={WHEEL_CENTER}
+                    cy={WHEEL_CENTER}
+                    r={125.8}
+                    fill="none"
+                    stroke="#a7f600"
+                    strokeOpacity="0.85"
+                    strokeWidth="1.8"
+                  />
+                  <circle
+                    cx={WHEEL_CENTER}
+                    cy={WHEEL_CENTER}
+                    r={145}
+                    fill="none"
+                    stroke="rgba(255,232,160,0.35)"
+                    strokeWidth="1.5"
+                  />
+                  {BULBS.map((bulb) => (
+                    <circle
+                      key={`bulb-${bulb.index}`}
+                      cx={bulb.x}
+                      cy={bulb.y}
+                      r={2.4}
+                      fill="#fff3b0"
+                      stroke="#f59e0b"
+                      strokeWidth="0.65"
+                      filter="url(#ruletaBulbGlow)"
+                    />
+                  ))}
+
+                  <circle
+                    cx={WHEEL_CENTER}
+                    cy={WHEEL_CENTER}
+                    r={35}
+                    fill="none"
+                    stroke="#a7f600"
+                    strokeWidth="3.5"
+                    filter="url(#ruletaGreenGlow)"
+                  />
+                  <circle
+                    cx={WHEEL_CENTER}
+                    cy={WHEEL_CENTER}
+                    r={30}
+                    fill="#111111"
+                    stroke="url(#ruletaGold)"
+                    strokeWidth="4"
+                  />
+                  <circle
+                    cx={WHEEL_CENTER}
+                    cy={WHEEL_CENTER}
+                    r={HUB_RADIUS}
+                    fill="url(#ruletaHub)"
+                    stroke="#26380a"
+                    strokeWidth="1"
+                    opacity="0.18"
+                  />
+                  {/* Balón de fútbol en el centro */}
+                  <g transform={`translate(${WHEEL_CENTER} ${WHEEL_CENTER})`}>
+                    <circle
+                      r="17"
+                      fill="#ffffff"
+                      stroke="#161616"
+                      strokeWidth="1.4"
+                    />
+                    <path
+                      d="M0 -6.7 L6.37 -2.07 L3.94 5.42 L-3.94 5.42 L-6.37 -2.07 Z"
+                      fill="#161616"
+                    />
+                    <path
+                      d="M0 -6.7 L0 -15.5 M6.37 -2.07 L14.74 -4.79 M3.94 5.42 L9.11 12.54 M-3.94 5.42 L-9.11 12.54 M-6.37 -2.07 L-14.74 -4.79"
+                      stroke="#161616"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                    <path
+                      d="M0 -15.5 L3.2 -13.2 M0 -15.5 L-3.2 -13.2 M14.74 -4.79 L13.9 -0.95 M14.74 -4.79 L11.5 -7.2 M9.11 12.54 L5.5 13.9 M9.11 12.54 L11 9.6 M-9.11 12.54 L-5.5 13.9 M-9.11 12.54 L-11 9.6 M-14.74 -4.79 L-13.9 -0.95 M-14.74 -4.79 L-11.5 -7.2"
+                      stroke="#161616"
+                      strokeWidth="1.3"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
                   </g>
-                ))}
-              </svg>
-            </div>
+                </svg>
 
-            {/* Marco fijo: aro dorado, bombillas y centro */}
-            <svg
-              viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
-              className="pointer-events-none absolute inset-0 z-20 h-full w-full"
-            >
-              <defs>
-                <linearGradient id="ruletaGold" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#fff0b7" />
-                  <stop offset="48%" stopColor="#f4b73b" />
-                  <stop offset="100%" stopColor="#7a430e" />
-                </linearGradient>
-                <radialGradient id="ruletaHub" cx="50%" cy="38%" r="65%">
-                  <stop offset="0%" stopColor="#f4ffd7" />
-                  <stop offset="55%" stopColor="#a7f600" />
-                  <stop offset="100%" stopColor="#315405" />
-                </radialGradient>
-                <filter
-                  id="ruletaBulbGlow"
-                  x="-90%"
-                  y="-90%"
-                  width="280%"
-                  height="280%"
-                >
-                  <feDropShadow
-                    dx="0"
-                    dy="0"
-                    stdDeviation="1.3"
-                    floodColor="#fbbf24"
-                    floodOpacity="0.65"
-                  />
-                </filter>
-                <filter
-                  id="ruletaGreenGlow"
-                  x="-80%"
-                  y="-80%"
-                  width="260%"
-                  height="260%"
-                >
-                  <feDropShadow
-                    dx="0"
-                    dy="0"
-                    stdDeviation="2.5"
-                    floodColor="#a7f600"
-                    floodOpacity="0.85"
-                  />
-                </filter>
-              </defs>
+                {/* Puntero / flapper */}
+                <div className="absolute left-1/2 top-[-9%] z-30 w-[21%] -translate-x-1/2 drop-shadow-[0_8px_12px_rgba(0,0,0,0.55)]">
+                  <svg viewBox="0 0 54 74" className="h-full w-full">
+                    <defs>
+                      <linearGradient
+                        id="ruletaPointerGold"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop offset="0%" stopColor="#fff7cf" />
+                        <stop offset="46%" stopColor="#f2b83d" />
+                        <stop offset="100%" stopColor="#7a430e" />
+                      </linearGradient>
+                      <radialGradient
+                        id="ruletaPointerGem"
+                        cx="45%"
+                        cy="30%"
+                        r="70%"
+                      >
+                        <stop offset="0%" stopColor="#ffffff" />
+                        <stop offset="38%" stopColor="#a7f600" />
+                        <stop offset="100%" stopColor="#1f6900" />
+                      </radialGradient>
+                    </defs>
+                    <path
+                      d="M27 5 C38 5 47 14 47 25 C47 32 42 39 35 42 L27 68 L19 42 C12 39 7 32 7 25 C7 14 16 5 27 5 Z"
+                      fill="url(#ruletaPointerGold)"
+                      stroke="#fff1b2"
+                      strokeWidth="2.2"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M27 12 C34 12 40 18 40 25 C40 31 36 36 30 38 L27 47 L24 38 C18 36 14 31 14 25 C14 18 20 12 27 12 Z"
+                      fill="#151515"
+                      opacity="0.72"
+                    />
+                    <path
+                      d="M15 31 L39 31 L27 66 Z"
+                      fill="url(#ruletaPointerGold)"
+                      stroke="#fff1b2"
+                      strokeWidth="2.4"
+                      strokeLinejoin="round"
+                    />
+                    <circle
+                      cx="27"
+                      cy="25"
+                      r="8.3"
+                      fill="url(#ruletaPointerGem)"
+                      stroke="#fff1b2"
+                      strokeWidth="2"
+                    />
+                  </svg>
+                </div>
 
-              <circle
-                cx={WHEEL_CENTER}
-                cy={WHEEL_CENTER}
-                r={140}
-                fill="none"
-                stroke="#060606"
-                strokeWidth="18"
-              />
-              <circle
-                cx={WHEEL_CENTER}
-                cy={WHEEL_CENTER}
-                r={141}
-                fill="none"
-                stroke="url(#ruletaGold)"
-                strokeWidth="3.2"
-              />
-              <circle
-                cx={WHEEL_CENTER}
-                cy={WHEEL_CENTER}
-                r={134}
-                fill="none"
-                stroke="#292929"
-                strokeWidth="9"
-              />
-              <circle
-                cx={WHEEL_CENTER}
-                cy={WHEEL_CENTER}
-                r={128.8}
-                fill="none"
-                stroke="#f8d96f"
-                strokeOpacity="0.95"
-                strokeWidth="2.4"
-              />
-              <circle
-                cx={WHEEL_CENTER}
-                cy={WHEEL_CENTER}
-                r={125.8}
-                fill="none"
-                stroke="#a7f600"
-                strokeOpacity="0.85"
-                strokeWidth="1.8"
-              />
-              <circle
-                cx={WHEEL_CENTER}
-                cy={WHEEL_CENTER}
-                r={145}
-                fill="none"
-                stroke="rgba(255,232,160,0.35)"
-                strokeWidth="1.5"
-              />
-              {BULBS.map((bulb) => (
-                <circle
-                  key={`bulb-${bulb.index}`}
-                  cx={bulb.x}
-                  cy={bulb.y}
-                  r={2.4}
-                  fill="#fff3b0"
-                  stroke="#f59e0b"
-                  strokeWidth="0.65"
-                  filter="url(#ruletaBulbGlow)"
-                />
-              ))}
-
-              <circle
-                cx={WHEEL_CENTER}
-                cy={WHEEL_CENTER}
-                r={35}
-                fill="none"
-                stroke="#a7f600"
-                strokeWidth="3.5"
-                filter="url(#ruletaGreenGlow)"
-              />
-              <circle
-                cx={WHEEL_CENTER}
-                cy={WHEEL_CENTER}
-                r={30}
-                fill="#111111"
-                stroke="url(#ruletaGold)"
-                strokeWidth="4"
-              />
-              <circle
-                cx={WHEEL_CENTER}
-                cy={WHEEL_CENTER}
-                r={HUB_RADIUS}
-                fill="url(#ruletaHub)"
-                stroke="#26380a"
-                strokeWidth="1"
-                opacity="0.18"
-              />
-              {/* Balón de fútbol en el centro */}
-              <g transform={`translate(${WHEEL_CENTER} ${WHEEL_CENTER})`}>
-                <circle r="17" fill="#ffffff" stroke="#161616" strokeWidth="1.4" />
-                <path
-                  d="M0 -6.7 L6.37 -2.07 L3.94 5.42 L-3.94 5.42 L-6.37 -2.07 Z"
-                  fill="#161616"
-                />
-                <path
-                  d="M0 -6.7 L0 -15.5 M6.37 -2.07 L14.74 -4.79 M3.94 5.42 L9.11 12.54 M-3.94 5.42 L-9.11 12.54 M-6.37 -2.07 L-14.74 -4.79"
-                  stroke="#161616"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  fill="none"
-                />
-                <path
-                  d="M0 -15.5 L3.2 -13.2 M0 -15.5 L-3.2 -13.2 M14.74 -4.79 L13.9 -0.95 M14.74 -4.79 L11.5 -7.2 M9.11 12.54 L5.5 13.9 M9.11 12.54 L11 9.6 M-9.11 12.54 L-5.5 13.9 M-9.11 12.54 L-11 9.6 M-14.74 -4.79 L-13.9 -0.95 M-14.74 -4.79 L-11.5 -7.2"
-                  stroke="#161616"
-                  strokeWidth="1.3"
-                  strokeLinecap="round"
-                  fill="none"
-                />
-              </g>
-            </svg>
-
-            {/* Puntero / flapper */}
-            <div className="absolute left-1/2 top-[-9%] z-30 w-[21%] -translate-x-1/2 drop-shadow-[0_8px_12px_rgba(0,0,0,0.55)]">
-              <svg viewBox="0 0 54 74" className="h-full w-full">
-                <defs>
-                  <linearGradient
-                    id="ruletaPointerGold"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop offset="0%" stopColor="#fff7cf" />
-                    <stop offset="46%" stopColor="#f2b83d" />
-                    <stop offset="100%" stopColor="#7a430e" />
-                  </linearGradient>
-                  <radialGradient id="ruletaPointerGem" cx="45%" cy="30%" r="70%">
-                    <stop offset="0%" stopColor="#ffffff" />
-                    <stop offset="38%" stopColor="#a7f600" />
-                    <stop offset="100%" stopColor="#1f6900" />
-                  </radialGradient>
-                </defs>
-                <path
-                  d="M27 5 C38 5 47 14 47 25 C47 32 42 39 35 42 L27 68 L19 42 C12 39 7 32 7 25 C7 14 16 5 27 5 Z"
-                  fill="url(#ruletaPointerGold)"
-                  stroke="#fff1b2"
-                  strokeWidth="2.2"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M27 12 C34 12 40 18 40 25 C40 31 36 36 30 38 L27 47 L24 38 C18 36 14 31 14 25 C14 18 20 12 27 12 Z"
-                  fill="#151515"
-                  opacity="0.72"
-                />
-                <path
-                  d="M15 31 L39 31 L27 66 Z"
-                  fill="url(#ruletaPointerGold)"
-                  stroke="#fff1b2"
-                  strokeWidth="2.4"
-                  strokeLinejoin="round"
-                />
-                <circle
-                  cx="27"
-                  cy="25"
-                  r="8.3"
-                  fill="url(#ruletaPointerGem)"
-                  stroke="#fff1b2"
-                  strokeWidth="2"
-                />
-              </svg>
-            </div>
-
-            {/* Estallido al ganar */}
-            {phase === "result" && wonPrize ? (
-              <div className="pointer-events-none absolute inset-0 z-40">
-                <div className="absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(167,246,0,0.38),transparent_68%)] motion-safe:animate-[ruleta-win-burst_750ms_ease-out_both]" />
-                {CONFETTI.map((piece, index) => (
-                  <span
-                    key={`confetti-${index}`}
-                    className="absolute top-[42%] h-2 w-2 rounded-[1px] motion-safe:animate-[ruleta-confetti_1100ms_ease-out_both]"
-                    style={{
-                      left: piece.left,
-                      backgroundColor: piece.color,
-                      animationDelay: piece.delay,
-                    }}
-                  />
-                ))}
-              </div>
-            ) : null}
+                {/* Estallido al ganar */}
+                {phase === "result" && wonPrize ? (
+                  <div className="pointer-events-none absolute inset-0 z-40">
+                    <div className="absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(167,246,0,0.38),transparent_68%)] motion-safe:animate-[ruleta-win-burst_750ms_ease-out_both]" />
+                    {CONFETTI.map((piece, index) => (
+                      <span
+                        key={`confetti-${index}`}
+                        className="absolute top-[42%] h-2 w-2 rounded-[1px] motion-safe:animate-[ruleta-confetti_1100ms_ease-out_both]"
+                        style={{
+                          left: piece.left,
+                          backgroundColor: piece.color,
+                          animationDelay: piece.delay,
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
 
             {/* Resultado / boton */}
             <div className="mt-3 flex w-full flex-col items-center">
               {phase === "result" && result ? (
-            <div className="flex w-full flex-col items-center">
-              {wonPrize ? (
-                <div className="flex w-full max-w-[292px] flex-col items-center rounded-xl border border-[#a7f600]/35 bg-white/[0.045] p-3 shadow-[0_14px_32px_rgba(0,0,0,0.28)]">
-                  <div className="relative aspect-[818/1206] w-14 drop-shadow-[0_6px_14px_rgba(0,0,0,0.5)]">
-                    {wonImage ? (
-                      <Image
-                        src={wonImage}
-                        alt={wonSegment?.title || "Sobre"}
-                        fill
-                        sizes="80px"
-                        className="object-contain"
-                      />
-                    ) : null}
-                  </div>
-                  <p className="mt-2 text-center text-base font-black text-white">
-                    {wonSegment?.title || "Sobre"}
-                  </p>
-                  <p className="mt-0.5 text-center text-[10px] font-black uppercase tracking-[0.18em] text-[#a7f600]">
-                    Sobre ganado
-                  </p>
+                <div className="flex w-full flex-col items-center">
+                  {wonPrize ? (
+                    <div className="flex w-full max-w-[292px] flex-col items-center rounded-xl border border-[#a7f600]/35 bg-white/[0.045] p-3 shadow-[0_14px_32px_rgba(0,0,0,0.28)]">
+                      <div className="relative aspect-[818/1206] w-14 drop-shadow-[0_6px_14px_rgba(0,0,0,0.5)]">
+                        {wonImage ? (
+                          <Image
+                            src={wonImage}
+                            alt={wonSegment?.title || "Sobre"}
+                            fill
+                            sizes="80px"
+                            className="object-contain"
+                          />
+                        ) : null}
+                      </div>
+                      <p className="mt-2 text-center text-base font-bold text-white">
+                        {wonSegment?.title || "Sobre"}
+                      </p>
+                      <p className="mt-0.5 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#a7f600]">
+                        Sobre ganado
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex w-full max-w-[292px] flex-col items-center rounded-xl border border-white/10 bg-white/[0.045] p-4">
+                      <p className="text-center text-base font-bold text-white">
+                        Casi
+                      </p>
+                      <p className="mt-1 text-center text-xs text-zinc-400">
+                        La bola no se paro en un sobre esta vez.
+                      </p>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={wonPrize ? onOpenPacks || onClose : onClose}
+                    className="mt-4 w-full max-w-[292px] rounded-lg bg-[#a7f600] px-5 py-3 text-sm font-bold uppercase tracking-[0.1em] text-black shadow-lg shadow-[#a7f600]/18 transition hover:bg-[#c7ff43]"
+                  >
+                    {wonPrize ? "Abrir en cofres" : "Cerrar"}
+                  </button>
                 </div>
               ) : (
-                <div className="flex w-full max-w-[292px] flex-col items-center rounded-xl border border-white/10 bg-white/[0.045] p-4">
-                  <p className="text-center text-base font-black text-white">
-                    Casi
-                  </p>
-                  <p className="mt-1 text-center text-xs text-zinc-400">
-                    La bola no se paro en un sobre esta vez.
+                <div className="flex w-full flex-col items-center">
+                  {errorMsg ? (
+                    <p className="mb-2 text-center text-xs font-semibold text-rose-200">
+                      {errorMsg}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void spin()}
+                    disabled={spinning}
+                    className="w-full max-w-[292px] rounded-lg bg-[#a7f600] px-5 py-3.5 text-base font-bold uppercase tracking-[0.14em] text-black shadow-[0_12px_30px_rgba(167,246,0,0.18)] transition hover:bg-[#c7ff43] disabled:cursor-wait disabled:opacity-80"
+                  >
+                    {spinning
+                      ? "Girando..."
+                      : spinState === "error"
+                        ? "Reintentar"
+                        : "Girar"}
+                  </button>
+                  <p className="mt-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                    {spinning ? "¡Suerte!" : "Un giro por persona"}
                   </p>
                 </div>
-              )}
-
-              <button
-                type="button"
-                onClick={wonPrize ? onOpenPacks || onClose : onClose}
-                className="mt-4 w-full max-w-[292px] rounded-lg bg-[#a7f600] px-5 py-3 text-sm font-black uppercase tracking-[0.1em] text-black shadow-lg shadow-[#a7f600]/18 transition hover:bg-[#c7ff43]"
-              >
-                {wonPrize ? "Abrir en cofres" : "Cerrar"}
-              </button>
-            </div>
-          ) : (
-            <div className="flex w-full flex-col items-center">
-              {errorMsg ? (
-                <p className="mb-2 text-center text-xs font-semibold text-rose-200">
-                  {errorMsg}
-                </p>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => void spin()}
-                disabled={spinning}
-                className="w-full max-w-[292px] rounded-lg bg-[#a7f600] px-5 py-3.5 text-base font-black uppercase tracking-[0.14em] text-black shadow-[0_12px_30px_rgba(167,246,0,0.18)] transition hover:bg-[#c7ff43] disabled:cursor-wait disabled:opacity-80"
-              >
-                {spinning
-                  ? "Girando..."
-                  : spinState === "error"
-                    ? "Reintentar"
-                    : "Girar"}
-              </button>
-              <p className="mt-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                {spinning ? "¡Suerte!" : "Un giro por persona"}
-              </p>
-            </div>
               )}
             </div>
           </div>

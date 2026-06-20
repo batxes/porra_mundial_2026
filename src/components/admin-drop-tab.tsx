@@ -77,7 +77,9 @@ const DEFAULT_QUIZ_REWARDS: QuizRewardDraft[] = [
 ];
 
 function firstRow<T>(data: unknown): T | null {
-  return Array.isArray(data) ? ((data[0] as T | undefined) ?? null) : (data as T);
+  return Array.isArray(data)
+    ? ((data[0] as T | undefined) ?? null)
+    : (data as T);
 }
 
 function isMissingRpcError(error: { message: string } | null | undefined) {
@@ -139,10 +141,7 @@ function quizQuestionsFromUnknown(value: unknown): QuizQuestionDraft[] {
       );
       while (options.length < 4) options.push("");
       return {
-        correctIndex: Math.max(
-          0,
-          Math.min(3, Number(row.correctIndex) || 0),
-        ),
+        correctIndex: Math.max(0, Math.min(3, Number(row.correctIndex) || 0)),
         options: options.slice(0, 4),
         question: row.question,
       };
@@ -301,9 +300,8 @@ export function AdminDropTab() {
   const loadQuizAttempts = useCallback(
     async (quizId?: string | null) => {
       if (!usingSupabase || !user?.isAdmin) return;
-      const supabase = getSupabaseBrowserClient() as unknown as
-        | SupabaseRpcClient
-        | null;
+      const supabase =
+        getSupabaseBrowserClient() as unknown as SupabaseRpcClient | null;
       if (!supabase) return;
       setQuizAttemptsLoading(true);
       try {
@@ -329,9 +327,8 @@ export function AdminDropTab() {
 
   const loadQuizStatus = useCallback(async () => {
     if (!usingSupabase || !user?.isAdmin) return;
-    const supabase = getSupabaseBrowserClient() as unknown as
-      | SupabaseRpcClient
-      | null;
+    const supabase =
+      getSupabaseBrowserClient() as unknown as SupabaseRpcClient | null;
     if (!supabase) return;
     const { data, error } = await supabase.rpc("admin_sobera_quiz_status");
     if (error) {
@@ -408,14 +405,13 @@ export function AdminDropTab() {
       if (!usingSupabase || !user?.isAdmin) {
         throw new Error("Solo disponible con Supabase y usuario admin.");
       }
-      const supabase = getSupabaseBrowserClient() as unknown as
-        | SupabaseRpcClient
-        | null;
+      const supabase =
+        getSupabaseBrowserClient() as unknown as SupabaseRpcClient | null;
       if (!supabase) throw new Error("No se ha podido conectar con Supabase.");
-      let { data, error } = await supabase.rpc(
-        "admin_set_sobera_quiz_active",
-        { p_active: active, p_quiz_id: targetQuizId },
-      );
+      let { data, error } = await supabase.rpc("admin_set_sobera_quiz_active", {
+        p_active: active,
+        p_quiz_id: targetQuizId,
+      });
       if (error && isMissingRpcError(error)) {
         const fallback = await supabase.rpc("admin_set_sobera_quiz_active", {
           p_active: active,
@@ -512,9 +508,8 @@ export function AdminDropTab() {
       if (!usingSupabase || !user?.isAdmin) {
         throw new Error("Solo disponible con Supabase y usuario admin.");
       }
-      const supabase = getSupabaseBrowserClient() as unknown as
-        | SupabaseRpcClient
-        | null;
+      const supabase =
+        getSupabaseBrowserClient() as unknown as SupabaseRpcClient | null;
       if (!supabase) throw new Error("No se ha podido conectar con Supabase.");
       const { data, error } = editingQuizId
         ? await supabase.rpc("admin_update_sobera_quiz", {
@@ -566,10 +561,10 @@ export function AdminDropTab() {
     setBusy(true);
     try {
       if (usingSupabase && user) {
-        const supabase = getSupabaseBrowserClient() as unknown as
-          | SupabaseRpcClient
-          | null;
-        if (!supabase) throw new Error("No se ha podido conectar con Supabase.");
+        const supabase =
+          getSupabaseBrowserClient() as unknown as SupabaseRpcClient | null;
+        if (!supabase)
+          throw new Error("No se ha podido conectar con Supabase.");
         for (let i = 0; i < count; i += 1) {
           const { error } = await supabase.rpc("admin_create_card_drop", {
             p_label: option.title,
@@ -637,20 +632,19 @@ export function AdminDropTab() {
                 quizStatus?.active && row.id === activeQuiz?.id,
               );
               const selected = row.id === statsQuizId;
-              const canEdit = !rowActive && Number(row.total_attempts || 0) === 0;
+              const canEdit =
+                !rowActive && Number(row.total_attempts || 0) === 0;
               const blockedByActiveQuiz = Boolean(
                 !rowActive &&
-                  quizStatus?.active &&
-                  quizStatus.active_quiz_id &&
-                  quizStatus.active_quiz_id !== row.id,
+                quizStatus?.active &&
+                quizStatus.active_quiz_id &&
+                quizStatus.active_quiz_id !== row.id,
               );
               return (
                 <div
                   key={row.id}
                   className={`grid gap-3 rounded-xl border bg-black/18 p-3 md:grid-cols-[1fr_auto] md:items-center ${
-                    selected
-                      ? "border-amber-200/50"
-                      : "border-white/10"
+                    selected ? "border-amber-200/50" : "border-white/10"
                   }`}
                 >
                   <button
@@ -674,7 +668,9 @@ export function AdminDropTab() {
                     </div>
                     <p className="mt-1 text-xs text-zinc-500">
                       {Number(row.total_attempts || 0)} completados
-                      {row.created_at ? ` - ${formatQuizDate(row.created_at)}` : ""}
+                      {row.created_at
+                        ? ` - ${formatQuizDate(row.created_at)}`
+                        : ""}
                     </p>
                   </button>
                   <div className="flex flex-wrap gap-2">
@@ -717,7 +713,11 @@ export function AdminDropTab() {
                           : "bg-amber-300 text-black hover:bg-amber-200"
                       }`}
                     >
-                      {quizBusy ? "Guardando..." : rowActive ? "Pausar" : "Activar"}
+                      {quizBusy
+                        ? "Guardando..."
+                        : rowActive
+                          ? "Pausar"
+                          : "Activar"}
                     </button>
                   </div>
                 </div>
@@ -751,155 +751,157 @@ export function AdminDropTab() {
         >
           <div className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#101010] text-white shadow-2xl shadow-black/70">
             <div className="min-h-0 space-y-4 overflow-auto p-4">
-          <div>
-            <h4
-              id="sobera-form-title"
-              className="text-base font-semibold text-white"
-            >
-              {editingQuizId ? "Editar ronda" : "Crear nueva ronda"}
-            </h4>
-            <p className="mt-1 text-xs text-zinc-400">
-              {editingQuizId
-                ? "Solo puedes editar rondas pausadas y sin intentos."
-                : "Guardar crea una ronda pausada. Actívala desde el listado cuando esté lista."}
-            </p>
-            {quizNotice ? (
-              <p className="mt-2 text-xs font-semibold text-amber-200">
-                {quizNotice}
-              </p>
-            ) : null}
-          </div>
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
-              Titulo de la ronda
-            </span>
-            <input
-              value={quizTitle}
-              onChange={(event) => setQuizTitle(event.target.value)}
-              className="mt-2 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2.5 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-600 focus:border-amber-200/70"
-              placeholder="SOBRE EXTRA"
-            />
-          </label>
-
-          <div className="space-y-3">
-            {questionDrafts.map((question, questionIndex) => (
-              <div
-                key={questionIndex}
-                className="rounded-xl border border-white/10 bg-black/18 p-3"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-200">
-                    Pregunta {questionIndex + 1}
+              <div>
+                <h4
+                  id="sobera-form-title"
+                  className="text-base font-semibold text-white"
+                >
+                  {editingQuizId ? "Editar ronda" : "Crear nueva ronda"}
+                </h4>
+                <p className="mt-1 text-xs text-zinc-400">
+                  {editingQuizId
+                    ? "Solo puedes editar rondas pausadas y sin intentos."
+                    : "Guardar crea una ronda pausada. Actívala desde el listado cuando esté lista."}
+                </p>
+                {quizNotice ? (
+                  <p className="mt-2 text-xs font-semibold text-amber-200">
+                    {quizNotice}
                   </p>
-                  <p className="text-[11px] font-semibold text-zinc-500">
-                    Correcta: {answerLabel(question.correctIndex)}
-                  </p>
-                </div>
+                ) : null}
+              </div>
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+                  Titulo de la ronda
+                </span>
                 <input
-                  value={question.question}
-                  onChange={(event) =>
-                    updateQuestionDraft(questionIndex, (current) => ({
-                      ...current,
-                      question: event.target.value,
-                    }))
-                  }
-                  className="mt-2 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-600 focus:border-amber-200/70"
-                  placeholder="Pregunta"
+                  value={quizTitle}
+                  onChange={(event) => setQuizTitle(event.target.value)}
+                  className="mt-2 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2.5 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-600 focus:border-amber-200/70"
+                  placeholder="SOBRE EXTRA"
                 />
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  {question.options.map((option, optionIndex) => {
-                    const correct = question.correctIndex === optionIndex;
-                    return (
-                      <div
-                        key={optionIndex}
-                        className="flex min-w-0 items-center gap-2"
+              </label>
+
+              <div className="space-y-3">
+                {questionDrafts.map((question, questionIndex) => (
+                  <div
+                    key={questionIndex}
+                    className="rounded-xl border border-white/10 bg-black/18 p-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-200">
+                        Pregunta {questionIndex + 1}
+                      </p>
+                      <p className="text-[11px] font-semibold text-zinc-500">
+                        Correcta: {answerLabel(question.correctIndex)}
+                      </p>
+                    </div>
+                    <input
+                      value={question.question}
+                      onChange={(event) =>
+                        updateQuestionDraft(questionIndex, (current) => ({
+                          ...current,
+                          question: event.target.value,
+                        }))
+                      }
+                      className="mt-2 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-600 focus:border-amber-200/70"
+                      placeholder="Pregunta"
+                    />
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      {question.options.map((option, optionIndex) => {
+                        const correct = question.correctIndex === optionIndex;
+                        return (
+                          <div
+                            key={optionIndex}
+                            className="flex min-w-0 items-center gap-2"
+                          >
+                            <button
+                              type="button"
+                              aria-pressed={correct}
+                              onClick={() =>
+                                updateQuestionDraft(
+                                  questionIndex,
+                                  (current) => ({
+                                    ...current,
+                                    correctIndex: optionIndex,
+                                  }),
+                                )
+                              }
+                              className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg border text-xs font-bold transition ${
+                                correct
+                                  ? "border-[#a7f600] bg-[#a7f600] text-black"
+                                  : "border-white/10 bg-black/30 text-amber-200 hover:bg-white/10"
+                              }`}
+                            >
+                              {answerLabel(optionIndex)}
+                            </button>
+                            <input
+                              value={option}
+                              onChange={(event) =>
+                                updateQuestionOption(
+                                  questionIndex,
+                                  optionIndex,
+                                  event.target.value,
+                                )
+                              }
+                              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-600 focus:border-amber-200/70"
+                              placeholder={`Respuesta ${answerLabel(optionIndex)}`}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-black/18 p-3">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+                  Premios
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  {rewardDrafts.map((reward, index) => (
+                    <label key={index} className="block">
+                      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+                        {reward.minScore}{" "}
+                        {reward.minScore === 1 ? "acierto" : "aciertos"}
+                      </span>
+                      <select
+                        value={reward.pool}
+                        onChange={(event) =>
+                          updateRewardDraft(index, { pool: event.target.value })
+                        }
+                        className="mt-1 w-full rounded-lg border border-white/10 bg-[#111] px-3 py-2 text-sm font-bold text-white outline-none transition focus:border-amber-200/70"
                       >
-                        <button
-                          type="button"
-                          aria-pressed={correct}
-                          onClick={() =>
-                            updateQuestionDraft(questionIndex, (current) => ({
-                              ...current,
-                              correctIndex: optionIndex,
-                            }))
-                          }
-                          className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg border text-xs font-black transition ${
-                            correct
-                              ? "border-[#a7f600] bg-[#a7f600] text-black"
-                              : "border-white/10 bg-black/30 text-amber-200 hover:bg-white/10"
-                          }`}
-                        >
-                          {answerLabel(optionIndex)}
-                        </button>
-                        <input
-                          value={option}
-                          onChange={(event) =>
-                            updateQuestionOption(
-                              questionIndex,
-                              optionIndex,
-                              event.target.value,
-                            )
-                          }
-                          className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-600 focus:border-amber-200/70"
-                          placeholder={`Respuesta ${answerLabel(optionIndex)}`}
-                        />
-                      </div>
-                    );
-                  })}
+                        {REWARD_POOL_OPTIONS.map((option) => (
+                          <option key={option.pool} value={option.pool}>
+                            {option.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
 
-          <div className="rounded-xl border border-white/10 bg-black/18 p-3">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
-              Premios
-            </p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              {rewardDrafts.map((reward, index) => (
-                <label key={index} className="block">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500">
-                    {reward.minScore}{" "}
-                    {reward.minScore === 1 ? "acierto" : "aciertos"}
-                  </span>
-                  <select
-                    value={reward.pool}
-                    onChange={(event) =>
-                      updateRewardDraft(index, { pool: event.target.value })
-                    }
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-[#111] px-3 py-2 text-sm font-bold text-white outline-none transition focus:border-amber-200/70"
-                  >
-                    {REWARD_POOL_OPTIONS.map((option) => (
-                      <option key={option.pool} value={option.pool}>
-                        {option.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ))}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={quizFormBusy || !usingSupabase}
+                  onClick={() => void saveQuiz()}
+                  className="rounded-lg bg-[#a7f600] px-4 py-2.5 text-sm font-bold text-black transition hover:bg-[#c7ff43] disabled:opacity-60"
+                >
+                  {quizFormBusy ? "Guardando..." : "Aceptar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeQuizForm}
+                  className="rounded-lg border border-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/10"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={quizFormBusy || !usingSupabase}
-              onClick={() => void saveQuiz()}
-              className="rounded-lg bg-[#a7f600] px-4 py-2.5 text-sm font-bold text-black transition hover:bg-[#c7ff43] disabled:opacity-60"
-            >
-              {quizFormBusy ? "Guardando..." : "Aceptar"}
-            </button>
-            <button
-              type="button"
-              onClick={closeQuizForm}
-              className="rounded-lg border border-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/10"
-            >
-              Cancelar
-            </button>
-          </div>
-
-        </div>
-      </div>
         </div>
       ) : null}
 
@@ -1087,8 +1089,9 @@ function QuizStatsModal({
 
 function QuizAttemptRowView({ attempt }: { attempt: QuizAttemptRow }) {
   const answers = quizAnswerIndexes(attempt.answers);
-  const correctAnswers =
-    attempt.correct_answers?.length ? attempt.correct_answers : LEGACY_CORRECT_ANSWERS;
+  const correctAnswers = attempt.correct_answers?.length
+    ? attempt.correct_answers
+    : LEGACY_CORRECT_ANSWERS;
   return (
     <tr>
       <td className="px-3 py-2 font-semibold text-white">
