@@ -5,7 +5,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import type { CSSProperties, ReactNode } from "react";
@@ -406,7 +405,6 @@ export function LeaderboardVersus({
             disabledId={profileB?.id}
             side="a"
             rank={rankA}
-            align="left"
             isLeader={leaderSide === "a"}
             currentUserId={currentUserId}
             onChange={setAId}
@@ -429,7 +427,6 @@ export function LeaderboardVersus({
             disabledId={profileA.id}
             side="b"
             rank={rankB ?? undefined}
-            align="right"
             isLeader={leaderSide === "b"}
             placeholder="Añadir rival"
             currentUserId={currentUserId}
@@ -1249,7 +1246,6 @@ function ParticipantPicker({
   disabledId,
   side,
   rank,
-  align,
   isLeader = false,
   placeholder = "Añadir participante",
   currentUserId,
@@ -1260,7 +1256,6 @@ function ParticipantPicker({
   disabledId?: string;
   side: Side;
   rank?: number;
-  align: "left" | "right";
   isLeader?: boolean;
   placeholder?: string;
   currentUserId?: string;
@@ -1268,19 +1263,20 @@ function ParticipantPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
   const colorFor = useColorFor();
   const color = colorFor(side);
 
+  // El modal se cierra con Escape (además del backdrop y el botón cerrar).
   useEffect(() => {
     if (!open) return;
-    const onDown = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
         setOpen(false);
+        setQuery("");
       }
     };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
   const q = normalize(query.trim());
@@ -1290,7 +1286,7 @@ function ParticipantPicker({
   const isYou = value?.id === currentUserId;
 
   return (
-    <div ref={ref} className="relative min-w-0">
+    <div className="relative min-w-0">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
@@ -1437,64 +1433,105 @@ function ParticipantPicker({
 
       {open ? (
         <div
-          className={`absolute top-full z-30 mt-2 w-72 max-w-[84vw] rounded-xl border border-white/10 bg-[#171717] p-2 shadow-2xl shadow-black/50 motion-safe:animate-[auth-modal-enter_220ms_cubic-bezier(0.22,1,0.36,1)_both] ${
-            align === "right"
-              ? "right-0 origin-top-right"
-              : "left-0 origin-top-left"
-          }`}
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center sm:p-5"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Elegir participante"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setOpen(false);
+              setQuery("");
+            }
+          }}
         >
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar participante"
-            autoFocus
-            className="mb-2 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-medium text-white outline-none placeholder:text-zinc-500"
-          />
-          <div className="max-h-72 space-y-0.5 overflow-y-auto pr-1">
-            {filtered.map((profile) => {
-              const disabled = Boolean(disabledId && profile.id === disabledId);
-              const active = value?.id === profile.id;
-              const profileRank = rankIn(pool, profile);
-              return (
+          <div className="theme-dark flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#151515] shadow-2xl shadow-black/60 motion-safe:animate-[cofre-modal-pop_220ms_cubic-bezier(0.2,0.9,0.3,1)_both]">
+            <div className="border-b border-white/10 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-sm font-bold text-white">
+                  Elegir participante
+                </p>
                 <button
-                  key={profile.id}
                   type="button"
-                  disabled={disabled}
                   onClick={() => {
-                    onChange(profile.id);
                     setOpen(false);
                     setQuery("");
                   }}
-                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition ${
-                    disabled
-                      ? "cursor-not-allowed opacity-35"
-                      : active
-                        ? "bg-white/10"
-                        : "hover:bg-white/5"
-                  }`}
+                  aria-label="Cerrar"
+                  className="flex size-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white"
                 >
-                  <Avatar
-                    name={profile.name}
-                    avatarUrl={profile.avatarUrl}
-                    className="size-8"
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold text-white">
-                      {profile.id === currentUserId ? "Tú · " : ""}
-                      {profile.name}
-                    </span>
-                    <span className="text-[11px] font-semibold text-zinc-500">
-                      {profileRank}º · {profile.points} pts
-                    </span>
-                  </span>
+                  <svg
+                    viewBox="0 0 16 16"
+                    className="size-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M4 4l8 8M12 4l-8 8" />
+                  </svg>
                 </button>
-              );
-            })}
-            {!filtered.length ? (
-              <p className="px-2 py-4 text-center text-xs font-medium text-zinc-500">
-                Sin resultados
-              </p>
-            ) : null}
+              </div>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Buscar participante"
+                className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-base font-medium text-white outline-none placeholder:text-zinc-500"
+              />
+            </div>
+            <div className="team-picker-scroll flex-1 space-y-0.5 overflow-y-auto p-2">
+              {filtered.map((profile) => {
+                const disabled = Boolean(
+                  disabledId && profile.id === disabledId,
+                );
+                const active = value?.id === profile.id;
+                const profileRank = rankIn(pool, profile);
+                return (
+                  <button
+                    key={profile.id}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      onChange(profile.id);
+                      setOpen(false);
+                      setQuery("");
+                    }}
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition ${
+                      disabled
+                        ? "cursor-not-allowed opacity-35"
+                        : active
+                          ? "bg-white/10"
+                          : "hover:bg-white/5"
+                    }`}
+                  >
+                    <Avatar
+                      name={profile.name}
+                      avatarUrl={profile.avatarUrl}
+                      className="size-9"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold text-white">
+                        {profile.id === currentUserId ? "Tú · " : ""}
+                        {profile.name}
+                      </span>
+                      <span className="text-[11px] font-semibold text-zinc-500">
+                        {profileRank}º · {profile.points} pts
+                      </span>
+                    </span>
+                    {active ? (
+                      <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-zinc-300">
+                        Elegido
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+              {!filtered.length ? (
+                <p className="px-2 py-6 text-center text-sm font-medium text-zinc-500">
+                  Sin resultados
+                </p>
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}
