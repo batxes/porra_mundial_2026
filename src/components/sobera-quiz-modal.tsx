@@ -34,6 +34,7 @@ type QuizAnswer = {
 
 export type SoberaQuizCompletion = {
   awardedDropIds: string[];
+  correctAnswers: number[];
   quizId: string;
   score: number;
 };
@@ -159,6 +160,13 @@ export function SoberaQuizModal({
           (row as { awarded_drop_ids?: unknown } | null)?.awarded_drop_ids,
         )
           ? (row as { awarded_drop_ids: string[] }).awarded_drop_ids || []
+          : [],
+        correctAnswers: Array.isArray(
+          (row as { correct_answers?: unknown } | null)?.correct_answers,
+        )
+          ? (row as { correct_answers: number[] }).correct_answers
+              .map((item) => Number(item))
+              .filter((item) => Number.isInteger(item))
           : [],
       };
       setServerResult(result);
@@ -343,11 +351,14 @@ export function SoberaQuizModal({
             />
           ) : (
             <ResultPanel
+              answers={answers}
+              correctAnswers={serverResult?.correctAnswers || []}
               earnedRewards={earnedRewards}
               onClose={onClose}
               onOpenPacks={onOpenPacks || onClose}
               onRetry={submitQuizResult}
               questionCount={questions.length || 4}
+              questions={questions}
               rewards={quiz.rewards}
               score={displayScore}
               submitError={submitError}
@@ -499,21 +510,27 @@ function QuestionPanel({
 }
 
 function ResultPanel({
+  answers,
+  correctAnswers,
   earnedRewards,
   onClose,
   onOpenPacks,
   onRetry,
   questionCount,
+  questions,
   rewards,
   score,
   submitError,
   submitState,
 }: {
+  answers: QuizAnswer[];
+  correctAnswers: number[];
   earnedRewards: SoberaQuizReward[];
   onClose: () => void;
   onOpenPacks: () => void;
   onRetry: () => void;
   questionCount: number;
+  questions: SoberaQuizQuestion[];
   rewards: SoberaQuizReward[];
   score: number | null;
   submitError: string;
@@ -522,6 +539,10 @@ function ResultPanel({
   const saving = submitState === "saving";
   const ready = submitState === "saved" && score !== null;
   const hasRewards = ready && earnedRewards.length > 0;
+  const canReview =
+    ready &&
+    correctAnswers.length === questions.length &&
+    answers.length === questions.length;
 
   return (
     <div className="flex h-full flex-col justify-center">
@@ -548,6 +569,59 @@ function ResultPanel({
         <p className="mt-2 text-xs font-semibold text-rose-200">
           {submitError}. Pulsa de nuevo para reintentarlo.
         </p>
+      ) : null}
+
+      {canReview ? (
+        <div className="mt-4 max-h-44 space-y-2 overflow-y-auto pr-1">
+          {questions.map((question, index) => {
+            const selected = answers[index]?.selectedIndex ?? null;
+            const correct = correctAnswers[index];
+            const hit = selected === correct;
+            return (
+              <div
+                key={`${question.question}-${index}`}
+                className={`rounded-xl border p-2.5 ${
+                  hit
+                    ? "border-emerald-300/45 bg-emerald-400/10"
+                    : "border-rose-300/35 bg-rose-400/10"
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <span
+                    className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg text-[11px] font-black ${
+                      hit
+                        ? "bg-emerald-300 text-black"
+                        : "bg-rose-300 text-black"
+                    }`}
+                  >
+                    {hit ? "OK" : "X"}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-1 text-xs font-bold text-white">
+                      {question.question}
+                    </p>
+                    <p className="mt-1 text-[11px] font-semibold leading-4 text-zinc-300">
+                      Correcta:{" "}
+                      <span className="font-black text-emerald-200">
+                        {answerLabel(correct)} · {question.options[correct]}
+                      </span>
+                    </p>
+                    {!hit ? (
+                      <p className="text-[11px] font-semibold leading-4 text-zinc-500">
+                        Tu respuesta:{" "}
+                        {selected === null
+                          ? "Sin responder"
+                          : `${answerLabel(selected)} · ${
+                              question.options[selected] || "Respuesta"
+                            }`}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : null}
 
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">

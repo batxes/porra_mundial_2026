@@ -257,18 +257,16 @@ export function LeaderboardVersus({
 
     const catA = categoryTotals(profileA);
     const catB = categoryTotals(profileB);
-    const labelSet = new Set([...catA.keys(), ...catB.keys()]);
-    const labels = [
-      ...CATEGORY_ORDER.filter((label) => labelSet.has(label)),
-      ...[...labelSet].filter((label) => !CATEGORY_ORDER.includes(label)),
-    ];
-    const categories = labels
-      .map((label) => ({
-        label,
-        a: catA.get(label) || 0,
-        b: catB.get(label) || 0,
-      }))
-      .filter((row) => row.a !== 0 || row.b !== 0);
+    // Mostramos siempre las 4 categorías fijas (como el resumen del perfil),
+    // con 0 si aún no hay puntos, + cualquier categoría extra que aparezca.
+    const extraLabels = [...new Set([...catA.keys(), ...catB.keys()])].filter(
+      (label) => !CATEGORY_ORDER.includes(label),
+    );
+    const categories = [...CATEGORY_ORDER, ...extraLabels].map((label) => ({
+      label,
+      a: catA.get(label) || 0,
+      b: catB.get(label) || 0,
+    }));
 
     const onceA = onceScorers(profileA, eventPlayer).slice(0, 5);
     const onceB = onceScorers(profileB, eventPlayer).slice(0, 5);
@@ -426,46 +424,38 @@ export function LeaderboardVersus({
 
       {hasDuel && profileB && model && rankB != null ? (
         <div key={profileB.id} className="space-y-4">
-          {/* Arriba, dos columnas que se igualan en altura: la última tarjeta de
-              cada una crece (flex-1) para que ambas terminen a la misma línea. */}
-          <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
-            <div className="flex flex-col gap-4">
-              <div className="vs-card-in" style={cssVars({ "--vs-i": 0 })}>
-                <CategoryBattle categories={model.categories} />
-              </div>
-              <div
-                className="vs-card-in flex flex-1"
-                style={cssVars({ "--vs-i": 1 })}
-              >
-                <LineupBattle
-                  nameA={displayName(profileA, currentUserId)}
-                  nameB={displayName(profileB, currentUserId)}
-                  onceA={model.onceA}
-                  onceB={model.onceB}
-                  commonXi={model.commonXi}
-                />
-              </div>
-            </div>
+          {/* Resumen por categoría a todo el ancho, justo bajo el header. */}
+          <div className="vs-card-in" style={cssVars({ "--vs-i": 0 })}>
+            <CategoryBattle categories={model.categories} />
+          </div>
 
-            <div className="flex flex-col gap-4">
-              <div className="vs-card-in" style={cssVars({ "--vs-i": 1 })}>
-                <DuelMomentum
-                  jornadas={model.jornadas}
-                  nameA={displayName(profileA, currentUserId)}
-                  nameB={displayName(profileB, currentUserId)}
-                />
-              </div>
-              <div
-                className="vs-card-in flex flex-1"
-                style={cssVars({ "--vs-i": 2 })}
-              >
-                <ElectionsBattle elections={model.elections} />
-              </div>
+          {/* Momentum a todo el ancho (el gráfico luce mejor amplio). */}
+          <div className="vs-card-in" style={cssVars({ "--vs-i": 1 })}>
+            <DuelMomentum
+              jornadas={model.jornadas}
+              nameA={displayName(profileA, currentUserId)}
+              nameB={displayName(profileB, currentUserId)}
+            />
+          </div>
+
+          {/* Once y elecciones en dos columnas que se igualan en altura. */}
+          <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
+            <div className="vs-card-in flex" style={cssVars({ "--vs-i": 2 })}>
+              <LineupBattle
+                nameA={displayName(profileA, currentUserId)}
+                nameB={displayName(profileB, currentUserId)}
+                onceA={model.onceA}
+                onceB={model.onceB}
+                commonXi={model.commonXi}
+              />
+            </div>
+            <div className="vs-card-in flex" style={cssVars({ "--vs-i": 3 })}>
+              <ElectionsBattle elections={model.elections} />
             </div>
           </div>
 
           {/* Jornada a jornada a todo el ancho */}
-          <div className="vs-card-in" style={cssVars({ "--vs-i": 3 })}>
+          <div className="vs-card-in" style={cssVars({ "--vs-i": 4 })}>
             <JornadasBattle
               jornadas={model.jornadas}
               mapA={model.mapA}
@@ -801,31 +791,32 @@ function CategoryBattle({
   return (
     <Card className="rounded-2xl">
       <SectionKicker title="Dónde gana cada uno" />
-      <div className="mt-3 space-y-3">
-        {categories.length ? (
-          categories.map((category) => (
-            <CategoryRow key={category.label} {...category} />
-          ))
-        ) : (
-          <p className="rounded-xl border border-dashed border-white/10 bg-black/15 px-3 py-6 text-center text-sm text-zinc-500">
-            Todavía no hay puntos por categoría.
-          </p>
-        )}
-      </div>
+      {categories.length ? (
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {categories.map((category) => (
+            <CategoryTile key={category.label} {...category} />
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 rounded-xl border border-dashed border-white/10 bg-black/15 px-3 py-6 text-center text-sm text-zinc-500">
+          Todavía no hay puntos por categoría.
+        </p>
+      )}
     </Card>
   );
 }
 
-function CategoryRow({ label, a, b }: { label: string; a: number; b: number }) {
+// Tile compacto por categoría (estilo del resumen del perfil): etiqueta, los dos
+// valores coloreados y una barrita que reparte quién gana esa categoría.
+function CategoryTile({ label, a, b }: { label: string; a: number; b: number }) {
   const colorFor = useColorFor();
   const cA = colorFor("a");
   const cB = colorFor("b");
-  const max = Math.max(Math.abs(a), Math.abs(b), 1);
-  const aTarget =
-    a === 0 ? "0%" : `${Math.max(10, (Math.abs(a) / max) * 100)}%`;
-  const bTarget =
-    b === 0 ? "0%" : `${Math.max(10, (Math.abs(b) / max) * 100)}%`;
   const winner: Side | null = a === b ? null : a > b ? "a" : "b";
+  const posA = Math.max(0, a);
+  const posB = Math.max(0, b);
+  const sum = posA + posB;
+  const aPct = sum === 0 ? 50 : Math.round((posA / sum) * 100);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -834,75 +825,34 @@ function CategoryRow({ label, a, b }: { label: string; a: number; b: number }) {
   }, []);
 
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-      <div className="mb-2 grid grid-cols-[3.5rem_minmax(0,1fr)_3.5rem] items-center gap-2 text-xs">
+    <div className="rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2.5">
+      <p className="truncate text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-500">
+        {label}
+      </p>
+      <div className="mt-1 flex items-center justify-between gap-1 text-sm font-black tabular-nums">
         <span
-          className="flex items-center gap-1 font-bold tabular-nums"
           style={{
             color: a < 0 ? NEGATIVE : cA,
-            opacity: winner === "b" ? 0.55 : 1,
+            opacity: winner === "b" ? 0.6 : 1,
           }}
         >
-          {winner === "a" ? (
-            <span
-              className="size-1.5 rounded-full"
-              style={{ background: cA }}
-            />
-          ) : null}
           {signed(a)}
         </span>
-        <span className="truncate text-center font-semibold text-zinc-400">
-          {label}
-        </span>
         <span
-          className="flex items-center justify-end gap-1 text-right font-bold tabular-nums"
           style={{
             color: b < 0 ? NEGATIVE : cB,
-            opacity: winner === "a" ? 0.55 : 1,
+            opacity: winner === "a" ? 0.6 : 1,
           }}
         >
           {signed(b)}
-          {winner === "b" ? (
-            <span
-              className="size-1.5 rounded-full"
-              style={{ background: cB }}
-            />
-          ) : null}
         </span>
       </div>
-      <div className="relative grid h-2.5 grid-cols-2 overflow-hidden rounded-full bg-white/[0.05]">
-        <div className="flex justify-end pr-px">
-          {a !== 0 ? (
-            <span
-              className="block h-full rounded-l-full motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]"
-              style={{
-                width: mounted ? aTarget : "0%",
-                backgroundColor: a < 0 ? NEGATIVE : cA,
-                boxShadow:
-                  winner === "a" ? `0 0 0 1px ${cA}, 0 0 8px ${cA}66` : "none",
-                opacity: winner === "b" ? 0.4 : 1,
-              }}
-            />
-          ) : null}
-        </div>
-        <div className="flex justify-start pl-px">
-          {b !== 0 ? (
-            <span
-              className="block h-full rounded-r-full motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]"
-              style={{
-                width: mounted ? bTarget : "0%",
-                backgroundColor: b < 0 ? NEGATIVE : cB,
-                boxShadow:
-                  winner === "b" ? `0 0 0 1px ${cB}, 0 0 8px ${cB}66` : "none",
-                opacity: winner === "a" ? 0.4 : 1,
-              }}
-            />
-          ) : null}
-        </div>
+      <div className="mt-1.5 flex h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
         <span
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-px -translate-x-1/2 -translate-y-1/2 bg-white/25"
+          className="h-full motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]"
+          style={{ width: mounted ? `${aPct}%` : "0%", backgroundColor: cA }}
         />
+        <span className="h-full flex-1" style={{ backgroundColor: cB }} />
       </div>
     </div>
   );
