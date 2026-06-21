@@ -21,6 +21,7 @@ import {
 } from "@/components/common";
 import { AdminDropTab } from "@/components/admin-drop-tab";
 import { AdminMaintenanceTab } from "@/components/admin-maintenance-tab";
+import { AdminOakTab } from "@/components/admin-oak-tab";
 import { AdminRuletaTab } from "@/components/admin-ruleta-tab";
 import { PlayerSearchModal } from "@/components/player-search-modal";
 import { toDbEventType, useAppContext } from "@/lib/app-context";
@@ -33,6 +34,7 @@ type AdminTab =
   | "partidos"
   | "usuarios"
   | "sobres"
+  | "oak"
   | "ruleta"
   | "proveedor"
   | "mantenimiento";
@@ -41,6 +43,7 @@ const adminTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "partidos", label: "Resultados y eventos" },
   { id: "usuarios", label: "Usuarios" },
   { id: "sobres", label: "Sobres" },
+  { id: "oak", label: "Oak" },
   { id: "ruleta", label: "Ruleta" },
   { id: "proveedor", label: "API externa" },
   { id: "mantenimiento", label: "Mantenimiento" },
@@ -493,6 +496,12 @@ export function AdminView() {
       {activeTab === "ruleta" ? (
         <Card className="space-y-4">
           <AdminRuletaTab />
+        </Card>
+      ) : null}
+
+      {activeTab === "oak" ? (
+        <Card className="space-y-4">
+          <AdminOakTab />
         </Card>
       ) : null}
 

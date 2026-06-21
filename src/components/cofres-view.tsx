@@ -418,7 +418,9 @@ function isForeignPrivateDrop(
   userId: string,
 ) {
   return (
-    (id.startsWith("special-sobera-") || id.startsWith("special-ruleta-")) &&
+    (id.startsWith("special-sobera-") ||
+      id.startsWith("special-ruleta-") ||
+      id.startsWith("special-oak-")) &&
     createdBy !== userId
   );
 }

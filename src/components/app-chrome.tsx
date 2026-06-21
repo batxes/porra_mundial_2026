@@ -7,6 +7,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { AuthModal } from "@/components/auth-modal";
 import { Avatar } from "@/components/common";
+import { OakQuizGate } from "@/components/oak-quiz-gate";
 import { PackDropWatcher } from "@/components/pack-drop-notice";
 import { ResultsRecapWatcher } from "@/components/results-recap";
 import { RuletaGate } from "@/components/ruleta-gate";
@@ -21,6 +22,7 @@ import {
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import {
   currentTheme,
+  loadSavedTheme,
   saveTheme,
   serverTheme,
   subscribeTheme,
@@ -244,6 +246,10 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   const [authOpen, setAuthOpen] = useState(false);
   const unopenedPackCount = useUnopenedPackCount(user?.id || null, usingSupabase);
   const maintenance = useMaintenance(usingSupabase);
+
+  useEffect(() => {
+    loadSavedTheme();
+  }, []);
 
   // Con mantenimiento activo, todos menos el admin ven la pantalla de
   // mantenimiento. Gateamos con `ready` (sabemos ya si eres admin) para no
@@ -480,6 +486,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       />
       <ResultsRecapWatcher />
       <PackDropWatcher launchReady={ready && Boolean(user)} />
+      <OakQuizGate />
       <SoberaQuizGate />
       <RuletaGate />
     </>

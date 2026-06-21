@@ -34,6 +34,20 @@ export function saveTheme(theme: ThemePreference) {
   listeners.forEach((listener) => listener());
 }
 
-// Se inyecta inline al principio del <body> para aplicar el tema guardado
-// antes del primer paint y evitar el destello del tema oscuro por defecto.
-export const themeBootstrapScript = `try{if(localStorage.getItem("${themeStorageKey}")==="light")document.documentElement.dataset.theme="light"}catch(e){}`;
+export function loadSavedTheme() {
+  let theme: ThemePreference = "dark";
+  try {
+    theme =
+      window.localStorage.getItem(themeStorageKey) === "light"
+        ? "light"
+        : "dark";
+  } catch {
+    // Ignore storage failures.
+  }
+  if (theme === "light") {
+    document.documentElement.dataset.theme = "light";
+  } else {
+    delete document.documentElement.dataset.theme;
+  }
+  listeners.forEach((listener) => listener());
+}
