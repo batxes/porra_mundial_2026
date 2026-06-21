@@ -422,6 +422,37 @@ export function AdivinaModal({
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-lime-200/80 to-transparent"
         />
 
+        {/* Precarga: baja TODAS las caricaturas + el fondo ya en la intro (mismo
+            pipeline next/image, asi el cache coincide) para que no parpadeen al
+            empezar ni al cambiar de ronda. */}
+        {phase !== "result" ? (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-0 top-0 h-0 w-0 overflow-hidden opacity-0"
+          >
+            {rounds.map((preloadRound, index) => (
+              <div key={`preload-${index}`} className="relative h-px w-px">
+                <Image
+                  src={adivinaImageSrc(preloadRound.image)}
+                  alt=""
+                  fill
+                  sizes="380px"
+                  loading="eager"
+                />
+              </div>
+            ))}
+            <div className="relative h-px w-px">
+              <Image
+                src={adivinaImageSrc("/oak-bg.webp")}
+                alt=""
+                fill
+                sizes="460px"
+                loading="eager"
+              />
+            </div>
+          </div>
+        ) : null}
+
         <aside
           className={`relative overflow-hidden border-b border-white/10 bg-[#0b1208] ${
             phase === "intro"
