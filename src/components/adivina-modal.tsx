@@ -341,6 +341,27 @@ export function AdivinaModal({
     [],
   );
 
+  // iOS: ancla el modal al viewport VISIBLE (encima del teclado) via la API
+  // visualViewport, para que al escribir no empuje/recorte la imagen.
+  useEffect(() => {
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    if (!vv) return;
+    const root = document.documentElement;
+    const update = () => {
+      root.style.setProperty("--adivina-vvh", `${Math.round(vv.height)}px`);
+      root.style.setProperty("--adivina-vvtop", `${Math.round(vv.offsetTop)}px`);
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      root.style.removeProperty("--adivina-vvh");
+      root.style.removeProperty("--adivina-vvtop");
+    };
+  }, []);
+
   const onInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key === "ArrowDown") {
       event.preventDefault();
@@ -379,12 +400,19 @@ export function AdivinaModal({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-black/82 px-3 py-3 text-white backdrop-blur-sm sm:px-6 sm:py-4"
+      className="fixed inset-x-0 z-[120] flex items-center justify-center overflow-y-auto bg-black/82 px-3 py-3 text-white backdrop-blur-sm sm:px-6 sm:py-4"
+      style={{
+        top: "var(--adivina-vvtop, 0px)",
+        height: "var(--adivina-vvh, 100dvh)",
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="adivina-title"
     >
-      <div className="theme-dark relative grid max-h-[calc(100vh-24px)] w-full max-w-xl overflow-hidden rounded-2xl border border-lime-300/25 bg-[#080808] text-white shadow-2xl shadow-black/70 motion-safe:animate-[adivina-pop_220ms_cubic-bezier(0.22,1,0.36,1)_both]">
+      <div
+        className="theme-dark relative grid w-full max-w-xl overflow-y-auto overflow-x-hidden rounded-2xl border border-lime-300/25 bg-[#080808] text-white shadow-2xl shadow-black/70 motion-safe:animate-[adivina-pop_220ms_cubic-bezier(0.22,1,0.36,1)_both]"
+        style={{ maxHeight: "calc(var(--adivina-vvh, 100dvh) - 24px)" }}
+      >
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(167,246,0,0.17),transparent_32%,rgba(245,197,24,0.08)_70%,transparent)]"
@@ -462,11 +490,12 @@ export function AdivinaModal({
               </div>
 
               <div
-                className={`relative mt-3 aspect-[16/10] w-full max-w-[460px] overflow-hidden rounded-[28px] border border-lime-200/20 bg-[#10230b] shadow-[0_22px_44px_rgba(0,0,0,0.5)] ${
+                className={`relative mt-3 aspect-[16/10] w-full max-w-[460px] shrink-0 overflow-hidden rounded-[28px] border border-lime-200/20 bg-[#10230b] shadow-[0_22px_44px_rgba(0,0,0,0.5)] ${
                   roundState === "revealed" && currentOutcome === "miss"
                     ? "motion-safe:animate-[adivina-shake_320ms_ease-in-out_both]"
                     : ""
                 }`}
+                style={{ maxHeight: "calc(var(--adivina-vvh, 100dvh) * 0.4)" }}
               >
                 <Image
                   src={adivinaImageSrc("/oak-bg.webp")}
