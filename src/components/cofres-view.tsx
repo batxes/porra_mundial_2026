@@ -1017,7 +1017,7 @@ export function CofresView() {
           "id, user_id, in_player_id, out_player_id, points_in, points_out, delta, created_at, profiles(display_name)",
         )
         .order("created_at", { ascending: false })
-        .limit(20),
+        .limit(100),
       supabase
         .from("card_drops")
         .select("id")
