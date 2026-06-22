@@ -60,7 +60,12 @@
   --color-cyan-300: #0e7490;
 }
 
-[data-theme="light"] .theme-dark {
+/* REGLA DE MODALES: todo modal (role="dialog") es una superficie OSCURA. Se
+   trata como .theme-dark: hereda la paleta oscura y queda EXENTO de la inversion
+   del modo claro (gracias a los :not([role="dialog"] *) de mas abajo). Cualquier
+   modal nuevo con role="dialog" lo hereda solo, sin tocar el componente. */
+[data-theme="light"] .theme-dark,
+[data-theme="light"] [role="dialog"] {
   /* Restaura tambien la herencia de color para nodos sin clase de texto;
      los modales claros la pisan con su propia clase (text-slate-950). */
   color: #ffffff;
@@ -185,39 +190,63 @@
 }
 
 /* Acentos que pierden contraste sobre fondo claro */
-[data-theme="light"] .text-\[\#a7f600\]:not(.theme-dark *) {
+[data-theme="light"] .text-\[\#a7f600\]:not(.theme-dark *):not([role="dialog"] *) {
   color: #4c8500;
 }
 
-[data-theme="light"] .text-rose-400:not(.theme-dark *) {
+/* Lima a opacidad (#a7f600/NN): en claro tambien se oscurece para que se lea
+   sobre blanco (contador "nuevo sobre en", placeholders, etc.). */
+[data-theme="light"] .text-\[\#a7f600\]\/70:not(.theme-dark *):not([role="dialog"] *),
+[data-theme="light"] .text-\[\#a7f600\]\/60:not(.theme-dark *):not([role="dialog"] *),
+[data-theme="light"] .text-\[\#a7f600\]\/50:not(.theme-dark *):not([role="dialog"] *) {
+  color: #4c8500;
+}
+
+[data-theme="light"] .border-\[\#a7f600\]\/30:not(.theme-dark *):not([role="dialog"] *),
+[data-theme="light"] .border-\[\#a7f600\]\/25:not(.theme-dark *):not([role="dialog"] *) {
+  border-color: rgba(76, 133, 0, 0.5);
+}
+
+/* Oro de la forja (#f7c84a): en claro se oscurece para leerse sobre blanco
+   (ranuras "+ carta", flecha). En la carta legendaria (theme-dark) sigue vivo. */
+[data-theme="light"] .text-\[\#f7c84a\]:not(.theme-dark *):not([role="dialog"] *),
+[data-theme="light"] .text-\[\#f7c84a\]\/50:not(.theme-dark *):not([role="dialog"] *) {
+  color: #9a6c00;
+}
+
+[data-theme="light"] .border-\[\#f7c84a\]\/25:not(.theme-dark *):not([role="dialog"] *) {
+  border-color: rgba(154, 108, 0, 0.5);
+}
+
+[data-theme="light"] .text-rose-400:not(.theme-dark *):not([role="dialog"] *) {
   color: #cc0036;
 }
 
-[data-theme="light"] .text-emerald-300:not(.theme-dark *),
-[data-theme="light"] .text-emerald-200:not(.theme-dark *) {
+[data-theme="light"] .text-emerald-300:not(.theme-dark *):not([role="dialog"] *),
+[data-theme="light"] .text-emerald-200:not(.theme-dark *):not([role="dialog"] *) {
   color: #047857;
 }
 
-[data-theme="light"] .text-lime-300:not(.theme-dark *) {
+[data-theme="light"] .text-lime-300:not(.theme-dark *):not([role="dialog"] *) {
   color: #4d7c0f;
 }
 
-[data-theme="light"] .text-amber-200:not(.theme-dark *) {
+[data-theme="light"] .text-amber-200:not(.theme-dark *):not([role="dialog"] *) {
   color: #92480c;
 }
 
-[data-theme="light"] .text-\[\#f7c948\]:not(.theme-dark *) {
+[data-theme="light"] .text-\[\#f7c948\]:not(.theme-dark *):not([role="dialog"] *) {
   color: #a87900;
 }
 
-[data-theme="light"] .text-\[\#b7791f\]:not(.theme-dark *) {
+[data-theme="light"] .text-\[\#b7791f\]:not(.theme-dark *):not([role="dialog"] *) {
   color: #8a5a14;
 }
 
 /* Pildoras activas (bg-white text-black): en claro se mantienen blancas con
    texto oscuro y se definen con un anillo y sombra suaves, como un control
    segmentado, en vez de invertirse a oscuro. */
-[data-theme="light"] .bg-white.text-black:not(.theme-dark *) {
+[data-theme="light"] .bg-white.text-black:not(.theme-dark *):not([role="dialog"] *) {
   background-color: #ffffff;
   color: #16212e;
   box-shadow:
@@ -225,36 +254,36 @@
     0 1px 3px rgba(22, 33, 46, 0.06);
 }
 
-[data-theme="light"] .bg-white.text-black.hover\:bg-zinc-200:hover:not(.theme-dark *) {
+[data-theme="light"] .bg-white.text-black.hover\:bg-zinc-200:hover:not(.theme-dark *):not([role="dialog"] *) {
   background-color: #eef1f5;
 }
 
 /* Contadores bg-black dentro de las pildoras: siguen siendo circulos negros
    con texto claro. */
-[data-theme="light"] .bg-black.text-white:not(.theme-dark *) {
+[data-theme="light"] .bg-black.text-white:not(.theme-dark *):not([role="dialog"] *) {
   color: #f7f9fc;
 }
 
 /* Tintes oscurecedores: en claro se convierten en tintes de tinta suaves
    para que el texto volteado siga leyendose encima. Los velos de modal
    (bg-black/70+) se mantienen oscuros a proposito. */
-[data-theme="light"] .bg-black\/30:not(.theme-dark *) {
+[data-theme="light"] .bg-black\/30:not(.theme-dark *):not([role="dialog"] *) {
   background-color: rgba(22, 33, 46, 0.08);
 }
 
-[data-theme="light"] .bg-black\/25:not(.theme-dark *) {
+[data-theme="light"] .bg-black\/25:not(.theme-dark *):not([role="dialog"] *) {
   background-color: rgba(22, 33, 46, 0.07);
 }
 
-[data-theme="light"] .bg-black\/20:not(.theme-dark *) {
+[data-theme="light"] .bg-black\/20:not(.theme-dark *):not([role="dialog"] *) {
   background-color: rgba(22, 33, 46, 0.06);
 }
 
-[data-theme="light"] .bg-black\/15:not(.theme-dark *) {
+[data-theme="light"] .bg-black\/15:not(.theme-dark *):not([role="dialog"] *) {
   background-color: rgba(22, 33, 46, 0.05);
 }
 
-[data-theme="light"] .bg-black\/10:not(.theme-dark *) {
+[data-theme="light"] .bg-black\/10:not(.theme-dark *):not([role="dialog"] *) {
   background-color: rgba(22, 33, 46, 0.04);
 }
 
@@ -269,7 +298,7 @@
 
 /* Sombras de paneles: sobre fondo claro las sombras negras pesan demasiado,
    se reducen al minimo. Los brillos de acento (lime/dorado) no se tocan. */
-[data-theme="light"] .shadow-lg:not(.theme-dark *) {
+[data-theme="light"] .shadow-lg:not(.theme-dark *):not([role="dialog"] *) {
   box-shadow: 0 1px 2px rgba(22, 33, 46, 0.06);
 }
 
@@ -277,55 +306,55 @@
   box-shadow: 0 4px 16px rgba(22, 33, 46, 0.08);
 }
 
-[data-theme="light"] .shadow-sm:not(.theme-dark *) {
+[data-theme="light"] .shadow-sm:not(.theme-dark *):not([role="dialog"] *) {
   box-shadow: 0 1px 2px rgba(22, 33, 46, 0.05);
 }
 
-[data-theme="light"] .shadow-\[0_18px_60px_rgba\(0\,0\,0\,0\.42\)\]:not(.theme-dark *) {
+[data-theme="light"] .shadow-\[0_18px_60px_rgba\(0\,0\,0\,0\.42\)\]:not(.theme-dark *):not([role="dialog"] *) {
   box-shadow: 0 8px 24px rgba(22, 33, 46, 0.14);
 }
 
 /* Superficies oscuras con hex fijo */
-[data-theme="light"] .bg-\[\#151515\]:not(.theme-dark *),
-[data-theme="light"] .bg-\[\#101010\]:not(.theme-dark *),
-[data-theme="light"] .bg-\[\#111111\]:not(.theme-dark *) {
+[data-theme="light"] .bg-\[\#151515\]:not(.theme-dark *):not([role="dialog"] *),
+[data-theme="light"] .bg-\[\#101010\]:not(.theme-dark *):not([role="dialog"] *),
+[data-theme="light"] .bg-\[\#111111\]:not(.theme-dark *):not([role="dialog"] *) {
   background-color: #ffffff;
 }
 
-[data-theme="light"] .bg-\[\#131313\]:not(.theme-dark *),
-[data-theme="light"] .bg-\[\#090909\]:not(.theme-dark *) {
+[data-theme="light"] .bg-\[\#131313\]:not(.theme-dark *):not([role="dialog"] *),
+[data-theme="light"] .bg-\[\#090909\]:not(.theme-dark *):not([role="dialog"] *) {
   background-color: #f1f4f8;
 }
 
-[data-theme="light"] .bg-\[\#0f0f0f\]:not(.theme-dark *) {
+[data-theme="light"] .bg-\[\#0f0f0f\]:not(.theme-dark *):not([role="dialog"] *) {
   background-color: #f3f5f9;
 }
 
-[data-theme="light"] .bg-\[\#101010\]\/94:not(.theme-dark *) {
+[data-theme="light"] .bg-\[\#101010\]\/94:not(.theme-dark *):not([role="dialog"] *) {
   background-color: rgba(255, 255, 255, 0.94);
 }
 
-[data-theme="light"] .bg-\[\#0d0d0d\]\/86:not(.theme-dark *) {
+[data-theme="light"] .bg-\[\#0d0d0d\]\/86:not(.theme-dark *):not([role="dialog"] *) {
   background-color: rgba(255, 255, 255, 0.86);
 }
 
-[data-theme="light"] .bg-\[\#050505\]\/90:not(.theme-dark *) {
+[data-theme="light"] .bg-\[\#050505\]\/90:not(.theme-dark *):not([role="dialog"] *) {
   background-color: rgba(238, 241, 245, 0.9);
 }
 
-[data-theme="light"] .bg-\[\#222\]:not(.theme-dark *) {
+[data-theme="light"] .bg-\[\#222\]:not(.theme-dark *):not([role="dialog"] *) {
   background-color: #e3e7ed;
 }
 
-[data-theme="light"] .bg-\[\#454545\]:not(.theme-dark *) {
+[data-theme="light"] .bg-\[\#454545\]:not(.theme-dark *):not([role="dialog"] *) {
   background-color: #d3d9e1;
 }
 
-[data-theme="light"] .hover\:bg-\[\#555\]:hover:not(.theme-dark *) {
+[data-theme="light"] .hover\:bg-\[\#555\]:hover:not(.theme-dark *):not([role="dialog"] *) {
   background-color: #c4ccd6;
 }
 
-[data-theme="light"] .bg-\[\#3a3a3a\]:not(.theme-dark *) {
+[data-theme="light"] .bg-\[\#3a3a3a\]:not(.theme-dark *):not([role="dialog"] *) {
   background-color: #dde2e8;
 }
 

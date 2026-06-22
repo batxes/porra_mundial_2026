@@ -2349,12 +2349,16 @@ function ForgePanel({
           →
         </span>
 
-        {/* Previsualización del premio (legendaria misteriosa). */}
+        {/* Previsualización del premio (legendaria misteriosa). Es una carta:
+            theme-dark para que su oro siga vivo aunque la web esté en claro. */}
         <div
-          className="flex aspect-[5/7] w-[92px] flex-col items-center justify-center rounded-lg border sm:w-[108px]"
+          className="theme-dark flex aspect-[5/7] w-[92px] flex-col items-center justify-center rounded-lg border sm:w-[108px]"
           style={{
             borderColor: "rgba(247,200,74,0.6)",
-            background:
+            // Base oscura OPACA + degradado encima: sin esto el degradado es
+            // semitransparente y en light mode se cuela el blanco por el centro.
+            backgroundColor: "#0a0f1a",
+            backgroundImage:
               "radial-gradient(70% 60% at 50% 38%, rgba(247,200,74,0.22), rgba(10,15,26,0.95))",
             boxShadow: ready ? "0 0 26px rgba(247,200,74,0.28)" : "none",
           }}
