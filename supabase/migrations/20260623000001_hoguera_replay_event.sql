@@ -30,9 +30,9 @@ set
   updated_at = now();
 
 insert into public.hoguera_settings (id, active, active_hoguera_id, updated_at)
-values (true, true, '00000000-0000-0000-0000-0000000000a4'::uuid, now())
+values (true, false, '00000000-0000-0000-0000-0000000000a4'::uuid, now())
 on conflict (id) do update
 set
-  active = true,
+  active = false,
   active_hoguera_id = excluded.active_hoguera_id,
   updated_at = now();
