@@ -110,6 +110,33 @@ function configFromStatus(status: HogueraStatusRow | null): HogueraConfig | null
   } satisfies HogueraConfig;
 }
 
+function sameHogueraConfig(
+  current: HogueraConfig | null,
+  next: HogueraConfig | null,
+) {
+  if (current === next) return true;
+  if (!current || !next) return false;
+  if (
+    current.id !== next.id ||
+    current.title !== next.title ||
+    current.goalMeters !== next.goalMeters ||
+    current.flameEveryMeters !== next.flameEveryMeters ||
+    current.rewards.length !== next.rewards.length
+  ) {
+    return false;
+  }
+  return current.rewards.every((reward, index) => {
+    const other = next.rewards[index];
+    return (
+      Boolean(other) &&
+      reward.image === other.image &&
+      reward.meters === other.meters &&
+      reward.pool === other.pool &&
+      reward.title === other.title
+    );
+  });
+}
+
 export function HogueraGate() {
   const router = useRouter();
   const { ready, usingSupabase, user } = useAppContext();
@@ -152,7 +179,7 @@ export function HogueraGate() {
         !alreadyCompletedHere &&
         !dismissedHere,
     );
-    setHoguera(next);
+    setHoguera((current) => (sameHogueraConfig(current, next) ? current : next));
     setOpen((prev) => {
       if (shouldOpen) return true;
       if (prev && Boolean(status?.active)) return true;

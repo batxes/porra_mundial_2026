@@ -216,14 +216,18 @@ export function HogueraModal({
   const gameRef = useRef<Game | null>(null);
   const jumpRef = useRef<(() => void) | null>(null);
   const liveSyncRef = useRef(0);
+  const completedRef = useRef(false);
 
   const chosen = DRAGOIA_RUNNER;
 
   const openBriefing = useCallback(() => {
+    if (completedRef.current && !allowReplay) return;
     setPhase("briefing");
-  }, []);
+  }, [allowReplay]);
 
   const start = useCallback(() => {
+    if (completedRef.current && !allowReplay) return;
+    completedRef.current = false;
     setResult(null);
     setHintGone(false);
     setLiveStats({
@@ -234,7 +238,11 @@ export function HogueraModal({
     });
     liveSyncRef.current = 0;
     setPhase("playing");
-  }, []);
+  }, [allowReplay]);
+
+  useEffect(() => {
+    completedRef.current = false;
+  }, [config.id]);
 
   // Precarga (al montar, en la primera pantalla del modal) las imagenes que el
   // canvas pide con URL cruda, para que no carguen a mitad de partida.
@@ -385,6 +393,7 @@ export function HogueraModal({
     window.addEventListener("keydown", onKey);
 
     const finish = () => {
+      if (completedRef.current) return;
       const metersReached = Math.min(g.bestDistance, goal);
       const reachedGoal = g.bestReachedGoal || metersReached >= goal;
       const earned = rewards.slice(0, g.bestBanked);
@@ -396,6 +405,7 @@ export function HogueraModal({
         packs: earned.length,
         rewards: earned,
       };
+      completedRef.current = true;
       setResult(res);
       setPhase("result");
       onCompleted?.(res);
@@ -696,14 +706,19 @@ function HogueraRunLadder({
     0,
     Math.min(100, (safeMeters / goalMeters) * 100),
   );
+  const bestSafeMeters = Math.max(0, Math.min(bestMeters, goalMeters));
 
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#070b06]/78 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
       <div className="mt-1 flex justify-center">
         <LivesRow lives={lives} maxLives={maxLives} />
       </div>
+      <div className="mt-3 flex items-center justify-between gap-3 px-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">
+        <span>Actual {safeMeters}/{goalMeters} m</span>
+        <span className="text-[#f5c518]">Mejor {bestSafeMeters} m</span>
+      </div>
 
-      <div className="relative mt-4 px-1 pt-2">
+      <div className="relative mt-3 px-1 pt-2">
         <div className="absolute left-2 right-2 top-[23px] h-1.5 overflow-hidden rounded-full bg-white/10">
           <div
             className="h-full rounded-full bg-gradient-to-r from-[#22c55e] via-[#f5c518] to-[#ff6a2b] transition-[width] duration-150 ease-out"
