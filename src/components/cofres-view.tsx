@@ -420,7 +420,8 @@ function isForeignPrivateDrop(
   return (
     (id.startsWith("special-sobera-") ||
       id.startsWith("special-ruleta-") ||
-      id.startsWith("special-oak-")) &&
+      id.startsWith("special-oak-") ||
+      id.startsWith("special-hoguera-")) &&
     createdBy !== userId
   );
 }
