@@ -236,6 +236,23 @@ export function HogueraModal({
     setPhase("playing");
   }, []);
 
+  // Precarga (al montar, en la primera pantalla del modal) las imagenes que el
+  // canvas pide con URL cruda, para que no carguen a mitad de partida.
+  useEffect(() => {
+    const sources = [DRAGOIA_RUNNER.src, MONDRAGON_BG_SRC];
+    const imgs = sources.map((src) => {
+      const img = new window.Image();
+      img.src = src;
+      void img.decode().catch(() => {});
+      return img;
+    });
+    return () => {
+      imgs.forEach((img) => {
+        img.onload = null;
+      });
+    };
+  }, []);
+
   // --- Bucle del juego (solo activo en "playing") ---------------------------
   useEffect(() => {
     if (phase !== "playing") return;
