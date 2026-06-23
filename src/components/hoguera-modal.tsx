@@ -463,8 +463,12 @@ export function HogueraModal({
       window.removeEventListener("keydown", onKey);
       jumpRef.current = null;
     };
+    // IMPORTANTE: depende SOLO de `phase`. El bucle debe (re)arrancar al empezar
+    // una partida (intro/result -> playing), NUNCA al cambiar la referencia de
+    // `config` (p.ej. el polling/focus del gate), que reiniciaria el juego a
+    // mitad. `config`/`rewards`/`chosen` se capturan en el closure al arrancar.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, config, chosen.src]);
+  }, [phase]);
 
   const onTapJump = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
