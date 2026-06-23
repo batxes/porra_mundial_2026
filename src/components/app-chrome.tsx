@@ -7,6 +7,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { AuthModal } from "@/components/auth-modal";
 import { Avatar } from "@/components/common";
+import { HogueraGate } from "@/components/hoguera-gate";
 import { OakQuizGate } from "@/components/oak-quiz-gate";
 import { PackDropWatcher } from "@/components/pack-drop-notice";
 import { ResultsRecapWatcher } from "@/components/results-recap";
@@ -487,6 +488,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       <ResultsRecapWatcher />
       <PackDropWatcher launchReady={ready && Boolean(user)} />
       <OakQuizGate />
+      <HogueraGate />
       <SoberaQuizGate />
       <RuletaGate />
     </>

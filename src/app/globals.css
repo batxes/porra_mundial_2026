@@ -1440,6 +1440,277 @@ summary {
   }
 }
 
+/* Salta la hoguera: glow de hoguera detrás de Dragoia en la intro. */
+.hoguera-hero-fire {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  z-index: 0;
+  width: min(76%, 380px);
+  height: 132px;
+  pointer-events: none;
+  opacity: 0.92;
+  transform: translateX(-50%);
+}
+
+.hoguera-hero-fire::before {
+  content: "";
+  position: absolute;
+  inset: 28px 2px 2px;
+  border-radius: 999px 999px 36px 36px;
+  background:
+    radial-gradient(ellipse at 43% 75%, rgba(255, 246, 197, 0.4), transparent 17%),
+    radial-gradient(ellipse at 55% 70%, rgba(245, 197, 24, 0.42), transparent 30%),
+    radial-gradient(ellipse at 50% 82%, rgba(255, 106, 43, 0.4), transparent 55%),
+    radial-gradient(ellipse at 50% 100%, rgba(255, 54, 24, 0.24), transparent 72%);
+  filter: blur(14px);
+  mix-blend-mode: screen;
+}
+
+.hoguera-hero-fire::after {
+  content: "";
+  position: absolute;
+  right: 13%;
+  bottom: 8px;
+  left: 13%;
+  height: 68px;
+  border-radius: 999px 999px 26px 26px;
+  background:
+    radial-gradient(ellipse 18px 48px at 10% 83%, rgba(255, 87, 28, 0.5), transparent 72%),
+    radial-gradient(ellipse 22px 58px at 22% 78%, rgba(245, 197, 24, 0.58), transparent 70%),
+    radial-gradient(ellipse 16px 44px at 36% 84%, rgba(255, 110, 31, 0.52), transparent 72%),
+    radial-gradient(ellipse 26px 64px at 51% 73%, rgba(255, 225, 118, 0.6), transparent 70%),
+    radial-gradient(ellipse 17px 46px at 64% 82%, rgba(255, 109, 35, 0.52), transparent 72%),
+    radial-gradient(ellipse 22px 56px at 78% 78%, rgba(245, 197, 24, 0.58), transparent 70%),
+    radial-gradient(ellipse 18px 46px at 91% 83%, rgba(255, 87, 28, 0.5), transparent 72%);
+  filter: blur(4px);
+  mix-blend-mode: screen;
+  opacity: 0.72;
+}
+
+.hoguera-hero-flame {
+  position: absolute;
+  bottom: 17px;
+  left: 50%;
+  display: block;
+  width: var(--flame-w, 30px);
+  height: var(--flame-h, 62px);
+  border-radius: 48% 52% 46% 54% / 64% 62% 34% 36%;
+  background:
+    radial-gradient(ellipse at 50% 82%, rgba(255, 247, 203, 0.74), transparent 18%),
+    radial-gradient(ellipse at 50% 61%, rgba(245, 197, 24, 0.58), transparent 39%),
+    linear-gradient(180deg, rgba(255, 222, 119, 0.82) 0%, rgba(255, 131, 37, 0.78) 55%, rgba(193, 43, 19, 0.56) 100%);
+  clip-path: polygon(50% 0%, 60% 24%, 75% 49%, 80% 73%, 66% 100%, 34% 100%, 20% 73%, 26% 49%, 40% 24%);
+  filter: blur(0.85px) drop-shadow(0 0 13px rgba(255, 106, 43, 0.34));
+  opacity: var(--flame-o, 0.48);
+  transform: translateX(var(--flame-x, -50%)) rotate(var(--flame-r, 0deg)) scaleX(var(--flame-sx, 1)) scaleY(var(--flame-sy, 1));
+  transform-origin: 50% 100%;
+  mix-blend-mode: screen;
+}
+
+.hoguera-hero-flame::before {
+  content: "";
+  position: absolute;
+  inset: 34% 28% 3%;
+  border-radius: 999px 999px 44% 44%;
+  background: linear-gradient(180deg, rgba(255, 248, 207, 0.58), rgba(245, 197, 24, 0.34), transparent);
+  clip-path: polygon(50% 0%, 66% 42%, 72% 100%, 28% 100%, 34% 42%);
+}
+
+.hoguera-hero-flame--far-left {
+  --flame-x: -136px;
+  --flame-r: -13deg;
+  --flame-w: 24px;
+  --flame-h: 45px;
+  --flame-o: 0.32;
+}
+
+.hoguera-hero-flame--left {
+  --flame-x: -98px;
+  --flame-r: -8deg;
+  --flame-w: 31px;
+  --flame-h: 62px;
+  --flame-o: 0.48;
+}
+
+.hoguera-hero-flame--back-left {
+  --flame-x: -76px;
+  --flame-r: 10deg;
+  --flame-w: 23px;
+  --flame-h: 50px;
+  --flame-o: 0.34;
+}
+
+.hoguera-hero-flame--mid-left {
+  --flame-x: -48px;
+  --flame-r: 7deg;
+  --flame-w: 27px;
+  --flame-h: 58px;
+  --flame-o: 0.42;
+}
+
+.hoguera-hero-flame--center {
+  --flame-x: -14px;
+  --flame-r: -2deg;
+  --flame-w: 34px;
+  --flame-h: 72px;
+  --flame-o: 0.52;
+}
+
+.hoguera-hero-flame--mid-right {
+  --flame-x: 27px;
+  --flame-r: -7deg;
+  --flame-w: 26px;
+  --flame-h: 56px;
+  --flame-o: 0.42;
+}
+
+.hoguera-hero-flame--back-right {
+  --flame-x: 54px;
+  --flame-r: -10deg;
+  --flame-w: 22px;
+  --flame-h: 49px;
+  --flame-o: 0.34;
+}
+
+.hoguera-hero-flame--right {
+  --flame-x: 82px;
+  --flame-r: 9deg;
+  --flame-w: 30px;
+  --flame-h: 61px;
+  --flame-o: 0.48;
+}
+
+.hoguera-hero-flame--far-right {
+  --flame-x: 121px;
+  --flame-r: 14deg;
+  --flame-w: 23px;
+  --flame-h: 45px;
+  --flame-o: 0.32;
+}
+
+.hoguera-hero-ember {
+  position: absolute;
+  bottom: 74px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #ffe08a;
+  box-shadow: 0 0 12px rgba(245, 197, 24, 0.85);
+  opacity: 0.8;
+}
+
+.hoguera-hero-ember--one {
+  margin-left: -126px;
+}
+
+.hoguera-hero-ember--two {
+  margin-left: 108px;
+  bottom: 96px;
+}
+
+.hoguera-hero-ember--three {
+  margin-left: 36px;
+  bottom: 116px;
+}
+
+.hoguera-hero-ember--four {
+  margin-left: -58px;
+  bottom: 102px;
+}
+
+.hoguera-hero-ember--five {
+  margin-left: 154px;
+  bottom: 78px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hoguera-hero-fire::before {
+    animation: hoguera-hero-glow 1800ms ease-in-out infinite;
+  }
+
+  .hoguera-hero-flame {
+    animation: hoguera-hero-flame 980ms ease-in-out infinite alternate;
+  }
+
+  .hoguera-hero-flame--far-left,
+  .hoguera-hero-flame--mid-right,
+  .hoguera-hero-flame--back-right {
+    animation-duration: 1220ms;
+  }
+
+  .hoguera-hero-flame--mid-left,
+  .hoguera-hero-flame--far-right,
+  .hoguera-hero-flame--back-left {
+    animation-duration: 1120ms;
+    animation-delay: 140ms;
+  }
+
+  .hoguera-hero-flame--center {
+    animation-duration: 880ms;
+  }
+
+  .hoguera-hero-ember--one {
+    animation: hoguera-hero-ember 2200ms ease-in-out infinite;
+  }
+
+  .hoguera-hero-ember--two {
+    animation: hoguera-hero-ember 2500ms ease-in-out 260ms infinite;
+  }
+
+  .hoguera-hero-ember--three {
+    animation: hoguera-hero-ember 2100ms ease-in-out 520ms infinite;
+  }
+
+  .hoguera-hero-ember--four {
+    animation: hoguera-hero-ember 2300ms ease-in-out 720ms infinite;
+  }
+
+  .hoguera-hero-ember--five {
+    animation: hoguera-hero-ember 2400ms ease-in-out 430ms infinite;
+  }
+}
+
+@keyframes hoguera-hero-glow {
+  0%,
+  100% {
+    opacity: 0.78;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes hoguera-hero-flame {
+  from {
+    transform: translateX(var(--flame-x, -50%)) rotate(var(--flame-r, 0deg)) scaleX(calc(var(--flame-sx, 1) * 0.92)) scaleY(calc(var(--flame-sy, 1) * 0.94));
+  }
+
+  to {
+    transform: translateX(calc(var(--flame-x, -50%) + 4px)) rotate(calc(var(--flame-r, 0deg) + 4deg)) scaleX(calc(var(--flame-sx, 1) * 1.04)) scaleY(calc(var(--flame-sy, 1) * 1.08));
+  }
+}
+
+@keyframes hoguera-hero-ember {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.6);
+  }
+
+  22% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-74px) scale(1.15);
+  }
+}
+
 /* Minijuego "Adivina el crack": entrada del modal + sacudida al fallar. */
 @keyframes adivina-pop {
   0% {
