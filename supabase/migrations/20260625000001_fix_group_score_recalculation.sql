@@ -234,8 +234,10 @@ begin
       ) as actual_position
     from team_standings ts
     join group_completion gc on gc.group_code = ts.group_code
+    cross join all_groups_complete agc
     where gc.expected_matches = 6
       and gc.completed_matches = gc.expected_matches
+      and agc.complete
   ),
   best_thirds as (
     select rs.team_id

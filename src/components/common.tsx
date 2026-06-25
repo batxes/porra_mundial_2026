@@ -735,8 +735,7 @@ export function Notice({
 const scoreSections = [
   { label: "Tus elecciones", category: "Tus elecciones" },
   { label: "Tu once", category: "Tu once" },
-  { label: "Grupos", category: "Fase de grupos" },
-  { label: "Cuadro", category: "Cuadro" },
+  { label: "Grupos", category: "Fase de grupos", hideWhenEmpty: true },
   { label: "Resultados", category: "Marcadores" },
 ] as const;
 
@@ -774,6 +773,11 @@ export function ProfileScoreCard({
 }) {
   const categoryTotal = (category: string) =>
     scorecard.categories.find((entry) => entry.label === category)?.total ?? 0;
+  const visibleScoreSections = scoreSections.filter(
+    (section) =>
+      !("hideWhenEmpty" in section && section.hideWhenEmpty) ||
+      scorecard.categories.some((entry) => entry.label === section.category),
+  );
 
   return (
     <Card className="space-y-3">
@@ -829,8 +833,8 @@ export function ProfileScoreCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-        {scoreSections.map((section) => {
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {visibleScoreSections.map((section) => {
           const total = categoryTotal(section.category);
           return (
             <div

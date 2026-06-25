@@ -42,7 +42,6 @@ const CATEGORY_ORDER = [
   "Marcadores",
   "Tu once",
   "Fase de grupos",
-  "Cuadro",
   "Tus elecciones",
 ];
 

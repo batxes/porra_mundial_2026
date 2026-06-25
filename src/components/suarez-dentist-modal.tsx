@@ -302,6 +302,14 @@ export function SuarezDentistModal({
     trapToothId,
   ]);
 
+  useEffect(() => {
+    if (phase !== "playing" || !mouthClosed) return;
+    const timer = window.setTimeout(() => {
+      continueAfterBite();
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [continueAfterBite, mouthClosed, phase]);
+
   const liveBest = Math.max(0, ...attemptScores, removedTeeth.length);
   const wonAny = (result?.packs ?? liveBest) > 0;
 
@@ -373,7 +381,6 @@ export function SuarezDentistModal({
             tuning={tuning}
             onTuningChange={onTuningChange}
             onPickTooth={pickTooth}
-            onBiteContinue={continueAfterBite}
           />
         ) : (
           <ResultPanel
@@ -623,7 +630,6 @@ function PlayingPanel({
   tuning,
   onTuningChange,
   onPickTooth,
-  onBiteContinue,
 }: {
   rewards: SuarezDentistReward[];
   removedTeeth: string[];
@@ -635,7 +641,6 @@ function PlayingPanel({
   tuning: SuarezDentistTuning;
   onTuningChange?: (tuning: SuarezDentistTuning) => void;
   onPickTooth: (toothId: string) => void;
-  onBiteContinue: () => void;
 }) {
   const remainingTeeth = TEETH.length - removedTeeth.length;
   const showInitialHint = removedTeeth.length === 0 && !mouthClosed;
@@ -722,12 +727,7 @@ function PlayingPanel({
         ) : null}
 
         {mouthClosed ? (
-          <button
-            type="button"
-            aria-label="Ver resultado"
-            onClick={onBiteContinue}
-            className="absolute inset-0 z-40 grid cursor-pointer place-items-center bg-red-950/18"
-          />
+          <div aria-hidden className="absolute inset-0 z-40 bg-red-950/18" />
         ) : null}
       </SuarezStage>
 

@@ -304,36 +304,37 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
 
     const groupTables = calculateGroupPositions(adminResults);
     const thirdQualifierIds = calculateThirdQualifierIds(groupTables);
+    const allGroupsComplete = Object.values(groupTables).every((table) => table.complete);
 
-    Object.entries(groupTables).forEach(([group, table]) => {
-      if (!table.complete) return;
-      table.positions.forEach((row) => {
-        const predictedPosition = Number(prediction.groups?.[group]?.[row.teamId] || 0);
+    if (allGroupsComplete) {
+      Object.entries(groupTables).forEach(([group, table]) => {
+        table.positions.forEach((row) => {
+          const predictedPosition = Number(prediction.groups?.[group]?.[row.teamId] || 0);
 
-        if (row.position <= 2 && (predictedPosition === 1 || predictedPosition === 2)) {
-          addEntry(entries, {
-            userId,
-            ruleCode: "group_qualification_hit",
-            points: 2,
-            explanation: `${teamName(row.teamId)} clasificado desde el grupo ${group}`,
-            sourceRef: `group-qualified-${group}-${row.teamId}`,
-          });
-        }
+          if (row.position <= 2 && (predictedPosition === 1 || predictedPosition === 2)) {
+            addEntry(entries, {
+              userId,
+              ruleCode: "group_qualification_hit",
+              points: 2,
+              explanation: `${teamName(row.teamId)} clasificado desde el grupo ${group}`,
+              sourceRef: `group-qualified-${group}-${row.teamId}`,
+            });
+          }
 
-        if (
-          row.position === 3 &&
-          predictedPosition === 3 &&
-          thirdQualifierIds.has(row.teamId) &&
-          prediction.bracket?.thirdQualifiers?.includes(group)
-        ) {
-          addEntry(entries, {
-            userId,
-            ruleCode: "group_third_qualification_hit",
-            points: 1,
-            explanation: `${teamName(row.teamId)} tercer clasificado desde el grupo ${group}`,
-            sourceRef: `group-third-qualified-${group}-${row.teamId}`,
-          });
-        }
+          if (
+            row.position === 3 &&
+            predictedPosition === 3 &&
+            thirdQualifierIds.has(row.teamId) &&
+            prediction.bracket?.thirdQualifiers?.includes(group)
+          ) {
+            addEntry(entries, {
+              userId,
+              ruleCode: "group_third_qualification_hit",
+              points: 1,
+              explanation: `${teamName(row.teamId)} tercer clasificado desde el grupo ${group}`,
+              sourceRef: `group-third-qualified-${group}-${row.teamId}`,
+            });
+          }
 
         if (row.position <= 2 && predictedPosition === row.position) {
           addEntry(entries, {
@@ -345,7 +346,8 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
           });
         }
       });
-    });
+      });
+    }
     const selectedPlayers = new Set(prediction.xi || []);
     Object.entries(adminResults).forEach(([matchNumber, result]) => {
       (result.events || []).forEach((event, index) => {

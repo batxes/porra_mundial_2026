@@ -290,9 +290,10 @@
 
       const groupTables = calculateGroupPositions(adminResults);
       const thirdQualifierIds = calculateThirdQualifierIds(groupTables);
+      const allGroupsComplete = Object.values(groupTables).every((table) => table.complete);
 
-      Object.entries(groupTables).forEach(([group, table]) => {
-        if (!table.complete) return;
+      if (allGroupsComplete) {
+        Object.entries(groupTables).forEach(([group, table]) => {
         table.positions.forEach((row) => {
           const predictedPosition = Number(prediction.groups?.[group]?.[row.teamId] || 0);
 
@@ -331,7 +332,8 @@
             });
           }
         });
-      });
+        });
+      }
       const selectedPlayers = new Set(prediction.xi || []);
       Object.entries(adminResults).forEach(([matchNumber, result]) => {
         (result.events || []).forEach((event, index) => {
