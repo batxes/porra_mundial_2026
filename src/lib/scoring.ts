@@ -21,6 +21,8 @@ const ruleMeta = {
   tournament_top_scorer_hit: { label: "Máximo goleador", category: "Tus elecciones" },
 } as const;
 
+const GROUP_SCORING_ENABLED = false;
+
 const eventRules = {
   goal: { ruleCode: "player_goal", points: 2 },
   gol: { ruleCode: "player_goal", points: 2 },
@@ -306,7 +308,7 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
     const thirdQualifierIds = calculateThirdQualifierIds(groupTables);
     const allGroupsComplete = Object.values(groupTables).every((table) => table.complete);
 
-    if (allGroupsComplete) {
+    if (GROUP_SCORING_ENABLED && allGroupsComplete) {
       Object.entries(groupTables).forEach(([group, table]) => {
         table.positions.forEach((row) => {
           const predictedPosition = Number(prediction.groups?.[group]?.[row.teamId] || 0);
@@ -425,7 +427,7 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
         explanation: String(entry.explanation || ""),
         sourceRef: String(entry.sourceRef || entry.source_ref || ""),
       };
-    });
+    }).filter((entry) => GROUP_SCORING_ENABLED || !entry.ruleCode.startsWith("group_"));
 
     const categories: Record<string, { label: string; total: number; entries: ScoreEntry[] }> = {};
 

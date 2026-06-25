@@ -207,11 +207,8 @@ const playerIdByPosition = (position: string) => data.players.find((player) => p
   const results = Object.fromEntries(miniSchedule.map((match: any) => [String(match.number), { homeScore: 1, awayScore: 0, events: [] }]));
   const groupScorecard = miniEngine.calculateScorecard(prediction, results as any);
 
-  assert.equal(groupScorecard.categories.find((category) => category.label === "Fase de grupos")?.total, 7);
-  assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_qualification_hit").length, 0);
-  assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_position_hit").length, 2);
-  assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_third_qualification_hit").length, 1);
-  assert.equal(groupScorecard.entries.find((entry) => entry.ruleCode === "group_third_qualification_hit")?.points, 1);
+  assert.equal(groupScorecard.total, 0);
+  assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode.startsWith("group_")).length, 0);
 
   const swappedTopTwoScorecard = miniEngine.calculateScorecard(
     {
@@ -220,16 +217,17 @@ const playerIdByPosition = (position: string) => data.players.find((player) => p
     },
     results as any,
   );
-  assert.equal(swappedTopTwoScorecard.categories.find((category) => category.label === "Fase de grupos")?.total, 5);
-  assert.equal(swappedTopTwoScorecard.entries.filter((entry) => entry.ruleCode === "group_qualification_hit").length, 2);
-  assert.equal(swappedTopTwoScorecard.entries.filter((entry) => entry.ruleCode === "group_position_hit").length, 0);
+  assert.equal(swappedTopTwoScorecard.total, 0);
+  assert.equal(swappedTopTwoScorecard.entries.filter((entry) => entry.ruleCode.startsWith("group_")).length, 0);
 }
 
 {
   const card = engine.scorecardFromEntries([
     { user_id: "u1", rule_code: "match_exact_score", points: 4, explanation: "Marcador exacto partido 1" },
+    { user_id: "u1", rule_code: "group_position_hit", points: 3, explanation: "Entrada antigua de grupos" },
   ]);
   assert.equal(card.total, 4);
+  assert.equal(card.entries.length, 1);
   assert.equal(card.categories[0].label, "Marcadores");
 }
 

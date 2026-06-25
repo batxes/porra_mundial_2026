@@ -76,7 +76,7 @@ const sections: RulesSection[] = [
     title: "Fase de grupos",
     lock: "Hasta que empiece el Mundial",
     description:
-      "Ordena cada grupo del 1 al 4 y marca los 8 mejores terceros. Esta fase puntúa solo cuando estén cerrados todos los grupos.",
+      "Ordena cada grupo del 1 al 4 y marca los 8 mejores terceros. Esta fase no aparece en perfil ni clasificación hasta el recuento al cierre de todos los grupos.",
     rules: [
       ["Clasificado como 1º o 2º, pero con el orden cambiado", "+2"],
       ["Ese clasificado en su puesto exacto (1º o 2º)", "+3"],

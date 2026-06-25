@@ -115,8 +115,10 @@ const playerIdByPosition = (position) => window.PORRA_DATA.players.find((player)
 {
   const card = engine.scorecardFromEntries([
     { user_id: "u1", rule_code: "match_exact_score", points: 4, explanation: "Marcador exacto partido 1" },
+    { user_id: "u1", rule_code: "group_position_hit", points: 3, explanation: "Entrada antigua de grupos" },
   ]);
   assert.equal(card.total, 4);
+  assert.equal(card.entries.length, 1);
   assert.equal(card.categories[0].label, "Marcadores");
 }
 

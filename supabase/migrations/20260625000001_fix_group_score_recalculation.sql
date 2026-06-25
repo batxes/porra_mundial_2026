@@ -320,7 +320,8 @@ begin
   )
   insert into public.score_entries (user_id, match_id, rule_code, points, explanation, source_ref)
   select user_id, match_id, rule_code, points, explanation, source_ref
-  from group_score_rows;
+  from group_score_rows
+  where false;
 
   update public.profiles profile
   set total_points = coalesce(totals.total_points, 0),
