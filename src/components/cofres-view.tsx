@@ -1585,11 +1585,9 @@ export function CofresView() {
       const alreadyInXi = selectedPlayer
         ? activeXi.includes(selectedPlayer.id)
         : false;
-      // La carta debe valer MENOS puntos que el titular al que sustituye (no
-      // sirve para subir el marcador a posteriori). El empate solo vale si la
-      // carta está a 0. MISMA regla que el SQL apply_card_swap y app-context.
-      const cardEligible =
-        inPoints < outPoints || (inPoints === 0 && outPoints >= 0);
+      // La carta no puede subir el marcador a posteriori. Los empates valen
+      // para cualquier puntuación (0 -> 0, 10 -> 10, etc.).
+      const cardEligible = inPoints <= outPoints;
       const eligible = Boolean(
         selectedPlayer && samePosition && !alreadyInXi && cardEligible,
       );
@@ -1600,7 +1598,7 @@ export function CofresView() {
         reason = `Solo ${positionLabel[selectedPlayer.position]}`;
       else if (alreadyInXi) reason = "Ya esta en tu once";
       else if (!cardEligible)
-        reason = `Tiene menos puntos que tu carta (${formatSigned(outPoints)})`;
+        reason = `Tiene mas puntos que tu titular (${formatSigned(outPoints)})`;
 
       return {
         outPlayer,

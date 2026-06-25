@@ -645,13 +645,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ok: false, message: "La carta no coincide con el puesto." };
       }
 
-      const canEnter =
-        swap.pointsIn < swap.pointsOut ||
-        (swap.pointsIn === 0 && swap.pointsOut >= 0);
+      const canEnter = swap.pointsIn <= swap.pointsOut;
       if (!canEnter) {
         return {
           ok: false,
-          message: "El jugador de la carta debe tener menos puntos que el que sale.",
+          message: "El jugador de la carta no puede tener mas puntos que el que sale.",
         };
       }
 
