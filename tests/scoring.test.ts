@@ -156,9 +156,17 @@ const playerIdByPosition = (position: string) => data.players.find((player) => p
   } as any;
   assert.equal(engine.calculateScorecard(prediction, partial as any).total, 0);
   const groupScorecard = engine.calculateScorecard(prediction, full);
-  assert.equal(groupScorecard.total, 16);
+  assert.equal(groupScorecard.total, 10);
+  assert.equal(groupScorecard.categories.find((category) => category.label === "Fase de grupos")?.total, 10);
   assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_qualification_hit").length, 2);
-  assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_position_hit").length, 4);
+  assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_position_hit").length, 2);
+  assert.deepEqual(
+    groupScorecard.entries
+      .filter((entry) => entry.ruleCode === "group_position_hit")
+      .map((entry) => entry.sourceRef)
+      .sort(),
+    ["group-position-A-kor", "group-position-A-mex"],
+  );
 }
 
 {
@@ -209,6 +217,7 @@ const playerIdByPosition = (position: string) => data.players.find((player) => p
   const groupScorecard = miniEngine.calculateScorecard(prediction, results as any);
 
   assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_qualification_hit").length, 2);
+  assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_position_hit").length, 2);
   assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_third_qualification_hit").length, 1);
   assert.equal(groupScorecard.entries.find((entry) => entry.ruleCode === "group_third_qualification_hit")?.points, 1);
 }
@@ -249,6 +258,7 @@ const playerIdByPosition = (position: string) => data.players.find((player) => p
     card.entries.filter((entry) => entry.ruleCode === "team_progression_hit").map((entry) => entry.points),
     [5, 10, 15, 20, 25],
   );
+  assert.equal(card.categories.find((category) => category.label === "Cuadro")?.total, 75);
 }
 
 console.log("scoring tests passed");

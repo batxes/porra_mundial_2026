@@ -333,6 +333,30 @@ export function SuarezDentistModal({
 
         <SuarezEventHeader phase={phase} />
 
+        {/* Precarga (intro/briefing) las imagenes next/image del juego — el fondo
+            y Suarez abierto/cerrado — con los MISMOS sizes que el render real, para
+            que no carguen a mitad de partida (el mordisco cambia a la cerrada). Los
+            dientes van por CSS background y los precarga el efecto new Image() de
+            arriba; estas van por next/image (URL optimizada) y necesitan esto. */}
+        {phase !== "playing" ? (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-0 top-0 h-0 w-0 overflow-hidden opacity-0"
+          >
+            {[suarezBg, SUAREZ_OPEN_SRC, SUAREZ_CLOSED_SRC].map((src, index) => (
+              <div key={`suarez-preload-${index}`} className="relative h-px w-px">
+                <Image
+                  src={src}
+                  alt=""
+                  fill
+                  sizes="(max-width: 640px) 94vw, 560px"
+                  loading="eager"
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         {phase === "intro" ? (
           <IntroPanel rewards={rewards} onStart={openBriefing} />
         ) : phase === "briefing" ? (

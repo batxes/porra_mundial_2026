@@ -735,7 +735,8 @@ export function Notice({
 const scoreSections = [
   { label: "Tus elecciones", category: "Tus elecciones" },
   { label: "Tu once", category: "Tu once" },
-  { label: "Fase de grupos", category: "Grupos y cuadro" },
+  { label: "Grupos", category: "Fase de grupos" },
+  { label: "Cuadro", category: "Cuadro" },
   { label: "Resultados", category: "Marcadores" },
 ] as const;
 
@@ -828,7 +829,7 @@ export function ProfileScoreCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         {scoreSections.map((section) => {
           const total = categoryTotal(section.category);
           return (

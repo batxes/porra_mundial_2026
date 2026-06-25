@@ -10,10 +10,10 @@
     player_penalty_save: { label: "Penalti parado", category: "Tu once" },
     player_penalty_miss: { label: "Penalti fallado", category: "Tu once" },
     player_red_card: { label: "Tarjeta roja", category: "Tu once" },
-    team_progression_hit: { label: "Acierto de fase", category: "Grupos y cuadro" },
-    group_qualification_hit: { label: "Equipo clasificado en grupos", category: "Grupos y cuadro" },
-    group_third_qualification_hit: { label: "Tercer clasificado acertado", category: "Grupos y cuadro" },
-    group_position_hit: { label: "Orden exacto en grupo", category: "Grupos y cuadro" },
+    team_progression_hit: { label: "Acierto de fase", category: "Cuadro" },
+    group_qualification_hit: { label: "Equipo clasificado en grupos", category: "Fase de grupos" },
+    group_third_qualification_hit: { label: "Tercer clasificado acertado", category: "Fase de grupos" },
+    group_position_hit: { label: "Orden exacto en grupo", category: "Fase de grupos" },
     tournament_champion_hit: { label: "Campeón del Mundial", category: "Extras finales" },
     tournament_mvp_hit: { label: "MVP del Mundial", category: "Extras finales" },
     tournament_top_scorer_hit: { label: "Máximo goleador", category: "Extras finales" },
@@ -162,23 +162,6 @@
       );
     }
 
-    function predictedGroupOrder(prediction, group) {
-      const positions = prediction.groups?.[group] || {};
-      return data.teams
-        .filter((team) => team.group === group)
-        .map((team, fallbackIndex) => ({
-          team,
-          fallbackIndex,
-          position: Number(positions[team.id] || 99),
-        }))
-        .sort((a, b) => a.position - b.position || a.fallbackIndex - b.fallbackIndex)
-        .map((row) => row.team.id);
-    }
-
-    function predictedGroupTeamAt(prediction, group, position) {
-      return Object.entries(prediction.groups?.[group] || {}).find(([, value]) => String(value) === String(position))?.[0] || predictedGroupOrder(prediction, group)[position - 1] || "";
-    }
-
     function calculateThirdQualifierIds(groupTables) {
       const tables = Object.values(groupTables);
       if (!tables.length || tables.some((table) => !table.complete)) return new Set();
@@ -307,28 +290,13 @@
 
       const groupTables = calculateGroupPositions(adminResults);
       const thirdQualifierIds = calculateThirdQualifierIds(groupTables);
-      const predictedTopTwoQualifiedIds = new Set();
-      const predictedThirdQualifierIds = new Set();
-
-      Object.keys(prediction.groups || {}).forEach((group) => {
-        [1, 2].forEach((position) => {
-          const teamId = predictedGroupTeamAt(prediction, group, position);
-          if (teamId) predictedTopTwoQualifiedIds.add(teamId);
-        });
-
-        if (prediction.bracket?.thirdQualifiers?.includes(group)) {
-          const teamId = predictedGroupTeamAt(prediction, group, 3);
-          if (teamId) predictedThirdQualifierIds.add(teamId);
-        }
-      });
 
       Object.entries(groupTables).forEach(([group, table]) => {
         if (!table.complete) return;
-        const predictedOrder = predictedGroupOrder(prediction, group);
         table.positions.forEach((row) => {
-          const predictedPosition = predictedOrder.indexOf(row.teamId) + 1;
+          const predictedPosition = Number(prediction.groups?.[group]?.[row.teamId] || 0);
 
-          if (row.position <= 2 && predictedTopTwoQualifiedIds.has(row.teamId)) {
+          if (row.position <= 2 && (predictedPosition === 1 || predictedPosition === 2)) {
             addEntry(entries, {
               userId,
               ruleCode: "group_qualification_hit",
@@ -338,7 +306,12 @@
             });
           }
 
-          if (row.position === 3 && thirdQualifierIds.has(row.teamId) && predictedThirdQualifierIds.has(row.teamId)) {
+          if (
+            row.position === 3 &&
+            predictedPosition === 3 &&
+            thirdQualifierIds.has(row.teamId) &&
+            prediction.bracket?.thirdQualifiers?.includes(group)
+          ) {
             addEntry(entries, {
               userId,
               ruleCode: "group_third_qualification_hit",
@@ -348,7 +321,7 @@
             });
           }
 
-          if (predictedPosition === row.position) {
+          if (row.position <= 2 && predictedPosition === row.position) {
             addEntry(entries, {
               userId,
               ruleCode: "group_position_hit",

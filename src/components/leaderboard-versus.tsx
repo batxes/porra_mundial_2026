@@ -41,7 +41,8 @@ const NEUTRAL = "#a1a1aa";
 const CATEGORY_ORDER = [
   "Marcadores",
   "Tu once",
-  "Grupos y cuadro",
+  "Fase de grupos",
+  "Cuadro",
   "Tus elecciones",
 ];
 

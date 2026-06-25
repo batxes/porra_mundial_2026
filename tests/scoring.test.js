@@ -108,9 +108,17 @@ const playerIdByPosition = (position) => window.PORRA_DATA.players.find((player)
   };
   assert.equal(engine.calculateScorecard(prediction, partial).total, 0);
   const groupScorecard = engine.calculateScorecard(prediction, full);
-  assert.equal(groupScorecard.total, 16);
+  assert.equal(groupScorecard.total, 10);
+  assert.equal(groupScorecard.categories.find((category) => category.label === "Fase de grupos")?.total, 10);
   assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_qualification_hit").length, 2);
-  assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_position_hit").length, 4);
+  assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_position_hit").length, 2);
+  assert.deepEqual(
+    groupScorecard.entries
+      .filter((entry) => entry.ruleCode === "group_position_hit")
+      .map((entry) => entry.sourceRef)
+      .sort(),
+    ["group-position-A-kor", "group-position-A-mex"],
+  );
 }
 
 {
