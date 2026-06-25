@@ -74,7 +74,7 @@ function readCachedSessionUser(): SessionUser | null {
       name: typeof parsed.name === "string" ? parsed.name : "",
       email: typeof parsed.email === "string" ? parsed.email : "",
       avatarUrl: typeof parsed.avatarUrl === "string" ? parsed.avatarUrl : "",
-      points: typeof parsed.points === "number" ? parsed.points : 0,
+      points: 0,
       isAdmin: Boolean(parsed.isAdmin),
       isPro: Boolean(parsed.isPro),
       isWolf: Boolean(parsed.isWolf),
@@ -406,6 +406,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const currentPrediction = normalizePrediction(
       sessionUserId ? predictionByUser.get(sessionUserId) || null : pendingPrediction,
     );
+    const currentScorecard = scoring.scorecardFromEntries(
+      sessionUserId ? entriesByUser.get(sessionUserId) || [] : [],
+    );
 
     setUser(
       currentProfile
@@ -414,7 +417,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             name: currentProfile.display_name,
             email: session?.user?.email || "",
             avatarUrl: currentProfile.avatar_url || "",
-            points: currentProfile.total_points || 0,
+            points: currentScorecard.total,
             isAdmin: Boolean(currentProfile.is_admin),
             isPro: Boolean(currentProfile.is_pro),
             isWolf: Boolean(currentProfile.is_wolf),
@@ -434,7 +437,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             name: profile.display_name,
             email: "",
             avatarUrl: profile.avatar_url || "",
-            points: scorecard.entries.length ? scorecard.total : profile.total_points || 0,
+            points: scorecard.total,
             isAdmin: Boolean(profile.is_admin),
             isPro: Boolean(profile.is_pro),
             isWolf: Boolean(profile.is_wolf),
@@ -540,7 +543,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             name: profile.display_name,
             email: "",
             avatarUrl: profile.avatar_url || "",
-            points: scorecard.entries.length ? scorecard.total : profile.total_points || 0,
+            points: scorecard.total,
             isAdmin: Boolean(profile.is_admin),
             isPro: Boolean(profile.is_pro),
             isWolf: Boolean(profile.is_wolf),
