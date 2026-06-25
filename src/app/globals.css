@@ -1818,3 +1818,351 @@ summary {
     transform: translate3d(0, -32px, 0) scale(1.25) rotate(130deg);
   }
 }
+
+/* Demo Dentista Suarez: dientes clicables sobre la ilustracion base. */
+.suarez-stage-bg {
+  transform: scale(1.025);
+  transform-origin: center center;
+}
+
+.suarez-stage-sweep {
+  background: linear-gradient(
+    110deg,
+    transparent 0%,
+    transparent 34%,
+    rgb(255 255 255 / 0.16) 47%,
+    transparent 60%,
+    transparent 100%
+  );
+  opacity: 0.26;
+  mix-blend-mode: screen;
+  transform: translateX(-85%);
+}
+
+.suarez-stage-playing::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 62%, rgb(245 197 24 / 0.13), transparent 22%),
+    radial-gradient(circle at 50% 64%, rgb(127 29 29 / 0), transparent 46%);
+  opacity: 0.62;
+}
+
+.suarez-stage-danger::after {
+  background:
+    radial-gradient(circle at 50% 61%, rgb(239 68 68 / 0.22), transparent 24%),
+    radial-gradient(circle at 50% 62%, rgb(127 29 29 / 0.28), transparent 48%);
+}
+
+.suarez-character-idle {
+  transform-origin: 50% 62%;
+}
+
+.suarez-tooth-sprite,
+.suarez-tooth-gap {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  image-rendering: pixelated;
+}
+
+.suarez-tooth-sprite {
+  background-image: url("/suarez-tooth.png");
+  filter: drop-shadow(0 5px 6px rgb(32 6 1 / 0.42));
+  transform: translateY(var(--tooth-y-offset, 0px)) rotate(var(--tooth-rotate)) scaleY(-1);
+  transform-origin: center 82%;
+}
+
+.suarez-tooth-gap {
+  inset: auto 8% -14% 8%;
+  height: 46%;
+  background-image: url("/suarez-tooth-gap.svg");
+  filter: drop-shadow(0 4px 7px rgb(32 6 1 / 0.46));
+  transform: translateY(var(--gap-y-offset, 0px)) rotate(var(--tooth-rotate)) scale(var(--gap-scale, 1)) scaleX(var(--gap-width-scale, 1));
+  transform-origin: center center;
+}
+
+.suarez-tooth-button {
+  transform-origin: center 82%;
+}
+
+.suarez-tooth-hint::before {
+  content: "";
+  position: absolute;
+  inset: -22%;
+  z-index: 0;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgb(245 197 24 / 0.28), rgb(255 255 255 / 0.14) 38%, transparent 66%);
+  opacity: 0.24;
+}
+
+.suarez-tooth-hint::after {
+  content: "";
+  position: absolute;
+  inset: -10%;
+  z-index: 2;
+  border: 1px solid rgb(245 197 24 / 0.62);
+  border-radius: 999px;
+  box-shadow: 0 0 14px rgb(245 197 24 / 0.34);
+  opacity: 0.38;
+}
+
+.suarez-tooth-danger::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  z-index: 0;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgb(245 197 24 / 0.24), rgb(239 68 68 / 0.12) 38%, transparent 66%);
+  opacity: 0.8;
+}
+
+.suarez-tooth-danger::after {
+  content: "";
+  position: absolute;
+  inset: -16%;
+  z-index: 2;
+  border: 1px solid rgb(245 197 24 / 0.55);
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 1px rgb(239 68 68 / 0.22),
+    0 0 14px rgb(245 197 24 / 0.26);
+  opacity: 0.76;
+}
+
+.suarez-tooth-hint .suarez-tooth-sprite,
+.suarez-tooth-hint .suarez-tooth-gap,
+.suarez-tooth-danger .suarez-tooth-sprite,
+.suarez-tooth-danger .suarez-tooth-gap {
+  z-index: 3;
+}
+
+.suarez-tooth-danger .suarez-tooth-sprite {
+  filter:
+    drop-shadow(0 5px 6px rgb(32 6 1 / 0.42))
+    drop-shadow(0 0 7px rgb(245 197 24 / 0.38));
+}
+
+.suarez-tooth-button:hover .suarez-tooth-sprite,
+.suarez-tooth-button:focus-visible .suarez-tooth-sprite {
+  transform: translateY(var(--tooth-y-offset, 0px)) translateY(-1.5%) rotate(var(--tooth-rotate)) scaleY(-1) scale(1.03);
+}
+
+.suarez-pack-toast {
+  position: absolute;
+  z-index: 42;
+  min-width: max-content;
+  border: 1px solid rgb(245 197 24 / 0.62);
+  border-radius: 999px;
+  background: rgb(3 7 18 / 0.78);
+  color: #f5c518;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  opacity: 0;
+  padding: 5px 8px;
+  text-transform: uppercase;
+  transform: translate3d(-50%, -80%, 0) scale(0.96);
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .suarez-stage-sweep {
+    animation: suarez-stage-sweep 3600ms ease-in-out infinite;
+  }
+
+  .suarez-character-idle {
+    animation: suarez-character-idle 2200ms ease-in-out infinite;
+  }
+
+  .suarez-stage-danger::after {
+    animation: suarez-danger-pulse 980ms ease-in-out infinite;
+  }
+
+  .suarez-tooth-hint::before {
+    animation: suarez-tooth-hint-pulse 1250ms ease-in-out var(--tooth-delay) infinite;
+  }
+
+  .suarez-tooth-hint::after {
+    animation: suarez-tooth-hint-ring 1250ms ease-in-out var(--tooth-delay) infinite;
+  }
+
+  .suarez-tooth-danger::before {
+    animation: suarez-danger-pulse 920ms ease-in-out infinite;
+  }
+
+  .suarez-tooth-danger::after {
+    animation: suarez-danger-ring 920ms ease-in-out infinite;
+  }
+
+  .suarez-tooth-picked .suarez-tooth-sprite {
+    animation: suarez-tooth-picked 260ms ease-out both;
+  }
+
+  .suarez-mouth-slam {
+    animation: suarez-mouth-slam 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    transform-origin: 50% 42%;
+  }
+
+  .suarez-pack-toast {
+    animation: suarez-pack-toast 560ms ease-out both;
+  }
+}
+
+.suarez-stage-feedback .suarez-stage-sweep,
+.suarez-stage-feedback .suarez-character-idle,
+.suarez-stage-feedback .suarez-tooth-hint::before,
+.suarez-stage-feedback .suarez-tooth-hint::after {
+  animation-play-state: paused;
+}
+
+@keyframes suarez-stage-sweep {
+  0%,
+  38% {
+    transform: translateX(-85%);
+    opacity: 0;
+  }
+
+  58% {
+    opacity: 0.28;
+  }
+
+  100% {
+    transform: translateX(85%);
+    opacity: 0;
+  }
+}
+
+@keyframes suarez-character-idle {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(0, -2px, 0) scale(1.006);
+  }
+}
+
+@keyframes suarez-danger-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 0.95;
+  }
+}
+
+@keyframes suarez-tooth-hint-pulse {
+  0%,
+  100% {
+    opacity: 0.24;
+  }
+
+  45% {
+    opacity: 0.76;
+  }
+}
+
+@keyframes suarez-tooth-hint-ring {
+  0% {
+    opacity: 0.38;
+    transform: scale(0.85);
+  }
+
+  28% {
+    opacity: 0.92;
+  }
+
+  72%,
+  100% {
+    opacity: 0.12;
+    transform: scale(1.22);
+  }
+}
+
+@keyframes suarez-danger-ring {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.92);
+  }
+
+  50% {
+    opacity: 0.98;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes suarez-tooth-idle {
+  0%,
+  100% {
+    transform: translateY(var(--tooth-y-offset, 0px)) rotate(var(--tooth-rotate)) scaleY(-1);
+  }
+
+  50% {
+    transform: translateY(calc(var(--tooth-y-offset, 0px) - 1px)) rotate(calc(var(--tooth-rotate) + 0.35deg)) scaleY(-1);
+  }
+}
+
+@keyframes suarez-tooth-picked {
+  0% {
+    opacity: 1;
+    transform: translateY(var(--tooth-y-offset, 0px)) rotate(var(--tooth-rotate)) scaleY(-1) scale(1);
+  }
+
+  60% {
+    opacity: 1;
+    transform: translateY(calc(var(--tooth-y-offset, 0px) - 16px)) rotate(var(--tooth-rotate)) scaleY(-1) scale(1.12);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(calc(var(--tooth-y-offset, 0px) + 22px)) rotate(var(--tooth-rotate)) scaleY(-1) scale(0.56);
+  }
+}
+
+@keyframes suarez-pack-toast {
+  0% {
+    opacity: 1;
+    transform: translate3d(-50%, -76%, 0) scale(0.94);
+  }
+
+  18% {
+    opacity: 1;
+    transform: translate3d(-50%, -118%, 0) scale(1.04);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translate3d(-50%, -152%, 0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -184%, 0) scale(0.98);
+  }
+}
+
+@keyframes suarez-mouth-slam {
+  0% {
+    transform: scaleY(1.08) translateY(-2%);
+    filter: brightness(1.25);
+  }
+
+  70% {
+    transform: scaleY(0.96) translateY(1%);
+    filter: brightness(0.9);
+  }
+
+  100% {
+    transform: scaleY(1) translateY(0);
+    filter: brightness(1);
+  }
+}

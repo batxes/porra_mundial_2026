@@ -421,7 +421,8 @@ function isForeignPrivateDrop(
     (id.startsWith("special-sobera-") ||
       id.startsWith("special-ruleta-") ||
       id.startsWith("special-oak-") ||
-      id.startsWith("special-hoguera-")) &&
+      id.startsWith("special-hoguera-") ||
+      id.startsWith("special-suarez-")) &&
     createdBy !== userId
   );
 }

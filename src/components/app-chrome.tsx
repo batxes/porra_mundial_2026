@@ -13,6 +13,7 @@ import { PackDropWatcher } from "@/components/pack-drop-notice";
 import { ResultsRecapWatcher } from "@/components/results-recap";
 import { RuletaGate } from "@/components/ruleta-gate";
 import { SoberaQuizGate } from "@/components/sobera-quiz-gate";
+import { SuarezDentistGate } from "@/components/suarez-dentist-gate";
 import { useAppContext } from "@/lib/app-context";
 import {
   cardsChangedEventName,
@@ -489,6 +490,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       <PackDropWatcher launchReady={ready && Boolean(user)} />
       <OakQuizGate />
       <HogueraGate />
+      <SuarezDentistGate />
       <SoberaQuizGate />
       <RuletaGate />
     </>
