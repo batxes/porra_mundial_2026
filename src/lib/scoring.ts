@@ -311,7 +311,7 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
         table.positions.forEach((row) => {
           const predictedPosition = Number(prediction.groups?.[group]?.[row.teamId] || 0);
 
-          if (row.position <= 2 && (predictedPosition === 1 || predictedPosition === 2)) {
+          if (row.position <= 2 && (predictedPosition === 1 || predictedPosition === 2) && predictedPosition !== row.position) {
             addEntry(entries, {
               userId,
               ruleCode: "group_qualification_hit",

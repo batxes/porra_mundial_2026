@@ -207,11 +207,22 @@ const playerIdByPosition = (position: string) => data.players.find((player) => p
   const results = Object.fromEntries(miniSchedule.map((match: any) => [String(match.number), { homeScore: 1, awayScore: 0, events: [] }]));
   const groupScorecard = miniEngine.calculateScorecard(prediction, results as any);
 
-  assert.equal(groupScorecard.categories.find((category) => category.label === "Fase de grupos")?.total, 11);
-  assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_qualification_hit").length, 2);
+  assert.equal(groupScorecard.categories.find((category) => category.label === "Fase de grupos")?.total, 7);
+  assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_qualification_hit").length, 0);
   assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_position_hit").length, 2);
   assert.equal(groupScorecard.entries.filter((entry) => entry.ruleCode === "group_third_qualification_hit").length, 1);
   assert.equal(groupScorecard.entries.find((entry) => entry.ruleCode === "group_third_qualification_hit")?.points, 1);
+
+  const swappedTopTwoScorecard = miniEngine.calculateScorecard(
+    {
+      ...prediction,
+      groups: { A: { a1: "2", a2: "1", a3: "3", a4: "4" } },
+    },
+    results as any,
+  );
+  assert.equal(swappedTopTwoScorecard.categories.find((category) => category.label === "Fase de grupos")?.total, 5);
+  assert.equal(swappedTopTwoScorecard.entries.filter((entry) => entry.ruleCode === "group_qualification_hit").length, 2);
+  assert.equal(swappedTopTwoScorecard.entries.filter((entry) => entry.ruleCode === "group_position_hit").length, 0);
 }
 
 {

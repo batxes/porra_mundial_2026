@@ -78,7 +78,7 @@ const sections: RulesSection[] = [
     description:
       "Ordena cada grupo del 1 al 4 y marca los 8 mejores terceros. Esta fase puntúa solo cuando estén cerrados todos los grupos.",
     rules: [
-      ["Clasificado como 1º o 2º, aunque cambie el orden", "+2"],
+      ["Clasificado como 1º o 2º, pero con el orden cambiado", "+2"],
       ["Ese clasificado en su puesto exacto (1º o 2º)", "+3"],
       ["Mejor tercero que pasa y lo marcaste", "+1"],
     ],

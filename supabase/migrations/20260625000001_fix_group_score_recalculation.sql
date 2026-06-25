@@ -280,6 +280,7 @@ begin
       and pg.team_id = rs.team_id
     where rs.actual_position <= 2
       and pg.predicted_position in (1, 2)
+      and pg.predicted_position <> rs.actual_position
 
     union all
 
