@@ -76,13 +76,14 @@ const sections: RulesSection[] = [
     title: "Fase de grupos",
     lock: "Hasta que empiece el Mundial",
     description:
-      "Ordena cada grupo del 1 al 4 y marca los 8 mejores terceros que pasan de ronda.",
+      "Ordena cada grupo del 1 al 4 y marca los 8 mejores terceros. Esta fase puntúa solo cuando estén cerrados todos los grupos.",
     rules: [
-      ["Clavas el orden exacto de un grupo", "+3"],
-      ["Aciertas un clasificado (1º o 2º)", "+2"],
-      ["Aciertas un tercero que pasa", "+1"],
+      ["Clasificado como 1º o 2º, aunque cambie el orden", "+2"],
+      ["Ese clasificado en su puesto exacto (1º o 2º)", "+3"],
+      ["Mejor tercero que pasa y lo marcaste", "+1"],
     ],
-    highlight: "Clavas el orden exacto de un grupo",
+    highlight: "Ese clasificado en su puesto exacto (1º o 2º)",
+    note: "Acertar el 3º o 4º puesto exacto no suma por orden: el tercero solo suma si está entre los mejores terceros clasificados.",
   },
   {
     step: "4",
