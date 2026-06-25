@@ -37,6 +37,7 @@ import {
   dailyCycleKey,
   DAILY_FIRST_CYCLE,
   formatCountdownHMS,
+  isPrivateAwardPackId,
   notifyCardsChanged,
   secondsUntilNextDailyCard,
 } from "@/lib/cofres";
@@ -95,6 +96,16 @@ type Pack = {
   // Color del cacho que vuela al cortar en el overlay 3D (por defecto verde).
   flap?: PackFlap;
   createdBy?: string | null;
+};
+
+type RemoteDropRow = {
+  id: string;
+  kind: PackKind;
+  label: string;
+  player_ids: string[];
+  available_at?: string;
+  created_at?: string;
+  created_by?: string | null;
 };
 
 // Sobres agrupados por TIPO para la estantería del hero (los diarios cuentan
@@ -421,22 +432,15 @@ function isAutomaticUserPackId(id: string) {
   return /^(daily|sub21|stars|premier)-\d{4}-\d{2}-\d{2}-/i.test(id);
 }
 
-// Premios privados POR USUARIO (quiz Sobera y ruleta): solo los ve su dueño.
-// Sin esto, los `special-ruleta-`/`special-sobera-` de otros se colaban en la
+// Premios privados POR USUARIO (minijuegos): solo los ve su dueño.
+// Sin esto, los `special-suarez-*`/`special-sobera-*` de otros se colaban en la
 // estantería (y al abrirlos el servidor respondía "Sobre no disponible").
 function isForeignPrivateDrop(
   id: string,
   createdBy: string | null | undefined,
   userId: string,
 ) {
-  return (
-    (id.startsWith("special-sobera-") ||
-      id.startsWith("special-ruleta-") ||
-      id.startsWith("special-oak-") ||
-      id.startsWith("special-hoguera-") ||
-      id.startsWith("special-suarez-")) &&
-    createdBy !== userId
-  );
+  return isPrivateAwardPackId(id) && createdBy !== userId;
 }
 
 function storageKey(userId: string, suffix: string) {
@@ -1063,24 +1067,10 @@ export function CofresView() {
       Array.from(
         new Map(
           [
-            ...((drops || []) as Array<{
-              id: string;
-              kind: PackKind;
-              label: string;
-              player_ids: string[];
-              available_at?: string;
-              created_at?: string;
-              created_by?: string | null;
-            }>),
-            ...((ownedDrops || []) as Array<{
-              id: string;
-              kind: PackKind;
-              label: string;
-              player_ids: string[];
-              available_at?: string;
-              created_at?: string;
-              created_by?: string | null;
-            }>),
+            ...((drops || []) as RemoteDropRow[]),
+            ...((ownedDrops || []) as RemoteDropRow[]).filter((drop) =>
+              isPrivateAwardPackId(drop.id),
+            ),
           ]
             // Solo los drops especiales servidos como sobres sueltos. Los temáticos por día
             // (`sub21-<fecha>`, `stars-<fecha>`, etc.) también son kind='special' en

@@ -97,6 +97,18 @@ export function cycleKeysSince(
 // sync con THEMED_CONFIGS de cofres-view.
 export const SHELF_THEMED_POOLS = ["sub21", "stars", "premier"] as const;
 
+const PRIVATE_AWARD_PACK_PREFIXES = [
+  "special-sobera-",
+  "special-ruleta-",
+  "special-oak-",
+  "special-hoguera-",
+  "special-suarez-",
+] as const;
+
+export function isPrivateAwardPackId(id: string) {
+  return PRIVATE_AWARD_PACK_PREFIXES.some((prefix) => id.startsWith(prefix));
+}
+
 // drop_ids disponibles automáticamente PARA ESE USUARIO. Los sobres son por
 // usuario, así que el id lleva el uid: `daily-<ciclo>-<uid>` (uno por ciclo,
 // acumulan) + los temáticos de bienvenida `<pool>-<activación>-<uid>`. Los drops
@@ -175,7 +187,7 @@ export async function countUnopenedPacksRemote(
       ? openedDrops.filter(
           (row: { id?: unknown }) =>
             typeof row.id === "string" &&
-            row.id.startsWith("special-") &&
+            isPrivateAwardPackId(row.id) &&
             !opened.has(row.id),
         ).length
       : 0;
