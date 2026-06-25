@@ -64,9 +64,9 @@ function formatAwardCount(ids?: string[]) {
   return `${count} sobre${count === 1 ? "" : "s"}`;
 }
 
-function formatAttempts(attempts?: number[]) {
+function formatAttemptScores(attempts?: number[]) {
   if (!Array.isArray(attempts) || !attempts.length) return "-";
-  return attempts.map((score) => String(score)).join(" / ");
+  return attempts.map((score, index) => `V${index + 1}: ${score}`).join(" / ");
 }
 
 export function AdminSuarezDentistTab() {
@@ -312,7 +312,7 @@ function SuarezDentistStatsModal({
                 <tr>
                   <th className="px-3 py-2 font-bold">Usuario</th>
                   <th className="px-3 py-2 font-bold">Mejor</th>
-                  <th className="px-3 py-2 font-bold">Vidas</th>
+                  <th className="px-3 py-2 font-bold">Partidas</th>
                   <th className="px-3 py-2 font-bold">Premios</th>
                   <th className="px-3 py-2 font-bold">Fecha</th>
                 </tr>
@@ -327,7 +327,7 @@ function SuarezDentistStatsModal({
                       {Number(attempt.best_attempt || 0)}/3
                     </td>
                     <td className="px-3 py-2 text-zinc-300">
-                      {formatAttempts(attempt.attempts)}
+                      {formatAttemptScores(attempt.attempts)}
                     </td>
                     <td className="px-3 py-2 text-zinc-300">
                       {formatAwardCount(attempt.awarded_drop_ids)}

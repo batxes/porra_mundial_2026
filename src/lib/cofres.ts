@@ -144,7 +144,11 @@ export async function countUnopenedPacksRemote(
       { data: openedDrops, error: openedDropsError },
     ] = await Promise.all([
       supabase.from("user_cards").select("drop_id"),
-      supabase.from("card_drops").select("id").eq("created_by", uid),
+      supabase
+        .from("card_drops")
+        .select("id")
+        .eq("created_by", uid)
+        .lte("available_at", new Date().toISOString()),
     ]);
     if (error || !data) return available.length;
     const opened = withLegacyOpened(
@@ -166,7 +170,16 @@ export async function countUnopenedPacksRemote(
         }
       });
     }
-    return available.filter((id) => !opened.has(id)).length;
+    const unopenedAutomatic = available.filter((id) => !opened.has(id)).length;
+    const unopenedPrivate = !openedDropsError && Array.isArray(openedDrops)
+      ? openedDrops.filter(
+          (row: { id?: unknown }) =>
+            typeof row.id === "string" &&
+            row.id.startsWith("special-") &&
+            !opened.has(row.id),
+        ).length
+      : 0;
+    return unopenedAutomatic + unopenedPrivate;
   } catch {
     return available.length;
   }

@@ -19,8 +19,12 @@ import {
   SectionHeading,
   TeamFlag,
 } from "@/components/common";
+import { adivinaCompletedEventName } from "@/components/adivina-modal";
+import { hogueraCompletedEventName } from "@/components/hoguera-modal";
 import { PlayerCard } from "@/components/player-card";
+import { ruletaCompletedEventName } from "@/components/ruleta-modal";
 import { soberaQuizCompletedEventName } from "@/components/sobera-quiz-modal";
+import { suarezDentistCompletedEventName } from "@/components/suarez-dentist-modal";
 import { useAppContext } from "@/lib/app-context";
 import { data, playersById, teamsById } from "@/lib/data";
 import { initials, playerPhotoUrl } from "@/lib/format";
@@ -53,6 +57,14 @@ const CardUpgradeOverlay = dynamic(
     ),
   { ssr: false },
 );
+
+const packAwardCompletedEvents = [
+  adivinaCompletedEventName,
+  hogueraCompletedEventName,
+  ruletaCompletedEventName,
+  soberaQuizCompletedEventName,
+  suarezDentistCompletedEventName,
+] as const;
 
 type PackKind = "daily" | "special";
 type ThemedPool =
@@ -988,6 +1000,7 @@ export function CofresView() {
 
     const [
       { data: drops, error: dropsError },
+      { data: ownedDrops },
       { data: cards, error: cardsError },
       { data: swaps },
       { data: openedDrops },
@@ -1007,6 +1020,16 @@ export function CofresView() {
         .lte("available_at", new Date().toISOString())
         .order("created_at", { ascending: false })
         .limit(16),
+      supabase
+        .from("card_drops")
+        .select(
+          "id, kind, label, player_ids, available_at, created_at, created_by",
+        )
+        .eq("created_by", user.id)
+        .like("id", "special-%")
+        .lte("available_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(500),
       supabase
         .from("user_cards")
         .select(
@@ -1037,28 +1060,41 @@ export function CofresView() {
     }
 
     setSpecialPacks(
-      (
-        (drops || []) as Array<{
-          id: string;
-          kind: PackKind;
-          label: string;
-          player_ids: string[];
-          available_at?: string;
-          created_at?: string;
-          created_by?: string | null;
-        }>
-      )
-        // Solo los drops especiales servidos como sobres sueltos. Los temáticos por día
-        // (`sub21-<fecha>`, `stars-<fecha>`, etc.) también son kind='special' en
-        // la BBDD, pero ya los representan los packs de la estantería
-        // (themedPacks); incluirlos duplicaría.
-        .filter(
-          (drop) =>
-            drop.id.startsWith("special-") &&
-            !isResidualPositionAutoPack(drop.id) &&
-            !isForeignPrivateDrop(drop.id, drop.created_by, user.id),
-        )
-        .map(packFromDrop),
+      Array.from(
+        new Map(
+          [
+            ...((drops || []) as Array<{
+              id: string;
+              kind: PackKind;
+              label: string;
+              player_ids: string[];
+              available_at?: string;
+              created_at?: string;
+              created_by?: string | null;
+            }>),
+            ...((ownedDrops || []) as Array<{
+              id: string;
+              kind: PackKind;
+              label: string;
+              player_ids: string[];
+              available_at?: string;
+              created_at?: string;
+              created_by?: string | null;
+            }>),
+          ]
+            // Solo los drops especiales servidos como sobres sueltos. Los temáticos por día
+            // (`sub21-<fecha>`, `stars-<fecha>`, etc.) también son kind='special' en
+            // la BBDD, pero ya los representan los packs de la estantería
+            // (themedPacks); incluirlos duplicaría.
+            .filter(
+              (drop) =>
+                drop.id.startsWith("special-") &&
+                !isResidualPositionAutoPack(drop.id) &&
+                !isForeignPrivateDrop(drop.id, drop.created_by, user.id),
+            )
+            .map((drop) => [drop.id, drop]),
+        ).values(),
+      ).map(packFromDrop),
     );
     setInventory(
       (
@@ -1219,9 +1255,14 @@ export function CofresView() {
       setPageTab("sobres");
       void loadSupabaseCards();
     };
-    window.addEventListener(soberaQuizCompletedEventName, onCompleted);
-    return () =>
-      window.removeEventListener(soberaQuizCompletedEventName, onCompleted);
+    packAwardCompletedEvents.forEach((eventName) => {
+      window.addEventListener(eventName, onCompleted);
+    });
+    return () => {
+      packAwardCompletedEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, onCompleted);
+      });
+    };
   }, [loadSupabaseCards, usingSupabase, user]);
 
   // Persistencia local SOLO fuera de demo y fuera de Supabase. En demo
