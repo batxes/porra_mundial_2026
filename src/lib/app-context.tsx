@@ -172,15 +172,6 @@ function scorecardForUser(userId: string, prediction: Prediction, adminResults: 
   return scoring.calculateScorecard(normalizePrediction(prediction), adminResults, userId);
 }
 
-function profileTotalPoints(profile: Record<string, unknown> | null | undefined, fallback = 0) {
-  const total = Number(profile?.total_points);
-  return Number.isFinite(total) ? total : fallback;
-}
-
-function scorecardWithPersistedTotal(scorecard: Scorecard, total: number): Scorecard {
-  return scorecard.total === total ? scorecard : { ...scorecard, total };
-}
-
 function buildLeaderboard(localUsers: LocalUser[], currentUserId: string | null, prediction: Prediction, adminResults: AdminResults) {
   const predictions = getLocalPredictions();
 
@@ -395,7 +386,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const currentScorecard = sessionUserId
         ? scorecardForUser(sessionUserId, currentPrediction, results)
         : scoring.scorecardFromEntries([]);
-      const currentPoints = profileTotalPoints(currentProfile, currentScorecard.total);
+      // Total sin group scoring (deshabilitado): el calculado en cliente, que
+      // ademas cuadra con el desglose. NO usamos profiles.total_points porque
+      // arrastra los puntos de grupos de un recalculo viejo.
+      const currentPoints = currentScorecard.total;
 
       setUser(
         currentProfile
@@ -419,8 +413,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           .map((profile: any) => {
             const profilePrediction = predictionByUser.get(profile.id) || emptyPrediction();
             const calculatedScorecard = scorecardForUser(profile.id, profilePrediction, results);
-            const points = profileTotalPoints(profile, calculatedScorecard.total);
-            const scorecard = scorecardWithPersistedTotal(calculatedScorecard, points);
+            const points = calculatedScorecard.total;
+            const scorecard = calculatedScorecard;
             return {
               id: profile.id,
               name: profile.display_name,
@@ -522,8 +516,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           .map((profile: any) => {
             const profilePrediction = predictionByUser.get(profile.id) || emptyPrediction();
             const calculatedScorecard = scorecardForUser(profile.id, profilePrediction, results);
-            const points = profileTotalPoints(profile, calculatedScorecard.total);
-            const scorecard = scorecardWithPersistedTotal(calculatedScorecard, points);
+            const points = calculatedScorecard.total;
+            const scorecard = calculatedScorecard;
             return {
               id: profile.id,
               name: profile.display_name,
@@ -1049,10 +1043,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const currentScorecard = useMemo(
     () => {
       if (!user) return scoring.scorecardFromEntries([]);
-      return scorecardWithPersistedTotal(
-        scorecardForUser(user.id, prediction, adminResults),
-        user.points,
-      );
+      return scorecardForUser(user.id, prediction, adminResults);
     },
     [adminResults, prediction, user],
   );
