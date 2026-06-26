@@ -209,6 +209,15 @@ function buildLeaderboard(localUsers: LocalUser[], currentUserId: string | null,
     .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
 }
 
+function teamHasStartedUnvalidatedMatch(teamId: string, adminResults: AdminResults) {
+  return schedule.some((match) => {
+    if (match.home !== teamId && match.away !== teamId) return false;
+    if (!hasMatchStarted(match)) return false;
+    const result = adminResults[String(match.number)];
+    return !result || (Boolean(result.status) && result.status !== "validated");
+  });
+}
+
 function preparePredictionForSave(nextPrediction: Prediction, makeDefinitive = false) {
   const normalized = normalizePrediction(nextPrediction);
 
@@ -623,6 +632,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ok: false, message: "La carta no coincide con el puesto." };
       }
 
+      if (
+        teamHasStartedUnvalidatedMatch(inPlayer.team, adminResults) ||
+        teamHasStartedUnvalidatedMatch(outPlayer.team, adminResults)
+      ) {
+        return {
+          ok: false,
+          message:
+            "No puedes cambiar a un jugador mientras su equipo esta en juego. Disponible cuando se valide el partido.",
+        };
+      }
+
       const canEnter = swap.pointsIn <= swap.pointsOut;
       if (!canEnter) {
         return {
@@ -660,7 +680,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await refreshData();
       return { ok: true, message: "Swap guardado y puntos recalculados." };
     },
-    [prediction, refreshData, syncLocalState, user, usingSupabase],
+    [adminResults, prediction, refreshData, syncLocalState, user, usingSupabase],
   );
 
   const replacePrediction = useCallback(

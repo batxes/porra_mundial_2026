@@ -588,7 +588,7 @@ function ResultPanel({
               >
                 <div className="flex items-start gap-2">
                   <span
-                    className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg text-[11px] font-black ${
+                    className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg text-[11px] font-bold ${
                       hit
                         ? "bg-emerald-300 text-black"
                         : "bg-rose-300 text-black"
@@ -602,7 +602,7 @@ function ResultPanel({
                     </p>
                     <p className="mt-1 text-[11px] font-semibold leading-4 text-zinc-300">
                       Correcta:{" "}
-                      <span className="font-black text-emerald-200">
+                      <span className="font-bold text-emerald-200">
                         {answerLabel(correct)} · {question.options[correct]}
                       </span>
                     </p>

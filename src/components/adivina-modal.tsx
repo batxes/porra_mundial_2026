@@ -384,7 +384,10 @@ export function AdivinaModal({
     const root = document.documentElement;
     const update = () => {
       root.style.setProperty("--adivina-vvh", `${Math.round(vv.height)}px`);
-      root.style.setProperty("--adivina-vvtop", `${Math.round(vv.offsetTop)}px`);
+      root.style.setProperty(
+        "--adivina-vvtop",
+        `${Math.round(vv.offsetTop)}px`,
+      );
     };
     update();
     vv.addEventListener("resize", update);
@@ -632,7 +635,7 @@ export function AdivinaModal({
                 ) : null}
 
                 {roundState === "guessing" ? (
-                  <p className="absolute left-3 top-3 z-20 rounded-full border border-white/20 bg-black/45 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-white backdrop-blur-sm">
+                  <p className="absolute left-3 top-3 z-20 rounded-full border border-white/20 bg-black/45 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-white backdrop-blur-sm">
                     Crack salvaje
                   </p>
                 ) : null}
@@ -640,7 +643,7 @@ export function AdivinaModal({
                 {roundState === "revealed" ? (
                   <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center bg-gradient-to-t from-black/92 via-black/45 to-transparent px-3 pb-4 pt-16 text-center">
                     <p
-                      className={`text-xs font-black uppercase tracking-[0.2em] ${
+                      className={`text-xs font-bold uppercase tracking-[0.2em] ${
                         currentOutcome === "hit"
                           ? "text-lime-200"
                           : "text-rose-200"
@@ -648,7 +651,7 @@ export function AdivinaModal({
                     >
                       {currentOutcome === "hit" ? "Identificado" : "Se escapo"}
                     </p>
-                    <p className="mt-1 text-3xl font-black uppercase leading-none text-white">
+                    <p className="mt-1 text-3xl font-bold uppercase leading-none text-white">
                       {answerLabel}
                     </p>
                     {answerTeam ? (
@@ -699,7 +702,7 @@ export function AdivinaModal({
                               {player.name}
                             </span>
                             <span
-                              className={`text-[9px] font-black uppercase tracking-[0.16em] ${
+                              className={`text-[9px] font-bold uppercase tracking-[0.16em] ${
                                 active ? "text-lime-200" : "text-zinc-500"
                               }`}
                             >
@@ -818,7 +821,7 @@ function IntroPanel({
                   className="object-contain"
                 />
               </div>
-              <p className="mt-1 text-[9px] font-black uppercase leading-tight text-white">
+              <p className="mt-1 text-[9px] font-bold uppercase leading-tight text-white">
                 {reward.title.replace(/^Sobre\s+/i, "")}
               </p>
               <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-lime-200">
@@ -831,13 +834,13 @@ function IntroPanel({
       ) : (
         <div className="mt-5 grid grid-cols-3 gap-3 text-center">
           <div>
-            <p className="text-xl font-black text-white">{questionCount}</p>
+            <p className="text-xl font-bold text-white">{questionCount}</p>
             <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">
               criaturas
             </p>
           </div>
           <div>
-            <p className="text-xl font-black text-white">
+            <p className="text-xl font-bold text-white">
               {Math.round(roundTimeMs / 1000)}s
             </p>
             <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">
@@ -845,7 +848,7 @@ function IntroPanel({
             </p>
           </div>
           <div>
-            <p className="text-xl font-black text-lime-200">3</p>
+            <p className="text-xl font-bold text-lime-200">3</p>
             <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">
               sobres max
             </p>
@@ -914,7 +917,7 @@ function ResultPanel({
       <p className="relative z-10 text-xs font-bold uppercase tracking-[0.24em] text-lime-200">
         Informe cerrado
       </p>
-      <p className="relative z-10 mt-2 text-5xl font-black leading-none text-white">
+      <p className="relative z-10 mt-2 text-5xl font-bold leading-none text-white">
         {correctCount}
         <span className="text-2xl text-zinc-500">/{total}</span>
       </p>
@@ -962,7 +965,7 @@ function ResultPanel({
                   />
                 </div>
                 <p
-                  className={`mt-1 text-[10px] font-black uppercase leading-tight ${
+                  className={`mt-1 text-[10px] font-bold uppercase leading-tight ${
                     earned ? "text-white" : "text-zinc-500"
                   }`}
                 >

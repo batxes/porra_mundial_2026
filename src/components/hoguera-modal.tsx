@@ -717,8 +717,10 @@ function HogueraRunLadder({
       <div className="mt-1 flex justify-center">
         <LivesRow lives={lives} maxLives={maxLives} />
       </div>
-      <div className="mt-3 flex items-center justify-between gap-3 px-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">
-        <span>Actual {safeMeters}/{goalMeters} m</span>
+      <div className="mt-3 flex items-center justify-between gap-3 px-1 text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+        <span>
+          Actual {safeMeters}/{goalMeters} m
+        </span>
         <span className="text-[#f5c518]">Mejor {bestSafeMeters} m</span>
       </div>
 
@@ -775,7 +777,7 @@ function HogueraRunLadder({
                     />
                   </div>
                   <p
-                    className={`mt-1 truncate text-[8px] font-black uppercase ${
+                    className={`mt-1 truncate text-[8px] font-bold uppercase ${
                       earned ? "text-white" : "text-zinc-500"
                     }`}
                   >
@@ -1634,7 +1636,7 @@ function IntroPanel({
                 className="object-contain"
               />
             </div>
-            <p className="mt-1 text-[9px] font-black uppercase leading-tight text-white">
+            <p className="mt-1 text-[9px] font-bold uppercase leading-tight text-white">
               {r.title.replace(/^Sobre\s+/i, "")}
             </p>
             <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#f5c518]">
@@ -1682,7 +1684,7 @@ function BriefingPanel({
           ))}
         </div>
 
-        <p className="mt-4 text-[10px] font-black uppercase tracking-[0.24em] text-[#f5c518]">
+        <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.24em] text-[#f5c518]">
           3 vidas
         </p>
         <h3 className="mt-2 text-2xl font-bold leading-none tracking-tight text-white sm:text-3xl">
@@ -1792,7 +1794,7 @@ function ResultPanel({
                 />
               </div>
               <p
-                className={`mt-1 text-[9px] font-black uppercase leading-tight ${
+                className={`mt-1 text-[9px] font-bold uppercase leading-tight ${
                   earned ? "text-white" : "text-zinc-500"
                 }`}
               >

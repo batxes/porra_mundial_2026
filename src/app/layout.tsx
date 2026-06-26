@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Anton, Geist_Mono, Inter } from "next/font/google";
+import { Anton, Geist_Mono, Inter, Press_Start_2P } from "next/font/google";
 import { AppChrome } from "@/components/app-chrome";
 import { AppToaster } from "@/components/app-toaster";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
@@ -19,6 +19,12 @@ const geistMono = Geist_Mono({
 // Display deportiva (estilo FUT) para titulares como el banner de sobres.
 const anton = Anton({
   variable: "--font-display",
+  weight: "400",
+  subsets: ["latin"],
+});
+
+const pressStart = Press_Start_2P({
+  variable: "--font-pixel",
   weight: "400",
   subsets: ["latin"],
 });
@@ -46,7 +52,7 @@ export default function RootLayout({
     <html
       lang="es"
       suppressHydrationWarning
-      className={`${inter.variable} ${geistMono.variable} ${anton.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} ${anton.variable} ${pressStart.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <AppProvider>

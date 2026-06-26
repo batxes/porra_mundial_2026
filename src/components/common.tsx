@@ -2572,7 +2572,7 @@ export function PredictionSnapshot({
   matches,
   playerName,
   profile,
-  showBracket = true,
+  showBracket = false,
   recorrido,
   belowLineup,
   maskUnstarted = false,

@@ -116,6 +116,10 @@ function isSectionId(value: string | null): value is SectionId {
   return playSections.some((section) => section.id === value);
 }
 
+function normalizeSectionId(value: string | null): SectionId | null {
+  return isSectionId(value) ? value : null;
+}
+
 const positionLabels: Record<Position, string> = {
   POR: "Portero",
   DEF: "Defensa",
@@ -189,6 +193,7 @@ export function PredictionView() {
   const [section, setSection] = useState<SectionId>(() =>
     hasTournamentStarted() ? "results" : "extras",
   );
+  const [initialSectionResolved, setInitialSectionResolved] = useState(false);
   const [autoSaveState, setAutoSaveState] = useState<AutoSaveState>("idle");
   const [authOpen, setAuthOpen] = useState(false);
   const [showXiIntroModal, setShowXiIntroModal] = useState(false);
@@ -240,13 +245,15 @@ export function PredictionView() {
     const params = new URLSearchParams(window.location.search);
     const requestedSection =
       params.get("section") || window.location.hash.slice(1);
-
-    if (!isSectionId(requestedSection)) return;
+    const normalizedSection = normalizeSectionId(requestedSection);
 
     const frame = window.requestAnimationFrame(() => {
-      setSection((current) =>
-        requestedSection === current ? current : requestedSection,
-      );
+      if (normalizedSection) {
+        setSection((current) =>
+          normalizedSection === current ? current : normalizedSection,
+        );
+      }
+      setInitialSectionResolved(true);
     });
 
     return () => window.cancelAnimationFrame(frame);
@@ -329,6 +336,7 @@ export function PredictionView() {
   }, [predictionSignature, ready, savePrediction, userId]);
 
   useEffect(() => {
+    if (!initialSectionResolved) return;
     if (section !== "xi" || xiIntroQueuedRef.current) return;
 
     try {
@@ -345,9 +353,10 @@ export function PredictionView() {
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [section]);
+  }, [initialSectionResolved, section]);
 
   useEffect(() => {
+    if (!initialSectionResolved) return;
     if (section !== "groups" || groupsIntroQueuedRef.current) return;
 
     try {
@@ -364,9 +373,10 @@ export function PredictionView() {
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [section]);
+  }, [initialSectionResolved, section]);
 
   useEffect(() => {
+    if (!initialSectionResolved) return;
     if (section !== "results" || resultsIntroQueuedRef.current) return;
 
     try {
@@ -383,7 +393,7 @@ export function PredictionView() {
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [section]);
+  }, [initialSectionResolved, section]);
 
   const dismissResultsIntroModal = () => {
     resultsIntroQueuedRef.current = true;
@@ -445,13 +455,6 @@ export function PredictionView() {
             fase.
           </Notice>
         ) : null}
-        {tournamentLocked ? (
-          <Notice>
-            Elecciones, once y grupos estan cerrados. Los resultados siguen
-            abiertos hasta el inicio de cada partido.
-          </Notice>
-        ) : null}
-
         <StepTabs
           sections={orderedSections}
           section={section}
@@ -659,7 +662,7 @@ function StepTabs({
   onSectionChange: (section: SectionId) => void;
 }) {
   return (
-    <div className="sticky top-0 z-30 -mx-4 overflow-x-auto border-b border-white/10 bg-[#050505]/90 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 md:mx-0 md:overflow-visible md:px-0">
+    <div className="sticky top-0 z-30 -mx-4 overflow-x-auto border-b border-white/10 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 md:mx-0 md:overflow-visible md:px-0">
       <div className="flex w-max max-w-none gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:grid md:w-full md:grid-cols-4">
         {sections.map((tab, index) => {
           const active = section === tab.id;
@@ -1547,13 +1550,11 @@ function GroupStage({
 
         {prediction.bracket.thirdQualifiers.length === 8 ? (
           <Notice>
-            Los terceros ya estan completos. El cuadro de eliminación puede
-            resolver sus emparejamientos.
+            Los terceros ya estan completos.
           </Notice>
         ) : (
           <Notice tone="warm">
-            El cuadro se completará cuando haya 8 terceros clasificados
-            seleccionados.
+            Elige 8 terceros clasificados para completar la fase de grupos.
           </Notice>
         )}
       </Card>

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 import {
@@ -365,108 +359,108 @@ export function LeaderboardVersus({
   return (
     <DuelLeaderContext.Provider value={leaderSide}>
       <div className="space-y-4">
-      <section className="relative rounded-2xl border border-white/10 bg-[#101010] p-3 shadow-2xl shadow-black/30 sm:p-4">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
-        >
+        <section className="relative rounded-2xl border border-white/10 bg-[#101010] p-3 shadow-2xl shadow-black/30 sm:p-4">
           <div
-            className="absolute inset-x-0 top-0 h-px"
-            style={{
-              backgroundImage: `linear-gradient(90deg, transparent, ${glowA}99, rgba(255,255,255,0.25), ${glowB}99, transparent)`,
-            }}
-          />
-          <div
-            className="absolute inset-x-0 top-0 h-40"
-            style={{
-              backgroundImage: `radial-gradient(60% 90% at 22% 0%, ${glowA}2e, transparent 70%), radial-gradient(60% 90% at 78% 0%, ${glowB}2e, transparent 70%)`,
-            }}
-          />
-          <div className="absolute inset-0 bg-[linear-gradient(115deg,transparent_0%,rgba(255,255,255,0.035)_48%,transparent_68%)]" />
-        </div>
-
-        <div className="relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2 sm:gap-4">
-          <ParticipantPicker
-            pool={sortedPool}
-            value={profileA}
-            disabledId={profileB?.id}
-            side="a"
-            rank={rankA}
-            isLeader={leaderSide === "a"}
-            currentUserId={currentUserId}
-            onChange={setAId}
-          />
-          {hasDuel && rankB != null && profileB ? (
-            <DuelCenter
-              diff={diff}
-              leaderSide={leaderSide}
-              rankA={rankA}
-              rankB={rankB}
-              pointsA={profileA.points}
-              pointsB={profileB.points}
+            aria-hidden
+            className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
+          >
+            <div
+              className="absolute inset-x-0 top-0 h-px"
+              style={{
+                backgroundImage: `linear-gradient(90deg, transparent, ${glowA}99, rgba(255,255,255,0.25), ${glowB}99, transparent)`,
+              }}
             />
-          ) : (
-            <DuelPendingCenter />
-          )}
-          <ParticipantPicker
-            pool={sortedPool}
-            value={profileB}
-            disabledId={profileA.id}
-            side="b"
-            rank={rankB ?? undefined}
-            isLeader={leaderSide === "b"}
-            placeholder="Añadir rival"
-            currentUserId={currentUserId}
-            onChange={setBId}
-          />
-        </div>
-      </section>
-
-      {hasDuel && profileB && model && rankB != null ? (
-        <div key={profileB.id} className="space-y-4">
-          {/* Resumen por categoría a todo el ancho, justo bajo el header. */}
-          <div className="vs-card-in" style={cssVars({ "--vs-i": 0 })}>
-            <CategoryBattle categories={model.categories} />
+            <div
+              className="absolute inset-x-0 top-0 h-40"
+              style={{
+                backgroundImage: `radial-gradient(60% 90% at 22% 0%, ${glowA}2e, transparent 70%), radial-gradient(60% 90% at 78% 0%, ${glowB}2e, transparent 70%)`,
+              }}
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(115deg,transparent_0%,rgba(255,255,255,0.035)_48%,transparent_68%)]" />
           </div>
 
-          {/* Momentum a todo el ancho (el gráfico luce mejor amplio). */}
-          <div className="vs-card-in" style={cssVars({ "--vs-i": 1 })}>
-            <DuelMomentum
-              jornadas={model.jornadas}
-              nameA={displayName(profileA, currentUserId)}
-              nameB={displayName(profileB, currentUserId)}
+          <div className="relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2 sm:gap-4">
+            <ParticipantPicker
+              pool={sortedPool}
+              value={profileA}
+              disabledId={profileB?.id}
+              side="a"
+              rank={rankA}
+              isLeader={leaderSide === "a"}
+              currentUserId={currentUserId}
+              onChange={setAId}
+            />
+            {hasDuel && rankB != null && profileB ? (
+              <DuelCenter
+                diff={diff}
+                leaderSide={leaderSide}
+                rankA={rankA}
+                rankB={rankB}
+                pointsA={profileA.points}
+                pointsB={profileB.points}
+              />
+            ) : (
+              <DuelPendingCenter />
+            )}
+            <ParticipantPicker
+              pool={sortedPool}
+              value={profileB}
+              disabledId={profileA.id}
+              side="b"
+              rank={rankB ?? undefined}
+              isLeader={leaderSide === "b"}
+              placeholder="Añadir rival"
+              currentUserId={currentUserId}
+              onChange={setBId}
             />
           </div>
+        </section>
 
-          {/* Once y elecciones en dos columnas que se igualan en altura. */}
-          <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
-            <div className="vs-card-in flex" style={cssVars({ "--vs-i": 2 })}>
-              <LineupBattle
+        {hasDuel && profileB && model && rankB != null ? (
+          <div key={profileB.id} className="space-y-4">
+            {/* Resumen por categoría a todo el ancho, justo bajo el header. */}
+            <div className="vs-card-in" style={cssVars({ "--vs-i": 0 })}>
+              <CategoryBattle categories={model.categories} />
+            </div>
+
+            {/* Momentum a todo el ancho (el gráfico luce mejor amplio). */}
+            <div className="vs-card-in" style={cssVars({ "--vs-i": 1 })}>
+              <DuelMomentum
+                jornadas={model.jornadas}
                 nameA={displayName(profileA, currentUserId)}
                 nameB={displayName(profileB, currentUserId)}
-                onceA={model.onceA}
-                onceB={model.onceB}
-                commonXi={model.commonXi}
               />
             </div>
-            <div className="vs-card-in flex" style={cssVars({ "--vs-i": 3 })}>
-              <ElectionsBattle elections={model.elections} />
+
+            {/* Once y elecciones en dos columnas que se igualan en altura. */}
+            <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
+              <div className="vs-card-in flex" style={cssVars({ "--vs-i": 2 })}>
+                <LineupBattle
+                  nameA={displayName(profileA, currentUserId)}
+                  nameB={displayName(profileB, currentUserId)}
+                  onceA={model.onceA}
+                  onceB={model.onceB}
+                  commonXi={model.commonXi}
+                />
+              </div>
+              <div className="vs-card-in flex" style={cssVars({ "--vs-i": 3 })}>
+                <ElectionsBattle elections={model.elections} />
+              </div>
+            </div>
+
+            {/* Jornada a jornada a todo el ancho */}
+            <div className="vs-card-in" style={cssVars({ "--vs-i": 4 })}>
+              <JornadasBattle
+                jornadas={model.jornadas}
+                mapA={model.mapA}
+                mapB={model.mapB}
+                results={adminResults}
+              />
             </div>
           </div>
-
-          {/* Jornada a jornada a todo el ancho */}
-          <div className="vs-card-in" style={cssVars({ "--vs-i": 4 })}>
-            <JornadasBattle
-              jornadas={model.jornadas}
-              mapA={model.mapA}
-              mapB={model.mapB}
-              results={adminResults}
-            />
-          </div>
-        </div>
-      ) : (
-        <PendingComparisonCard />
-      )}
+        ) : (
+          <PendingComparisonCard />
+        )}
       </div>
     </DuelLeaderContext.Provider>
   );
@@ -808,7 +802,15 @@ function CategoryBattle({
 
 // Tile compacto por categoría (estilo del resumen del perfil): etiqueta, los dos
 // valores coloreados y una barrita que reparte quién gana esa categoría.
-function CategoryTile({ label, a, b }: { label: string; a: number; b: number }) {
+function CategoryTile({
+  label,
+  a,
+  b,
+}: {
+  label: string;
+  a: number;
+  b: number;
+}) {
   const colorFor = useColorFor();
   const cA = colorFor("a");
   const cB = colorFor("b");
@@ -829,7 +831,7 @@ function CategoryTile({ label, a, b }: { label: string; a: number; b: number }) 
       <p className="truncate text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-500">
         {label}
       </p>
-      <div className="mt-1 flex items-center justify-between gap-1 text-sm font-black tabular-nums">
+      <div className="mt-1 flex items-center justify-between gap-1 text-sm font-bold tabular-nums">
         <span
           style={{
             color: a < 0 ? NEGATIVE : cA,
@@ -1147,7 +1149,9 @@ function JornadasBattle({
           jornadas.length ? (
             <span className="flex items-center gap-1.5 text-xs font-bold tabular-nums">
               <span style={{ color: colorFor("a") }}>{totalA}</span>
-              <span className="text-[10px] font-semibold text-zinc-600">vs</span>
+              <span className="text-[10px] font-semibold text-zinc-600">
+                vs
+              </span>
               <span style={{ color: colorFor("b") }}>{totalB}</span>
             </span>
           ) : null
@@ -1270,7 +1274,10 @@ function ParticipantPicker({
               <span
                 aria-hidden
                 className="pointer-events-none absolute inset-0 -z-10 rounded-full blur-md transition-opacity duration-300"
-                style={{ backgroundColor: color, opacity: isLeader ? 0.3 : 0.12 }}
+                style={{
+                  backgroundColor: color,
+                  opacity: isLeader ? 0.3 : 0.12,
+                }}
               />
               <span
                 className={`relative rounded-full ${isLeader ? "vs-leader-glow" : ""}`}
@@ -1305,7 +1312,9 @@ function ParticipantPicker({
                 style={{
                   color: value.points < 0 ? NEGATIVE : color,
                   textShadow:
-                    isLeader && value.points >= 0 ? `0 0 18px ${color}45` : "none",
+                    isLeader && value.points >= 0
+                      ? `0 0 18px ${color}45`
+                      : "none",
                 }}
               >
                 {value.points}
@@ -1319,7 +1328,9 @@ function ParticipantPicker({
               <span
                 className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition-colors duration-300"
                 style={{
-                  borderColor: isLeader ? `${color}40` : "rgba(255,255,255,0.08)",
+                  borderColor: isLeader
+                    ? `${color}40`
+                    : "rgba(255,255,255,0.08)",
                   backgroundColor: isLeader ? `${color}12` : "rgba(0,0,0,0.2)",
                 }}
               >
@@ -1614,7 +1625,7 @@ function MatchPoints({
         : "rgba(255,255,255,0.06)";
   return (
     <span
-      className={`rounded-md px-1.5 py-0.5 text-center text-xs font-black tabular-nums ${
+      className={`rounded-md px-1.5 py-0.5 text-center text-xs font-bold tabular-nums ${
         align === "start" ? "justify-self-start" : "justify-self-end"
       }`}
       style={{ backgroundColor: bg, color }}

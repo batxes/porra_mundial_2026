@@ -351,17 +351,22 @@ export function SuarezDentistModal({
             aria-hidden
             className="pointer-events-none absolute left-0 top-0 h-0 w-0 overflow-hidden opacity-0"
           >
-            {[suarezBg, SUAREZ_OPEN_SRC, SUAREZ_CLOSED_SRC].map((src, index) => (
-              <div key={`suarez-preload-${index}`} className="relative h-px w-px">
-                <Image
-                  src={src}
-                  alt=""
-                  fill
-                  sizes="(max-width: 640px) 94vw, 560px"
-                  loading="eager"
-                />
-              </div>
-            ))}
+            {[suarezBg, SUAREZ_OPEN_SRC, SUAREZ_CLOSED_SRC].map(
+              (src, index) => (
+                <div
+                  key={`suarez-preload-${index}`}
+                  className="relative h-px w-px"
+                >
+                  <Image
+                    src={src}
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) 94vw, 560px"
+                    loading="eager"
+                  />
+                </div>
+              ),
+            )}
           </div>
         ) : null}
 
@@ -491,7 +496,7 @@ function IntroPanel({
                 className="object-contain"
               />
             </div>
-            <p className="mt-1 text-[9px] font-black uppercase leading-tight text-white">
+            <p className="mt-1 text-[9px] font-bold uppercase leading-tight text-white">
               {reward.title.replace(/^Sobre\s+/i, "")}
             </p>
             <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#f5c518]">
@@ -596,7 +601,7 @@ function BriefingPanel({
                 className="object-contain"
               />
             </div>
-            <p className="mt-1 text-[9px] font-black uppercase leading-tight text-white">
+            <p className="mt-1 text-[9px] font-bold uppercase leading-tight text-white">
               {reward.title.replace(/^Sobre\s+/i, "")}
             </p>
             <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#f5c518]">
@@ -655,7 +660,7 @@ function PlayingPanel({
     <div className="relative z-10 px-3 pb-5 pt-4 sm:px-5">
       <div className="mb-3 grid grid-cols-2 gap-2 text-center">
         <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">
-          <p className="text-[8px] font-black uppercase tracking-[0.16em] text-zinc-500">
+          <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-500">
             Vidas
           </p>
           <div className="mt-1">
@@ -663,10 +668,10 @@ function PlayingPanel({
           </div>
         </div>
         <div className="rounded-lg border border-[#f5c518]/20 bg-[#f5c518]/8 px-3 py-2">
-          <p className="text-[8px] font-black uppercase tracking-[0.16em] text-[#f5c518]">
+          <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-[#f5c518]">
             Mejor intento
           </p>
-          <p className="mt-0.5 text-sm font-black text-white">
+          <p className="mt-0.5 text-sm font-bold text-white">
             {bestScore}/{rewards.length}
           </p>
         </div>
@@ -677,7 +682,10 @@ function PlayingPanel({
         } ${packToastTooth ? "suarez-stage-feedback" : ""}`}
         sizes="(max-width: 640px) 94vw, 560px"
       >
-        <div aria-hidden className="suarez-stage-sweep absolute inset-0 z-[2]" />
+        <div
+          aria-hidden
+          className="suarez-stage-sweep absolute inset-0 z-[2]"
+        />
         <div
           className={`absolute inset-0 z-10 ${
             mouthClosed ? "" : "suarez-character-idle"
@@ -812,9 +820,7 @@ function ToothButton({
         extracted ? "pointer-events-none" : "cursor-pointer"
       } ${picked ? "suarez-tooth-picked" : ""} ${
         hint ? "suarez-tooth-hint" : ""
-      } ${
-        tense ? "suarez-tooth-danger" : ""
-      }`}
+      } ${tense ? "suarez-tooth-danger" : ""}`}
       style={style}
     >
       <span
@@ -957,10 +963,10 @@ function ResultPanel({
           {banked}
         </span>
         <span className="text-left">
-          <span className="block text-[9px] font-black uppercase tracking-[0.18em] text-[#f5c518]">
+          <span className="block text-[9px] font-bold uppercase tracking-[0.18em] text-[#f5c518]">
             {savedLabel}
           </span>
-          <span className="mt-0.5 block text-xl font-black uppercase leading-none text-zinc-200">
+          <span className="mt-0.5 block text-xl font-bold uppercase leading-none text-zinc-200">
             {packLabel}
           </span>
         </span>
@@ -974,7 +980,7 @@ function ResultPanel({
           {attempts.map((score, index) => (
             <span
               key={`suarez-result-life-${index}`}
-              className={`rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] ${
+              className={`rounded-full border px-3 py-1 text-[9px] font-bold uppercase tracking-[0.12em] ${
                 score === banked
                   ? "border-[#f5c518]/42 bg-[#f5c518]/12 text-[#f5c518]"
                   : "border-white/10 bg-black/18 text-zinc-500"
@@ -1059,7 +1065,7 @@ function RewardCard({
         />
       </div>
       <p
-        className={`mt-1 text-[9px] font-black uppercase leading-tight ${
+        className={`mt-1 text-[9px] font-bold uppercase leading-tight ${
           lost ? "text-zinc-500" : "text-white"
         }`}
       >
