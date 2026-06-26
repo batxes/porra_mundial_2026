@@ -11,6 +11,7 @@ export type AdivinaRound = {
   image: string;
   answerId: string;
   answerLabel?: string;
+  aliases?: string[];
 };
 
 export type AdivinaReward = {
@@ -180,22 +181,48 @@ export function AdivinaModal({
     [outcomes],
   );
 
+  const answerAliases = useMemo(() => {
+    const byPlayer = new Map<string, string[]>();
+    rounds.forEach((item) => {
+      const values = [
+        ...(item.aliases || []),
+        ...(item.answerLabel ? [item.answerLabel] : []),
+      ].filter(Boolean);
+      if (!values.length) return;
+      byPlayer.set(item.answerId, [
+        ...(byPlayer.get(item.answerId) || []),
+        ...values,
+      ]);
+    });
+    return byPlayer;
+  }, [rounds]);
+
   const suggestions = useMemo(() => {
     const q = normalize(query);
     if (q.length < 2) return [] as Player[];
-    const matches = data.players.filter((player) =>
-      normalize(player.name).includes(q),
-    );
+    const matches = data.players.filter((player) => {
+      const names = [player.name, ...(answerAliases.get(player.id) || [])];
+      return names.some((name) => normalize(name).includes(q));
+    });
     matches.sort((a, b) => {
-      const aName = normalize(a.name);
-      const bName = normalize(b.name);
+      const aNames = [a.name, ...(answerAliases.get(a.id) || [])].map(
+        normalize,
+      );
+      const bNames = [b.name, ...(answerAliases.get(b.id) || [])].map(
+        normalize,
+      );
+      const aName = aNames[0] || "";
+      const bName = bNames[0] || "";
+      const aAliasStarts = aNames.some((name) => name.startsWith(q)) ? 0 : 1;
+      const bAliasStarts = bNames.some((name) => name.startsWith(q)) ? 0 : 1;
       const aStarts = aName.startsWith(q) ? 0 : 1;
       const bStarts = bName.startsWith(q) ? 0 : 1;
+      if (aAliasStarts !== bAliasStarts) return aAliasStarts - bAliasStarts;
       if (aStarts !== bStarts) return aStarts - bStarts;
       return a.name.localeCompare(b.name);
     });
     return matches.slice(0, MAX_SUGGESTIONS);
-  }, [query]);
+  }, [answerAliases, query]);
 
   const submitCompletion = useCallback(
     async (result: AdivinaResult) => {

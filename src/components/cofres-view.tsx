@@ -69,6 +69,7 @@ const packAwardCompletedEvents = [
 
 type PackKind = "daily" | "special";
 type ThemedPool =
+  | "barcelona"
   | "madrid"
   | "sub21"
   | "stars"
@@ -380,6 +381,11 @@ const PACK_VISUALS: Array<{
 }> = [
   ...THEMED_CONFIGS.map(({ title, image, flap }) => ({ title, image, flap })),
   {
+    title: "Sobre Barcelona",
+    image: "/sobre-barcelona.webp",
+    flap: "red",
+  },
+  {
     title: "Sobre Madrid",
     image: "/sobre-madrid.webp",
     flap: "white",
@@ -429,7 +435,9 @@ function isResidualPositionAutoPack(id: string) {
 }
 
 function isAutomaticUserPackId(id: string) {
-  return /^(daily|sub21|stars|premier)-\d{4}-\d{2}-\d{2}-/i.test(id);
+  return /^(daily|sub21|stars|premier|barcelona)-\d{4}-\d{2}-\d{2}-/i.test(
+    id,
+  );
 }
 
 // Premios privados POR USUARIO (minijuegos): solo los ve su dueño.
@@ -517,6 +525,20 @@ function pickDailyPlayers(seed: string): string[] {
     data.players.map((player) => player.id).filter((id) => !taken.has(id)),
   );
   return [...random, ...top, ...star];
+}
+
+function rerollLocalPackForOpening(pack: Pack, seed: string): Pack {
+  if (pack.kind === "daily" || !pack.pool) return pack;
+  const config = THEMED_CONFIGS.find((candidate) => candidate.pool === pack.pool);
+  if (!config) return pack;
+  return {
+    ...pack,
+    playerIds: pickDeterministicPlayers(
+      `${config.pool}:${pack.dateKey || DAILY_FIRST_CYCLE}:${seed}`,
+      config.count,
+      config.ids,
+    ),
+  };
 }
 
 function formatPackDate(key: string) {
@@ -731,11 +753,11 @@ export function CofresView() {
         title:
           index === 0 ? "Sobre diario" : `Sobre ${formatPackDate(dateKey)}`,
         subtitle: "3 cartas · 1 legendaria asegurada",
-        playerIds: pickDailyPlayers(`daily:${dateKey}:${drawSeed}`),
+        playerIds: pickDailyPlayers(`daily:${dateKey}:${userStorageId}`),
         dateKey,
         availableAt: `${dateKey}T00:00:00.000Z`,
       })),
-    [cycleKeys, drawSeed, userStorageId],
+    [cycleKeys, userStorageId],
   );
 
   // Sobres temáticos de BIENVENIDA: uno de cada, fijos al ciclo de activación,
@@ -1417,8 +1439,9 @@ export function CofresView() {
 
       // Local/demo: la tirada es de cliente; re-tira los ESPECIALES por apertura
       // para que la carta sea aleatoria. Math.random es seguro (evento, no render).
-      setDrawSeed(String(Math.random()));
-      setActivePack(pack);
+      const nextSeed = String(Math.random());
+      setDrawSeed(nextSeed);
+      setActivePack(rerollLocalPackForOpening(pack, nextSeed));
       setOpening(true);
     },
     [

@@ -41,6 +41,7 @@ function firstRow<T>(data: unknown): T | null {
 }
 
 const PACK_META: Record<string, { image: string; title: string }> = {
+  barcelona: { image: "/sobre-barcelona.webp", title: "Sobre Barcelona" },
   defensas: { image: "/sobre-defensas.webp", title: "Sobre Defensas" },
   delanteros: { image: "/sobre-delanteros.webp", title: "Sobre Delanteros" },
   francia: { image: "/sobre-francia.webp", title: "Sobre Francia" },

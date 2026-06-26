@@ -55,6 +55,7 @@ const SEGMENT_OPTIONS: Array<{
   { value: "stars", label: "Estrellas", image: "/sobre-estrellas.webp" },
   { value: "diario", label: "Sobre diario", image: "/sobre.webp" },
   { value: "madrid", label: "Madrid", image: "/sobre-madrid.webp" },
+  { value: "barcelona", label: "Barcelona", image: "/sobre-barcelona.webp" },
   { value: "sub21", label: "Promesas", image: "/sobre21.webp" },
   { value: "francia", label: "Francia", image: "/sobre-francia.webp" },
   { value: "premier", label: "Premier", image: "/sobre-premier.webp" },

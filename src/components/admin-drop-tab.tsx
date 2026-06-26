@@ -202,6 +202,12 @@ const DROP_OPTIONS = [
     pool: "madrid",
   },
   {
+    key: "barcelona",
+    title: "Sobre Barcelona",
+    image: "/sobre-barcelona.webp",
+    pool: "barcelona",
+  },
+  {
     key: "sub21",
     title: "Sobre Promesas",
     image: "/sobre21.webp",

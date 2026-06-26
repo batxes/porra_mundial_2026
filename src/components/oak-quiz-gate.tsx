@@ -38,29 +38,31 @@ type OakRpcClient = {
 };
 
 const PACK_META: Record<string, { image: string; title: string }> = {
+  barcelona: { image: "/sobre-barcelona.webp", title: "Sobre Barcelona" },
   defensas: { image: "/sobre-defensas.webp", title: "Sobre Defensas" },
   delanteros: { image: "/sobre-delanteros.webp", title: "Sobre Delanteros" },
+  medios: { image: "/sobre-medios.webp", title: "Sobre Mediocentros" },
   sub21: { image: "/sobre21.webp", title: "Sobre Promesas" },
 };
 
 const DEFAULT_REWARDS: AdivinaReward[] = [
   {
-    image: PACK_META.delanteros.image,
-    minScore: 1,
-    pool: "delanteros",
-    title: PACK_META.delanteros.title,
-  },
-  {
     image: PACK_META.defensas.image,
-    minScore: 2,
+    minScore: 1,
     pool: "defensas",
     title: PACK_META.defensas.title,
   },
   {
-    image: PACK_META.sub21.image,
+    image: PACK_META.medios.image,
+    minScore: 2,
+    pool: "medios",
+    title: PACK_META.medios.title,
+  },
+  {
+    image: PACK_META.barcelona.image,
     minScore: 4,
-    pool: "sub21",
-    title: PACK_META.sub21.title,
+    pool: "barcelona",
+    title: PACK_META.barcelona.title,
   },
 ];
 
@@ -74,6 +76,7 @@ function parseRounds(value: unknown): AdivinaRound[] {
     .map((item): AdivinaRound | null => {
       if (!item || typeof item !== "object") return null;
       const row = item as {
+        aliases?: unknown;
         answerId?: unknown;
         answerLabel?: unknown;
         image?: unknown;
@@ -87,6 +90,12 @@ function parseRounds(value: unknown): AdivinaRound[] {
       };
       if (typeof row.answerLabel === "string") {
         round.answerLabel = row.answerLabel;
+      }
+      if (Array.isArray(row.aliases)) {
+        const aliases = row.aliases.filter(
+          (alias): alias is string => typeof alias === "string",
+        );
+        if (aliases.length) round.aliases = aliases;
       }
       return round;
     })

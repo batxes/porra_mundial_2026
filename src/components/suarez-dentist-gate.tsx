@@ -35,6 +35,7 @@ type SuarezDentistRpcClient = {
 };
 
 const PACK_META: Record<string, { image: string; title: string }> = {
+  barcelona: { image: "/sobre-barcelona.webp", title: "Sobre Barcelona" },
   defensas: { image: "/sobre-defensas.webp", title: "Sobre Defensas" },
   medios: { image: "/sobre-medios.webp", title: "Sobre Mediocentros" },
   premier: { image: "/sobre-premier.webp", title: "Sobre Premier" },
