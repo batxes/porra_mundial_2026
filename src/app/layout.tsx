@@ -43,6 +43,34 @@ export const viewport: Viewport = {
   themeColor: "#050505",
 };
 
+// Mantenimiento de emergencia SIN tocar la BBDD. Mientras esta activo no se
+// monta la app (ni AppProvider, ni AppChrome, ni la pagina), asi que no se hace
+// NINGUNA consulta a Supabase: corta la avalancha de peticiones que mantiene la
+// base ahogada y muestra una pantalla estatica.
+//  - Por codigo: pon DEFAULT_MAINTENANCE = false y haz push para reabrir.
+//  - Sin push: define NEXT_PUBLIC_MAINTENANCE = "1" (on) o "0" (off) en Vercel y redeploya.
+const DEFAULT_MAINTENANCE = true;
+const MAINTENANCE_MODE =
+  process.env.NEXT_PUBLIC_MAINTENANCE === "1" ||
+  (process.env.NEXT_PUBLIC_MAINTENANCE !== "0" && DEFAULT_MAINTENANCE);
+
+function MaintenanceScreen() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center">
+      <div className="text-5xl" aria-hidden>
+        🛠️
+      </div>
+      <h1 className="text-2xl font-bold sm:text-3xl">
+        Triliporra está en mantenimiento
+      </h1>
+      <p className="max-w-md text-sm leading-6 text-zinc-400">
+        Estamos resolviendo un problema en el servidor. Volvemos enseguida —
+        gracias por la paciencia.
+      </p>
+    </main>
+  );
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -55,11 +83,17 @@ export default function RootLayout({
       className={`${inter.variable} ${geistMono.variable} ${anton.variable} ${pressStart.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <AppProvider>
-          <AppChrome>{children}</AppChrome>
-          <AppToaster />
-        </AppProvider>
-        <ServiceWorkerRegistration />
+        {MAINTENANCE_MODE ? (
+          <MaintenanceScreen />
+        ) : (
+          <>
+            <AppProvider>
+              <AppChrome>{children}</AppChrome>
+              <AppToaster />
+            </AppProvider>
+            <ServiceWorkerRegistration />
+          </>
+        )}
       </body>
     </html>
   );
