@@ -32,8 +32,6 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
   deploy:
-    needs: migrate
-    if: ${{ always() }}
     runs-on: ubuntu-latest
     environment:
       name: production
