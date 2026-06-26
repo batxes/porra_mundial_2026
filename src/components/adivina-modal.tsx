@@ -581,13 +581,13 @@ export function AdivinaModal({
                 ))}
                 <div
                   aria-hidden
-                  className="absolute bottom-[13%] left-[86%] z-10 h-11 w-[45%] -translate-x-1/2 rounded-full bg-black/50 blur-md"
+                  className="absolute bottom-[13%] left-1/2 z-10 h-11 w-[45%] -translate-x-1/2 rounded-full bg-black/50 blur-md"
                 />
                 <div
                   aria-hidden
-                  className="absolute bottom-[17%] left-[86%] z-10 h-[58%] w-[66%] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.34),rgba(167,246,0,0.16)_36%,transparent_70%)]"
+                  className="absolute bottom-[17%] left-1/2 z-10 h-[58%] w-[66%] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.34),rgba(167,246,0,0.16)_36%,transparent_70%)]"
                 />
-                <div className="absolute bottom-[7%] left-[86%] z-20 h-[82%] w-[82%] -translate-x-1/2 motion-safe:animate-[adivina-wild-bob_1800ms_ease-in-out_infinite]">
+                <div className="absolute bottom-[7%] left-1/2 z-20 h-[82%] w-[82%] -translate-x-1/2 motion-safe:animate-[adivina-wild-bob_1800ms_ease-in-out_infinite]">
                   <Image
                     src={adivinaImageSrc(round.image)}
                     alt="Criatura por identificar"
