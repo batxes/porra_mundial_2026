@@ -314,11 +314,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { session },
     } = await supabase.auth.getSession();
+    const sessionUserId = session?.user?.id || "";
 
-    // La sesion se resuelve mucho antes que los datos: adelanta un usuario
-    // provisional para que la cabecera no muestre "Entrar" mientras carga.
-    if (session?.user) {
+    // === Sesion / identidad ===
+    // El login se decide con TU fila (+ TUS entradas), consultas ligeras por id.
+    // Antes salia de bajarse la tabla profiles ENTERA: cuando esa consulta se
+    // atascaba bajo carga venia vacia y te deslogueaba ("poop -> Hodei -> fuera").
+    // Ahora el fetch pesado (clasificacion) ya no decide tu sesion.
+    if (!session?.user) {
+      writeCachedSessionUser(null);
+      setUser(null);
+    } else {
       const metadataName = (session.user.user_metadata as Record<string, unknown> | null)?.display_name;
+      // Usuario provisional inmediato para que la cabecera no parpadee a "Entrar".
       setUser((current) =>
         current ?? {
           id: session.user.id,
@@ -332,15 +340,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           lateEdit: false,
         },
       );
-    } else {
-      writeCachedSessionUser(null);
-      setUser(null);
+
+      const [{ data: ownProfile }, ownEntries] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, display_name, avatar_url, is_admin, is_pro, is_wolf, late_edit")
+          .eq("id", sessionUserId)
+          .maybeSingle(),
+        fetchAllSupabaseRows<Record<string, unknown>>((from, to) =>
+          supabase.from("score_entries").select(scoreEntriesSelect).eq("user_id", sessionUserId).range(from, to),
+        ),
+      ]);
+
+      if (ownProfile) {
+        const ownScore = scoring.scorecardFromEntries(ownEntries);
+        setUser({
+          id: ownProfile.id,
+          name: ownProfile.display_name,
+          email: session.user.email || "",
+          avatarUrl: ownProfile.avatar_url || "",
+          points: ownScore.total,
+          isAdmin: Boolean(ownProfile.is_admin),
+          isPro: Boolean(ownProfile.is_pro),
+          isWolf: Boolean(ownProfile.is_wolf),
+          lateEdit: Boolean(ownProfile.late_edit),
+        });
+      } else {
+        // Sesion valida pero sin fila propia (no encontrada o fallo transitorio):
+        // conservar el usuario actual (provisional/cacheado). NO desloguear.
+        setUser((current) => current ?? readCachedSessionUser());
+      }
     }
 
     const tournamentResponse = await supabase.from("tournaments").select("id, slug").eq("slug", "world-cup-2026").maybeSingle();
     const tournamentId = tournamentResponse.data?.id;
 
-    const [{ data: profiles }, { data: predictions }, { data: matches }, { data: events }, scoreEntries] = await Promise.all([
+    const [{ data: profiles, error: profilesError }, { data: predictions }, { data: matches }, { data: events }, scoreEntries] = await Promise.all([
       supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
       tournamentId
         ? supabase.from("predictions").select("user_id, selections, completion_percent, is_definitive").eq("tournament_id", tournamentId)
@@ -351,6 +386,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         supabase.from("score_entries").select(scoreEntriesSelect).range(from, to),
       ),
     ]);
+
+    // La clasificacion baja la tabla profiles ENTERA (pesada). Si falla, NO
+    // pisamos clasificacion/resultados con un estado vacio: la identidad ya
+    // quedo fijada arriba con tu propia fila, asi que tu sesion no se entera.
+    // Se reintenta en el siguiente refresco.
+    if (profilesError) {
+      setReady(true);
+      return;
+    }
 
     const results: AdminResults = {};
     ((matches || []) as any[]).forEach((match: any) => {
@@ -388,7 +432,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       entriesByUser.set(entry.user_id, userEntries);
     });
 
-    const sessionUserId = session?.user?.id || "";
     const pendingPrediction = getPendingPrediction();
     if (sessionUserId && pendingPrediction) {
       if (!predictionByUser.has(sessionUserId)) {
@@ -402,29 +445,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const currentProfile = ((profiles || []) as any[]).find((profile: any) => profile.id === sessionUserId) || null;
+    // La identidad/usuario ya quedo fijada arriba con tu propia fila. Aqui solo
+    // se toma tu porra (de la carga global) para pintar tu vista.
     const currentPrediction = normalizePrediction(
       sessionUserId ? predictionByUser.get(sessionUserId) || null : pendingPrediction,
     );
-    const currentScorecard = scoring.scorecardFromEntries(
-      sessionUserId ? entriesByUser.get(sessionUserId) || [] : [],
-    );
 
-    setUser(
-      currentProfile
-        ? {
-            id: currentProfile.id,
-            name: currentProfile.display_name,
-            email: session?.user?.email || "",
-            avatarUrl: currentProfile.avatar_url || "",
-            points: currentScorecard.total,
-            isAdmin: Boolean(currentProfile.is_admin),
-            isPro: Boolean(currentProfile.is_pro),
-            isWolf: Boolean(currentProfile.is_wolf),
-            lateEdit: Boolean(currentProfile.late_edit),
-          }
-        : null,
-    );
     setPrediction(currentPrediction);
     setAdminResults(results);
     setLeaderboard(
