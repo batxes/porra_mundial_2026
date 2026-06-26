@@ -49,7 +49,7 @@ export const viewport: Viewport = {
 // base ahogada y muestra una pantalla estatica.
 //  - Por codigo: pon DEFAULT_MAINTENANCE = false y haz push para reabrir.
 //  - Sin push: define NEXT_PUBLIC_MAINTENANCE = "1" (on) o "0" (off) en Vercel y redeploya.
-const DEFAULT_MAINTENANCE = true;
+const DEFAULT_MAINTENANCE = false;
 const MAINTENANCE_MODE =
   process.env.NEXT_PUBLIC_MAINTENANCE === "1" ||
   (process.env.NEXT_PUBLIC_MAINTENANCE !== "0" && DEFAULT_MAINTENANCE);
