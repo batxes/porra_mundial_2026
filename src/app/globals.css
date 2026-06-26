@@ -1747,14 +1747,17 @@ summary {
   }
 }
 
+/* El centrado horizontal lo hace `-translate-x-1/2` (propiedad CSS `translate`).
+   No repetir translateX(-50%) aqui: `transform` y `translate` se COMPONEN y el
+   desplazamiento se duplicaria (-100%), descentrando la criatura a la izquierda. */
 @keyframes adivina-wild-bob {
   0%,
   100% {
-    transform: translateX(-50%) translateY(0) scale(1);
+    transform: translateY(0) scale(1);
   }
 
   50% {
-    transform: translateX(-50%) translateY(-5px) scale(1.025);
+    transform: translateY(-5px) scale(1.025);
   }
 }
 
