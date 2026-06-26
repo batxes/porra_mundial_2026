@@ -325,6 +325,14 @@ export function AdivinaModal({
     [roundState, round, advance],
   );
 
+  // Envia la sugerencia resaltada (o la primera). Punto unico para el Enter del
+  // teclado y para el submit del <form> (boton Go/Done en moviles).
+  const submitCurrent = useCallback(() => {
+    if (roundState !== "guessing") return;
+    const pick = suggestions[highlight] ?? suggestions[0];
+    if (pick) submitGuess(pick);
+  }, [roundState, suggestions, highlight, submitGuess]);
+
   const start = useCallback(() => {
     outcomesRef.current = [];
     answersRef.current = [];
@@ -399,9 +407,13 @@ export function AdivinaModal({
       event.preventDefault();
       setHighlight((index) => Math.max(index - 1, 0));
     } else if (event.key === "Enter") {
+      // En teclados moviles (Gboard/IME) el primer Enter solo confirma la
+      // palabra en composicion y llega como keyCode 229 / "Unidentified": no lo
+      // tratamos como envio o mandariamos una respuesta a medias. El submit del
+      // <form> cubre ese caso (boton Go/Done del teclado).
+      if (event.nativeEvent.isComposing) return;
       event.preventDefault();
-      const pick = suggestions[highlight] ?? suggestions[0];
-      if (pick) submitGuess(pick);
+      submitCurrent();
     } else if (event.key === "Escape") {
       setQuery("");
     }
@@ -656,7 +668,13 @@ export function AdivinaModal({
                 ) : null}
               </div>
 
-              <div className="relative mt-4 w-full max-w-[360px]">
+              <form
+                className="relative mt-4 w-full max-w-[360px]"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  submitCurrent();
+                }}
+              >
                 {roundState === "guessing" && suggestions.length ? (
                   <ul className="absolute inset-x-0 bottom-[calc(100%+10px)] z-30 overflow-hidden rounded-2xl border border-lime-200/15 bg-[#070807]/95 py-1 shadow-2xl shadow-black/70 backdrop-blur-md">
                     {suggestions.map((player, index) => {
@@ -705,6 +723,7 @@ export function AdivinaModal({
                     setHighlight(0);
                   }}
                   onKeyDown={onInputKeyDown}
+                  enterKeyHint="done"
                   placeholder="Escribe el nombre del jugador"
                   autoComplete="off"
                   spellCheck={false}
@@ -715,7 +734,7 @@ export function AdivinaModal({
                     ? "Sin coincidencias"
                     : "Busca y pulsa la respuesta"}
                 </p>
-              </div>
+              </form>
 
               <div className="mt-auto flex items-center gap-2 pt-3">
                 {rounds.map((_, index) => {
