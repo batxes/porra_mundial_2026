@@ -167,38 +167,18 @@ export function toDbEventType(type: string) {
 const AppContext = createContext<AppContextValue | null>(null);
 
 const scoring = createEngine({ data, schedule });
-const supabasePageSize = 1000;
-const scoreEntriesSelect =
-  "user_id, match_id, rule_code, points, explanation, source_ref";
-
-async function fetchAllSupabaseRows<T>(
-  queryPage: (
-    from: number,
-    to: number,
-  ) => PromiseLike<{ data: T[] | null; error: { message?: string } | null }>,
-) {
-  const rows: T[] = [];
-  for (let from = 0; ; from += supabasePageSize) {
-    const { data, error } = await queryPage(
-      from,
-      from + supabasePageSize - 1,
-    );
-    if (error) {
-      // No lanzar: refreshData no tiene try/catch y se llama como void, asi que
-      // un fallo aqui (p.ej. "upstream request timeout" de la BBDD saturada)
-      // congelaba la web en los esqueletos. Devolvemos lo cargado hasta ahora y
-      // la UI renderiza; se completa en el siguiente refresco cuando responda.
-      console.warn("fetchAllSupabaseRows:", error.message);
-      return rows;
-    }
-    const page = Array.isArray(data) ? data : [];
-    rows.push(...page);
-    if (page.length < supabasePageSize) return rows;
-  }
-}
 
 function scorecardForUser(userId: string, prediction: Prediction, adminResults: AdminResults) {
   return scoring.calculateScorecard(normalizePrediction(prediction), adminResults, userId);
+}
+
+function profileTotalPoints(profile: Record<string, unknown> | null | undefined, fallback = 0) {
+  const total = Number(profile?.total_points);
+  return Number.isFinite(total) ? total : fallback;
+}
+
+function scorecardWithPersistedTotal(scorecard: Scorecard, total: number): Scorecard {
+  return scorecard.total === total ? scorecard : { ...scorecard, total };
 }
 
 function buildLeaderboard(localUsers: LocalUser[], currentUserId: string | null, prediction: Prediction, adminResults: AdminResults) {
@@ -304,161 +284,158 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const refreshData = useCallback(async () => {
-    if (!usingSupabase) {
-      await ensureLocalAdminUser();
-      await ensureDemoUsers();
-      await syncLocalState();
-      setReady(true);
-      return;
-    }
+    try {
+      if (!usingSupabase) {
+        await ensureLocalAdminUser();
+        await ensureDemoUsers();
+        await syncLocalState();
+        return;
+      }
 
-    const supabase = getSupabaseBrowserClient() as any;
-    if (!supabase) {
-      setReady(true);
-      return;
-    }
+      const supabase = getSupabaseBrowserClient() as any;
+      if (!supabase) {
+        return;
+      }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    // La sesion se resuelve mucho antes que los datos: adelanta un usuario
-    // provisional para que la cabecera no muestre "Entrar" mientras carga.
-    if (session?.user) {
-      const metadataName = (session.user.user_metadata as Record<string, unknown> | null)?.display_name;
-      setUser((current) =>
-        current ?? {
-          id: session.user.id,
-          name: typeof metadataName === "string" && metadataName ? metadataName : session.user.email?.split("@")[0] || "Jugador",
-          email: session.user.email || "",
-          avatarUrl: "",
-          points: 0,
-          isAdmin: false,
-          isPro: false,
-          isWolf: false,
-          lateEdit: false,
-        },
-      );
-    } else {
-      writeCachedSessionUser(null);
-      setUser(null);
-    }
+      // La sesion se resuelve mucho antes que los datos: adelanta un usuario
+      // provisional para que la cabecera no muestre "Entrar" mientras carga.
+      if (session?.user) {
+        const metadataName = (session.user.user_metadata as Record<string, unknown> | null)?.display_name;
+        setUser((current) =>
+          current ?? {
+            id: session.user.id,
+            name: typeof metadataName === "string" && metadataName ? metadataName : session.user.email?.split("@")[0] || "Jugador",
+            email: session.user.email || "",
+            avatarUrl: "",
+            points: 0,
+            isAdmin: false,
+            isPro: false,
+            isWolf: false,
+            lateEdit: false,
+          },
+        );
+      } else {
+        writeCachedSessionUser(null);
+        setUser(null);
+      }
 
-    const tournamentResponse = await supabase.from("tournaments").select("id, slug").eq("slug", "world-cup-2026").maybeSingle();
-    const tournamentId = tournamentResponse.data?.id;
+      const tournamentResponse = await supabase.from("tournaments").select("id, slug").eq("slug", "world-cup-2026").maybeSingle();
+      const tournamentId = tournamentResponse.data?.id;
 
-    const [{ data: profiles }, { data: predictions }, { data: matches }, { data: events }, scoreEntries] = await Promise.all([
-      supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
-      tournamentId
-        ? supabase.from("predictions").select("user_id, selections, completion_percent, is_definitive").eq("tournament_id", tournamentId)
-        : Promise.resolve({ data: [] as any[], error: null }),
-      supabase.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, status, stage").eq("status", "validated"),
-      supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute"),
-      fetchAllSupabaseRows<Record<string, unknown>>((from, to) =>
-        supabase.from("score_entries").select(scoreEntriesSelect).range(from, to),
-      ),
-    ]);
+      const [{ data: profiles }, { data: predictions }, { data: matches }, { data: events }] = await Promise.all([
+        supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
+        tournamentId
+          ? supabase.from("predictions").select("user_id, selections, completion_percent, is_definitive").eq("tournament_id", tournamentId)
+          : Promise.resolve({ data: [] as any[], error: null }),
+        supabase.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, status, stage").eq("status", "validated"),
+        supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute"),
+      ]);
 
-    const results: AdminResults = {};
-    ((matches || []) as any[]).forEach((match: any) => {
-      const number = String(match.id || "").replace("wc26-", "");
-      if (!number) return;
-      results[number] = {
-        homeScore: match.home_score,
-        awayScore: match.away_score,
-        homeTeamId: match.home_team_id || "",
-        awayTeamId: match.away_team_id || "",
-        status: match.status,
-        events: [],
-      };
-    });
-    ((events || []) as any[]).forEach((event: any) => {
-      const number = String(event.match_id || "").replace("wc26-", "");
-      if (!number) return;
-      results[number] ||= { homeScore: "", awayScore: "", events: [] };
-      results[number].events.push({
-        id: event.id,
-        playerId: event.player_id,
-        teamId: event.team_id,
-        type: event.event_type,
-        minute: event.minute,
+      const results: AdminResults = {};
+      ((matches || []) as any[]).forEach((match: any) => {
+        const number = String(match.id || "").replace("wc26-", "");
+        if (!number) return;
+        results[number] = {
+          homeScore: match.home_score,
+          awayScore: match.away_score,
+          homeTeamId: match.home_team_id || "",
+          awayTeamId: match.away_team_id || "",
+          status: match.status,
+          events: [],
+        };
       });
-    });
+      ((events || []) as any[]).forEach((event: any) => {
+        const number = String(event.match_id || "").replace("wc26-", "");
+        if (!number) return;
+        results[number] ||= { homeScore: "", awayScore: "", events: [] };
+        results[number].events.push({
+          id: event.id,
+          playerId: event.player_id,
+          teamId: event.team_id,
+          type: event.event_type,
+          minute: event.minute,
+        });
+      });
 
-    const predictionByUser = new Map<string, Prediction>(
-      ((predictions || []) as any[]).map((item: any) => [item.user_id, normalizePrediction(item.selections as Prediction)]),
-    );
-    const entriesByUser = new Map<string, Array<Record<string, unknown>>>();
-    scoreEntries.forEach((entry: any) => {
-      const userEntries = entriesByUser.get(entry.user_id) || [];
-      userEntries.push(entry);
-      entriesByUser.set(entry.user_id, userEntries);
-    });
+      const predictionByUser = new Map<string, Prediction>(
+        ((predictions || []) as any[]).map((item: any) => [item.user_id, normalizePrediction(item.selections as Prediction)]),
+      );
 
-    const sessionUserId = session?.user?.id || "";
-    const pendingPrediction = getPendingPrediction();
-    if (sessionUserId && pendingPrediction) {
-      if (!predictionByUser.has(sessionUserId)) {
-        const pushed = await saveSupabasePredictionForUser(preparePredictionForSave(pendingPrediction));
-        if (pushed.ok) {
-          predictionByUser.set(sessionUserId, normalizePrediction(pendingPrediction));
+      const sessionUserId = session?.user?.id || "";
+      const pendingPrediction = getPendingPrediction();
+      if (sessionUserId && pendingPrediction) {
+        if (!predictionByUser.has(sessionUserId)) {
+          const pushed = await saveSupabasePredictionForUser(preparePredictionForSave(pendingPrediction));
+          if (pushed.ok) {
+            predictionByUser.set(sessionUserId, normalizePrediction(pendingPrediction));
+            clearPendingPrediction();
+          }
+        } else {
           clearPendingPrediction();
         }
-      } else {
-        clearPendingPrediction();
       }
+
+      const currentProfile = ((profiles || []) as any[]).find((profile: any) => profile.id === sessionUserId) || null;
+      const currentPrediction = normalizePrediction(
+        sessionUserId ? predictionByUser.get(sessionUserId) || null : pendingPrediction,
+      );
+      const currentScorecard = sessionUserId
+        ? scorecardForUser(sessionUserId, currentPrediction, results)
+        : scoring.scorecardFromEntries([]);
+      const currentPoints = profileTotalPoints(currentProfile, currentScorecard.total);
+
+      setUser(
+        currentProfile
+          ? {
+              id: currentProfile.id,
+              name: currentProfile.display_name,
+              email: session?.user?.email || "",
+              avatarUrl: currentProfile.avatar_url || "",
+              points: currentPoints,
+              isAdmin: Boolean(currentProfile.is_admin),
+              isPro: Boolean(currentProfile.is_pro),
+              isWolf: Boolean(currentProfile.is_wolf),
+              lateEdit: Boolean(currentProfile.late_edit),
+            }
+          : null,
+      );
+      setPrediction(currentPrediction);
+      setAdminResults(results);
+      setLeaderboard(
+        ((profiles || []) as any[])
+          .map((profile: any) => {
+            const profilePrediction = predictionByUser.get(profile.id) || emptyPrediction();
+            const calculatedScorecard = scorecardForUser(profile.id, profilePrediction, results);
+            const points = profileTotalPoints(profile, calculatedScorecard.total);
+            const scorecard = scorecardWithPersistedTotal(calculatedScorecard, points);
+            return {
+              id: profile.id,
+              name: profile.display_name,
+              email: "",
+              avatarUrl: profile.avatar_url || "",
+              points,
+              isAdmin: Boolean(profile.is_admin),
+              isPro: Boolean(profile.is_pro),
+              isWolf: Boolean(profile.is_wolf),
+              lateEdit: Boolean(profile.late_edit),
+              isHidden: Boolean(profile.is_hidden),
+              complete: calculateCompletion(profilePrediction),
+              champion: profilePrediction.extras.worldChampion || profilePrediction.bracket.winners["104"] || "",
+              prediction: profilePrediction,
+              scorecard,
+            };
+          })
+          .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name)),
+      );
+    } catch (error) {
+      console.error("refreshData:", error);
+    } finally {
+      setReady(true);
     }
-
-    const currentProfile = ((profiles || []) as any[]).find((profile: any) => profile.id === sessionUserId) || null;
-    const currentPrediction = normalizePrediction(
-      sessionUserId ? predictionByUser.get(sessionUserId) || null : pendingPrediction,
-    );
-    const currentScorecard = scoring.scorecardFromEntries(
-      sessionUserId ? entriesByUser.get(sessionUserId) || [] : [],
-    );
-
-    setUser(
-      currentProfile
-        ? {
-            id: currentProfile.id,
-            name: currentProfile.display_name,
-            email: session?.user?.email || "",
-            avatarUrl: currentProfile.avatar_url || "",
-            points: currentScorecard.total,
-            isAdmin: Boolean(currentProfile.is_admin),
-            isPro: Boolean(currentProfile.is_pro),
-            isWolf: Boolean(currentProfile.is_wolf),
-            lateEdit: Boolean(currentProfile.late_edit),
-          }
-        : null,
-    );
-    setPrediction(currentPrediction);
-    setAdminResults(results);
-    setLeaderboard(
-      ((profiles || []) as any[])
-        .map((profile: any) => {
-          const profilePrediction = predictionByUser.get(profile.id) || emptyPrediction();
-          const scorecard = scoring.scorecardFromEntries(entriesByUser.get(profile.id) || []);
-          return {
-            id: profile.id,
-            name: profile.display_name,
-            email: "",
-            avatarUrl: profile.avatar_url || "",
-            points: scorecard.total,
-            isAdmin: Boolean(profile.is_admin),
-            isPro: Boolean(profile.is_pro),
-            isWolf: Boolean(profile.is_wolf),
-            lateEdit: Boolean(profile.late_edit),
-            isHidden: Boolean(profile.is_hidden),
-            complete: calculateCompletion(profilePrediction),
-            champion: profilePrediction.extras.worldChampion || profilePrediction.bracket.winners["104"] || "",
-            prediction: profilePrediction,
-            scorecard,
-          };
-        })
-        .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name)),
-    );
-    setReady(true);
   }, [saveSupabasePredictionForUser, syncLocalState, usingSupabase]);
 
   useEffect(() => {
@@ -481,98 +458,94 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // solo actualiza resultados y clasificacion. No toca la sesion ni la porra
   // en edicion (refreshData pisaria cambios sin guardar del usuario).
   const refreshLiveData = useCallback(async () => {
-    if (!usingSupabase) {
-      const currentResults = getLocalAdminResults();
-      setAdminResults(currentResults);
-      setLeaderboard(buildLeaderboard(getLocalUsers(), user?.id || null, prediction, currentResults));
-      return;
-    }
+    try {
+      if (!usingSupabase) {
+        const currentResults = getLocalAdminResults();
+        setAdminResults(currentResults);
+        setLeaderboard(buildLeaderboard(getLocalUsers(), user?.id || null, prediction, currentResults));
+        return;
+      }
 
-    const supabase = getSupabaseBrowserClient() as any;
-    if (!supabase) return;
+      const supabase = getSupabaseBrowserClient() as any;
+      if (!supabase) return;
 
-    const [{ data: profiles }, { data: matches }, { data: events }, scoreEntries] = await Promise.all([
-      supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
-      supabase.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, status, stage").eq("status", "validated"),
-      supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute"),
-      fetchAllSupabaseRows<Record<string, unknown>>((from, to) =>
-        supabase.from("score_entries").select(scoreEntriesSelect).range(from, to),
-      ),
-    ]);
+      const [{ data: profiles }, { data: matches }, { data: events }] = await Promise.all([
+        supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
+        supabase.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, status, stage").eq("status", "validated"),
+        supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute"),
+      ]);
 
-    const results: AdminResults = {};
-    ((matches || []) as any[]).forEach((match: any) => {
-      const number = String(match.id || "").replace("wc26-", "");
-      if (!number) return;
-      results[number] = {
-        homeScore: match.home_score,
-        awayScore: match.away_score,
-        homeTeamId: match.home_team_id || "",
-        awayTeamId: match.away_team_id || "",
-        status: match.status,
-        events: [],
-      };
-    });
-    ((events || []) as any[]).forEach((event: any) => {
-      const number = String(event.match_id || "").replace("wc26-", "");
-      if (!number) return;
-      results[number] ||= { homeScore: "", awayScore: "", events: [] };
-      results[number].events.push({
-        id: event.id,
-        playerId: event.player_id,
-        teamId: event.team_id,
-        type: event.event_type,
-        minute: event.minute,
+      const results: AdminResults = {};
+      ((matches || []) as any[]).forEach((match: any) => {
+        const number = String(match.id || "").replace("wc26-", "");
+        if (!number) return;
+        results[number] = {
+          homeScore: match.home_score,
+          awayScore: match.away_score,
+          homeTeamId: match.home_team_id || "",
+          awayTeamId: match.away_team_id || "",
+          status: match.status,
+          events: [],
+        };
       });
-    });
+      ((events || []) as any[]).forEach((event: any) => {
+        const number = String(event.match_id || "").replace("wc26-", "");
+        if (!number) return;
+        results[number] ||= { homeScore: "", awayScore: "", events: [] };
+        results[number].events.push({
+          id: event.id,
+          playerId: event.player_id,
+          teamId: event.team_id,
+          type: event.event_type,
+          minute: event.minute,
+        });
+      });
 
-    const entriesByUser = new Map<string, Array<Record<string, unknown>>>();
-    scoreEntries.forEach((entry: any) => {
-      const userEntries = entriesByUser.get(entry.user_id) || [];
-      userEntries.push(entry);
-      entriesByUser.set(entry.user_id, userEntries);
-    });
+      // Reutiliza las porras ya cargadas: en este refresco solo cambian los
+      // resultados y el total persistido en profiles.total_points.
+      const predictionByUser = new Map<string, Prediction | null>(
+        leaderboard.map((profile) => [profile.id, profile.prediction]),
+      );
 
-    // Reutiliza las porras ya cargadas: en este refresco solo cambian los
-    // resultados y los puntos.
-    const predictionByUser = new Map<string, Prediction | null>(
-      leaderboard.map((profile) => [profile.id, profile.prediction]),
-    );
-
-    setAdminResults(results);
-    setLeaderboard(
-      ((profiles || []) as any[])
-        .map((profile: any) => {
-          const profilePrediction = predictionByUser.get(profile.id) || emptyPrediction();
-          const scorecard = scoring.scorecardFromEntries(entriesByUser.get(profile.id) || []);
-          return {
-            id: profile.id,
-            name: profile.display_name,
-            email: "",
-            avatarUrl: profile.avatar_url || "",
-            points: scorecard.total,
-            isAdmin: Boolean(profile.is_admin),
-            isPro: Boolean(profile.is_pro),
-            isWolf: Boolean(profile.is_wolf),
-            lateEdit: Boolean(profile.late_edit),
-            isHidden: Boolean(profile.is_hidden),
-            complete: calculateCompletion(profilePrediction),
-            champion: profilePrediction.extras.worldChampion || profilePrediction.bracket.winners["104"] || "",
-            prediction: profilePrediction,
-            scorecard,
-          };
-        })
-        .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name)),
-    );
-  }, [leaderboard, prediction, user?.id, usingSupabase]);
+      setAdminResults(results);
+      setLeaderboard(
+        ((profiles || []) as any[])
+          .map((profile: any) => {
+            const profilePrediction = predictionByUser.get(profile.id) || emptyPrediction();
+            const calculatedScorecard = scorecardForUser(profile.id, profilePrediction, results);
+            const points = profileTotalPoints(profile, calculatedScorecard.total);
+            const scorecard = scorecardWithPersistedTotal(calculatedScorecard, points);
+            return {
+              id: profile.id,
+              name: profile.display_name,
+              email: "",
+              avatarUrl: profile.avatar_url || "",
+              points,
+              isAdmin: Boolean(profile.is_admin),
+              isPro: Boolean(profile.is_pro),
+              isWolf: Boolean(profile.is_wolf),
+              lateEdit: Boolean(profile.late_edit),
+              isHidden: Boolean(profile.is_hidden),
+              complete: calculateCompletion(profilePrediction),
+              champion: profilePrediction.extras.worldChampion || profilePrediction.bracket.winners["104"] || "",
+              prediction: profilePrediction,
+              scorecard,
+            };
+          })
+          .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name)),
+      );
+    } catch (error) {
+      console.warn("refreshLiveData:", error);
+    }
+  }, [leaderboard, prediction, user, usingSupabase]);
 
   const refreshLiveDataRef = useRef(refreshLiveData);
   useEffect(() => {
     refreshLiveDataRef.current = refreshLiveData;
   }, [refreshLiveData]);
 
-  // Con la web abierta los resultados nuevos llegan solos: sondeo periodico
-  // mientras la pestaña esta visible y refresco al volver a ella.
+  // Sin sondeo periodico: guardar resultados/eventos ya llama a refreshData().
+  // Al volver a la pestana, trae los resultados que hayan cambiado fuera.
   useEffect(() => {
     if (!ready) return;
     const refreshIfVisible = () => {
@@ -581,10 +554,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     };
     document.addEventListener("visibilitychange", refreshIfVisible);
-    const interval = window.setInterval(refreshIfVisible, 120_000);
     return () => {
       document.removeEventListener("visibilitychange", refreshIfVisible);
-      window.clearInterval(interval);
     };
   }, [ready]);
 
@@ -1056,7 +1027,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const currentScorecard = useMemo(
-    () => (user ? scorecardForUser(user.id, prediction, adminResults) : scoring.scorecardFromEntries([])),
+    () => {
+      if (!user) return scoring.scorecardFromEntries([]);
+      return scorecardWithPersistedTotal(
+        scorecardForUser(user.id, prediction, adminResults),
+        user.points,
+      );
+    },
     [adminResults, prediction, user],
   );
 
