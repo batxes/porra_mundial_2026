@@ -183,7 +183,14 @@ async function fetchAllSupabaseRows<T>(
       from,
       from + supabasePageSize - 1,
     );
-    if (error) throw new Error(error.message || "No se pudieron cargar datos.");
+    if (error) {
+      // No lanzar: refreshData no tiene try/catch y se llama como void, asi que
+      // un fallo aqui (p.ej. "upstream request timeout" de la BBDD saturada)
+      // congelaba la web en los esqueletos. Devolvemos lo cargado hasta ahora y
+      // la UI renderiza; se completa en el siguiente refresco cuando responda.
+      console.warn("fetchAllSupabaseRows:", error.message);
+      return rows;
+    }
     const page = Array.isArray(data) ? data : [];
     rows.push(...page);
     if (page.length < supabasePageSize) return rows;
