@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 import { data, schedule } from "@/lib/data";
 import {
+  buildAlivePlayoffTeamIds,
+  buildEliminatedPlayoffTeamIds,
   buildPredictionPlayoffTeams,
   buildResolvedPlayoffTeams,
 } from "@/lib/playoff-teams";
@@ -103,7 +105,74 @@ function actualKnockoutGroupResults() {
   prediction.matchPredictions["75"] = { homeScore: "0", awayScore: "1" };
 
   const predicted = buildPredictionPlayoffTeams(adminResults, prediction);
-  assert.deepEqual(predicted["90"], { home: "rsa", away: "mar" });
+  assert.equal(predicted["90"], undefined);
+
+  const resolvedAfterOfficialResults = buildPredictionPlayoffTeams(
+    {
+      ...adminResults,
+      "73": {
+        homeScore: 2,
+        awayScore: 1,
+        homeTeamId: "rsa",
+        awayTeamId: "can",
+        events: [],
+      },
+      "75": {
+        homeScore: 0,
+        awayScore: 1,
+        homeTeamId: "ned",
+        awayTeamId: "mar",
+        events: [],
+      },
+    },
+    prediction,
+  );
+  assert.deepEqual(resolvedAfterOfficialResults["90"], {
+    home: "rsa",
+    away: "mar",
+  });
+}
+
+{
+  const adminResults = actualKnockoutGroupResults();
+  const aliveAfterGroups = buildAlivePlayoffTeamIds(adminResults);
+
+  assert.equal(aliveAfterGroups.size, 32);
+  assert.ok(aliveAfterGroups.has("mex"));
+  assert.ok(aliveAfterGroups.has("can"));
+  assert.ok(!aliveAfterGroups.has("kor"));
+
+  const eliminatedAfterGroups = buildEliminatedPlayoffTeamIds(adminResults);
+  assert.ok(eliminatedAfterGroups.has("tur"));
+  assert.ok(!eliminatedAfterGroups.has("can"));
+
+  const aliveAfterMatch73 = buildAlivePlayoffTeamIds({
+    ...adminResults,
+    "73": {
+      homeScore: 2,
+      awayScore: 1,
+      homeTeamId: "rsa",
+      awayTeamId: "can",
+      events: [],
+    },
+  });
+
+  assert.equal(aliveAfterMatch73.size, 31);
+  assert.ok(aliveAfterMatch73.has("rsa"));
+  assert.ok(!aliveAfterMatch73.has("can"));
+
+  const eliminatedAfterMatch73 = buildEliminatedPlayoffTeamIds({
+    ...adminResults,
+    "73": {
+      homeScore: 2,
+      awayScore: 1,
+      homeTeamId: "rsa",
+      awayTeamId: "can",
+      events: [],
+    },
+  });
+  assert.ok(eliminatedAfterMatch73.has("tur"));
+  assert.ok(eliminatedAfterMatch73.has("can"));
 }
 
 {
@@ -447,6 +516,12 @@ function actualKnockoutGroupResults() {
       73: { trainerTeamId: "mex", tacticId: "first-goal" },
     },
   } as any;
+  const setPiecePrediction = {
+    ...trainerPrediction,
+    matchPredictions: {
+      73: { trainerTeamId: "mex", tacticId: "set-piece" },
+    },
+  } as any;
   const results = {
     73: {
       homeScore: 1,
@@ -455,6 +530,7 @@ function actualKnockoutGroupResults() {
       awayTeamId: "kor",
       trainerTactics: {
         penalty: ["mex", "kor"],
+        "set-piece": ["mex"],
         "red-card": ["kor"],
         "first-goal": ["mex"],
       },
@@ -466,12 +542,14 @@ function actualKnockoutGroupResults() {
   const miss = engine.calculateScorecard(missPrediction, results, "u1");
   const redCard = engine.calculateScorecard(redCardPrediction, results, "u1");
   const firstGoal = engine.calculateScorecard(firstGoalPrediction, results, "u1");
+  const setPiece = engine.calculateScorecard(setPiecePrediction, results, "u1");
 
-  assert.equal(hit.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 4);
-  assert.equal(hit.categories.find((category) => category.label === "Entrenadores")?.total, 4);
+  assert.equal(hit.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 6);
+  assert.equal(hit.categories.find((category) => category.label === "Entrenadores")?.total, 6);
   assert.equal(miss.entries.some((entry) => entry.ruleCode === "trainer_tactic_hit"), false);
   assert.equal(redCard.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 5);
   assert.equal(firstGoal.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 1);
+  assert.equal(setPiece.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 3);
 }
 
 console.log("scoring tests passed");

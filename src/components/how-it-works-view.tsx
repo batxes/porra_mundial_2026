@@ -109,14 +109,14 @@ const sections: RulesSection[] = [
       ["Muro: tu equipo deja la portería a cero", "+2"],
       ["Abrelatas: tu equipo marca el primer gol", "+1"],
       [
-        "Estratega: gol de falta o córner, directo o con asistencia del lanzador; no cuenta penalti",
-        "+2",
+        "Estratega: gol a balón parado, penalti incluido",
+        "+3",
       ],
       ["Carnicero: roja para tu equipo", "+5"],
-      ["Remontada: empiezas perdiendo y acabas ganando", "+4"],
+      ["Remontada: empiezas perdiendo y acabas ganando", "+6"],
     ],
     highlight: "Carnicero: roja para tu equipo",
-    note: "Todos los chips se validan solo hasta los 120 minutos. Nada de lo que ocurra en la tanda de penaltis suma para chips ni resultado.",
+    note: "Todos los chips se validan solo hasta los 120 minutos. El penalti de partido cuenta para Estratega; la tanda de penaltis no suma para chips ni resultado.",
   },
 ];
 

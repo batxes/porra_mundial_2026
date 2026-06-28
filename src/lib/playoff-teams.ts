@@ -38,6 +38,14 @@ const thirdGroupWinnerByMatchNumber = Object.fromEntries(
   ]),
 ) as Record<string, string>;
 
+const eliminationPlayoffStages = new Set([
+  "Dieciseisavos",
+  "Octavos",
+  "Cuartos",
+  "Semifinales",
+  "Final",
+]);
+
 // FIFA Regulations Annex C, current real row for the 2026 Round of 32:
 // third-place qualifiers from B/D/E/F/I/J/K/L.
 const thirdSlotOverridesByQualifierSet: Record<string, Record<string, string>> =
@@ -243,6 +251,27 @@ function teamAt(groupTables: Record<string, GroupTable>, group: string, position
   return table.positions.find((row) => row.position === position)?.teamId || "";
 }
 
+function allGroupsComplete(groupTables: Record<string, GroupTable>) {
+  const tables = Object.values(groupTables);
+  return tables.length > 0 && tables.every((table) => table.complete);
+}
+
+function qualifiedPlayoffTeamIds(groupTables: Record<string, GroupTable>) {
+  const qualified = new Set<string>();
+
+  Object.values(groupTables).forEach((table) => {
+    table.positions
+      .filter((row) => row.position <= 2)
+      .forEach((row) => qualified.add(row.teamId));
+  });
+  bestThirdGroups(groupTables).forEach((group) => {
+    const teamId = teamAt(groupTables, group, 3);
+    if (teamId) qualified.add(teamId);
+  });
+
+  return qualified;
+}
+
 function resultWinner(
   matchNumber: number,
   resolved: ResolvedPlayoffTeams,
@@ -270,35 +299,6 @@ function resultWinner(
       : home;
 }
 
-function predictionWinner(
-  matchNumber: number,
-  resolved: ResolvedPlayoffTeams,
-  prediction: Prediction,
-  outcome: "winner" | "loser",
-) {
-  const result = prediction.matchPredictions[String(matchNumber)];
-  if (!result) return "";
-
-  const homeScore = parseScore(result.homeScore);
-  const awayScore = parseScore(result.awayScore);
-  if (homeScore === null || awayScore === null || homeScore === awayScore) {
-    return "";
-  }
-
-  const teams = resolved[String(matchNumber)];
-  const home = teams?.home || "";
-  const away = teams?.away || "";
-  const homeWon = homeScore > awayScore;
-
-  return outcome === "winner"
-    ? homeWon
-      ? home
-      : away
-    : homeWon
-      ? away
-      : home;
-}
-
 function resolveSlot(
   slot: string,
   matchNumber: number,
@@ -306,7 +306,6 @@ function resolveSlot(
   thirdSlots: Record<string, string>,
   resolved: ResolvedPlayoffTeams,
   adminResults: AdminResults,
-  prediction?: Prediction,
 ) {
   if (teamsById.has(slot)) return slot;
 
@@ -318,22 +317,12 @@ function resolveSlot(
 
   match = slot.match(/^Winner Match (\d+)$/);
   if (match) {
-    return (
-      resultWinner(Number(match[1]), resolved, adminResults, "winner") ||
-      (prediction
-        ? predictionWinner(Number(match[1]), resolved, prediction, "winner")
-        : "")
-    );
+    return resultWinner(Number(match[1]), resolved, adminResults, "winner");
   }
 
   match = slot.match(/^Loser Match (\d+)$/);
   if (match) {
-    return (
-      resultWinner(Number(match[1]), resolved, adminResults, "loser") ||
-      (prediction
-        ? predictionWinner(Number(match[1]), resolved, prediction, "loser")
-        : "")
-    );
+    return resultWinner(Number(match[1]), resolved, adminResults, "loser");
   }
 
   if (slot.startsWith("3rd Group")) {
@@ -351,7 +340,6 @@ function validSavedTeam(result: AdminResult | undefined, side: "home" | "away") 
 
 export function buildResolvedPlayoffTeams(
   adminResults: AdminResults,
-  prediction?: Prediction,
 ): ResolvedPlayoffTeams {
   const groupTables = calculateGroupTables(adminResults);
   const thirdSlots = assignThirdSlots(bestThirdGroups(groupTables));
@@ -373,7 +361,6 @@ export function buildResolvedPlayoffTeams(
           thirdSlots,
           resolved,
           adminResults,
-          prediction,
         );
       const away =
         savedAway ||
@@ -384,7 +371,6 @@ export function buildResolvedPlayoffTeams(
           thirdSlots,
           resolved,
           adminResults,
-          prediction,
         );
 
       if (home || away) {
@@ -402,5 +388,66 @@ export function buildPredictionPlayoffTeams(
   adminResults: AdminResults,
   prediction: Prediction,
 ) {
-  return buildResolvedPlayoffTeams(adminResults, prediction);
+  void prediction;
+  return buildResolvedPlayoffTeams(adminResults);
+}
+
+export function buildEliminatedPlayoffTeamIds(adminResults: AdminResults) {
+  const groupTables = calculateGroupTables(adminResults);
+  const resolved = buildResolvedPlayoffTeams(adminResults);
+  const eliminated = new Set<string>();
+
+  if (allGroupsComplete(groupTables)) {
+    const qualified = qualifiedPlayoffTeamIds(groupTables);
+    data.teams.forEach((team) => {
+      if (!qualified.has(team.id)) eliminated.add(team.id);
+    });
+  }
+
+  knockoutMatches.forEach((match) => {
+    if (!eliminationPlayoffStages.has(match.stage)) return;
+
+    const result = adminResults[String(match.number)];
+    const teams = resolved[String(match.number)];
+    const home = validSavedTeam(result, "home") || teams?.home || "";
+    const away = validSavedTeam(result, "away") || teams?.away || "";
+    if (!isScored(result)) return;
+
+    const homeScore = parseScore(result?.homeScore) ?? 0;
+    const awayScore = parseScore(result?.awayScore) ?? 0;
+    if (homeScore === awayScore) return;
+
+    const loser = homeScore > awayScore ? away : home;
+    if (loser) eliminated.add(loser);
+  });
+
+  return eliminated;
+}
+
+export function buildAlivePlayoffTeamIds(adminResults: AdminResults) {
+  const groupTables = calculateGroupTables(adminResults);
+  const alive = new Set<string>();
+
+  if (allGroupsComplete(groupTables)) {
+    qualifiedPlayoffTeamIds(groupTables).forEach((teamId) => alive.add(teamId));
+  }
+
+  const resolved = buildResolvedPlayoffTeams(adminResults);
+  const recordedPlayoffTeams = new Set<string>();
+
+  knockoutMatches.forEach((match) => {
+    if (!eliminationPlayoffStages.has(match.stage)) return;
+
+    const result = adminResults[String(match.number)];
+    const teams = resolved[String(match.number)];
+    const home = validSavedTeam(result, "home") || teams?.home || "";
+    const away = validSavedTeam(result, "away") || teams?.away || "";
+    if (home) recordedPlayoffTeams.add(home);
+    if (away) recordedPlayoffTeams.add(away);
+  });
+
+  const eliminated = buildEliminatedPlayoffTeamIds(adminResults);
+  const base = alive.size > 0 ? alive : recordedPlayoffTeams;
+  eliminated.forEach((teamId) => base.delete(teamId));
+  return base;
 }

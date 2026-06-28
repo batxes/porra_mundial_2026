@@ -30,6 +30,10 @@ import { data, playersById, teamsById } from "@/lib/data";
 import { initials, playerPhotoUrl } from "@/lib/format";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { calculatePlayerStandings } from "@/lib/scoring";
+import {
+  buildAlivePlayoffTeamIds,
+  buildEliminatedPlayoffTeamIds,
+} from "@/lib/playoff-teams";
 import { STAR_PLAYER_IDS } from "@/lib/star-players";
 import { TOP150_PLAYER_IDS } from "@/lib/top150-players";
 import {
@@ -491,12 +495,28 @@ function pickDeterministicPlayers(
   seed: string,
   count = 3,
   allowedIds?: string[],
+  alivePlayoffTeamIds?: ReadonlySet<string>,
+  excludeIds: string[] = [],
 ) {
   const random = mulberry32(hashString(seed));
   const allow = allowedIds ? new Set(allowedIds) : null;
-  const pool = [...data.players].filter(
-    (player) => player.id && (!allow || allow.has(player.id)),
+  const excluded = new Set(excludeIds);
+  const filterAlive = Boolean(alivePlayoffTeamIds?.size);
+  let pool = [...data.players].filter(
+    (player) =>
+      player.id &&
+      !excluded.has(player.id) &&
+      (!allow || allow.has(player.id)) &&
+      (!filterAlive || alivePlayoffTeamIds?.has(player.team)),
   );
+  if (!pool.length && allow && filterAlive) {
+    pool = [...data.players].filter(
+      (player) =>
+        player.id &&
+        !excluded.has(player.id) &&
+        alivePlayoffTeamIds?.has(player.team),
+    );
+  }
 
   for (let index = pool.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(random() * (index + 1));
@@ -511,23 +531,39 @@ function pickDeterministicPlayers(
 //   índice 1 → del Top-150 (jugadorazo asegurado)
 //   índice 2 → de rareza máxima (estrella/legendaria); cae como revelado final,
 //              que es el clímax del abanico.
-function pickDailyPlayers(seed: string): string[] {
-  const star = pickDeterministicPlayers(`${seed}:star`, 1, STAR_PLAYER_IDS);
+function pickDailyPlayers(
+  seed: string,
+  alivePlayoffTeamIds?: ReadonlySet<string>,
+): string[] {
+  const star = pickDeterministicPlayers(
+    `${seed}:star`,
+    1,
+    STAR_PLAYER_IDS,
+    alivePlayoffTeamIds,
+  );
   const top = pickDeterministicPlayers(
     `${seed}:top`,
     1,
-    TOP150_PLAYER_IDS.filter((id) => !star.includes(id)),
+    TOP150_PLAYER_IDS,
+    alivePlayoffTeamIds,
+    star,
   );
   const taken = new Set([...star, ...top]);
   const random = pickDeterministicPlayers(
     `${seed}:any`,
     1,
-    data.players.map((player) => player.id).filter((id) => !taken.has(id)),
+    undefined,
+    alivePlayoffTeamIds,
+    [...taken],
   );
   return [...random, ...top, ...star];
 }
 
-function rerollLocalPackForOpening(pack: Pack, seed: string): Pack {
+function rerollLocalPackForOpening(
+  pack: Pack,
+  seed: string,
+  alivePlayoffTeamIds?: ReadonlySet<string>,
+): Pack {
   if (pack.kind === "daily" || !pack.pool) return pack;
   const config = THEMED_CONFIGS.find((candidate) => candidate.pool === pack.pool);
   if (!config) return pack;
@@ -537,6 +573,7 @@ function rerollLocalPackForOpening(pack: Pack, seed: string): Pack {
       `${config.pool}:${pack.dateKey || DAILY_FIRST_CYCLE}:${seed}`,
       config.count,
       config.ids,
+      alivePlayoffTeamIds,
     ),
   };
 }
@@ -741,6 +778,21 @@ export function CofresView() {
   const inventoryKey = storageKey(userStorageId, "inventory");
   const openedKey = storageKey(userStorageId, "opened");
   const logKey = storageKey(userStorageId, "log");
+  const alivePlayoffTeamIds = useMemo(
+    () => buildAlivePlayoffTeamIds(adminResults || {}),
+    [adminResults],
+  );
+  const eliminatedPlayoffTeamIds = useMemo(
+    () => buildEliminatedPlayoffTeamIds(adminResults || {}),
+    [adminResults],
+  );
+  const isPlayerEliminated = useCallback(
+    (playerId: string) => {
+      const teamId = playersById.get(playerId)?.team;
+      return Boolean(teamId && eliminatedPlayoffTeamIds.has(teamId));
+    },
+    [eliminatedPlayoffTeamIds],
+  );
 
   // Sobre diario por ciclo (3 cartas con tiering). POR USUARIO: el id incluye el
   // uid para que case con el drop del servidor (`daily-<fecha>-<uid>`). Acumulan;
@@ -753,11 +805,14 @@ export function CofresView() {
         title:
           index === 0 ? "Sobre diario" : `Sobre ${formatPackDate(dateKey)}`,
         subtitle: "3 cartas · 1 legendaria asegurada",
-        playerIds: pickDailyPlayers(`daily:${dateKey}:${userStorageId}`),
+        playerIds: pickDailyPlayers(
+          `daily:${dateKey}:${userStorageId}`,
+          alivePlayoffTeamIds,
+        ),
         dateKey,
         availableAt: `${dateKey}T00:00:00.000Z`,
       })),
-    [cycleKeys, userStorageId],
+    [alivePlayoffTeamIds, cycleKeys, userStorageId],
   );
 
   // Sobres temáticos de BIENVENIDA: uno de cada, fijos al ciclo de activación,
@@ -776,12 +831,13 @@ export function CofresView() {
           `${cfg.pool}:${DAILY_FIRST_CYCLE}:${drawSeed}`,
           cfg.count,
           cfg.ids,
+          alivePlayoffTeamIds,
         ),
         availableAt: `${DAILY_FIRST_CYCLE}T00:00:00.000Z`,
         image: cfg.image,
         flap: cfg.flap,
       })),
-    [drawSeed, userStorageId],
+    [alivePlayoffTeamIds, drawSeed, userStorageId],
   );
 
   // A las 10:00 (Madrid) entra un ciclo nuevo de sobres: un timer se reprograma
@@ -1441,7 +1497,9 @@ export function CofresView() {
       // para que la carta sea aleatoria. Math.random es seguro (evento, no render).
       const nextSeed = String(Math.random());
       setDrawSeed(nextSeed);
-      setActivePack(rerollLocalPackForOpening(pack, nextSeed));
+      setActivePack(
+        rerollLocalPackForOpening(pack, nextSeed, alivePlayoffTeamIds),
+      );
       setOpening(true);
     },
     [
@@ -1452,6 +1510,7 @@ export function CofresView() {
       usingSupabase,
       user,
       inventoryReady,
+      alivePlayoffTeamIds,
     ],
   );
 
@@ -2085,6 +2144,7 @@ export function CofresView() {
                             <PlayerCard
                               playerId={card.playerId}
                               points={pointsFor(card.playerId)}
+                              eliminated={isPlayerEliminated(card.playerId)}
                               selected={selectedCardId === card.id}
                             />
                             {newCardIds.includes(card.id) ? (
@@ -2112,6 +2172,7 @@ export function CofresView() {
                           <PlayerCard
                             playerId={card.playerId}
                             points={pointsFor(card.playerId)}
+                            eliminated={isPlayerEliminated(card.playerId)}
                           />
                           <span className="absolute left-2 top-2 rounded-md border border-[#a7f600]/30 bg-[#a7f600]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#a7f600]">
                             Usada
@@ -2131,6 +2192,7 @@ export function CofresView() {
                   breakdownFor={breakdownFor}
                   candidateFor={candidateFor}
                   lastSwap={lastSwap}
+                  isPlayerEliminated={isPlayerEliminated}
                   onClear={() => setSelectedCardId("")}
                   onDismissResult={() => setLastSwap(null)}
                   pointsFor={pointsFor}
@@ -2156,6 +2218,7 @@ export function CofresView() {
             inputs={forgeInputs}
             samePosition={forgeSamePosition}
             busy={forgeBusy}
+            isPlayerEliminated={isPlayerEliminated}
             pointsFor={pointsFor}
             onToggle={toggleForgeCard}
             onForge={() => void startForge()}
@@ -2229,6 +2292,7 @@ export function CofresView() {
         <ConfirmSwapModal
           candidate={pendingSwap}
           inPlayer={selectedPlayer}
+          isPlayerEliminated={isPlayerEliminated}
           busy={swapBusy}
           demo={CARDS_DEMO}
           onCancel={() => setPendingSwap(null)}
@@ -2249,6 +2313,7 @@ export function CofresView() {
             )
           }
           onClose={() => setOpening(false)}
+          isPlayerEliminated={isPlayerEliminated}
           packs={overlayPacks}
           pointsFor={pointsFor}
         />
@@ -2261,6 +2326,7 @@ export function CofresView() {
             playerId: card.playerId,
           }))}
           resultPlayerId={forgeActive.resultCard.playerId}
+          isPlayerEliminated={isPlayerEliminated}
           pointsFor={pointsFor}
           onDone={finishForge}
         />
@@ -2291,6 +2357,7 @@ function ForgePanel({
   forgeable,
   hydrated,
   inputs,
+  isPlayerEliminated,
   onForge,
   onShowIntro,
   onToggle,
@@ -2301,6 +2368,7 @@ function ForgePanel({
   forgeable: InventoryCard[];
   hydrated: boolean;
   inputs: InventoryCard[];
+  isPlayerEliminated: (playerId: string) => boolean;
   onForge: () => void;
   onShowIntro: () => void;
   onToggle: (cardId: string) => void;
@@ -2385,6 +2453,7 @@ function ForgePanel({
                 <PlayerCard
                   playerId={card.playerId}
                   points={pointsFor(card.playerId)}
+                  eliminated={isPlayerEliminated(card.playerId)}
                 />
                 <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 opacity-0 transition group-hover:bg-black/45 group-hover:opacity-100">
                   <span className="rounded-full bg-black/70 px-2 py-1 text-[10px] font-bold text-white">
@@ -2551,6 +2620,7 @@ function ForgePanel({
                   <PlayerCard
                     playerId={card.playerId}
                     points={pointsFor(card.playerId)}
+                    eliminated={isPlayerEliminated(card.playerId)}
                     selected={selected}
                   />
                   {selected ? (
@@ -2796,6 +2866,7 @@ function SwapPanel({
   activeXi,
   breakdownFor,
   candidateFor,
+  isPlayerEliminated,
   lastSwap,
   onClear,
   onDismissResult,
@@ -2807,6 +2878,7 @@ function SwapPanel({
   activeXi: string[];
   breakdownFor: (playerId: string) => PlayerBreakdown;
   candidateFor: (outPlayer: Player) => SwapCandidate;
+  isPlayerEliminated: (playerId: string) => boolean;
   lastSwap: { inPlayerId: string; outPlayerId: string } | null;
   onClear: () => void;
   onDismissResult: () => void;
@@ -2847,6 +2919,9 @@ function SwapPanel({
   const selectedBreakdown = selectedPlayer
     ? breakdownFor(selectedPlayer.id)
     : null;
+  const selectedEliminated = selectedPlayer
+    ? isPlayerEliminated(selectedPlayer.id)
+    : false;
 
   return (
     <Card className="space-y-4 select-none">
@@ -2903,6 +2978,11 @@ function SwapPanel({
                 </span>
               </p>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {selectedEliminated ? (
+                  <span className="rounded-md border border-red-400/25 bg-red-500/10 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.08em] text-red-200">
+                    Equipo eliminado
+                  </span>
+                ) : null}
                 {selectedBreakdown && hasAnyEvent(selectedBreakdown) ? (
                   <EventPills breakdown={selectedBreakdown} />
                 ) : (
@@ -3359,6 +3439,7 @@ function ConfirmSwapModal({
   candidate,
   demo,
   inPlayer,
+  isPlayerEliminated,
   onCancel,
   onConfirm,
 }: {
@@ -3366,6 +3447,7 @@ function ConfirmSwapModal({
   candidate: SwapCandidate;
   demo: boolean;
   inPlayer: Player;
+  isPlayerEliminated: (playerId: string) => boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -3391,6 +3473,7 @@ function ConfirmSwapModal({
             tone="out"
             playerId={outPlayer.id}
             points={outPoints}
+            eliminated={isPlayerEliminated(outPlayer.id)}
           />
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-xl text-white shadow-lg">
             ⇄
@@ -3400,6 +3483,7 @@ function ConfirmSwapModal({
             tone="in"
             playerId={inPlayer.id}
             points={inPoints}
+            eliminated={isPlayerEliminated(inPlayer.id)}
             highlighted
           />
         </div>
@@ -3496,12 +3580,14 @@ function ConfirmSwapModal({
 }
 
 function SwapModalCard({
+  eliminated = false,
   highlighted = false,
   label,
   playerId,
   points,
   tone,
 }: {
+  eliminated?: boolean;
   highlighted?: boolean;
   label: string;
   playerId: string;
@@ -3527,6 +3613,7 @@ function SwapModalCard({
         <PlayerCard
           playerId={playerId}
           points={points}
+          eliminated={eliminated}
           selected={highlighted}
         />
         <div

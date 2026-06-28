@@ -138,9 +138,9 @@ const tactics: Tactic[] = [
   {
     id: "set-piece",
     title: "Estratega",
-    name: "Gol de falta o córner.",
+    name: "Gol a balón parado.",
     short: "Estratega",
-    points: 2,
+    points: 3,
     rarity: "dificil",
     color: "#38bdf8",
     icon: "target",
@@ -160,7 +160,7 @@ const tactics: Tactic[] = [
     title: "Remontada",
     name: "VAS PERDIENDO Y GANAS",
     short: "Remontada",
-    points: 4,
+    points: 6,
     rarity: "dificil",
     color: "#f5c518",
     icon: "comeback",
@@ -539,20 +539,35 @@ function getTrainers(match: PlayoffMatch) {
 function applyResolvedTeamsToPhases(
   phases: PlayoffPhase[],
   resolvedTeams: ResolvedPlayoffTeams,
+  options: { useFallbackTrainers?: boolean } = {},
 ) {
+  const useFallbackTrainers = options.useFallbackTrainers ?? true;
+
   return phases.map((phase) => ({
     ...phase,
     matches: phase.matches.map((match) => {
       const teams = resolvedTeams[match.id];
+      const fallbackHome = useFallbackTrainers
+        ? match.trainers[0]
+        : pendingTrainer(playoffMatchNumber(match), "home");
+      const fallbackAway = useFallbackTrainers
+        ? match.trainers[1]
+        : pendingTrainer(playoffMatchNumber(match), "away");
+
       return {
         ...match,
         trainers: [
-          trainerIdForTeam(teams?.home, match.trainers[0]),
-          trainerIdForTeam(teams?.away, match.trainers[1]),
+          trainerIdForTeam(teams?.home, fallbackHome),
+          trainerIdForTeam(teams?.away, fallbackAway),
         ] as [string, string],
       };
     }),
   }));
+}
+
+function hasResolvedPlayoffTrainers(match: PlayoffMatch) {
+  const trainers = getTrainers(match);
+  return Boolean(trainers[0]?.teamId && trainers[1]?.teamId);
 }
 
 function playoffMatchNumber(match: PlayoffMatch) {
@@ -2091,8 +2106,11 @@ function PlayoffsBattleSurface({
     [isControlled, playoffAdminResults, prediction],
   );
   const resolvedPlayoffPhases = useMemo(
-    () => applyResolvedTeamsToPhases(playoffPhases, resolvedPlayoffTeams),
-    [resolvedPlayoffTeams],
+    () =>
+      applyResolvedTeamsToPhases(playoffPhases, resolvedPlayoffTeams, {
+        useFallbackTrainers: !isControlled,
+      }),
+    [isControlled, resolvedPlayoffTeams],
   );
   const resolvedPlayoffPhaseById = useMemo(
     () => new Map(resolvedPlayoffPhases.map((phase) => [phase.id, phase])),
@@ -2139,12 +2157,14 @@ function PlayoffsBattleSurface({
   );
   const isPlayoffLocked = useCallback(
     (match: PlayoffMatch) => {
+      if (isControlled && !hasResolvedPlayoffTrainers(match)) return true;
+
       const scheduledMatch = playoffScheduleMatch(match, scheduleByNumber);
       return scheduledMatch
         ? hasScheduledMatchStarted(scheduledMatch)
         : playoffKickoffMs(match) <= Date.now();
     },
-    [scheduleByNumber],
+    [isControlled, scheduleByNumber],
   );
   const pickForMatch = useCallback(
     (match: PlayoffMatch) =>
@@ -2158,12 +2178,15 @@ function PlayoffsBattleSurface({
   );
   const completedPlayoffMatches = useMemo(
     () =>
-      allPlayoffMatches.filter((match) =>
-        isControlled
-          ? isControlledPlayoffComplete(match, prediction)
-          : isPlayoffPredictionComplete(match.id, picks, results),
-      ).length,
-    [isControlled, picks, prediction, results],
+      resolvedPlayoffPhases
+        .flatMap((phase) => phase.matches)
+        .filter((match) =>
+          isControlled
+            ? hasResolvedPlayoffTrainers(match) &&
+              isControlledPlayoffComplete(match, prediction)
+            : isPlayoffPredictionComplete(match.id, picks, results),
+        ).length,
+    [isControlled, picks, prediction, resolvedPlayoffPhases, results],
   );
   const renderDesktopMatches = !mobileModalOnly && isCompactLayout !== true;
   const renderMobileMatches = !mobileModalOnly && isCompactLayout !== false;

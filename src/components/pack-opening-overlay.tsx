@@ -53,6 +53,7 @@ type SlashPoint = {
 
 type PackOpeningOverlayProps = {
   initialPackId: string;
+  isPlayerEliminated?: (playerId: string) => boolean;
   onAccept: (pack: OpeningPack) => Promise<void>;
   onClose: () => void;
   packs: OpeningPack[];
@@ -2074,6 +2075,7 @@ function useHoloMotion(
 function RevealCards({
   cards,
   stackIndex,
+  isPlayerEliminated,
   onAdvance,
   pointsFor,
   title,
@@ -2082,6 +2084,7 @@ function RevealCards({
 }: {
   cards: OpeningCard[];
   stackIndex: number;
+  isPlayerEliminated: (playerId: string) => boolean;
   onAdvance: () => void;
   pointsFor: (playerId: string) => number;
   title?: string;
@@ -2355,6 +2358,7 @@ function RevealCards({
                 <PlayerCard
                   playerId={card.playerId}
                   points={pointsFor(card.playerId)}
+                  eliminated={isPlayerEliminated(card.playerId)}
                   featured={isHero}
                   holoShader={showcase && legendary}
                 />
@@ -2402,6 +2406,7 @@ function RevealCards({
 
 export function PackOpeningOverlay({
   initialPackId,
+  isPlayerEliminated = () => false,
   onAccept,
   onClose,
   packs,
@@ -2599,6 +2604,7 @@ export function PackOpeningOverlay({
         <RevealCards
           cards={cards}
           stackIndex={stackIndex}
+          isPlayerEliminated={isPlayerEliminated}
           onAdvance={onCardSwiped}
           pointsFor={pointsFor}
           title={selectedPack.title}

@@ -17,7 +17,7 @@ export const trainerTactics = [
   {
     id: "set-piece",
     title: "Estratega",
-    points: 2,
+    points: 3,
   },
   {
     id: "red-card",
@@ -27,7 +27,7 @@ export const trainerTactics = [
   {
     id: "penalty",
     title: "Remontada",
-    points: 4,
+    points: 6,
   },
 ] as const;
 

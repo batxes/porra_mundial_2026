@@ -39,12 +39,14 @@ function rarityFor(playerId: string): Rarity {
 export function PlayerCard({
   playerId,
   points,
+  eliminated = false,
   selected = false,
   featured = false,
   holoShader = false,
 }: {
   playerId: string;
   points: number;
+  eliminated?: boolean;
   selected?: boolean;
   featured?: boolean;
   // Shader holo (foil dorado + destello) DETRÁS de la foto, movido por el
@@ -86,7 +88,10 @@ export function PlayerCard({
   const cardBorder = legendary
     ? "1.5px solid rgba(245,184,30,0.85)"
     : `1px solid rgba(255,255,255,${whiteAlpha})`;
-  const outerGlow = legendary
+  const activeBorder = eliminated
+    ? "1.5px solid rgba(248,113,113,0.78)"
+    : cardBorder;
+  const rarityGlow = legendary
     ? "0 0 26px rgba(245,184,30,0.22)"
     : rarity === "epica"
       ? `0 0 22px rgba(${accent.rgb},0.16)`
@@ -95,18 +100,27 @@ export function PlayerCard({
         : selected
           ? `0 0 16px rgba(${accent.rgb},0.18)`
           : "none";
+  const outerGlow = eliminated
+    ? [rarityGlow, "0 0 18px rgba(248,113,113,0.24)"]
+        .filter((shadow) => shadow !== "none")
+        .join(", ")
+    : rarityGlow;
+  const photoClass = `object-cover object-top ${
+    eliminated ? "saturate-[.2] contrast-[.94] brightness-[.86]" : ""
+  }`;
 
   return (
     <article
       data-selected={selected}
       data-rarity={rarity}
+      data-eliminated={eliminated}
       className={`cofre-card theme-dark relative aspect-[5/7] select-none overflow-hidden rounded-lg ${
         featured ? "cofre-card--featured" : ""
       }`}
       style={{
         containerType: "inline-size",
         background: "#0a0f1a",
-        border: cardBorder,
+        border: activeBorder,
         boxShadow: outerGlow,
       }}
     >
@@ -121,9 +135,11 @@ export function PlayerCard({
           backgroundPosition: "center",
           filter: legendary
             ? "hue-rotate(190deg) saturate(1.15)"
-            : accent.bgRotate
-              ? `hue-rotate(${accent.bgRotate}deg)`
-              : undefined,
+              : accent.bgRotate
+                ? `hue-rotate(${accent.bgRotate}deg)`
+                : eliminated
+                  ? "saturate(0.2)"
+                  : undefined,
         }}
       />
 
@@ -158,7 +174,7 @@ export function PlayerCard({
             alt=""
             fill
             sizes="(max-width: 768px) 34vw, 300px"
-            className="object-cover object-top"
+            className={photoClass}
             unoptimized
           />
         ) : (
@@ -211,6 +227,35 @@ export function PlayerCard({
           pts
         </span>
       </div>
+
+      {eliminated ? (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(127,29,29,0.18), transparent 42%, rgba(127,29,29,0.2))",
+              mixBlendMode: "multiply",
+            }}
+          />
+          <div
+            className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 font-black uppercase leading-none"
+            style={{
+              top: "25%",
+              border: "1.5px solid rgba(248,113,113,0.62)",
+              borderRadius: "3.4cqw",
+              background: "rgba(69,10,10,0.88)",
+              boxShadow: "0 0 20px rgba(127,29,29,0.48)",
+              color: "#fecaca",
+              fontSize: "8cqw",
+              letterSpacing: "0.08em",
+              padding: "3cqw 5cqw",
+            }}
+          >
+            Eliminado
+          </div>
+        </>
+      ) : null}
 
       {/* Panel inferior: una sola capa anclada abajo, con padding vertical
           concreto y su degradado fundiéndose hacia arriba (superpuesto sobre
@@ -331,7 +376,7 @@ export function PlayerCard({
                 alt=""
                 fill
                 sizes="(max-width: 768px) 34vw, 300px"
-                className="object-cover object-top"
+                className={photoClass}
                 unoptimized
               />
             </div>

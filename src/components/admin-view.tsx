@@ -1231,8 +1231,8 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
           <p className="text-sm text-slate-400">
             Marca manualmente qué equipo cumple cada chip. Si eliges ambos,
             puntúan los dos. Solo cuentan los 120 minutos; no marques nada de la
-            tanda de penaltis. En Estratega cuenta el gol de falta o córner
-            directo, o con asistencia del lanzador; el penalti no cuenta.
+            tanda de penaltis. En Estratega cuenta el gol a balón parado,
+            incluido penalti.
             Remontada se marca si el equipo empieza perdiendo y acaba ganando.
           </p>
         </div>

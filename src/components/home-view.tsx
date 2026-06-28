@@ -2701,7 +2701,7 @@ const playoffBannerChips = [
   },
   {
     id: "set-piece",
-    points: 2,
+    points: 3,
     color: "#38bdf8",
     icon: "/prediction-icons/set-piece.png",
   },

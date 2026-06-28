@@ -11,6 +11,7 @@ type Phase = "charge" | "flash" | "reveal";
 
 type CardUpgradeOverlayProps = {
   inputs: ForgeInput[];
+  isPlayerEliminated?: (playerId: string) => boolean;
   resultPlayerId: string;
   pointsFor: (playerId: string) => number;
   onDone: () => void;
@@ -32,6 +33,7 @@ const SPREAD: { x: number; y: number; r: number }[] = [
 // animación es puramente visual.
 export function CardUpgradeOverlay({
   inputs,
+  isPlayerEliminated = () => false,
   resultPlayerId,
   pointsFor,
   onDone,
@@ -131,6 +133,7 @@ export function CardUpgradeOverlay({
                 <PlayerCard
                   playerId={card.playerId}
                   points={pointsFor(card.playerId)}
+                  eliminated={isPlayerEliminated(card.playerId)}
                 />
               </div>
             );
@@ -169,6 +172,7 @@ export function CardUpgradeOverlay({
             <PlayerCard
               playerId={resultPlayerId}
               points={pointsFor(resultPlayerId)}
+              eliminated={isPlayerEliminated(resultPlayerId)}
               featured
               holoShader
             />
