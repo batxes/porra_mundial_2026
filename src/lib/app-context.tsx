@@ -207,14 +207,6 @@ function scorecardForUser(userId: string, prediction: Prediction, adminResults: 
   return scoring.calculateScorecard(normalizePrediction(prediction), adminResults, userId);
 }
 
-function profileTotalPoints(_profile: Record<string, unknown> | null | undefined, calculatedTotal = 0) {
-  return calculatedTotal;
-}
-
-function scorecardWithTotal(scorecard: Scorecard, total: number): Scorecard {
-  return scorecard.total === total ? scorecard : { ...scorecard, total };
-}
-
 function buildLeaderboard(localUsers: LocalUser[], currentUserId: string | null, prediction: Prediction, adminResults: AdminResults) {
   const predictions = getLocalPredictions();
 
@@ -431,7 +423,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const currentScorecard = sessionUserId
         ? scorecardForUser(sessionUserId, currentPrediction, results)
         : scoring.scorecardFromEntries([]);
-      const currentPoints = profileTotalPoints(currentProfile, currentScorecard.total);
+      // El total visible sale del scorecard calculado en cliente para que
+      // cuadre siempre con el desglose, aunque profiles.total_points tarde en
+      // ponerse al dia tras cambios de reglas o migraciones.
+      const currentPoints = currentScorecard.total;
 
       setUser(
         currentProfile
@@ -457,8 +452,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const calculatedScorecard = profilePrediction
               ? scorecardForUser(profile.id, profilePrediction, results)
               : scoring.scorecardFromEntries([]);
-            const points = profileTotalPoints(profile, calculatedScorecard.total);
-            const scorecard = scorecardWithTotal(calculatedScorecard, points);
+            const points = calculatedScorecard.total;
+            const scorecard = calculatedScorecard;
             return {
               id: profile.id,
               name: profile.display_name,
@@ -568,8 +563,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const calculatedScorecard = profilePrediction
             ? scorecardForUser(profile.id, profilePrediction, results)
             : scoring.scorecardFromEntries([]);
-          const points = profileTotalPoints(profile, calculatedScorecard.total);
-          const scorecard = scorecardWithTotal(calculatedScorecard, points);
+          const points = calculatedScorecard.total;
+          const scorecard = calculatedScorecard;
           return {
             id: profile.id,
             name: profile.display_name,
