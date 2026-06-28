@@ -45,7 +45,10 @@ import {
   toggleThirdQualifier,
   toggleXi,
 } from "@/lib/prediction";
-import { buildResolvedPlayoffTeams } from "@/lib/playoff-teams";
+import {
+  buildResolvedPlayoffTeams,
+  confirmedRound32Teams,
+} from "@/lib/playoff-teams";
 import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import type { AdminResults, AuthMode, Prediction, Scorecard, UserProfile } from "@/lib/types";
 
@@ -240,9 +243,12 @@ function teamHasStartedUnvalidatedMatch(teamId: string, adminResults: AdminResul
   const resolvedPlayoffTeams = buildResolvedPlayoffTeams(adminResults);
   return schedule.some((match) => {
     const resolvedTeams = resolvedPlayoffTeams[String(match.number)];
+    const confirmedTeams = confirmedRound32Teams[String(match.number)];
     const playsMatch =
       match.home === teamId ||
       match.away === teamId ||
+      confirmedTeams?.home === teamId ||
+      confirmedTeams?.away === teamId ||
       resolvedTeams?.home === teamId ||
       resolvedTeams?.away === teamId;
     if (!playsMatch) return false;

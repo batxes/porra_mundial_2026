@@ -21,6 +21,25 @@ export type ResolvedPlayoffTeams = Record<
   { home?: string; away?: string }
 >;
 
+export const confirmedRound32Teams: ResolvedPlayoffTeams = {
+  "73": { home: "rsa", away: "can" },
+  "74": { home: "ger", away: "par" },
+  "75": { home: "ned", away: "mar" },
+  "76": { home: "bra", away: "jpn" },
+  "77": { home: "fra", away: "swe" },
+  "78": { home: "civ", away: "nor" },
+  "79": { home: "mex", away: "ecu" },
+  "80": { home: "eng", away: "cod" },
+  "81": { home: "usa", away: "bih" },
+  "82": { home: "bel", away: "sen" },
+  "83": { home: "por", away: "cro" },
+  "84": { home: "esp", away: "aut" },
+  "85": { home: "sui", away: "alg" },
+  "86": { home: "arg", away: "cpv" },
+  "87": { home: "col", away: "gha" },
+  "88": { home: "aus", away: "egy" },
+};
+
 const thirdMatchNumbersByGroupWinner: Record<string, string> = {
   A: "79",
   B: "85",

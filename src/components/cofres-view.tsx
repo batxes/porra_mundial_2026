@@ -35,6 +35,7 @@ import {
   buildAlivePlayoffTeamIds,
   buildEliminatedPlayoffTeamIds,
   buildResolvedPlayoffTeams,
+  confirmedRound32Teams,
 } from "@/lib/playoff-teams";
 import { STAR_PLAYER_IDS } from "@/lib/star-players";
 import { TOP150_PLAYER_IDS } from "@/lib/top150-players";
@@ -690,14 +691,20 @@ function startedUnvalidatedTeamIds(adminResults: AdminResults) {
 
   worldCupSchedule.forEach((match) => {
     const resolvedTeams = resolvedPlayoffTeams[String(match.number)];
+    const confirmedTeams = confirmedRound32Teams[String(match.number)];
     if (now < new Date(scheduleUtc(match)).getTime()) return;
     if (adminResults[String(match.number)]?.status === "validated") return;
 
-    [match.home, match.away, resolvedTeams?.home, resolvedTeams?.away].forEach(
-      (teamId) => {
-        if (teamId && teamsById.has(teamId)) lockedTeamIds.add(teamId);
-      },
-    );
+    [
+      match.home,
+      match.away,
+      confirmedTeams?.home,
+      confirmedTeams?.away,
+      resolvedTeams?.home,
+      resolvedTeams?.away,
+    ].forEach((teamId) => {
+      if (teamId && teamsById.has(teamId)) lockedTeamIds.add(teamId);
+    });
   });
 
   return lockedTeamIds;
@@ -1743,6 +1750,13 @@ export function CofresView() {
     setPendingSwap(candidate);
   };
 
+  const swapBlockedByLiveMatch = (candidate: SwapCandidate) =>
+    Boolean(
+      selectedPlayer &&
+        (lockedSwapTeamIds.has(selectedPlayer.team) ||
+          lockedSwapTeamIds.has(candidate.outPlayer.team)),
+    );
+
   const finishLocalSwap = (candidate: SwapCandidate, card: InventoryCard) => {
     const usedAt = new Date().toISOString();
     setDemoXi((current) =>
@@ -1781,6 +1795,16 @@ export function CofresView() {
   const confirmSwap = async () => {
     if (CARDS_DEMO) return; // swaps deshabilitados en modo demo
     if (!pendingSwap || !selectedCard || !selectedPlayer || swapBusy) return;
+    if (swapBlockedByLiveMatch(pendingSwap)) {
+      setPendingSwap(null);
+      setMessage(
+        "No puedes cambiar a un jugador mientras su equipo esta en juego. Disponible cuando se valide el partido.",
+      );
+      toast.error("Cambio bloqueado", {
+        description: "Ese equipo tiene un partido en juego.",
+      });
+      return;
+    }
     setSwapBusy(true);
     setMessage("");
 
