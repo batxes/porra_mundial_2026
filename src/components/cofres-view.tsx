@@ -1608,6 +1608,10 @@ export function CofresView() {
       setMessage(
         caught instanceof Error ? caught.message : "No se ha podido forjar.",
       );
+      if (usingSupabase && user) {
+        void loadSupabaseCards();
+        notifyCardsChanged();
+      }
     } finally {
       setForgeBusy(false);
     }
@@ -1618,6 +1622,7 @@ export function CofresView() {
     usingSupabase,
     user,
     forgeCardsInStorage,
+    loadSupabaseCards,
   ]);
 
   // Confirma la forja (al cerrar el revelado): marca las 4 cartas como usadas
