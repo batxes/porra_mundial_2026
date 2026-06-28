@@ -34,7 +34,72 @@ import {
 } from "@/lib/theme";
 import type { AuthMode } from "@/lib/types";
 
+// La imagen original se acepta hasta 1 MB como red de seguridad, pero NO se
+// guarda tal cual: los avatares solo se ven a ~100px, asi que se reescalan y
+// recomprimen a este lado (200px cubre retina 2x) antes de persistirlos. Evita
+// meter blobs base64 de ~1,3 MB en profiles.avatar_url, que se lee para todo el
+// leaderboard en cada refresco (riesgo de IO en la instancia pequena).
 const MAX_AVATAR_BYTES = 1024 * 1024;
+// Los GIF se guardan tal cual para no perder la animacion (un canvas solo capta
+// el primer fotograma), asi que llevan un tope mas estricto: se almacenan en
+// profiles.avatar_url y se leen para todo el leaderboard, conviene acotarlos.
+const MAX_GIF_BYTES = 512 * 1024;
+const AVATAR_TARGET_PX = 200;
+
+// Reescala (recorte cuadrado centrado) y recomprime una imagen a un data URL
+// pequeno. WebP si el navegador lo soporta en canvas; si no, cae a JPEG.
+function downscaleAvatar(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("decode"));
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = AVATAR_TARGET_PX;
+        canvas.height = AVATAR_TARGET_PX;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("ctx"));
+          return;
+        }
+        const side = Math.min(img.width, img.height);
+        const sx = (img.width - side) / 2;
+        const sy = (img.height - side) / 2;
+        ctx.drawImage(
+          img,
+          sx,
+          sy,
+          side,
+          side,
+          0,
+          0,
+          AVATAR_TARGET_PX,
+          AVATAR_TARGET_PX,
+        );
+        let out = canvas.toDataURL("image/webp", 0.85);
+        if (!out.startsWith("data:image/webp")) {
+          out = canvas.toDataURL("image/jpeg", 0.85);
+        }
+        resolve(out);
+      };
+      img.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Lee el fichero como data URL sin tocarlo (para GIF animados, que no pasan por
+// el canvas para conservar la animacion).
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read"));
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.readAsDataURL(file);
+  });
+}
 
 const themeOptions: {
   id: ThemePreference;
@@ -216,15 +281,24 @@ export function ProfileOptionsView() {
   const onProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const name = String(form.get("displayName") || "").trim();
+    // El input del nombre esta `disabled`, asi que NO viaja en el FormData
+    // (queda null). Si mandaramos "" como display_name, el CHECK de la tabla
+    // (char_length entre 2 y 40) rechaza TODO el update, incluido el avatar, y
+    // el usuario cree que guardo cuando no. Caemos al nombre actual del usuario.
+    const name = String(form.get("displayName") || user.name || "").trim();
     const avatarUrl =
       customAvatar.trim() || `preset:${selectedPreset || "green"}`;
-    await updateProfile({ name, avatarUrl });
-    setAvatarError("");
-    setProfileMessage("Perfil guardado.");
+    try {
+      await updateProfile({ name, avatarUrl });
+      setAvatarError("");
+      setProfileMessage("Perfil guardado.");
+    } catch {
+      setProfileMessage("");
+      setAvatarError("No se pudo guardar el perfil. Inténtalo de nuevo.");
+    }
   };
 
-  const handleAvatarUpload = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -233,21 +307,30 @@ export function ProfileOptionsView() {
       return;
     }
 
-    if (file.size > MAX_AVATAR_BYTES) {
+    // Los GIF se guardan tal cual (animacion intacta) con tope estricto; el
+    // resto se reescala a ~6 KB para no inflar la columna del avatar.
+    const isGif = file.type === "image/gif";
+    if (isGif) {
+      if (file.size > MAX_GIF_BYTES) {
+        setAvatarError("El GIF animado debe pesar menos de 512 KB.");
+        return;
+      }
+    } else if (file.size > MAX_AVATAR_BYTES) {
       setAvatarError("La imagen debe pesar menos de 1 MB.");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || "");
+    try {
+      const result = isGif
+        ? await readFileAsDataUrl(file)
+        : await downscaleAvatar(file);
       setCustomAvatar(result);
       setUploadedAvatarName(file.name);
       setAvatarError("");
       setProfileMessage("");
-    };
-    reader.onerror = () => setAvatarError("No se pudo leer la imagen.");
-    reader.readAsDataURL(file);
+    } catch {
+      setAvatarError("No se pudo procesar la imagen.");
+    }
   };
 
   const avatarPreviewUrl =

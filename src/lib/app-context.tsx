@@ -1117,7 +1117,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const supabase = getSupabaseBrowserClient() as any;
       if (!supabase) return;
-      await supabase.from("profiles").update({ display_name: values.name, avatar_url: values.avatarUrl }).eq("id", user.id);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ display_name: values.name, avatar_url: values.avatarUrl })
+        .eq("id", user.id);
+      if (error) throw error;
       await refreshData();
     },
     [refreshData, syncLocalState, user, usingSupabase],
