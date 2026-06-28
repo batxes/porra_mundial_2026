@@ -1,4 +1,5 @@
 import type { AdminResults, Match, Player, PorraData, Prediction, Scorecard, ScoreEntry, Team } from "@/lib/types";
+import { resultLoserTeamId, resultWinnerTeamId } from "@/lib/match-events";
 import { trainerTacticById } from "@/lib/trainer-tactics";
 
 const ruleMeta = {
@@ -295,8 +296,12 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
         });
       }
 
-      if (match.number >= 73 && homeScore !== awayScore) {
-        const actualWinner = homeScore > awayScore ? actualTeamId(match, result, "home") : actualTeamId(match, result, "away");
+      if (match.number >= 73) {
+        const actualWinner = resultWinnerTeamId(
+          result,
+          actualTeamId(match, result, "home"),
+          actualTeamId(match, result, "away"),
+        );
         const progressionPoints = knockoutProgressionPoints(match);
         if (progressionPoints && actualWinner && prediction.bracket?.winners?.[String(match.number)] === actualWinner) {
           addEntry(entries, {
@@ -664,9 +669,12 @@ export function calculateTeamStandings(
     }
 
     const progressionPoints = teamProgressionPoints(match.stage);
-    if (progressionPoints && homeScore !== awayScore) {
-      const winner = homeScore > awayScore ? homeRow : awayRow;
-      const loser = homeScore > awayScore ? awayRow : homeRow;
+    const winnerTeamId = resultWinnerTeamId(result, home, away);
+    const loserTeamId = resultLoserTeamId(result, home, away);
+    if (progressionPoints && winnerTeamId && loserTeamId) {
+      const winner = rows.get(winnerTeamId);
+      const loser = rows.get(loserTeamId);
+      if (!winner || !loser) return;
       winner.progressionPoints += progressionPoints;
       winner.stageRank = Math.max(winner.stageRank, nextStageRankForWinner(match.stage));
       loser.isEliminated = true;

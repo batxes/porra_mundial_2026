@@ -13,6 +13,7 @@ import {
 } from "@/components/trainer-chip-score-pill";
 import { playersById, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
+import { calculateShootoutScore } from "@/lib/match-events";
 import type { AdminResult, AdminResults, UserProfile } from "@/lib/types";
 
 function matchOutcomeOf(home: number, away: number) {
@@ -250,6 +251,8 @@ function FeedMatchRow({
     const player = playersById.get(row.playerId);
     return player ? [{ player, points: row.points }] : [];
   });
+  const shootoutScore = calculateShootoutScore(result, homeTeamId, awayTeamId);
+  const hasShootout = shootoutScore.home > 0 || shootoutScore.away > 0;
   const breakdownParts = [
     { label: "Exacto", value: report.exact },
     { label: "Quiniela", value: report.outcome },
@@ -263,8 +266,15 @@ function FeedMatchRow({
             teamId={homeTeamId}
             className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
           />
-          <span className="shrink-0 rounded-md bg-white/[0.07] px-1.5 py-0.5 text-xs font-bold tabular-nums text-white">
-            {result.homeScore}-{result.awayScore}
+          <span className="flex shrink-0 flex-col items-center gap-0.5 rounded-md bg-white/[0.07] px-1.5 py-0.5 text-xs font-bold tabular-nums text-white">
+            <span>
+              {result.homeScore}-{result.awayScore}
+            </span>
+            {hasShootout ? (
+              <span className="text-[10px] text-zinc-400">
+                ({shootoutScore.home}-{shootoutScore.away})
+              </span>
+            ) : null}
           </span>
           <TeamFlag
             teamId={awayTeamId}

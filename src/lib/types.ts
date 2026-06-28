@@ -84,6 +84,14 @@ export type AdminEvent = {
   type: string;
   minute: number | string;
   source?: string;
+  details?: {
+    phase?: string;
+    shootoutOrder?: number;
+    shootoutAttemptId?: string;
+    shootoutOutcome?: string;
+    relatedEventId?: string;
+    [key: string]: unknown;
+  };
 };
 
 export type AdminResult = {

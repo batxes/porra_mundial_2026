@@ -6,6 +6,7 @@ import { Card, Notice, ScheduleMeta, SectionHeading, TeamBadge } from "@/compone
 import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
+import { calculateShootoutScore, isShootoutEvent } from "@/lib/match-events";
 
 export function MatchesView() {
   const { adminResults, playerName } = useAppContext();
@@ -35,6 +36,15 @@ export function MatchesView() {
             <div className="grid gap-4 xl:grid-cols-2">
               {matches.map((match) => {
                 const result = adminResults[String(match.number)];
+                const homeTeamId = result?.homeTeamId || match.home;
+                const awayTeamId = result?.awayTeamId || match.away;
+                const shootoutScore = calculateShootoutScore(
+                  result,
+                  homeTeamId,
+                  awayTeamId,
+                );
+                const hasShootout =
+                  shootoutScore.home > 0 || shootoutScore.away > 0;
                 return (
                   <Card key={match.number} className="space-y-4">
                     <div className="flex flex-col gap-1 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
@@ -52,6 +62,11 @@ export function MatchesView() {
                         <TeamBadge teamId={match.away} fallback={translateSlot(match.away)} />
                         <strong className="shrink-0 text-2xl text-white">{result?.awayScore ?? "-"}</strong>
                       </div>
+                      {hasShootout ? (
+                        <p className="text-center text-xs font-bold tabular-nums text-zinc-400">
+                          Tanda ({shootoutScore.home}-{shootoutScore.away})
+                        </p>
+                      ) : null}
                     </div>
                     <ScheduleMeta match={match} />
                     {result?.events?.length ? (
@@ -64,7 +79,9 @@ export function MatchesView() {
                           )
                           .map((event) => (
                           <div key={event.id} className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 text-sm">
-                            <span className="text-slate-400">{event.minute}&apos;</span>
+                            <span className="text-slate-400">
+                              {isShootoutEvent(event) ? "Tanda" : `${event.minute}'`}
+                            </span>
                             <span className="min-w-0 text-slate-200">
                               {playerName(event.playerId)} · {event.type}
                             </span>

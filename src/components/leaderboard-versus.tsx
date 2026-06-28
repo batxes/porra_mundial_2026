@@ -16,6 +16,7 @@ import {
 import { isFinishedResult } from "@/components/results-recap";
 import { playersById, schedule, teamsById } from "@/lib/data";
 import { translateSlot } from "@/lib/format";
+import { calculateShootoutScore } from "@/lib/match-events";
 import type {
   AdminResult,
   AdminResults,
@@ -1575,6 +1576,8 @@ function FeedDuelRow({
   const awayName = awayTeamId
     ? teamsById.get(awayTeamId)?.name || translateSlot(match.away)
     : translateSlot(match.away);
+  const shootoutScore = calculateShootoutScore(result, homeTeamId, awayTeamId);
+  const hasShootout = shootoutScore.home > 0 || shootoutScore.away > 0;
 
   // Partido en el centro y, a cada lado, lo que sumó cada uno: verde si puntuó,
   // neutro si no, rojo si restó (como el desglose del inicio).
@@ -1591,8 +1594,15 @@ function FeedDuelRow({
             className="size-5 shrink-0 rounded-full border border-white/15 object-cover"
           />
         </span>
-        <span className="shrink-0 rounded-md bg-white/[0.07] px-1.5 py-0.5 text-xs font-bold tabular-nums text-white">
-          {result.homeScore}-{result.awayScore}
+        <span className="flex shrink-0 flex-col items-center gap-0.5 rounded-md bg-white/[0.07] px-1.5 py-0.5 text-xs font-bold tabular-nums text-white">
+          <span>
+            {result.homeScore}-{result.awayScore}
+          </span>
+          {hasShootout ? (
+            <span className="text-[10px] text-zinc-400">
+              ({shootoutScore.home}-{shootoutScore.away})
+            </span>
+          ) : null}
         </span>
         <span className="flex min-w-0 items-center justify-start gap-1.5">
           <TeamFlag

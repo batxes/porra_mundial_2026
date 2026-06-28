@@ -13,6 +13,8 @@ import { calculateTeamStandings, createEngine } from "@/lib/scoring";
 
 const engine = createEngine({ data, schedule });
 const playerIdByPosition = (position: string) => data.players.find((player) => player.position === position)?.id || "";
+const playerIdByTeamPosition = (team: string, position: string) =>
+  data.players.find((player) => player.team === team && player.position === position)?.id || "";
 const actualKnockoutGroupOrder: Record<string, string[]> = {
   A: ["mex", "rsa", "kor", "cze"],
   B: ["sui", "can", "bih", "qat"],
@@ -131,6 +133,32 @@ function actualKnockoutGroupResults() {
     home: "rsa",
     away: "mar",
   });
+
+  const resolvedAfterShootout = buildResolvedPlayoffTeams({
+    ...adminResults,
+    "73": {
+      homeScore: 1,
+      awayScore: 1,
+      homeTeamId: "rsa",
+      awayTeamId: "can",
+      events: [
+        {
+          id: "can-shootout-goal",
+          playerId: "can-09",
+          teamId: "can",
+          type: "penalty_goal",
+          minute: 121,
+          details: {
+            phase: "shootout",
+            shootoutOrder: 1,
+            shootoutAttemptId: "can-1",
+            shootoutOutcome: "scored",
+          },
+        },
+      ],
+    },
+  } as any);
+  assert.deepEqual(resolvedAfterShootout["90"], { home: "can" });
 }
 
 {
@@ -243,6 +271,105 @@ function actualKnockoutGroupResults() {
   assert.deepEqual(
     card.entries.map((entry) => entry.points),
     [2, 6, 11, 35],
+  );
+}
+
+{
+  const mexShooter = playerIdByTeamPosition("mex", "DEL");
+  const korShooter = playerIdByTeamPosition("kor", "DEL");
+  const korKeeper = playerIdByTeamPosition("kor", "POR");
+  const prediction = {
+    groups: {},
+    bracket: { winners: { 73: "kor" } },
+    extras: {},
+    xi: [mexShooter, korKeeper],
+    matchPredictions: {},
+  } as any;
+  const card = engine.calculateScorecard(prediction, {
+    73: {
+      homeScore: 1,
+      awayScore: 1,
+      homeTeamId: "mex",
+      awayTeamId: "kor",
+      events: [
+        {
+          id: "mex-shootout-goal",
+          playerId: mexShooter,
+          teamId: "mex",
+          type: "penalty_goal",
+          minute: 121,
+          details: {
+            phase: "shootout",
+            shootoutOrder: 1,
+            shootoutAttemptId: "mex-1",
+            shootoutOutcome: "scored",
+          },
+        },
+        {
+          id: "kor-shootout-goal-1",
+          playerId: korShooter,
+          teamId: "kor",
+          type: "penalty_goal",
+          minute: 122,
+          details: {
+            phase: "shootout",
+            shootoutOrder: 2,
+            shootoutAttemptId: "kor-1",
+            shootoutOutcome: "scored",
+          },
+        },
+        {
+          id: "mex-shootout-miss",
+          playerId: mexShooter,
+          teamId: "mex",
+          type: "penalty_miss",
+          minute: 123,
+          details: {
+            phase: "shootout",
+            shootoutOrder: 3,
+            shootoutAttemptId: "mex-2",
+            shootoutOutcome: "saved",
+          },
+        },
+        {
+          id: "kor-shootout-save",
+          playerId: korKeeper,
+          teamId: "kor",
+          type: "penalty_save",
+          minute: 123,
+          details: {
+            phase: "shootout",
+            shootoutOrder: 3,
+            shootoutAttemptId: "mex-2",
+            shootoutOutcome: "saved",
+          },
+        },
+        {
+          id: "kor-shootout-goal-2",
+          playerId: korShooter,
+          teamId: "kor",
+          type: "penalty_goal",
+          minute: 124,
+          details: {
+            phase: "shootout",
+            shootoutOrder: 4,
+            shootoutAttemptId: "kor-2",
+            shootoutOutcome: "scored",
+          },
+        },
+      ],
+    },
+  } as any);
+
+  assert.equal(card.total, 7);
+  assert.deepEqual(
+    card.entries.map((entry) => [entry.ruleCode, entry.points]),
+    [
+      ["team_progression_hit", 5],
+      ["player_penalty_goal", 1],
+      ["player_penalty_miss", -1],
+      ["player_penalty_save", 2],
+    ],
   );
 }
 

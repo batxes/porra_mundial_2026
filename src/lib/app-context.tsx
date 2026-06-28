@@ -367,7 +367,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ? supabase.from("predictions").select("user_id, selections, completion_percent, is_definitive").eq("tournament_id", tournamentId)
           : Promise.resolve({ data: [] as any[], error: null }),
         supabase.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, status, stage").eq("status", "validated"),
-        supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute"),
+        supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute, details"),
         fetchMatchTacticResults(supabase),
       ]);
 
@@ -394,6 +394,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           teamId: event.team_id,
           type: event.event_type,
           minute: event.minute,
+          source: event.details?.phase,
+          details: event.details || undefined,
         });
       });
       applyMatchTacticResults(results, tacticRows);
@@ -520,7 +522,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const [{ data: profiles }, { data: matches }, { data: events }, tacticRows] = await Promise.all([
         supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
         supabase.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, status, stage").eq("status", "validated"),
-        supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute"),
+        supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute, details"),
         fetchMatchTacticResults(supabase),
       ]);
 
@@ -547,6 +549,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           teamId: event.team_id,
           type: event.event_type,
           minute: event.minute,
+          source: event.details?.phase,
+          details: event.details || undefined,
         });
       });
       applyMatchTacticResults(results, tacticRows);
@@ -923,6 +927,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         team_id: event.teamId || playersById.get(event.playerId)?.team || null,
         event_type: toDbEventType(event.type),
         minute: Number(event.minute) || 0,
+        details: event.details || {},
       });
       if (eventError) {
         throw new Error(`No se pudo guardar el evento: ${eventError.message}`);

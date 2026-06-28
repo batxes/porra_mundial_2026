@@ -69,6 +69,7 @@ import {
 } from "@/lib/cofres";
 import { data, playersById, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
+import { calculateShootoutScore } from "@/lib/match-events";
 import {
   buildResolvedPlayoffTeams,
   calculateGroupTables,
@@ -3295,6 +3296,8 @@ function JornadaMatchRow({
     ? teamsById.get(awayTeamId)?.name || translateSlot(match.away)
     : translateSlot(match.away);
   const score = readMatchScore(result);
+  const shootoutScore = calculateShootoutScore(result, homeTeamId, awayTeamId);
+  const hasShootout = shootoutScore.home > 0 || shootoutScore.away > 0;
   const events = (result?.events || [])
     .filter((event) => event.playerId && matchEventIcons[String(event.type)])
     .sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0));
@@ -3325,14 +3328,21 @@ function JornadaMatchRow({
             className="h-6 w-6 shrink-0 rounded-full border border-white/15 object-cover sm:h-7 sm:w-7"
           />
         </div>
-        <span
-          className={`shrink-0 rounded-lg px-3 py-1 text-lg font-bold tabular-nums tracking-wide sm:px-3.5 sm:text-xl ${
+        <span className="flex shrink-0 flex-col items-center gap-0.5">
+          <span
+            className={`rounded-lg px-3 py-1 text-lg font-bold tabular-nums tracking-wide sm:px-3.5 sm:text-xl ${
             score
               ? "bg-white/[0.08] text-white"
               : "bg-white/[0.04] text-zinc-500"
           }`}
         >
           {score ? `${score.home} - ${score.away}` : "– - –"}
+          </span>
+          {hasShootout ? (
+            <span className="text-[11px] font-bold tabular-nums text-zinc-400">
+              ({shootoutScore.home}-{shootoutScore.away})
+            </span>
+          ) : null}
         </span>
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
           <TeamFlag

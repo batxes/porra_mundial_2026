@@ -29,6 +29,11 @@ import { PlayerSearchModal } from "@/components/player-search-modal";
 import { toDbEventType, useAppContext } from "@/lib/app-context";
 import { playersById, schedule, teamsById } from "@/lib/data";
 import { translateSlot } from "@/lib/format";
+import {
+  calculateShootoutScore,
+  isShootoutEvent,
+  shootoutEventOrder,
+} from "@/lib/match-events";
 import { buildResolvedPlayoffTeams } from "@/lib/playoff-teams";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { trainerTactics } from "@/lib/trainer-tactics";
@@ -298,6 +303,13 @@ export function AdminView() {
                   const awayName =
                     (awayTeamId && teamsById.get(awayTeamId)?.name) ||
                     (savedMatch ? translateSlot(savedMatch.away) : "Visitante");
+                  const shootoutScore = calculateShootoutScore(
+                    result,
+                    homeTeamId,
+                    awayTeamId,
+                  );
+                  const hasShootout =
+                    shootoutScore.home > 0 || shootoutScore.away > 0;
                   const events = (result.events || [])
                     .filter(
                       (event) =>
@@ -355,6 +367,11 @@ export function AdminView() {
                           </span>
                         </div>
                       </div>
+                      {hasShootout ? (
+                        <p className="mt-1 text-center text-xs font-semibold text-zinc-400">
+                          Tanda ({shootoutScore.home}-{shootoutScore.away})
+                        </p>
+                      ) : null}
                       {events.length ? (
                         <div className="mt-2.5 grid grid-cols-2 gap-x-4 border-t border-white/[0.06] pt-2.5">
                           <div className="space-y-1">
@@ -679,10 +696,19 @@ type GoalSlot = {
   ownGoal: boolean;
 };
 type ExtraRow = { playerId: string; type: string; minute: string };
+type ShootoutAttempt = {
+  id: string;
+  teamId: string;
+  shooterId: string;
+  scored: boolean;
+  goalkeeperId: string;
+};
 type PickerTarget =
   | { kind: "goal"; side: "home" | "away"; index: number }
   | { kind: "mvp" }
-  | { kind: "extra"; index: number };
+  | { kind: "extra"; index: number }
+  | { kind: "shootoutShooter"; index: number }
+  | { kind: "shootoutGoalkeeper"; index: number };
 
 const goalEventTypes = new Set([
   "gol",
@@ -717,12 +743,50 @@ function splitSavedEvents(
   const home: GoalSlot[] = [];
   const away: GoalSlot[] = [];
   const extras: ExtraRow[] = [];
+  const shootout = new Map<
+    string,
+    ShootoutAttempt & { order: number }
+  >();
   let mvpPlayerId = "";
 
   for (const event of events) {
     const type = String(event.type || "");
     const minute = event.minute ? String(event.minute) : "";
-    if (goalEventTypes.has(type)) {
+    if (isShootoutEvent(event)) {
+      const order = shootoutEventOrder(event) || shootout.size + 1;
+      const key = event.details?.shootoutAttemptId || String(order);
+      const current =
+        shootout.get(key) ||
+        ({
+          id: key,
+          teamId: "",
+          shooterId: "",
+          scored: type === "penalty_goal" || type === "penalti marcado",
+          goalkeeperId: "",
+          order,
+        } satisfies ShootoutAttempt & { order: number });
+
+      if (type === "penalty_goal" || type === "penalti marcado") {
+        current.teamId =
+          event.teamId || playersById.get(event.playerId)?.team || current.teamId;
+        current.shooterId = event.playerId;
+        current.scored = true;
+      } else if (type === "penalty_miss" || type === "penalti fallado") {
+        current.teamId =
+          event.teamId || playersById.get(event.playerId)?.team || current.teamId;
+        current.shooterId = event.playerId;
+        current.scored = false;
+      } else if (type === "penalty_save" || type === "penalti parado") {
+        const keeperTeamId =
+          event.teamId || playersById.get(event.playerId)?.team || "";
+        current.teamId =
+          current.teamId ||
+          (keeperTeamId === homeId ? awayId : homeId);
+        current.goalkeeperId = event.playerId;
+        current.scored = false;
+      }
+      shootout.set(key, current);
+    } else if (goalEventTypes.has(type)) {
       const teamId =
         event.teamId || playersById.get(event.playerId)?.team || "";
       const slot = {
@@ -749,7 +813,16 @@ function splitSavedEvents(
 
   home.sort(byMinute);
   away.sort(byMinute);
-  return { home, away, extras, mvpPlayerId };
+  const shootoutAttempts = Array.from(shootout.values())
+    .sort((a, b) => a.order - b.order)
+    .map((attempt) => ({
+      id: attempt.id,
+      teamId: attempt.teamId,
+      shooterId: attempt.shooterId,
+      scored: attempt.scored,
+      goalkeeperId: attempt.goalkeeperId,
+    }));
+  return { home, away, extras, mvpPlayerId, shootoutAttempts };
 }
 
 function goalCount(score: string) {
@@ -804,6 +877,9 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
   const [awayGoals, setAwayGoals] = useState<GoalSlot[]>(initial.away);
   const [mvpPlayerId, setMvpPlayerId] = useState(initial.mvpPlayerId);
   const [extras, setExtras] = useState<ExtraRow[]>(initial.extras);
+  const [shootoutAttempts, setShootoutAttempts] = useState<ShootoutAttempt[]>(
+    initial.shootoutAttempts,
+  );
   const [trainerTacticsById, setTrainerTacticsById] = useState<
     Record<string, string[]>
   >(saved?.trainerTactics || {});
@@ -815,6 +891,19 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
   const bothTeamIds = [resolvedHomeId, resolvedAwayId].filter(Boolean);
   const homeCount = goalCount(homeScore);
   const awayCount = goalCount(awayScore);
+  const isKnockoutMatch = Boolean(match && match.number >= 73);
+  const isShootoutMatch =
+    isKnockoutMatch &&
+    homeScore !== "" &&
+    awayScore !== "" &&
+    Number(homeScore) === Number(awayScore);
+  const visibleShootoutAttempts = isShootoutMatch ? shootoutAttempts : [];
+  const shootoutHomeScore = visibleShootoutAttempts.filter(
+    (attempt) => attempt.teamId === resolvedHomeId && attempt.scored,
+  ).length;
+  const shootoutAwayScore = visibleShootoutAttempts.filter(
+    (attempt) => attempt.teamId === resolvedAwayId && attempt.scored,
+  ).length;
 
   const updateGoal = (
     side: "home" | "away",
@@ -834,6 +923,40 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
   const updateExtra = (index: number, patch: Partial<ExtraRow>) => {
     setExtras((current) =>
       current.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    );
+  };
+
+  const opposingTeamId = (teamId: string) =>
+    teamId === resolvedHomeId ? resolvedAwayId : resolvedHomeId;
+
+  const addShootoutAttempt = (teamId: string) => {
+    if (!teamId) return;
+    setShootoutAttempts((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        teamId,
+        shooterId: "",
+        scored: true,
+        goalkeeperId: "",
+      },
+    ]);
+  };
+
+  const updateShootoutAttempt = (
+    index: number,
+    patch: Partial<ShootoutAttempt>,
+  ) => {
+    setShootoutAttempts((current) =>
+      current.map((attempt, i) =>
+        i === index
+          ? {
+              ...attempt,
+              ...patch,
+              ...(patch.scored ? { goalkeeperId: "" } : {}),
+            }
+          : attempt,
+      ),
     );
   };
 
@@ -886,7 +1009,11 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
         ]?.playerId || ""
       : pickerTarget.kind === "mvp"
         ? mvpPlayerId
-        : extras[pickerTarget.index]?.playerId || ""
+        : pickerTarget.kind === "extra"
+          ? extras[pickerTarget.index]?.playerId || ""
+          : pickerTarget.kind === "shootoutShooter"
+            ? shootoutAttempts[pickerTarget.index]?.shooterId || ""
+            : shootoutAttempts[pickerTarget.index]?.goalkeeperId || ""
     : "";
 
   // En un gol en propia el autor es del equipo rival, así que el modal debe
@@ -907,8 +1034,12 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
       updateGoal(pickerTarget.side, pickerTarget.index, { playerId });
     } else if (pickerTarget.kind === "mvp") {
       setMvpPlayerId(playerId);
-    } else {
+    } else if (pickerTarget.kind === "extra") {
       updateExtra(pickerTarget.index, { playerId });
+    } else if (pickerTarget.kind === "shootoutShooter") {
+      updateShootoutAttempt(pickerTarget.index, { shooterId: playerId });
+    } else {
+      updateShootoutAttempt(pickerTarget.index, { goalkeeperId: playerId });
     }
   };
 
@@ -918,7 +1049,17 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
       ? [pickerTarget.side === "home" ? resolvedHomeId : resolvedAwayId].filter(
           Boolean,
         )
+      : pickerTarget.kind === "shootoutShooter"
+        ? [shootoutAttempts[pickerTarget.index]?.teamId].filter(Boolean)
+      : pickerTarget.kind === "shootoutGoalkeeper"
+        ? [
+            opposingTeamId(
+              shootoutAttempts[pickerTarget.index]?.teamId || "",
+            ),
+          ].filter(Boolean)
       : bothTeamIds;
+  const pickerInitialPosition =
+    pickerTarget?.kind === "shootoutGoalkeeper" ? "POR" : "all";
 
   const pickerTitle = !pickerTarget
     ? ""
@@ -928,11 +1069,57 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
         : `Goleador ${pickerTarget.side === "home" ? (resolvedHomeId ? `de ${teamName(resolvedHomeId)}` : "local") : resolvedAwayId ? `de ${teamName(resolvedAwayId)}` : "visitante"}`
       : pickerTarget.kind === "mvp"
         ? "MVP del partido"
-        : "Jugador del evento";
+        : pickerTarget.kind === "extra"
+          ? "Jugador del evento"
+          : pickerTarget.kind === "shootoutShooter"
+            ? "Lanzador de la tanda"
+            : "Portero que para el penalti";
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (saving) return;
+
+    const finalShootoutAttempts = isShootoutMatch
+      ? shootoutAttempts.filter(
+          (attempt) =>
+            attempt.teamId &&
+            (attempt.shooterId || (!attempt.scored && attempt.goalkeeperId)),
+        )
+      : [];
+
+    if (isShootoutMatch) {
+      if (!finalShootoutAttempts.length) {
+        toast.error("Falta la tanda de penaltis", {
+          description:
+            "En una eliminatoria empatada hay que publicar al menos un lanzamiento.",
+        });
+        return;
+      }
+      const incompleteAttempt = finalShootoutAttempts.find(
+        (attempt) =>
+          !attempt.shooterId || (!attempt.scored && !attempt.goalkeeperId),
+      );
+      if (incompleteAttempt) {
+        toast.error("Tanda incompleta", {
+          description:
+          "Cada lanzamiento necesita lanzador y, si falla, el portero que lo para.",
+        });
+        return;
+      }
+      const finalShootoutHomeScore = finalShootoutAttempts.filter(
+        (attempt) => attempt.teamId === resolvedHomeId && attempt.scored,
+      ).length;
+      const finalShootoutAwayScore = finalShootoutAttempts.filter(
+        (attempt) => attempt.teamId === resolvedAwayId && attempt.scored,
+      ).length;
+      if (finalShootoutHomeScore === finalShootoutAwayScore) {
+        toast.error("La tanda sigue empatada", {
+          description:
+            "Añade los lanzamientos necesarios hasta que haya ganador.",
+        });
+        return;
+      }
+    }
 
     const goalEvent = (slot: GoalSlot, teamId: string): AdminEvent => ({
       id: crypto.randomUUID(),
@@ -946,6 +1133,46 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
       minute: Number(slot.minute) || 0,
       source: "manual",
     });
+
+    const shootoutEvents: AdminEvent[] = finalShootoutAttempts.flatMap(
+      (attempt, index) => {
+        const order = index + 1;
+        const attemptId = attempt.id || crypto.randomUUID();
+        const baseDetails = {
+          phase: "shootout",
+          shootoutOrder: order,
+          shootoutAttemptId: attemptId,
+          shootoutOutcome: attempt.scored ? "scored" : "saved",
+        };
+        const shooterEvent: AdminEvent = {
+          id: crypto.randomUUID(),
+          playerId: attempt.shooterId,
+          teamId: attempt.teamId,
+          type: attempt.scored ? "penalti marcado" : "penalti fallado",
+          minute: 120 + order,
+          source: "shootout",
+          details: baseDetails,
+        };
+
+        if (attempt.scored) return [shooterEvent];
+
+        return [
+          shooterEvent,
+          {
+            id: crypto.randomUUID(),
+            playerId: attempt.goalkeeperId,
+            teamId: opposingTeamId(attempt.teamId),
+            type: "penalti parado",
+            minute: 120 + order,
+            source: "shootout",
+            details: {
+              ...baseDetails,
+              relatedEventId: shooterEvent.id,
+            },
+          },
+        ];
+      },
+    );
 
     const finalEvents: AdminEvent[] = [
       ...homeGoals
@@ -978,6 +1205,7 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
           minute: Number(row.minute) || 0,
           source: "manual",
         })),
+      ...shootoutEvents,
     ];
 
     // Reutiliza los ids de los eventos guardados idénticos para que el diff de Supabase
@@ -985,10 +1213,21 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
     const savedEvents = saved?.events || [];
     const keyOf = (candidate: {
       playerId: string;
+      teamId?: string;
       type: string;
       minute: number | string;
+      details?: AdminEvent["details"];
     }) =>
-      `${candidate.playerId}|${toDbEventType(candidate.type)}|${Number(candidate.minute) || 0}`;
+      [
+        candidate.playerId,
+        candidate.teamId || "",
+        toDbEventType(candidate.type),
+        Number(candidate.minute) || 0,
+        candidate.details?.phase || "",
+        candidate.details?.shootoutOrder || "",
+        candidate.details?.shootoutAttemptId || "",
+        candidate.details?.shootoutOutcome || "",
+      ].join("|");
     const pool = [...savedEvents];
     const mergedEvents = finalEvents.map((candidate) => {
       const matchIndex = pool.findIndex(
@@ -1383,6 +1622,140 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
         </button>
       </div>
 
+      {isShootoutMatch ? (
+        <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h4 className="font-semibold text-white">Tanda de penaltis</h4>
+              <p className="text-sm text-slate-400">
+                El marcador principal se queda en {homeScore}-{awayScore}. La
+                tanda decide el ganador del cruce y suma penaltis marcados,
+                fallados y parados al once.
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full border border-white/15 bg-white/[0.07] px-3 py-1 text-sm font-bold text-zinc-200">
+              ({shootoutHomeScore}-{shootoutAwayScore})
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {[
+              {
+                teamId: resolvedHomeId,
+                label: resolvedHomeId ? teamName(resolvedHomeId) : "Local",
+              },
+              {
+                teamId: resolvedAwayId,
+                label: resolvedAwayId ? teamName(resolvedAwayId) : "Visitante",
+              },
+            ].map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                disabled={!option.teamId}
+                onClick={() => addShootoutAttempt(option.teamId)}
+                className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                + Penalti {option.label}
+              </button>
+            ))}
+          </div>
+
+          {visibleShootoutAttempts.length ? (
+            <div className="space-y-2">
+              {visibleShootoutAttempts.map((attempt, index) => {
+                const keeperTeamId = opposingTeamId(attempt.teamId);
+                return (
+                  <div
+                    key={attempt.id}
+                    className="space-y-2 rounded-2xl border border-white/10 bg-slate-950/45 p-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-200">
+                        <TeamFlag
+                          teamId={attempt.teamId}
+                          className="h-4 w-5 shrink-0 rounded-sm"
+                        />
+                        <span className="min-w-0 truncate">
+                          Penalti {index + 1} -{" "}
+                          {attempt.teamId
+                            ? teamName(attempt.teamId)
+                            : "Equipo"}
+                        </span>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShootoutAttempts((current) =>
+                            current.filter((_, i) => i !== index),
+                          )
+                        }
+                        className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-xs text-white"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                    <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center">
+                      {playerButton(attempt.shooterId, "Elige lanzador", {
+                        kind: "shootoutShooter",
+                        index,
+                      })}
+                      <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/60 text-xs font-bold">
+                        <button
+                          type="button"
+                          aria-pressed={attempt.scored}
+                          onClick={() =>
+                            updateShootoutAttempt(index, { scored: true })
+                          }
+                          className={`px-3 py-2 transition ${
+                            attempt.scored
+                              ? "bg-emerald-400 text-black"
+                              : "text-slate-300 hover:bg-white/10"
+                          }`}
+                        >
+                          Marcado
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={!attempt.scored}
+                          onClick={() =>
+                            updateShootoutAttempt(index, { scored: false })
+                          }
+                          className={`px-3 py-2 transition ${
+                            !attempt.scored
+                              ? "bg-rose-300 text-black"
+                              : "text-slate-300 hover:bg-white/10"
+                          }`}
+                        >
+                          Fallado
+                        </button>
+                      </div>
+                      {attempt.scored ? (
+                        <span className="hidden text-xs text-slate-500 lg:block">
+                          Gol de tanda
+                        </span>
+                      ) : (
+                        playerButton(
+                          attempt.goalkeeperId,
+                          keeperTeamId
+                            ? `Portero de ${teamName(keeperTeamId)}`
+                            : "Portero que lo para",
+                          { kind: "shootoutGoalkeeper", index },
+                        )
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400">
+              Agrega los lanzamientos de la tanda en orden.
+            </p>
+          )}
+        </div>
+      ) : null}
+
       <button
         type="submit"
         disabled={saving}
@@ -1398,6 +1771,7 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
         <PlayerSearchModal
           title={pickerTitle}
           currentPlayer={playersById.get(pickerPlayerId)}
+          initialPosition={pickerInitialPosition}
           teamIds={pickerTeamIds}
           onClose={() => setPickerTarget(null)}
           onRemove={() => {

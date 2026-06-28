@@ -14,6 +14,7 @@ import {
   playerPhotoUrl,
   translateSlot,
 } from "@/lib/format";
+import { calculateShootoutScore, isShootoutEvent } from "@/lib/match-events";
 import {
   emptyPrediction,
   hasMatchStarted,
@@ -2681,6 +2682,8 @@ export function FinishedMatchCard({
   const trainerPoints = trainerChip?.points || 0;
   const trainerHit = showTrainerChipSlot && trainerPoints > 0;
   const totalPoints = points + trainerPoints;
+  const shootoutScore = calculateShootoutScore(result, homeTeamId, awayTeamId);
+  const hasShootout = shootoutScore.home > 0 || shootoutScore.away > 0;
   const cardGlow =
     outcomeHit || exact || trainerHit
       ? "radial-gradient(340px at 50% 0%, rgba(167, 246, 0, 0.1) 0%, rgba(47, 47, 47, 0) 70%), "
@@ -2696,6 +2699,7 @@ export function FinishedMatchCard({
 
   return (
     <article
+      data-playoff-match-id={String(match.number)}
       className={`match-card flex h-full flex-col overflow-hidden rounded-[22px] text-white ${cardRing}`}
       style={{
         background: `${cardGlow}radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.2) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.2) 0%, rgba(47, 47, 47, 0) 70%), var(--match-card-bg)`,
@@ -2708,8 +2712,15 @@ export function FinishedMatchCard({
             <span className="text-[10px] font-bold uppercase leading-none tracking-[0.14em] text-zinc-400">
               Final
             </span>
-            <span className="text-sm font-bold leading-none text-white">
-              {realHome} - {realAway}
+            <span className="flex flex-col items-center gap-0.5 text-sm font-bold leading-none text-white">
+              <span>
+                {realHome} - {realAway}
+              </span>
+              {hasShootout ? (
+                <span className="text-[10px] font-bold tabular-nums text-zinc-400">
+                  ({shootoutScore.home}-{shootoutScore.away})
+                </span>
+              ) : null}
             </span>
           </span>
         ) : null}
@@ -2759,6 +2770,11 @@ export function FinishedMatchCard({
               <span className="rounded-lg bg-black/30 px-4 py-1.5 text-2xl font-bold leading-none text-white sm:text-3xl">
                 {realHome} - {realAway}
               </span>
+              {hasShootout ? (
+                <span className="text-[11px] font-bold tabular-nums text-zinc-400">
+                  Tanda ({shootoutScore.home}-{shootoutScore.away})
+                </span>
+              ) : null}
             </>
           )}
         </div>
@@ -2823,6 +2839,7 @@ export function LockedPredictionMatchCard({
 
   return (
     <article
+      data-playoff-match-id={String(match.number)}
       className="match-card mx-auto mt-2 flex h-full w-full max-w-[580px] flex-col overflow-hidden rounded-[22px] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] sm:mt-3"
       style={{
         background:
@@ -3461,6 +3478,11 @@ export function MatchEventLine({
   const ownGoalNode = isOwnGoalEvent(String(event.type)) ? (
     <span className="shrink-0 text-zinc-500">(p.p.)</span>
   ) : null;
+  const shootoutNode = isShootoutEvent(event) ? (
+    <span className="shrink-0 rounded bg-white/[0.07] px-1 text-[10px] font-bold uppercase text-zinc-300">
+      Tanda
+    </span>
+  ) : null;
   const iconNode = (
     <span aria-hidden="true" className="shrink-0 text-[13px]">
       {icon}
@@ -3478,11 +3500,13 @@ export function MatchEventLine({
           {pointsNode}
           <span className="min-w-0 truncate">{playerName}</span>
           {ownGoalNode}
+          {shootoutNode}
           {iconNode}
         </>
       ) : (
         <>
           {iconNode}
+          {shootoutNode}
           <span className="min-w-0 truncate">{playerName}</span>
           {ownGoalNode}
           {pointsNode}

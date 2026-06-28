@@ -13,6 +13,7 @@ import {
 import { useAppContext } from "@/lib/app-context";
 import { playersById, schedule, teamsById } from "@/lib/data";
 import { translateSlot } from "@/lib/format";
+import { calculateShootoutScore } from "@/lib/match-events";
 import type { AdminResult, Match, ScoreEntry } from "@/lib/types";
 
 const resultsRecapKey = "porra26_results_recap_seen";
@@ -491,6 +492,8 @@ function RecapMatchRow({ item }: { item: RecapItem }) {
   const awayName = awayTeamId
     ? teamsById.get(awayTeamId)?.name || translateSlot(match.away)
     : translateSlot(match.away);
+  const shootoutScore = calculateShootoutScore(result, homeTeamId, awayTeamId);
+  const hasShootout = shootoutScore.home > 0 || shootoutScore.away > 0;
   // En vez de "Resultado exacto/acertado", la prediccion coloreada segun el
   // acierto (mismo patron que el modal de predicciones): exacto relleno,
   // ganador con borde, fallo apagado. Los puntos del once, por futbolista.
@@ -523,8 +526,15 @@ function RecapMatchRow({ item }: { item: RecapItem }) {
             teamId={homeTeamId}
             className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
           />
-          <span className="shrink-0 rounded-md bg-white/[0.07] px-2 py-0.5 text-sm font-bold text-white">
-            {result.homeScore}-{result.awayScore}
+          <span className="flex shrink-0 flex-col items-center gap-0.5 rounded-md bg-white/[0.07] px-2 py-0.5 text-sm font-bold text-white">
+            <span>
+              {result.homeScore}-{result.awayScore}
+            </span>
+            {hasShootout ? (
+              <span className="text-[10px] font-bold tabular-nums text-zinc-400">
+                ({shootoutScore.home}-{shootoutScore.away})
+              </span>
+            ) : null}
           </span>
           <TeamFlag
             teamId={awayTeamId}

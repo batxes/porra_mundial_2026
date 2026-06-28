@@ -96,7 +96,7 @@ const sections: RulesSection[] = [
       ["Clavas el resultado exacto", "+goles del partido"],
     ],
     highlight: "Clavas el resultado exacto",
-    note: "El resultado se valida con el marcador tras 120 minutos como máximo: 90 minutos más prórroga. La tanda de penaltis no cuenta. El resultado exacto suma además tantos puntos como goles tenga el partido: un 3-2 clavado son 5 puntos extra.",
+    note: "El resultado se valida con el marcador tras 120 minutos como máximo: 90 minutos más prórroga. La tanda de penaltis no cuenta para el marcador exacto; sus eventos sí suman o restan en tu once.",
   },
   {
     step: "5",
@@ -116,7 +116,7 @@ const sections: RulesSection[] = [
       ["Remontada: empiezas perdiendo y acabas ganando", "+6"],
     ],
     highlight: "Carnicero: roja para tu equipo",
-    note: "Todos los chips se validan solo hasta los 120 minutos. El penalti de partido cuenta para Estratega; la tanda de penaltis no suma para chips ni resultado.",
+    note: "Todos los chips se validan solo hasta los 120 minutos. El penalti de partido cuenta para Estratega; la tanda de penaltis no suma para chips ni para el resultado exacto.",
   },
 ];
 

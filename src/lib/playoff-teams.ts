@@ -1,4 +1,5 @@
 import { data, knockoutMatches, schedule, teamsById } from "@/lib/data";
+import { resultLoserTeamId, resultWinnerTeamId } from "@/lib/match-events";
 import type { AdminResult, AdminResults, Match, Prediction } from "@/lib/types";
 
 export type GroupRow = {
@@ -281,22 +282,14 @@ function resultWinner(
   const result = adminResults[String(matchNumber)];
   if (!isScored(result)) return "";
 
-  const homeScore = parseScore(result?.homeScore) ?? 0;
-  const awayScore = parseScore(result?.awayScore) ?? 0;
-  if (homeScore === awayScore) return "";
-
   const teams = resolved[String(matchNumber)];
   const home = result?.homeTeamId || teams?.home || "";
   const away = result?.awayTeamId || teams?.away || "";
-  const homeWon = homeScore > awayScore;
+  const winner = resultWinnerTeamId(result, home, away);
+  const loser = resultLoserTeamId(result, home, away);
+  if (!winner || !loser) return "";
 
-  return outcome === "winner"
-    ? homeWon
-      ? home
-      : away
-    : homeWon
-      ? away
-      : home;
+  return outcome === "winner" ? winner : loser;
 }
 
 function resolveSlot(
@@ -413,11 +406,7 @@ export function buildEliminatedPlayoffTeamIds(adminResults: AdminResults) {
     const away = validSavedTeam(result, "away") || teams?.away || "";
     if (!isScored(result)) return;
 
-    const homeScore = parseScore(result?.homeScore) ?? 0;
-    const awayScore = parseScore(result?.awayScore) ?? 0;
-    if (homeScore === awayScore) return;
-
-    const loser = homeScore > awayScore ? away : home;
+    const loser = resultLoserTeamId(result, home, away);
     if (loser) eliminated.add(loser);
   });
 

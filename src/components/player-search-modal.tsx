@@ -33,6 +33,7 @@ function normalizeSearch(value: string) {
 export function PlayerSearchModal({
   title,
   currentPlayer,
+  initialPosition = "all",
   teamIds,
   onClose,
   onRemove,
@@ -40,12 +41,14 @@ export function PlayerSearchModal({
 }: {
   title: string;
   currentPlayer?: Player;
+  initialPosition?: PositionFilter;
   teamIds?: string[];
   onClose: () => void;
   onRemove?: () => void;
   onSelect: (playerId: string) => void;
 }) {
-  const [activePosition, setActivePosition] = useState<PositionFilter>("all");
+  const [activePosition, setActivePosition] =
+    useState<PositionFilter>(initialPosition);
   const [query, setQuery] = useState("");
 
   const visiblePlayers = useMemo(() => {
