@@ -26,16 +26,14 @@ import { ruletaCompletedEventName } from "@/components/ruleta-modal";
 import { soberaQuizCompletedEventName } from "@/components/sobera-quiz-modal";
 import { suarezDentistCompletedEventName } from "@/components/suarez-dentist-modal";
 import { useAppContext } from "@/lib/app-context";
-import { data, playersById, schedule as worldCupSchedule, teamsById } from "@/lib/data";
+import { data, playersById, teamsById } from "@/lib/data";
 import { initials, playerPhotoUrl } from "@/lib/format";
-import { scheduleUtc } from "@/lib/prediction";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { calculatePlayerStandings } from "@/lib/scoring";
 import {
   buildAlivePlayoffTeamIds,
   buildEliminatedPlayoffTeamIds,
-  buildResolvedPlayoffTeams,
-  confirmedRound32Teams,
+  startedUnvalidatedMatchTeamIds,
 } from "@/lib/playoff-teams";
 import { STAR_PLAYER_IDS } from "@/lib/star-players";
 import { TOP150_PLAYER_IDS } from "@/lib/top150-players";
@@ -684,32 +682,6 @@ function cardFromRemote(row: {
 // JUGADOR (swaps) están deshabilitados. Poner en false para reactivarlo.
 const CARDS_DEMO: boolean = false;
 
-function startedUnvalidatedTeamIds(adminResults: AdminResults) {
-  const resolvedPlayoffTeams = buildResolvedPlayoffTeams(adminResults);
-  const lockedTeamIds = new Set<string>();
-  const now = Date.now();
-
-  worldCupSchedule.forEach((match) => {
-    const resolvedTeams = resolvedPlayoffTeams[String(match.number)];
-    const confirmedTeams = confirmedRound32Teams[String(match.number)];
-    if (now < new Date(scheduleUtc(match)).getTime()) return;
-    if (adminResults[String(match.number)]?.status === "validated") return;
-
-    [
-      match.home,
-      match.away,
-      confirmedTeams?.home,
-      confirmedTeams?.away,
-      resolvedTeams?.home,
-      resolvedTeams?.away,
-    ].forEach((teamId) => {
-      if (teamId && teamsById.has(teamId)) lockedTeamIds.add(teamId);
-    });
-  });
-
-  return lockedTeamIds;
-}
-
 export function CofresView() {
   const {
     adminResults,
@@ -816,7 +788,7 @@ export function CofresView() {
     [adminResults],
   );
   const lockedSwapTeamIds = useMemo(
-    () => startedUnvalidatedTeamIds(adminResults || {}),
+    () => startedUnvalidatedMatchTeamIds(adminResults || {}),
     [adminResults],
   );
   const isPlayerEliminated = useCallback(

@@ -1,5 +1,6 @@
 import { data, knockoutMatches, schedule, teamsById } from "@/lib/data";
 import { resultLoserTeamId, resultWinnerTeamId } from "@/lib/match-events";
+import { scheduleUtc } from "@/lib/prediction";
 import type { AdminResult, AdminResults, Match, Prediction } from "@/lib/types";
 
 export type GroupRow = {
@@ -394,6 +395,42 @@ export function buildResolvedPlayoffTeams(
     });
 
   return resolved;
+}
+
+export function startedUnvalidatedMatchTeamIds(
+  adminResults: AdminResults,
+  nowMs = Date.now(),
+) {
+  const resolvedPlayoffTeams = buildResolvedPlayoffTeams(adminResults);
+  const lockedTeamIds = new Set<string>();
+
+  schedule.forEach((match) => {
+    if (nowMs < new Date(scheduleUtc(match)).getTime()) return;
+    if (adminResults[String(match.number)]?.status === "validated") return;
+
+    const confirmedTeams = confirmedRound32Teams[String(match.number)];
+    const resolvedTeams = resolvedPlayoffTeams[String(match.number)];
+    [
+      match.home,
+      match.away,
+      confirmedTeams?.home,
+      confirmedTeams?.away,
+      resolvedTeams?.home,
+      resolvedTeams?.away,
+    ].forEach((teamId) => {
+      if (teamId && teamsById.has(teamId)) lockedTeamIds.add(teamId);
+    });
+  });
+
+  return lockedTeamIds;
+}
+
+export function teamHasStartedUnvalidatedKnownMatch(
+  teamId: string,
+  adminResults: AdminResults,
+  nowMs = Date.now(),
+) {
+  return startedUnvalidatedMatchTeamIds(adminResults, nowMs).has(teamId);
 }
 
 export function buildPredictionPlayoffTeams(

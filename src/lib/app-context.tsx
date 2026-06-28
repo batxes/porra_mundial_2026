@@ -46,8 +46,7 @@ import {
   toggleXi,
 } from "@/lib/prediction";
 import {
-  buildResolvedPlayoffTeams,
-  confirmedRound32Teams,
+  teamHasStartedUnvalidatedKnownMatch,
 } from "@/lib/playoff-teams";
 import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import type { AdminResults, AuthMode, Prediction, Scorecard, UserProfile } from "@/lib/types";
@@ -240,22 +239,7 @@ function buildLeaderboard(localUsers: LocalUser[], currentUserId: string | null,
 }
 
 function teamHasStartedUnvalidatedMatch(teamId: string, adminResults: AdminResults) {
-  const resolvedPlayoffTeams = buildResolvedPlayoffTeams(adminResults);
-  return schedule.some((match) => {
-    const resolvedTeams = resolvedPlayoffTeams[String(match.number)];
-    const confirmedTeams = confirmedRound32Teams[String(match.number)];
-    const playsMatch =
-      match.home === teamId ||
-      match.away === teamId ||
-      confirmedTeams?.home === teamId ||
-      confirmedTeams?.away === teamId ||
-      resolvedTeams?.home === teamId ||
-      resolvedTeams?.away === teamId;
-    if (!playsMatch) return false;
-    if (!hasMatchStarted(match)) return false;
-    const result = adminResults[String(match.number)];
-    return result?.status !== "validated";
-  });
+  return teamHasStartedUnvalidatedKnownMatch(teamId, adminResults);
 }
 
 function preparePredictionForSave(nextPrediction: Prediction, makeDefinitive = false) {
