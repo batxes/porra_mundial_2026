@@ -70,6 +70,8 @@ import { data, playersById, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
 import {
   buildResolvedPlayoffTeams,
+  calculateGroupTables,
+  type GroupTable,
   type ResolvedPlayoffTeams,
 } from "@/lib/playoff-teams";
 import {
@@ -89,6 +91,7 @@ import type {
   AdminResults,
   Match,
   Prediction,
+  ScoreEntry,
   UserProfile,
 } from "@/lib/types";
 
@@ -456,6 +459,7 @@ export function HomeView() {
           ) : null}
           <HomeFeedSection
             currentUserId={user?.id || ""}
+            currentUserName={user?.name || ""}
             hasUser={Boolean(user)}
             leaderboard={leaderboard}
             nextMatchdayKey={nextMatchdayKey}
@@ -814,6 +818,7 @@ export function HomeNewsChipsPreview() {
     <main className="mx-auto max-w-4xl px-4 py-8">
       <HomeFeedSection
         currentUserId={currentUser?.id || ""}
+        currentUserName={currentUser?.name || ""}
         hasUser
         leaderboard={leaderboard}
         nextMatchdayKey=""
@@ -821,6 +826,199 @@ export function HomeNewsChipsPreview() {
         prediction={currentUser?.prediction || emptyPrediction()}
         ready
         results={homeNewsPreviewResults}
+        saveState={null}
+        upcomingMatches={[]}
+      />
+    </main>
+  );
+}
+
+function buildHomeGroupPreviewResults(): AdminResults {
+  const results: AdminResults = {};
+
+  schedule
+    .filter((match) => match.stage === "Grupos")
+    .forEach((match) => {
+      const homeScore = (match.number * 7 + 1) % 4;
+      let awayScore = (match.number * 5 + 2) % 4;
+      if (homeScore === awayScore && match.number % 3 === 0) {
+        awayScore = (awayScore + 1) % 4;
+      }
+      results[String(match.number)] = {
+        homeScore,
+        awayScore,
+        homeTeamId: teamsById.has(match.home) ? match.home : "",
+        awayTeamId: teamsById.has(match.away) ? match.away : "",
+        status: "validated",
+        events: [],
+      };
+    });
+
+  return results;
+}
+
+const homeGroupPreviewResults = buildHomeGroupPreviewResults();
+
+function bestThirdGroupsFromTables(groupTables: Record<string, GroupTable>) {
+  return Object.entries(groupTables)
+    .map(([group, table]) => ({
+      group,
+      row: table.positions.find((position) => position.position === 3),
+    }))
+    .filter((item): item is { group: string; row: NonNullable<typeof item.row> } =>
+      Boolean(item.row),
+    )
+    .sort(
+      (a, b) =>
+        b.row.pts - a.row.pts ||
+        b.row.gd - a.row.gd ||
+        b.row.gf - a.row.gf ||
+        (teamsById.get(a.row.teamId)?.name || "").localeCompare(
+          teamsById.get(b.row.teamId)?.name || "",
+        ),
+    )
+    .slice(0, 8)
+    .map((item) => item.group);
+}
+
+function previewGroupPrediction(
+  groupTables: Record<string, GroupTable>,
+  variant: number,
+) {
+  const prediction = emptyPrediction();
+  const groups = Object.keys(groupTables).sort((a, b) => a.localeCompare(b));
+
+  groups.forEach((group, groupIndex) => {
+    const ordered = groupTables[group].positions.map((row) => row.teamId);
+    const nextOrder = [...ordered];
+
+    if (variant === 1 && groupIndex % 2 === 0) {
+      [nextOrder[0], nextOrder[1]] = [nextOrder[1], nextOrder[0]];
+    } else if (variant === 2 && groupIndex % 3 === 0) {
+      nextOrder.push(nextOrder.shift() || "");
+    } else if (variant === 3 && groupIndex % 4 === 0) {
+      nextOrder.reverse();
+    } else if (variant === 4 && groupIndex % 2 === 1) {
+      [nextOrder[1], nextOrder[2]] = [nextOrder[2], nextOrder[1]];
+    } else if (variant === 5 && groupIndex % 5 === 0) {
+      [nextOrder[0], nextOrder[3]] = [nextOrder[3], nextOrder[0]];
+    }
+
+    prediction.groups[group] ||= {};
+    nextOrder.filter(Boolean).forEach((teamId, index) => {
+      prediction.groups[group][teamId] = String(index + 1);
+    });
+  });
+
+  const thirds = bestThirdGroupsFromTables(groupTables);
+  prediction.bracket.thirdQualifiers =
+    variant === 2
+      ? thirds.slice(1).concat(thirds[0] ? [thirds[0]] : [])
+      : variant === 4
+        ? thirds.slice(0, 6).concat(groups.slice(0, 2))
+        : thirds;
+
+  return prediction;
+}
+
+function buildHomeGroupPreviewProfiles(): UserProfile[] {
+  const engine = createEngine({ data, schedule });
+  const groupTables = calculateGroupTables(homeGroupPreviewResults);
+  const seeds = [
+    {
+      id: "preview-grupos-marta",
+      name: "Marta Exacta",
+      avatarUrl: "preset:green",
+      isPro: true,
+      isWolf: false,
+      variant: 0,
+    },
+    {
+      id: "preview-grupos-ines",
+      name: "Inés Grupos",
+      avatarUrl: "preset:rose",
+      isPro: false,
+      isWolf: true,
+      variant: 1,
+    },
+    {
+      id: "preview-grupos-diego",
+      name: "Diego Terceros",
+      avatarUrl: "preset:blue",
+      isPro: false,
+      isWolf: false,
+      variant: 2,
+    },
+    {
+      id: "preview-grupos-alex",
+      name: "Álex Caos",
+      avatarUrl: "preset:purple",
+      isPro: false,
+      isWolf: false,
+      variant: 3,
+    },
+    {
+      id: "preview-grupos-laura",
+      name: "Laura Segunda",
+      avatarUrl: "preset:gold",
+      isPro: true,
+      isWolf: false,
+      variant: 4,
+    },
+    {
+      id: "preview-grupos-pau",
+      name: "Pau Remonta",
+      avatarUrl: "preset:dark",
+      isPro: false,
+      isWolf: true,
+      variant: 5,
+    },
+  ];
+
+  return seeds
+    .map((seed) => {
+      const prediction = previewGroupPrediction(groupTables, seed.variant);
+      const scorecard = engine.calculateScorecard(
+        prediction,
+        homeGroupPreviewResults,
+        seed.id,
+      );
+      return {
+        id: seed.id,
+        name: seed.name,
+        email: "",
+        avatarUrl: seed.avatarUrl,
+        points: scorecard.total,
+        isAdmin: false,
+        isPro: seed.isPro,
+        isWolf: seed.isWolf,
+        lateEdit: false,
+        isHidden: false,
+        complete: 100,
+        champion: "",
+        prediction,
+        scorecard,
+      };
+    })
+    .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+}
+
+export function HomeGroupReportPreview() {
+  const leaderboard = useMemo(() => buildHomeGroupPreviewProfiles(), []);
+  const currentUser = leaderboard[0];
+
+  return (
+    <main className="mx-auto max-w-4xl px-4 py-8">
+      <HomeFeedSection
+        currentUserId={currentUser?.id || ""}
+        currentUserName={currentUser?.name || ""}
+        hasUser
+        leaderboard={leaderboard}
+        nextMatchdayKey=""
+        onScoreChange={() => undefined}
+        prediction={currentUser?.prediction || emptyPrediction()}
+        ready
+        results={homeGroupPreviewResults}
         saveState={null}
         upcomingMatches={[]}
       />
@@ -1134,9 +1332,670 @@ const scorerBreakdownLabels: Array<{
 
 // Cuantos puntuadores se ven antes de "Mostrar más".
 const jornadaScorersCollapsed = 3;
+const groupPhaseScorersCollapsed = 3;
+
+type GroupPhaseBreakdown = {
+  exactOrder: number;
+  qualified: number;
+  third: number;
+};
+
+type GroupPhaseScorer = {
+  profile: UserProfile;
+  points: number;
+  breakdown: GroupPhaseBreakdown;
+};
+
+type GroupPhaseGroupReport = {
+  group: string;
+  table: GroupTable;
+  scorers: GroupPhaseScorer[];
+  totalPoints: number;
+};
+
+type GroupPhaseReport = {
+  groups: GroupPhaseGroupReport[];
+  topRows: GroupPhaseScorer[];
+  totalPoints: number;
+  totalScorers: number;
+};
+
+const groupPhaseBreakdownLabels: Array<{
+  key: keyof GroupPhaseBreakdown;
+  label: string;
+}> = [
+  { key: "exactOrder", label: "Orden" },
+  { key: "qualified", label: "Clasif." },
+  { key: "third", label: "3º" },
+];
+
+function emptyGroupPhaseBreakdown(): GroupPhaseBreakdown {
+  return { exactOrder: 0, qualified: 0, third: 0 };
+}
+
+function cloneGroupPhaseBreakdown(
+  breakdown: GroupPhaseBreakdown,
+): GroupPhaseBreakdown {
+  return {
+    exactOrder: breakdown.exactOrder,
+    qualified: breakdown.qualified,
+    third: breakdown.third,
+  };
+}
+
+function groupFromScoreEntry(entry: ScoreEntry) {
+  const fromSource = entry.sourceRef.match(
+    /^group-(?:qualified|third-qualified|position)-([A-Z])-/,
+  )?.[1];
+  if (fromSource) return fromSource;
+
+  return entry.explanation.match(/grupo ([A-Z])/i)?.[1]?.toUpperCase() || "";
+}
+
+function addGroupPhaseEntry(
+  breakdown: GroupPhaseBreakdown,
+  entry: ScoreEntry,
+) {
+  if (entry.ruleCode === "group_position_hit") {
+    breakdown.exactOrder += entry.points;
+  } else if (entry.ruleCode === "group_qualification_hit") {
+    breakdown.qualified += entry.points;
+  } else if (entry.ruleCode === "group_third_qualification_hit") {
+    breakdown.third += entry.points;
+  }
+}
+
+function profileGroupPhasePoints(profile: UserProfile) {
+  const byGroup = new Map<
+    string,
+    { points: number; breakdown: GroupPhaseBreakdown }
+  >();
+  let total = 0;
+  const totalBreakdown = emptyGroupPhaseBreakdown();
+
+  profile.scorecard.entries.forEach((entry) => {
+    if (!entry.ruleCode.startsWith("group_")) return;
+    const group = groupFromScoreEntry(entry);
+    if (!group) return;
+
+    const current = byGroup.get(group) || {
+      points: 0,
+      breakdown: emptyGroupPhaseBreakdown(),
+    };
+    current.points += entry.points;
+    addGroupPhaseEntry(current.breakdown, entry);
+    byGroup.set(group, current);
+
+    total += entry.points;
+    addGroupPhaseEntry(totalBreakdown, entry);
+  });
+
+  return { byGroup, total, totalBreakdown };
+}
+
+function sortGroupPhaseScorers(
+  rows: GroupPhaseScorer[],
+  leaderboardOrder: Map<string, number>,
+) {
+  return rows.sort(
+    (a, b) =>
+      b.points - a.points ||
+      (leaderboardOrder.get(a.profile.id) ?? 9999) -
+        (leaderboardOrder.get(b.profile.id) ?? 9999) ||
+      a.profile.name.localeCompare(b.profile.name),
+  );
+}
+
+function buildGroupPhaseReport(
+  profiles: UserProfile[],
+  results: AdminResults,
+): GroupPhaseReport | null {
+  const groupTables = calculateGroupTables(results);
+  const groups = Object.keys(groupTables).sort((a, b) => a.localeCompare(b));
+
+  if (!groups.length || !groups.every((group) => groupTables[group].complete)) {
+    return null;
+  }
+
+  const leaderboardOrder = new Map(
+    profiles.map((profile, index) => [profile.id, index]),
+  );
+  const perProfile = profiles.map((profile) => ({
+    profile,
+    ...profileGroupPhasePoints(profile),
+  }));
+
+  const topRows = sortGroupPhaseScorers(
+    perProfile
+      .filter((row) => row.total !== 0)
+      .map((row) => ({
+        profile: row.profile,
+        points: row.total,
+        breakdown: cloneGroupPhaseBreakdown(row.totalBreakdown),
+      })),
+    leaderboardOrder,
+  );
+
+  const groupReports = groups.map((group) => {
+    const scorers = sortGroupPhaseScorers(
+      perProfile
+        .map((row) => {
+          const groupPoints = row.byGroup.get(group);
+          return groupPoints
+            ? {
+                profile: row.profile,
+                points: groupPoints.points,
+                breakdown: cloneGroupPhaseBreakdown(groupPoints.breakdown),
+              }
+            : null;
+        })
+        .filter((row): row is GroupPhaseScorer => Boolean(row))
+        .filter((row) => row.points !== 0),
+      leaderboardOrder,
+    );
+
+    return {
+      group,
+      table: groupTables[group],
+      scorers,
+      totalPoints: scorers.reduce((total, row) => total + row.points, 0),
+    };
+  });
+
+  return {
+    groups: groupReports,
+    topRows,
+    totalPoints: topRows.reduce((total, row) => total + row.points, 0),
+    totalScorers: topRows.length,
+  };
+}
+
+function formatSignedPoints(points: number) {
+  return points > 0 ? `+${points}` : String(points);
+}
+
+function isCurrentProfile(
+  profile: UserProfile,
+  currentUserId: string,
+  currentUserName: string,
+) {
+  if (profile.id === currentUserId) return true;
+  return (
+    Boolean(currentUserName) &&
+    profile.name.trim().toLowerCase() === currentUserName.trim().toLowerCase()
+  );
+}
+
+function GroupPhaseReportCard({
+  currentUserId,
+  currentUserName,
+  report,
+}: {
+  currentUserId: string;
+  currentUserName: string;
+  report: GroupPhaseReport;
+}) {
+  const [topExpanded, setTopExpanded] = useState(false);
+  const [reportScorer, setReportScorer] = useState<GroupPhaseScorer | null>(
+    null,
+  );
+  const visibleTopRows = topExpanded
+    ? report.topRows
+    : report.topRows.slice(0, groupPhaseScorersCollapsed);
+  return (
+    <Card className="overflow-hidden border-[#a7f600]/20 bg-[radial-gradient(320px_at_0%_0%,rgba(167,246,0,0.12),transparent),#151515] p-0">
+      <div className="border-b border-white/10 px-4 py-4 sm:px-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#a7f600]">
+              Cierre de grupos
+            </p>
+            <h3 className="mt-1 text-xl font-bold tracking-tight text-white">
+              Reporte de fase de grupos
+            </h3>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-400">
+              Orden real de cada grupo y puntos que ha sacado cada usuario con
+              sus predicciones de clasificación.
+            </p>
+          </div>
+          <Link
+            href="/clasificacion"
+            className="inline-flex w-fit shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+          >
+            Ver clasificación
+          </Link>
+        </div>
+
+      </div>
+
+      <div className="space-y-4 px-4 py-4 sm:px-5">
+        <section className="rounded-xl border border-white/10 bg-black/15 p-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-bold text-white">
+                Top fase de grupos
+              </h4>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                Suma de todos los aciertos de grupos
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full border border-[#a7f600]/30 bg-[#a7f600]/10 px-2.5 py-1 text-[11px] font-bold text-[#a7f600]">
+              {report.groups.length} grupos
+            </span>
+          </div>
+
+          {visibleTopRows.length ? (
+            <div className="space-y-2">
+              {visibleTopRows.map((scorer, index) => (
+                <GroupPhaseScorerRow
+                  key={scorer.profile.id}
+                  currentUserId={currentUserId}
+                  currentUserName={currentUserName}
+                  position={index + 1}
+                  scorer={scorer}
+                  onSelect={setReportScorer}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-zinc-500">
+              Nadie ha puntuado con los grupos.
+            </p>
+          )}
+
+          {report.topRows.length > groupPhaseScorersCollapsed ? (
+            <button
+              type="button"
+              onClick={() => setTopExpanded((value) => !value)}
+              aria-expanded={topExpanded}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] py-2 text-xs font-bold text-zinc-300 transition hover:bg-white/[0.06] hover:text-white"
+            >
+              {topExpanded
+                ? "Mostrar menos"
+                : `Ver ${report.topRows.length - groupPhaseScorersCollapsed} más`}
+              <ChevronDownIcon
+                className={`h-3.5 w-3.5 transition-transform ${
+                  topExpanded ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+          ) : null}
+        </section>
+      </div>
+      {reportScorer ? (
+        <GroupPhaseUserReportModal
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          report={report}
+          scorer={reportScorer}
+          onClose={() => setReportScorer(null)}
+        />
+      ) : null}
+    </Card>
+  );
+}
+
+function GroupPhaseBreakdownChips({
+  breakdown,
+}: {
+  breakdown: GroupPhaseBreakdown;
+}) {
+  const parts = groupPhaseBreakdownLabels
+    .map((part) => ({
+      label: part.label,
+      value: breakdown[part.key],
+    }))
+    .filter((part) => part.value !== 0);
+
+  if (!parts.length) return null;
+
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1">
+      {parts.map((part) => (
+        <span
+          key={part.label}
+          className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400"
+        >
+          {part.label}
+          <span className="text-white">{formatSignedPoints(part.value)}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function teamFromGroupScoreEntry(entry: ScoreEntry) {
+  return (
+    entry.sourceRef.match(
+      /^group-(?:qualified|third-qualified|position)-[A-Z]-(.+)$/,
+    )?.[1] || ""
+  );
+}
+
+function userGroupTeamPoints(profile: UserProfile, group: string) {
+  const byTeam = new Map<
+    string,
+    GroupPhaseBreakdown & { total: number }
+  >();
+
+  profile.scorecard.entries.forEach((entry) => {
+    if (!entry.ruleCode.startsWith("group_")) return;
+    if (groupFromScoreEntry(entry) !== group) return;
+    const teamId = teamFromGroupScoreEntry(entry);
+    if (!teamId) return;
+
+    const current = byTeam.get(teamId) || {
+      ...emptyGroupPhaseBreakdown(),
+      total: 0,
+    };
+    current.total += entry.points;
+    addGroupPhaseEntry(current, entry);
+    byTeam.set(teamId, current);
+  });
+
+  return byTeam;
+}
+
+function GroupPhaseUserReportModal({
+  currentUserId,
+  currentUserName,
+  onClose,
+  report,
+  scorer,
+}: {
+  currentUserId: string;
+  currentUserName: string;
+  onClose: () => void;
+  report: GroupPhaseReport;
+  scorer: GroupPhaseScorer;
+}) {
+  const { profile } = scorer;
+  const currentProfile = isCurrentProfile(
+    profile,
+    currentUserId,
+    currentUserName,
+  );
+  const groupPoints = profileGroupPhasePoints(profile);
+  const scoringGroups = report.groups.filter(
+    (groupReport) =>
+      (groupPoints.byGroup.get(groupReport.group)?.points || 0) !== 0,
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="group-phase-user-report-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="flex max-h-full w-full max-w-md flex-col rounded-2xl border border-white/10 bg-[#151515] p-5 text-white shadow-2xl shadow-black/50">
+        <div className="mb-3 flex shrink-0 items-center gap-2.5">
+          <Avatar
+            name={profile.name}
+            avatarUrl={profile.avatarUrl}
+            className="size-11 shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <h3
+              id="group-phase-user-report-title"
+              className="flex min-w-0 items-center gap-1.5 text-base font-bold tracking-tight"
+            >
+              <span className="truncate">{profile.name}</span>
+              {profile.isPro ? <ProBadge /> : null}
+              {profile.isWolf ? <WolfBadge /> : null}
+              {currentProfile ? (
+                <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-zinc-200">
+                  Tú
+                </span>
+              ) : null}
+            </h3>
+            <p className="mt-0.5 truncate text-xs font-medium text-zinc-500">
+              Puntos de fase de grupos
+            </p>
+          </div>
+          <span
+            className={`shrink-0 rounded-md px-2 py-1 text-sm font-bold ${
+              scorer.points > 0
+                ? "bg-[#a7f600]/15 text-[#a7f600]"
+                : "bg-white/[0.06] text-zinc-300"
+            }`}
+          >
+            {formatSignedPoints(scorer.points)}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-zinc-300 transition hover:bg-white/10 hover:text-white"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <p className="mb-2 mt-3 shrink-0 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+          Grupo a grupo
+        </p>
+
+        <div className="team-picker-scroll -mr-2 min-h-0 space-y-2 overflow-y-auto pr-2">
+          {scoringGroups.map((groupReport) => (
+            <GroupPhaseUserGroupCard
+              key={groupReport.group}
+              groupReport={groupReport}
+              profile={profile}
+              points={
+                groupPoints.byGroup.get(groupReport.group) || {
+                  points: 0,
+                  breakdown: emptyGroupPhaseBreakdown(),
+                }
+              }
+            />
+          ))}
+          {!scoringGroups.length ? (
+            <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-4 text-center text-sm text-zinc-500">
+              No sumó puntos en grupos.
+            </p>
+          ) : null}
+        </div>
+
+        <Link
+          href={`/perfil/${encodeURIComponent(profile.id)}`}
+          onClick={onClose}
+          className="mt-3 flex shrink-0 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] py-2.5 text-sm font-bold text-white transition hover:bg-white/10"
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          Ver perfil completo
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function GroupPhaseUserGroupCard({
+  groupReport,
+  points,
+  profile,
+}: {
+  groupReport: GroupPhaseGroupReport;
+  points: { points: number; breakdown: GroupPhaseBreakdown };
+  profile: UserProfile;
+}) {
+  const teamPoints = userGroupTeamPoints(profile, groupReport.group);
+
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h4 className="text-sm font-bold text-white">
+            Grupo {groupReport.group}
+          </h4>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Orden final del grupo
+          </p>
+        </div>
+        <span className="shrink-0 rounded-md bg-[#a7f600]/12 px-2 py-0.5 text-xs font-bold text-[#a7f600]">
+          {formatSignedPoints(points.points)}
+        </span>
+      </div>
+
+      <div className="mt-2 space-y-1.5">
+        {groupReport.table.positions.map((row) => {
+          const team = teamsById.get(row.teamId);
+          const teamScore = teamPoints.get(row.teamId);
+          const tone =
+            teamScore?.exactOrder || teamScore?.third
+              ? "border-[#a7f600]/30 bg-[#a7f600]/[0.06]"
+              : teamScore?.qualified
+                ? "border-amber-300/35 bg-amber-300/[0.07]"
+                : "border-white/[0.07] bg-black/10";
+          const numberTone =
+            teamScore?.exactOrder || teamScore?.third
+              ? "text-[#a7f600]"
+              : teamScore?.qualified
+                ? "text-amber-200"
+                : "text-zinc-400";
+
+          return (
+            <div
+              key={row.teamId}
+              className={`rounded-md border px-2 py-1.5 ${tone}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className={`w-4 shrink-0 text-xs font-bold ${numberTone}`}>
+                    {row.position}
+                  </span>
+                  <TeamFlag
+                    teamId={row.teamId}
+                    className="h-5 w-5 shrink-0 rounded-full border border-white/15 object-cover"
+                  />
+                  <span className="min-w-0 truncate text-sm font-semibold text-white">
+                    {team?.name || row.teamId}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function GroupPhaseScorerRow({
+  compact = false,
+  currentUserId,
+  currentUserName,
+  onSelect,
+  position,
+  scorer,
+}: {
+  compact?: boolean;
+  currentUserId: string;
+  currentUserName: string;
+  onSelect: (scorer: GroupPhaseScorer) => void;
+  position: number;
+  scorer: GroupPhaseScorer;
+}) {
+  const { breakdown, points, profile } = scorer;
+  const currentProfile = isCurrentProfile(
+    profile,
+    currentUserId,
+    currentUserName,
+  );
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(scorer)}
+      className="-mx-2 flex w-[calc(100%+1rem)] items-start justify-between gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-white/[0.04]"
+    >
+      <div className="flex min-w-0 items-start gap-2.5">
+        <span
+          className={`mt-0.5 flex shrink-0 items-center justify-center rounded-md bg-white/[0.05] font-bold text-zinc-300 ${
+            compact ? "h-7 w-6 text-xs" : "h-8 w-7 text-sm"
+          }`}
+          aria-label={`Puesto ${position}`}
+        >
+          <RankNumber position={position} />
+        </span>
+        <Avatar
+          name={profile.name}
+          avatarUrl={profile.avatarUrl}
+          className={compact ? "size-8" : "size-9"}
+        />
+        <div className="min-w-0">
+          <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-white">
+            <span className="truncate">{profile.name}</span>
+            {profile.isPro ? <ProBadge /> : null}
+            {profile.isWolf ? <WolfBadge /> : null}
+            {currentProfile ? (
+              <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-zinc-200">
+                Tú
+              </span>
+            ) : null}
+          </p>
+          <GroupPhaseBreakdownChips breakdown={breakdown} />
+        </div>
+      </div>
+      <span
+        title="Puntos de fase de grupos"
+        className={`mt-0.5 shrink-0 rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ${
+          points > 0
+            ? "bg-[#a7f600]/12 text-[#a7f600]"
+            : "bg-white/[0.06] text-zinc-400"
+        }`}
+      >
+        {formatSignedPoints(points)}
+      </span>
+    </button>
+  );
+}
+
+function ChevronDownIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2.2"
+    >
+      <path d="M4 6l4 4 4-4" />
+    </svg>
+  );
+}
 
 function HomeFeedSection({
   currentUserId,
+  currentUserName,
   hasUser,
   leaderboard,
   nextMatchdayKey,
@@ -1149,6 +2008,7 @@ function HomeFeedSection({
   upcomingMatches,
 }: {
   currentUserId: string;
+  currentUserName: string;
   hasUser: boolean;
   leaderboard: UserProfile[];
   nextMatchdayKey: string;
@@ -1165,13 +2025,18 @@ function HomeFeedSection({
   upcomingMatches: Match[];
 }) {
   const jornadas = useMemo(() => buildJornadas(results), [results]);
+  const groupPhaseReport = useMemo(
+    () => buildGroupPhaseReport(leaderboard, results),
+    [leaderboard, results],
+  );
   const mobileOpenJornadaDate =
     jornadas.find((jornada) =>
       jornada.matches.some((item) => item.status === "live"),
     )?.date ||
     jornadas[0]?.date ||
     "";
-  const hasContent = upcomingMatches.length > 0 || jornadas.length > 0;
+  const hasContent =
+    upcomingMatches.length > 0 || Boolean(groupPhaseReport) || jornadas.length > 0;
   const matchesHref = upcomingMatches.some(isTrainerChipMatch)
     ? "/porra?section=playoffResults&goto=next"
     : "/porra?section=results&goto=next";
@@ -1215,6 +2080,13 @@ function HomeFeedSection({
               prediction={prediction}
               results={results}
               saveState={saveState}
+            />
+          ) : null}
+          {groupPhaseReport ? (
+            <GroupPhaseReportCard
+              currentUserId={currentUserId}
+              currentUserName={currentUserName}
+              report={groupPhaseReport}
             />
           ) : null}
           {jornadas.map((jornada) => {
