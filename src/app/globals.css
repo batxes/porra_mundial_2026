@@ -5487,6 +5487,27 @@ summary {
   color: #ffffff;
 }
 
+/* En modo claro la arena sigue siendo una superficie OSCURA (es theme-dark: las
+   cartas, los neones y el texto blanco estan disenados para fondo negro). A
+   diferencia de .playoff-battle-shell, la version embebida no pinta el
+   .playoff-battle-stadium, asi que sobre la pagina clara todo el texto suelto
+   (titulares, "Domingo, 28 de junio", "click o arrastra...") quedaba ilegible.
+   Le damos su propio telon oscuro para que recupere el contraste, como un
+   tablero de juego incrustado. En modo oscuro no se toca (la pagina ya es negra). */
+[data-theme="light"] .playoff-battle-embedded {
+  background:
+    radial-gradient(
+      ellipse at 50% 0%,
+      rgba(24, 46, 36, 0.5),
+      transparent 60%
+    ),
+    linear-gradient(180deg, #0b0e0c 0%, #070707 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.25rem;
+  padding: clamp(1rem, 3vw, 1.75rem);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+}
+
 .playoff-battle-embedded-selectors {
   display: flex;
   flex-direction: column;

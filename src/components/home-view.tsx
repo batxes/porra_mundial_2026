@@ -2798,7 +2798,7 @@ function SobresPromoBanner({ userId }: { userId: string }) {
   return (
     <Link
       href="/cofres"
-      className="theme-dark group flex w-full max-w-full items-center justify-center gap-2 rounded-lg border border-[#a7f600]/25 bg-[#a7f600]/[0.08] px-3 py-2 transition hover:bg-[#a7f600]/[0.13] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a7f600]"
+      className="group flex w-full max-w-full items-center justify-center gap-2 rounded-lg border border-[#a7f600]/25 bg-[#a7f600]/[0.08] px-3 py-2 transition hover:bg-[#a7f600]/[0.13] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a7f600]"
     >
       <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#a7f600]/70">
         Nuevo sobre en

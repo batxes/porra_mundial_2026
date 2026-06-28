@@ -26,6 +26,7 @@ import { useAppContext } from "@/lib/app-context";
 import { schedule } from "@/lib/data";
 import {
   currentTheme,
+  isLightModeEnabled,
   saveTheme,
   serverTheme,
   subscribeTheme,
@@ -57,6 +58,9 @@ const themeOptions: {
 
 function ThemeCard() {
   const theme = useSyncExternalStore(subscribeTheme, currentTheme, serverTheme);
+
+  // Modo claro desactivado: no mostramos la tarjeta de apariencia.
+  if (!isLightModeEnabled()) return null;
 
   return (
     <Card className="space-y-4">

@@ -24,6 +24,7 @@ import {
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import {
   currentTheme,
+  isLightModeEnabled,
   loadSavedTheme,
   saveTheme,
   serverTheme,
@@ -33,6 +34,9 @@ import {
 function ThemeToggleButton() {
   const theme = useSyncExternalStore(subscribeTheme, currentTheme, serverTheme);
   const isDark = theme === "dark";
+
+  // Modo claro desactivado: sin toggle (todos en oscuro).
+  if (!isLightModeEnabled()) return null;
 
   return (
     <button
