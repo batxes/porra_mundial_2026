@@ -3224,9 +3224,9 @@ summary {
 
 .playoff-battle-stage {
   display: grid;
-  grid-template-columns: minmax(220px, 0.9fr) minmax(320px, 0.72fr) minmax(
+  grid-template-columns: minmax(220px, 0.86fr) minmax(360px, 0.84fr) minmax(
       220px,
-      0.9fr
+      0.86fr
     );
   align-items: center;
   gap: clamp(0.75rem, 2.6vw, 2rem);
@@ -4073,59 +4073,12 @@ summary {
 .playoff-battle-match-card {
   position: relative;
   isolation: isolate;
-  width: min(100%, 390px);
+  width: min(100%, 452px);
   margin-top: 1.4rem;
-  border: 0;
-  background: transparent;
-  color: #ffffff;
-  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.36));
+
   overflow: visible;
-  padding: 2.54rem clamp(0.92rem, 2vw, 1.14rem) 1rem;
+  padding: 2.54rem clamp(1rem, 2vw, 1.28rem) 1.06rem;
   text-align: center;
-}
-
-.playoff-battle-match-card::before,
-.playoff-battle-match-card::after {
-  content: "";
-  /*position: absolute;*/
-  border-radius: 18px;
-  pointer-events: none;
-}
-
-.playoff-battle-match-card::before {
-  inset: 0;
-  z-index: 0;
-  background:
-    linear-gradient(
-      135deg,
-      rgba(245, 197, 24, 0.58),
-      rgba(56, 189, 248, 0.22) 48%,
-      rgba(245, 197, 24, 0.48)
-    ),
-    rgba(255, 255, 255, 0.12);
-}
-
-.playoff-battle-match-card::after {
-  inset: 2px;
-  z-index: 0;
-  border-radius: 16px;
-  background:
-    radial-gradient(220px at 0% 28%, rgba(26, 153, 114, 0.2), transparent 72%),
-    radial-gradient(
-      220px at 100% 28%,
-      rgba(245, 90, 48, 0.18),
-      transparent 72%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.055),
-      rgba(255, 255, 255, 0.012) 34%,
-      rgba(0, 0, 0, 0.22)
-    ),
-    rgba(4, 7, 15, 0.94);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-    inset 0 0 26px rgba(255, 255, 255, 0.035);
 }
 
 .playoff-battle-match-card > *:not(.playoff-battle-vs) {
@@ -4289,31 +4242,35 @@ summary {
 }
 
 .playoff-battle-scoreboard {
-  margin: 0.82rem auto 0;
-  width: min(100%, 326px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
+  margin: 0.88rem auto 0;
+  width: min(100%, 392px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 17px;
   background:
+    radial-gradient(190px at 4% 50%, rgba(0, 99, 75, 0.28), transparent 72%),
     radial-gradient(
-      circle at 50% 0%,
-      rgba(255, 255, 255, 0.1),
-      transparent 48%
+      190px at 96% 50%,
+      rgba(216, 159, 40, 0.22),
+      transparent 72%
     ),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.075), transparent 58%),
-    rgba(2, 5, 13, 0.74);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 64%),
+    rgba(8, 11, 15, 0.64);
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.045),
-    inset 0 0 28px rgba(56, 189, 248, 0.08),
-    0 0 18px rgba(56, 189, 248, 0.12);
-  padding: 0.62rem 0.62rem 0.55rem;
+    inset 0 -18px 32px rgba(0, 0, 0, 0.18),
+    0 0 18px rgba(56, 189, 248, 0.08);
+  padding: 0.7rem 0.7rem 0.58rem;
 }
 
 .playoff-battle-score-row {
   display: grid;
-  grid-template-columns: auto auto auto auto auto;
+  grid-template-columns: minmax(4.25rem, 5.7rem) auto auto auto minmax(
+      4.25rem,
+      5.7rem
+    );
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.44rem;
 }
 
 .playoff-battle-score-control {
@@ -4331,6 +4288,28 @@ summary {
   border-radius: 999px;
   object-fit: cover;
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.12);
+}
+
+.playoff-battle-score-team {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: 0.72rem;
+}
+
+.playoff-battle-score-country {
+  max-width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #ffffff;
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.05;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.45);
 }
 
 .playoff-battle-score-divider {
@@ -5496,11 +5475,7 @@ summary {
    tablero de juego incrustado. En modo oscuro no se toca (la pagina ya es negra). */
 [data-theme="light"] .playoff-battle-embedded {
   background:
-    radial-gradient(
-      ellipse at 50% 0%,
-      rgba(24, 46, 36, 0.5),
-      transparent 60%
-    ),
+    radial-gradient(ellipse at 50% 0%, rgba(24, 46, 36, 0.5), transparent 60%),
     linear-gradient(180deg, #0b0e0c 0%, #070707 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 1.25rem;
@@ -5646,9 +5621,9 @@ summary {
 .playoff-battle-embedded--compact
   .playoff-battle-desktop-arena
   .playoff-battle-stage {
-  grid-template-columns: minmax(150px, 0.9fr) minmax(250px, 0.74fr) minmax(
+  grid-template-columns: minmax(150px, 0.86fr) minmax(300px, 0.86fr) minmax(
       150px,
-      0.9fr
+      0.86fr
     );
   gap: clamp(0.65rem, 1.6vw, 1.15rem);
   min-height: clamp(250px, 30vw, 350px);
@@ -5673,7 +5648,7 @@ summary {
 }
 
 .playoff-battle-embedded--compact .playoff-battle-match-card {
-  width: min(100%, 320px);
+  width: min(100%, 360px);
   margin-top: 0.55rem;
   padding: 2.15rem 0.72rem 0.8rem;
 }
@@ -5685,7 +5660,7 @@ summary {
 }
 
 .playoff-battle-embedded--compact .playoff-battle-scoreboard {
-  width: min(100%, 275px);
+  width: min(100%, 330px);
   margin-top: 0.68rem;
   padding: 0.52rem;
 }
@@ -6141,7 +6116,7 @@ summary {
 }
 
 .playoff-battle-stage--compact .playoff-battle-match-card {
-  width: min(100%, 390px);
+  width: min(100%, 420px);
   margin-top: 0.85rem;
   padding: 2.2rem clamp(0.68rem, 1.6vw, 0.9rem) 0.84rem;
 }
@@ -6159,7 +6134,7 @@ summary {
 }
 
 .playoff-battle-stage--compact .playoff-battle-scoreboard {
-  width: min(100%, 300px);
+  width: min(100%, 350px);
   margin-top: 0.72rem;
   border-radius: 12px;
   padding: 0.52rem;
@@ -6420,8 +6395,7 @@ summary {
   border: 1px solid rgba(167, 246, 0, 0.72);
   border-radius: 999px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 55%),
-    #a7f600;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 55%), #a7f600;
   color: #050505;
   font-size: 0.72rem;
   font-weight: 950;
@@ -6531,11 +6505,7 @@ summary {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   background:
-    radial-gradient(
-      240px at 50% 0%,
-      rgba(167, 246, 0, 0.08),
-      transparent 70%
-    ),
+    radial-gradient(240px at 50% 0%, rgba(167, 246, 0, 0.08), transparent 70%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 34%),
     rgba(0, 0, 0, 0.24);
   box-shadow:

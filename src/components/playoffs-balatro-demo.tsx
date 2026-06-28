@@ -1380,10 +1380,15 @@ const MatchResultControls = memo(function MatchResultControls({
     <div className="playoff-battle-scoreboard">
       <div className="playoff-battle-score-row">
         {trainers[0] ? (
-          <RoundTeamFlag
-            teamId={trainers[0].teamId}
-            className="playoff-battle-score-flag"
-          />
+          <span className="playoff-battle-score-team">
+            <RoundTeamFlag
+              teamId={trainers[0].teamId}
+              className="playoff-battle-score-flag"
+            />
+            <span className="playoff-battle-score-country">
+              {trainers[0].country}
+            </span>
+          </span>
         ) : null}
         <ScoreStepper
           label={`Goles ${trainers[0]?.country ?? "local"}`}
@@ -1401,10 +1406,15 @@ const MatchResultControls = memo(function MatchResultControls({
           onChange={updateAway}
         />
         {trainers[1] ? (
-          <RoundTeamFlag
-            teamId={trainers[1].teamId}
-            className="playoff-battle-score-flag"
-          />
+          <span className="playoff-battle-score-team">
+            <RoundTeamFlag
+              teamId={trainers[1].teamId}
+              className="playoff-battle-score-flag"
+            />
+            <span className="playoff-battle-score-country">
+              {trainers[1].country}
+            </span>
+          </span>
         ) : null}
       </div>
     </div>
