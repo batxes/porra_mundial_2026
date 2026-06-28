@@ -158,15 +158,52 @@ function thirdSlotOptions(match: Match) {
   return slot ? slot.replace("3rd Group ", "").split("/") : [];
 }
 
+const thirdGroupWinnerByMatchNumber: Record<string, string> = {
+  "79": "A",
+  "85": "B",
+  "81": "D",
+  "74": "E",
+  "82": "G",
+  "77": "I",
+  "87": "K",
+  "80": "L",
+};
+
+// FIFA Regulations Annex C, current real row for the 2026 Round of 32:
+// third-place qualifiers from B/D/E/F/I/J/K/L.
+const thirdSlotOverridesByQualifierSet: Record<string, Record<string, string>> =
+  {
+    BDEFIJKL: {
+      "79": "E",
+      "85": "J",
+      "81": "B",
+      "74": "D",
+      "82": "I",
+      "77": "F",
+      "87": "L",
+      "80": "K",
+    },
+  };
+
 function assignThirdSlots(qualifiers: string[]) {
+  const qualifierSet = qualifiers.slice().sort().join("");
+  const override = thirdSlotOverridesByQualifierSet[qualifierSet];
+  if (override) return { ...override };
+
   const assignments: Record<string, string> = {};
   const variableMatches = knockoutMatches
     .map((match) => ({
       number: String(match.number),
       allowed: thirdSlotOptions(match),
+      groupWinner: thirdGroupWinnerByMatchNumber[String(match.number)] || "",
     }))
     .filter((match) => match.allowed.length)
-    .sort((a, b) => a.allowed.length - b.allowed.length);
+    .sort(
+      (a, b) =>
+        a.allowed.length - b.allowed.length ||
+        a.groupWinner.localeCompare(b.groupWinner) ||
+        Number(a.number) - Number(b.number),
+    );
 
   function assign(index: number, used: Set<string>) {
     if (index === variableMatches.length) {
@@ -283,12 +320,18 @@ export function isMatchVisibleForPrediction(match: Match, prediction: Prediction
 
 export function isMatchPredictionComplete(match: Match, prediction: Prediction) {
   const matchPrediction = prediction.matchPredictions[String(match.number)];
-  return Boolean(
+  const hasScore = Boolean(
     matchPrediction &&
       matchPrediction.homeScore !== undefined &&
       matchPrediction.homeScore !== "" &&
       matchPrediction.awayScore !== undefined &&
       matchPrediction.awayScore !== "",
+  );
+
+  if (match.number < 73) return hasScore;
+
+  return Boolean(
+    hasScore && matchPrediction?.trainerTeamId && matchPrediction.tacticId,
   );
 }
 
@@ -381,6 +424,19 @@ export function setPredictionMatchScore(
   const next = structuredClone(prediction);
   next.matchPredictions[String(matchNumber)] ||= { homeScore: "", awayScore: "" };
   next.matchPredictions[String(matchNumber)][side] = value.replace(/[^\d]/g, "").slice(0, 2);
+  return next;
+}
+
+export function setPredictionTrainerTactic(
+  prediction: Prediction,
+  matchNumber: number,
+  trainerTeamId: string,
+  tacticId: string,
+) {
+  const next = structuredClone(prediction);
+  next.matchPredictions[String(matchNumber)] ||= { homeScore: "", awayScore: "" };
+  next.matchPredictions[String(matchNumber)].trainerTeamId = trainerTeamId;
+  next.matchPredictions[String(matchNumber)].tacticId = tacticId;
   return next;
 }
 
@@ -516,14 +572,15 @@ export function calculateCompletion(prediction: Prediction) {
     return total + (positions.length === 4 && new Set(positions).size === 4 ? 1 : 0);
   }, 0);
   const thirdDone = prediction.bracket.thirdQualifiers.length === 8 ? 1 : 0;
-  const visibleMatches = schedule.filter((match) => match.number < 73 && isMatchVisibleForPrediction(match, prediction));
-  const resultsDone = visibleMatches.filter((match) => isMatchPredictionComplete(match, prediction)).length;
+  const visibleGroupMatches = schedule.filter((match) => match.number < 73 && isMatchVisibleForPrediction(match, prediction));
+  const playoffMatches = schedule.filter((match) => match.number >= 73);
+  const resultsDone = [...visibleGroupMatches, ...playoffMatches].filter((match) => isMatchPredictionComplete(match, prediction)).length;
   const extrasDone = extraPredictionFields.filter((key) => Boolean(prediction.extras[key])).length;
   const counts = xiCounts(prediction);
   const requirements = xiRequirements(prediction.xiFormation);
   const xiDone = Object.entries(requirements).every(([position, limit]) => counts[position as Position] === limit) ? 1 : 0;
   const completedUnits = groupDone + thirdDone + resultsDone + extrasDone + xiDone;
-  const totalUnits = 12 + 1 + visibleMatches.length + extraPredictionFields.length + 1;
+  const totalUnits = 12 + 1 + visibleGroupMatches.length + playoffMatches.length + extraPredictionFields.length + 1;
 
   return Math.round((completedUnits / totalUnits) * 100);
 }

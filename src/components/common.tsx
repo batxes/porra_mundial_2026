@@ -22,6 +22,8 @@ import {
   resolveSlot,
   scheduleUtc,
 } from "@/lib/prediction";
+import { calculateGroupTables } from "@/lib/playoff-teams";
+import { trainerTacticById } from "@/lib/trainer-tactics";
 import type {
   AdminEvent,
   AdminResult,
@@ -1296,29 +1298,128 @@ function LineupEventPill({ icon, value }: { icon: string; value: string }) {
   );
 }
 
-function groupPointsByGroup(scorecard?: Scorecard) {
+const topTwoGroupRuleCodes = new Set([
+  "group_qualification_hit",
+  "group_position_hit",
+]);
+const thirdGroupRuleCodes = new Set(["group_third_qualification_hit"]);
+
+function groupEntryParts(sourceRef: string) {
+  const match = sourceRef.match(/^group-(?:qualified|position|third-qualified)-([A-L])-(.+)$/);
+  return match ? { group: match[1], teamId: match[2] } : null;
+}
+
+function groupPointsByGroup(scorecard?: Scorecard, ruleCodes?: Set<string>) {
   const map = new Map<string, number>();
   scorecard?.entries.forEach((entry) => {
     if (!entry.ruleCode.startsWith("group_")) return;
-    const group = entry.sourceRef.match(/-([A-L])-/)?.[1];
-    if (!group) return;
-    map.set(group, (map.get(group) || 0) + entry.points);
+    if (ruleCodes && !ruleCodes.has(entry.ruleCode)) return;
+    const parts = groupEntryParts(entry.sourceRef);
+    if (!parts) return;
+    map.set(parts.group, (map.get(parts.group) || 0) + entry.points);
   });
   return map;
 }
 
+function groupPointsByTeam(scorecard?: Scorecard, ruleCodes?: Set<string>) {
+  const map = new Map<string, number>();
+  scorecard?.entries.forEach((entry) => {
+    if (!entry.ruleCode.startsWith("group_")) return;
+    if (ruleCodes && !ruleCodes.has(entry.ruleCode)) return;
+    const parts = groupEntryParts(entry.sourceRef);
+    if (!parts) return;
+    const key = `${parts.group}:${parts.teamId}`;
+    map.set(key, (map.get(key) || 0) + entry.points);
+  });
+  return map;
+}
+
+function groupRowTone({
+  actualPosition,
+  points,
+  predictedPosition,
+  scoringReady,
+}: {
+  actualPosition?: number;
+  points?: number;
+  predictedPosition: number;
+  scoringReady: boolean;
+}) {
+  if (predictedPosition > 2) {
+    return {
+      className: "border-white/10 bg-white/[0.06]",
+      numberClassName: "text-white",
+      pointsClassName: "text-zinc-500",
+      showPoints: false,
+    };
+  }
+
+  if (!scoringReady || actualPosition == null) {
+    return {
+      className: "border-[#a7f600]/25 bg-[#a7f600]/10",
+      numberClassName: "text-[#a7f600]",
+      pointsClassName: "text-zinc-500",
+      showPoints: false,
+    };
+  }
+
+  if (actualPosition === predictedPosition && points === 3) {
+    return {
+      className: "border-[#a7f600]/45 bg-[#a7f600]/12 shadow-[inset_0_0_0_1px_rgba(167,246,0,0.08)]",
+      numberClassName: "text-[#a7f600]",
+      pointsClassName: "text-[#a7f600]",
+      showPoints: true,
+    };
+  }
+
+  if (actualPosition <= 2 && points === 2) {
+    return {
+      className: "border-amber-300/45 bg-amber-300/12 shadow-[inset_0_0_0_1px_rgba(252,211,77,0.08)]",
+      numberClassName: "text-amber-300",
+      pointsClassName: "text-amber-300",
+      showPoints: true,
+    };
+  }
+
+  return {
+    className: "border-rose-400/35 bg-rose-400/10 shadow-[inset_0_0_0_1px_rgba(251,113,133,0.08)]",
+    numberClassName: "text-rose-200",
+    pointsClassName: "text-rose-200",
+    showPoints: true,
+  };
+}
+
 function GroupSummary({
   prediction,
+  results,
   scorecard,
 }: {
   prediction: Prediction;
+  results?: AdminResults;
   scorecard?: Scorecard;
 }) {
+  const topTwoGroupPoints = groupPointsByGroup(
+    scorecard,
+    topTwoGroupRuleCodes,
+  );
+  const topTwoTeamPoints = groupPointsByTeam(scorecard, topTwoGroupRuleCodes);
+  const thirdQualifierPoints = groupPointsByGroup(scorecard, thirdGroupRuleCodes);
+  const groupTables = results ? calculateGroupTables(results) : {};
+  const scoringReady =
+    Object.values(groupTables).length > 0 &&
+    Object.values(groupTables).every((table) => table.complete);
+  const actualPositions = new Map<string, number>();
+  Object.entries(groupTables).forEach(([group, table]) => {
+    table.positions.forEach((row) => {
+      actualPositions.set(`${group}:${row.teamId}`, row.position);
+    });
+  });
   const thirdRows = prediction.bracket.thirdQualifiers.map((group) => ({
     group,
     teamId: orderedGroupTeams(group, prediction)[2]?.id || "",
+    points: thirdQualifierPoints.get(group) || 0,
   }));
-  const groupPoints = groupPointsByGroup(scorecard);
+  const thirdPointsTotal = thirdRows.reduce((total, row) => total + row.points, 0);
 
   return (
     <div className="space-y-3">
@@ -1328,7 +1429,7 @@ function GroupSummary({
           const completedCount = Object.values(prediction.groups[group]).filter(
             Boolean,
           ).length;
-          const points = groupPoints.get(group);
+          const points = topTwoGroupPoints.get(group);
           const rows = ordered.map(
             (team, index) => [team.id, String(index + 1)] as const,
           );
@@ -1356,28 +1457,36 @@ function GroupSummary({
               </div>
               <div className="space-y-2">
                 {rows.length ? (
-                  rows.map(([teamId, value]) => (
-                    <div
-                      key={teamId}
-                      className={`grid grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-2 rounded-lg border px-2 py-1.5 ${
-                        Number(value) <= 2
-                          ? "border-[#a7f600]/25 bg-[#a7f600]/10"
-                          : "border-white/10 bg-white/[0.06]"
-                      }`}
-                    >
-                      <span
-                        className={`text-xs font-bold ${
-                          Number(value) <= 2 ? "text-[#a7f600]" : "text-white"
-                        }`}
+                  rows.map(([teamId, value]) => {
+                    const predictedPosition = Number(value);
+                    const rowPoints = topTwoTeamPoints.get(`${group}:${teamId}`) || 0;
+                    const tone = groupRowTone({
+                      actualPosition: actualPositions.get(`${group}:${teamId}`),
+                      points: rowPoints,
+                      predictedPosition,
+                      scoringReady,
+                    });
+
+                    return (
+                      <div
+                        key={teamId}
+                        className={`grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-2 py-1.5 ${tone.className}`}
                       >
-                        {value}
-                      </span>
-                      <TeamBadge
-                        teamId={teamId}
-                        className="text-xs sm:text-sm"
-                      />
-                    </div>
-                  ))
+                        <span className={`text-xs font-bold ${tone.numberClassName}`}>
+                          {value}
+                        </span>
+                        <TeamBadge
+                          teamId={teamId}
+                          className="text-xs sm:text-sm"
+                        />
+                        {tone.showPoints ? (
+                          <span className={`text-xs font-bold ${tone.pointsClassName}`}>
+                            {formatPoints(rowPoints)}
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })
                 ) : (
                   <p className="text-sm text-slate-400">Pendiente.</p>
                 )}
@@ -1387,7 +1496,11 @@ function GroupSummary({
         })}
       </div>
 
-      <ThirdQualifiersSummary rows={thirdRows} />
+      <ThirdQualifiersSummary
+        rows={thirdRows}
+        points={thirdPointsTotal}
+        scoringReady={scoringReady}
+      />
     </div>
   );
 }
@@ -1395,24 +1508,34 @@ function GroupSummary({
 type ThirdQualifierSummaryRow = {
   group: string;
   teamId: string;
+  points: number;
 };
 
 function ThirdQualifiersSummary({
   rows,
+  points,
+  scoringReady,
 }: {
   rows: ThirdQualifierSummaryRow[];
+  points: number;
+  scoringReady: boolean;
 }) {
   return (
     <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.04] p-3">
       <div className="flex items-center justify-between gap-3">
         <h4 className="text-sm font-bold text-white">Mejores terceros</h4>
-        <span
-          className={`text-xs font-semibold ${
-            rows.length === 8 ? "text-[#a7f600]" : "text-zinc-500"
-          }`}
-        >
-          {rows.length}/8
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="rounded-full border border-[#a7f600]/40 bg-[#a7f600]/12 px-2 py-0.5 text-[11px] font-bold text-[#a7f600]">
+            {formatPoints(points)} pts
+          </span>
+          <span
+            className={`text-xs font-semibold ${
+              rows.length === 8 ? "text-[#a7f600]" : "text-zinc-500"
+            }`}
+          >
+            {rows.length}/8
+          </span>
+        </div>
       </div>
 
       {rows.length ? (
@@ -1420,7 +1543,13 @@ function ThirdQualifiersSummary({
           {rows.map((row) => (
             <div
               key={row.group}
-              className="grid grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-lg border border-[#a7f600]/35 bg-[#a7f600]/10 px-2 py-1.5"
+              className={`grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-2 py-1.5 ${
+                row.points > 0
+                  ? "border-[#a7f600]/45 bg-[#a7f600]/12"
+                  : scoringReady
+                    ? "border-rose-400/35 bg-rose-400/10"
+                    : "border-[#a7f600]/35 bg-[#a7f600]/10"
+              }`}
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#a7f600] text-xs font-bold text-black">
                 {row.group}
@@ -1432,6 +1561,17 @@ function ThirdQualifiersSummary({
                   Grupo pendiente
                 </span>
               )}
+              <span
+                className={`text-xs font-bold ${
+                  row.points > 0
+                    ? "text-[#a7f600]"
+                    : scoringReady
+                      ? "text-rose-200"
+                      : "text-zinc-500"
+                }`}
+              >
+                {formatPoints(row.points)}
+              </span>
             </div>
           ))}
         </div>
@@ -2120,15 +2260,49 @@ function formatBracketDate(match: Match) {
     .replace(".", "");
 }
 
+export type TrainerResultChip = {
+  teamId: string;
+  title: string;
+  points: number;
+};
+
+export function trainerResultChipForMatch(
+  matchNumber: number,
+  prediction: Prediction,
+  scorecard?: Scorecard,
+): TrainerResultChip | null {
+  const pick = prediction.matchPredictions[String(matchNumber)];
+  const tactic = pick?.tacticId ? trainerTacticById.get(pick.tacticId) : null;
+  if (!pick?.trainerTeamId || !pick.tacticId || !tactic) return null;
+
+  const sourceRef = `trainer-tactic-${matchNumber}-${pick.trainerTeamId}-${pick.tacticId}`;
+  const points = (scorecard?.entries || [])
+    .filter(
+      (entry) =>
+        entry.matchNumber === matchNumber &&
+        entry.ruleCode === "trainer_tactic_hit" &&
+        entry.sourceRef === sourceRef,
+    )
+    .reduce((total, entry) => total + entry.points, 0);
+
+  return {
+    teamId: pick.trainerTeamId,
+    title: tactic.title,
+    points,
+  };
+}
+
 function ResultsSummary({
   prediction,
   matches,
   results,
+  scorecard,
   maskUnstarted = false,
 }: {
   prediction: Prediction;
   matches: Match[];
   results?: AdminResults;
+  scorecard?: Scorecard;
   maskUnstarted?: boolean;
 }) {
   const completedMatches = matches.filter((match) => {
@@ -2188,6 +2362,11 @@ function ResultsSummary({
                 const away = resolveSlot(match.away, match.number, prediction);
                 const hidden = isHidden(match);
                 const matchResult = results?.[String(match.number)];
+                const trainerChip = trainerResultChipForMatch(
+                  match.number,
+                  prediction,
+                  scorecard,
+                );
 
                 if (hasFinishedScore(matchResult)) {
                   return (
@@ -2198,8 +2377,14 @@ function ResultsSummary({
                       pickHome={String(score.homeScore)}
                       pickAway={String(score.awayScore)}
                       hasPick
-                      homeTeamId={home || undefined}
-                      awayTeamId={away || undefined}
+                      homeTeamId={
+                        matchResult?.homeTeamId || home || undefined
+                      }
+                      awayTeamId={
+                        matchResult?.awayTeamId || away || undefined
+                      }
+                      showTrainerChipSlot={match.number >= 73}
+                      trainerChip={trainerChip}
                     />
                   );
                 }
@@ -2316,13 +2501,13 @@ export function hasFinishedScore(result?: AdminResult) {
 function FinishedPointsChip({
   hasPick,
   exact,
-  outcomeHit,
   points,
+  positive = false,
 }: {
   hasPick: boolean;
   exact: boolean;
-  outcomeHit: boolean;
   points: number;
+  positive?: boolean;
 }) {
   if (!hasPick) {
     return (
@@ -2332,10 +2517,9 @@ function FinishedPointsChip({
     );
   }
 
-  const tone =
-    exact || outcomeHit
-      ? "border-[#a7f600]/40 bg-[#a7f600]/12 text-[#a7f600]"
-      : "border-rose-400/30 bg-rose-400/10 text-rose-200";
+  const tone = positive
+    ? "border-[#a7f600]/40 bg-[#a7f600]/12 text-[#a7f600]"
+    : "border-rose-400/30 bg-rose-400/10 text-rose-200";
 
   return (
     <span
@@ -2349,6 +2533,41 @@ function FinishedPointsChip({
   );
 }
 
+function FinishedTrainerChip({
+  chip,
+}: {
+  chip: TrainerResultChip | null;
+}) {
+  if (!chip) {
+    return (
+      <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[10px] font-bold text-zinc-500">
+        Sin chip
+      </span>
+    );
+  }
+
+  const hit = chip.points > 0;
+
+  return (
+    <span
+      className={`inline-flex max-w-full items-center gap-1 rounded-full border py-px pl-px pr-1.5 text-[10px] font-medium ${
+        hit
+          ? "border-[#a7f600]/40 bg-[#a7f600]/12 text-[#a7f600]"
+          : "border-white/10 bg-white/[0.05] text-zinc-400"
+      }`}
+    >
+      <TeamFlag
+        teamId={chip.teamId}
+        className="size-4 shrink-0 rounded-full border border-white/15 object-cover"
+      />
+      <span className="min-w-0 max-w-[5.5rem] truncate">{chip.title}</span>
+      <span className={hit ? "text-[#a7f600]" : "text-zinc-500"}>
+        {chip.points > 0 ? `+${chip.points}` : "0"}
+      </span>
+    </span>
+  );
+}
+
 export function FinishedMatchCard({
   match,
   result,
@@ -2358,6 +2577,8 @@ export function FinishedMatchCard({
   showPick = true,
   homeTeamId,
   awayTeamId,
+  showTrainerChipSlot = false,
+  trainerChip = null,
 }: {
   match: Match;
   result: AdminResult;
@@ -2367,6 +2588,8 @@ export function FinishedMatchCard({
   showPick?: boolean;
   homeTeamId?: string;
   awayTeamId?: string;
+  showTrainerChipSlot?: boolean;
+  trainerChip?: TrainerResultChip | null;
 }) {
   const realHome = Number(result.homeScore);
   const realAway = Number(result.awayScore);
@@ -2382,14 +2605,17 @@ export function FinishedMatchCard({
       Math.sign(realHome - realAway);
   const missed = showPick && hasPick && !outcomeHit && !exact;
   const points = exact ? 1 + realHome + realAway : outcomeHit ? 1 : 0;
+  const trainerPoints = trainerChip?.points || 0;
+  const trainerHit = showTrainerChipSlot && trainerPoints > 0;
+  const totalPoints = points + trainerPoints;
   const cardGlow =
-    outcomeHit || exact
+    outcomeHit || exact || trainerHit
       ? "radial-gradient(340px at 50% 0%, rgba(167, 246, 0, 0.1) 0%, rgba(47, 47, 47, 0) 70%), "
       : missed
         ? "radial-gradient(340px at 50% 0%, rgba(251, 113, 133, 0.12) 0%, rgba(47, 47, 47, 0) 70%), "
         : "";
   const cardRing =
-    outcomeHit || exact
+    outcomeHit || exact || trainerHit
       ? "shadow-[inset_0_0_0_1px_rgba(167,246,0,0.28)]"
       : missed
         ? "shadow-[inset_0_0_0_1px_rgba(251,113,133,0.25)]"
@@ -2445,9 +2671,12 @@ export function FinishedMatchCard({
               <FinishedPointsChip
                 hasPick={hasPick}
                 exact={exact}
-                outcomeHit={outcomeHit}
-                points={points}
+                points={totalPoints}
+                positive={totalPoints > 0}
               />
+              {showTrainerChipSlot ? (
+                <FinishedTrainerChip chip={trainerChip} />
+              ) : null}
             </>
           ) : (
             <>
@@ -2478,6 +2707,8 @@ export function FinishedMatchCard({
                   ? "text-[#a7f600]"
                   : outcomeHit
                     ? "text-[#a7f600]/85"
+                    : trainerHit
+                      ? "text-[#a7f600]/85"
                     : "text-zinc-500"
               }`}
             >
@@ -2486,7 +2717,9 @@ export function FinishedMatchCard({
                   ? "¡Marcador exacto!"
                   : outcomeHit
                     ? "Acertaste la eleccion"
-                    : "Esta vez no sumaste"
+                    : trainerHit
+                      ? "Chip acertado"
+                      : "Esta vez no sumaste"
                 : "No rellenaste este resultado"}
             </span>
           ) : null}
@@ -2568,6 +2801,7 @@ function MaskableSection({
 export function PredictionSnapshot({
   bracketLayout = "responsive",
   editHref,
+  initialSection = "summary",
   prediction,
   matches,
   playerName,
@@ -2582,6 +2816,7 @@ export function PredictionSnapshot({
 }: {
   bracketLayout?: "responsive" | "mobile";
   editHref?: string;
+  initialSection?: "recorrido" | "summary" | "groups" | "knockout" | "results";
   prediction: Prediction | null;
   matches: Match[];
   playerName: (playerId: string) => string;
@@ -2598,7 +2833,7 @@ export function PredictionSnapshot({
   const safePrediction = prediction || emptyPrediction();
   const [section, setSection] = useState<
     "recorrido" | "summary" | "groups" | "knockout" | "results"
-  >("summary");
+  >(initialSection);
   const activeSection =
     (!showBracket && section === "knockout") ||
     (!recorrido && section === "recorrido")
@@ -2703,7 +2938,11 @@ export function PredictionSnapshot({
           masked={maskedUntilTournament}
           message="Los grupos se revelarán cuando empiece el torneo."
         >
-          <GroupSummary prediction={safePrediction} scorecard={scorecard} />
+          <GroupSummary
+            prediction={safePrediction}
+            results={results}
+            scorecard={scorecard}
+          />
         </MaskableSection>
       ) : null}
       {showBracket && activeSection === "knockout" ? (
@@ -2718,6 +2957,7 @@ export function PredictionSnapshot({
           prediction={safePrediction}
           matches={matches}
           results={results}
+          scorecard={scorecard}
           maskUnstarted={maskUnstarted}
         />
       ) : null}

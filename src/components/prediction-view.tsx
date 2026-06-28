@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
   type CSSProperties,
   type ReactNode,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -48,7 +50,16 @@ import {
   TeamPicker,
 } from "@/components/common";
 import { AuthModal } from "@/components/auth-modal";
+import {
+  PlayoffsBalatroResults,
+  playoffResultsMatchCount,
+} from "@/components/playoffs-balatro-demo";
 import { PlayerSearchModal } from "@/components/player-search-modal";
+import {
+  TrainerFullArtCard,
+  trainerDemoCards,
+  type TrainerDemoCard,
+} from "@/components/trainer-full-art-card";
 import { useAppContext } from "@/lib/app-context";
 import {
   data,
@@ -104,9 +115,10 @@ type SectionProgress = { done: number; status: SectionStatus; total: number };
 
 const playSections = [
   { id: "extras", label: "Tus elecciones", step: "1" },
-  { id: "xi", label: "Tu once", step: "2" },
-  { id: "groups", label: "Fase de grupos", step: "3" },
-  { id: "results", label: "Resultados", step: "4" },
+  { id: "playoffResults", label: "Resultados playoffs", step: "2" },
+  { id: "xi", label: "Tu once", step: "3" },
+  { id: "groups", label: "Fase de grupos", step: "4" },
+  { id: "results", label: "Resultados grupos", step: "5" },
 ] as const;
 
 type SectionId = (typeof playSections)[number]["id"];
@@ -174,6 +186,7 @@ const playerRenderBatchSize = 80;
 const xiIntroStorageKey = "porra26_xi_intro_seen";
 const groupsIntroStorageKey = "porra26_groups_intro_seen";
 const resultsIntroStorageKey = "porra26_results_intro_seen";
+const playoffResultsIntroStorageKey = "porra26_playoff_results_intro_seen_v2";
 
 export function PredictionView() {
   const {
@@ -185,13 +198,14 @@ export function PredictionView() {
     setAuthMode,
     setPredictionExtra,
     setPredictionScore,
+    setPredictionTrainerTactic,
     setXiFormation,
     setXiSelection,
     toggleThirdQualifier,
     user,
   } = useAppContext();
   const [section, setSection] = useState<SectionId>(() =>
-    hasTournamentStarted() ? "results" : "extras",
+    hasTournamentStarted() ? "playoffResults" : "extras",
   );
   const [initialSectionResolved, setInitialSectionResolved] = useState(false);
   const [autoSaveState, setAutoSaveState] = useState<AutoSaveState>("idle");
@@ -199,6 +213,14 @@ export function PredictionView() {
   const [showXiIntroModal, setShowXiIntroModal] = useState(false);
   const [showGroupsIntroModal, setShowGroupsIntroModal] = useState(false);
   const [showResultsIntroModal, setShowResultsIntroModal] = useState(false);
+  const [showPlayoffResultsIntroModal, setShowPlayoffResultsIntroModal] =
+    useState(false);
+  const [playoffResultsProgress, setPlayoffResultsProgress] =
+    useState<SectionProgress>(() => ({
+      done: 0,
+      total: playoffResultsMatchCount,
+      status: "pending",
+    }));
   const savedSignatureRef = useRef("");
   const latestSignatureRef = useRef("");
   const userKeyRef = useRef("");
@@ -208,6 +230,7 @@ export function PredictionView() {
   const xiIntroQueuedRef = useRef(false);
   const groupsIntroQueuedRef = useRef(false);
   const resultsIntroQueuedRef = useRef(false);
+  const playoffResultsIntroQueuedRef = useRef(false);
 
   const visibleMatches = useMemo(
     () =>
@@ -217,9 +240,18 @@ export function PredictionView() {
       ),
     [prediction],
   );
+  const playoffMatches = useMemo(
+    () => schedule.filter((match) => match.number >= 73),
+    [],
+  );
   const sectionProgresses = useMemo(
-    () => getSectionProgresses(prediction, visibleMatches),
-    [prediction, visibleMatches],
+    () =>
+      getSectionProgresses(
+        prediction,
+        visibleMatches,
+        playoffResultsProgress,
+      ),
+    [playoffResultsProgress, prediction, visibleMatches],
   );
   // La edicion tardia (flag de admin) reabre las secciones para ese usuario;
   // el servidor sigue congelando los pronosticos de partidos ya empezados.
@@ -228,11 +260,26 @@ export function PredictionView() {
   // pestana pasa a ser la primera (y la que se abre por defecto).
   const orderedSections: readonly PlaySection[] = tournamentLocked
     ? [
+        ...playSections.filter((tab) => tab.id === "playoffResults"),
         ...playSections.filter((tab) => tab.id === "results"),
-        ...playSections.filter((tab) => tab.id !== "results"),
+        ...playSections.filter(
+          (tab) => tab.id !== "results" && tab.id !== "playoffResults",
+        ),
       ]
     : playSections;
   const userId = user?.id || "";
+  const updatePlayoffResultsProgress = useCallback(
+    (progress: Pick<SectionProgress, "done" | "total">) => {
+      setPlayoffResultsProgress({
+        ...progress,
+        status:
+          progress.total > 0 && progress.done >= progress.total
+            ? "complete"
+            : "pending",
+      });
+    },
+    [],
+  );
   const changeSection = (nextSection: SectionId) => {
     if (nextSection === section) return;
     setSection(nextSection);
@@ -395,6 +442,44 @@ export function PredictionView() {
     return () => window.cancelAnimationFrame(frame);
   }, [initialSectionResolved, section]);
 
+  useEffect(() => {
+    if (!initialSectionResolved) return;
+    if (
+      section !== "playoffResults" ||
+      playoffResultsIntroQueuedRef.current
+    ) {
+      return;
+    }
+
+    try {
+      if (window.localStorage.getItem(playoffResultsIntroStorageKey) === "1") {
+        return;
+      }
+    } catch {
+      // Ignore storage failures; the modal can still be shown this session.
+    }
+
+    playoffResultsIntroQueuedRef.current = true;
+    const frame = window.requestAnimationFrame(() => {
+      setShowPlayoffResultsIntroModal(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [initialSectionResolved, section]);
+
+  const dismissPlayoffResultsIntroModal = () => {
+    playoffResultsIntroQueuedRef.current = true;
+    try {
+      window.localStorage.setItem(playoffResultsIntroStorageKey, "1");
+    } catch {
+      // Ignore storage failures.
+    }
+    setShowPlayoffResultsIntroModal(false);
+  };
+  const openPlayoffResultsIntroModal = () => {
+    playoffResultsIntroQueuedRef.current = true;
+    setShowPlayoffResultsIntroModal(true);
+  };
   const dismissResultsIntroModal = () => {
     resultsIntroQueuedRef.current = true;
     try {
@@ -471,6 +556,18 @@ export function PredictionView() {
             />
           ) : null}
 
+          {section === "playoffResults" ? (
+            <PlayoffsBalatroResults
+              adminResults={adminResults}
+              prediction={prediction}
+              scheduleMatches={playoffMatches}
+              onScoreChange={setPredictionScore}
+              onProgressChange={updatePlayoffResultsProgress}
+              onTrainerTacticChange={setPredictionTrainerTactic}
+              onOpenHelp={openPlayoffResultsIntroModal}
+            />
+          ) : null}
+
           {section === "xi" ? (
             <LineupBuilder
               formation={prediction.xiFormation}
@@ -515,6 +612,13 @@ export function PredictionView() {
         <ResultsIntroModal onClose={dismissResultsIntroModal} />
       ) : null}
 
+      {showPlayoffResultsIntroModal ? (
+        <PlayoffResultsIntroModal
+          onClose={dismissPlayoffResultsIntroModal}
+          onStartFilling={dismissPlayoffResultsIntroModal}
+        />
+      ) : null}
+
       {showXiIntroModal ? <XiIntroModal onClose={dismissXiIntroModal} /> : null}
 
       {showGroupsIntroModal ? (
@@ -534,6 +638,7 @@ export function PredictionView() {
 function getSectionProgresses(
   prediction: Prediction,
   visibleMatches: Match[],
+  playoffResultsProgress: SectionProgress,
 ): Record<SectionId, SectionProgress> {
   const completedGroups = Object.values(prediction.groups).filter((group) => {
     const positions = Object.values(group).filter(Boolean);
@@ -574,6 +679,7 @@ function getSectionProgresses(
       completedGroups + thirdDone,
       Object.keys(prediction.groups).length + 8,
     ),
+    playoffResults: playoffResultsProgress,
     results: makeProgress(resultsDone, visibleMatches.length),
   };
 }
@@ -663,7 +769,7 @@ function StepTabs({
 }) {
   return (
     <div className="sticky top-0 z-30 -mx-4 overflow-x-auto border-b border-white/10 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 md:mx-0 md:overflow-visible md:px-0">
-      <div className="flex w-max max-w-none gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:grid md:w-full md:grid-cols-4">
+      <div className="flex w-max max-w-none gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:grid md:w-full md:grid-cols-5">
         {sections.map((tab, index) => {
           const active = section === tab.id;
           const complete = progresses[tab.id].status === "complete";
@@ -1018,7 +1124,8 @@ function ResultsIntroModal({ onClose }: { onClose: () => void }) {
             </h3>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
               Puedes volver y rellenar o cambiar cada resultado hasta la hora de
-              comienzo de ese partido.
+              comienzo de ese partido. Cuenta el marcador tras 120 minutos como
+              máximo; la tanda de penaltis no entra.
             </p>
           </div>
         </div>
@@ -1054,7 +1161,8 @@ function ResultsIntroModal({ onClose }: { onClose: () => void }) {
             <div className="min-w-0 text-sm">
               <p className="font-bold text-white">Clavas el resultado exacto</p>
               <p className="mt-0.5 leading-5 text-zinc-400">
-                Sumas además tantos puntos como goles tenga el partido.
+                Sumas además tantos puntos como goles tenga el partido hasta
+                120 minutos.
               </p>
             </div>
           </div>
@@ -1068,6 +1176,452 @@ function ResultsIntroModal({ onClose }: { onClose: () => void }) {
           Entendido
         </button>
       </div>
+    </div>
+  );
+}
+
+const playoffIntroSteps = [
+  {
+    eyebrow: "1/4 Entrenador",
+    title: "Elige un entrenador",
+    body: "En cada partido solo puedes quedarte con uno de los dos entrenadores. Elegirlo no da puntos por sí solo: sirve para asociarle una estrategia.",
+  },
+  {
+    eyebrow: "2/4 Estrategias",
+    title: "Hay 5 chips distintos",
+    body: "Cada chip representa una forma de puntuar: goles, portería, primer golpe, balón parado o partido caliente.",
+  },
+  {
+    eyebrow: "3/4 Arrastrar",
+    title: "Lanza el chip al entrenador",
+    body: "Toca una estrategia o arrástrala encima del entrenador elegido. El chip se queda pegado a ese entrenador.",
+  },
+  {
+    eyebrow: "4/4 Regla final",
+    title: "Todo lo demás sigue igual",
+    body: "Sigues puntuando por quiniela y resultado exacto como siempre. Ahora, además, puedes sumar el bonus del chip si la estrategia elegida se cumple.",
+  },
+] as const;
+
+const playoffIntroSpainTrainer =
+  trainerDemoCards.find((card) => card.id === "espana-de-la-fuente") ??
+  trainerDemoCards[0];
+const playoffIntroBrazilTrainer =
+  trainerDemoCards.find((card) => card.id === "brasil-ancelotti") ??
+  trainerDemoCards[1] ??
+  trainerDemoCards[0];
+
+function PlayoffResultsIntroModal({
+  onClose,
+  onStartFilling,
+}: {
+  onClose: () => void;
+  onStartFilling: () => void;
+}) {
+  const [step, setStep] = useState(0);
+  const primaryRef = useRef<HTMLButtonElement>(null);
+  const isLast = step === playoffIntroSteps.length - 1;
+  const content = playoffIntroSteps[step];
+
+  useEffect(() => {
+    primaryRef.current?.focus();
+  }, [step]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="playoff-results-intro-title"
+    >
+      <div className="relative flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#a7f600]/20 bg-[#121212] text-white shadow-2xl shadow-black/60 motion-safe:animate-[cofre-modal-pop_240ms_cubic-bezier(0.2,0.9,0.3,1)_both]">
+        <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4">
+          <div className="flex items-center gap-2.5">
+            <span
+              aria-hidden
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a7f600]/15 text-base font-semibold text-[#a7f600]"
+            >
+              ?
+            </span>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#a7f600]">
+              Playoffs y entrenadores
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md px-2 py-1 text-xs font-bold text-zinc-500 transition hover:text-white"
+          >
+            Saltar
+          </button>
+        </div>
+
+        <div className="px-5 pt-5">
+          <div className="relative mb-4 flex h-48 items-center justify-center overflow-hidden rounded-xl border border-white/[0.07] bg-gradient-to-b from-[#a7f600]/[0.08] to-transparent">
+            {step === 0 ? (
+              <PlayoffIntroCoachChoiceStage />
+            ) : step === 1 ? (
+              <PlayoffIntroStrategyDeckStage />
+            ) : step === 2 ? (
+              <PlayoffIntroDragStage />
+            ) : (
+              <PlayoffIntroOnePairStage />
+            )}
+          </div>
+
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#a7f600]">
+            {content.eyebrow}
+          </p>
+          <h3
+            id="playoff-results-intro-title"
+            className="mt-1 text-xl font-bold tracking-tight text-white"
+          >
+            {content.title}
+          </h3>
+          <p className="mt-1.5 text-sm leading-6 text-zinc-300">
+            {content.body}
+          </p>
+        </div>
+
+        {step === 2 ? (
+          <PlayoffIntroCallout tone="lime">
+            El resultado puntúa como siempre. Este chip es el extra de
+            entrenador.
+          </PlayoffIntroCallout>
+        ) : null}
+        {step === 3 ? (
+          <PlayoffIntroCallout tone="neutral">
+            No tienes que aprender otra porra: solo añade 1 entrenador + 1
+            estrategia a tu marcador de siempre.
+          </PlayoffIntroCallout>
+        ) : null}
+
+        <div className="mt-4 flex items-center justify-between gap-3 px-5 pb-5">
+          <div className="flex items-center gap-1.5" aria-hidden>
+            {playoffIntroSteps.map((_, index) => (
+              <span
+                key={index}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  index === step ? "w-5 bg-[#a7f600]" : "w-1.5 bg-white/20"
+                }`}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            {step > 0 ? (
+              <button
+                type="button"
+                onClick={() => setStep((current) => Math.max(0, current - 1))}
+                className="rounded-lg border border-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/10"
+              >
+                Atrás
+              </button>
+            ) : null}
+            <button
+              ref={primaryRef}
+              type="button"
+              onClick={() => (isLast ? onStartFilling() : setStep((c) => c + 1))}
+              className="rounded-lg bg-[#a7f600] px-5 py-2.5 text-sm font-bold text-black shadow-lg shadow-[#a7f600]/10 transition hover:bg-[#c7ff43]"
+            >
+              {isLast ? "Ir a rellenar" : "Siguiente"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlayoffIntroCallout({
+  children,
+  tone,
+}: {
+  children: ReactNode;
+  tone: "lime" | "neutral";
+}) {
+  const lime = tone === "lime";
+  return (
+    <div
+      className={`mx-5 mt-3 flex items-start gap-2.5 rounded-xl border px-3.5 py-3 ${
+        lime
+          ? "border-[#a7f600]/25 bg-[#a7f600]/[0.08] text-[#d7ffa8]"
+          : "border-white/10 bg-white/[0.05] text-zinc-200"
+      }`}
+    >
+      <span
+        aria-hidden
+        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+          lime ? "bg-[#a7f600] text-black" : "bg-white text-black"
+        }`}
+      >
+        !
+      </span>
+      <p className="text-[13px] font-semibold leading-5">{children}</p>
+    </div>
+  );
+}
+
+function PlayoffIntroCoachChoiceStage() {
+  return (
+    <div className="grid h-full w-full grid-cols-[1fr_auto_1fr] items-center gap-2 px-3">
+      <PlayoffIntroCoachCard
+        trainer={playoffIntroSpainTrainer}
+        picked
+      />
+      <span className="text-lg font-semibold text-zinc-500">VS</span>
+      <PlayoffIntroCoachCard trainer={playoffIntroBrazilTrainer} />
+    </div>
+  );
+}
+
+const playoffStrategyChips = [
+  {
+    id: "over-25",
+    title: "Goleador",
+    detail: "+2.5 goles",
+    copy: "Marca +2.5 goles.",
+    points: 2,
+    color: "#ff3b24",
+    icon: "/prediction-icons/over25.png",
+  },
+  {
+    id: "clean-sheet",
+    title: "Muro",
+    detail: "Portería a 0",
+    copy: "No encaja gol.",
+    points: 2,
+    color: "#69d744",
+    icon: "/prediction-icons/clean-sheet.png",
+  },
+  {
+    id: "first-goal",
+    title: "Abrelatas",
+    detail: "Primer gol",
+    copy: "Marca primero.",
+    points: 2,
+    color: "#d946ef",
+    icon: "/prediction-icons/first-goal.png",
+  },
+  {
+    id: "set-piece",
+    title: "Estratega",
+    detail: "Balón parado",
+    copy: "Gol de falta o córner.",
+    points: 2,
+    color: "#38bdf8",
+    icon: "/prediction-icons/set-piece.png",
+  },
+  {
+    id: "red-card",
+    title: "Carnicero",
+    detail: "Roja",
+    copy: "Expulsan tu jugador.",
+    points: 5,
+    color: "#ff4d2d",
+    icon: "/prediction-icons/red-card.png",
+  },
+] as const;
+
+function PlayoffIntroStrategyDeckStage() {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-3">
+      <div className="playoff-intro-real-chip-grid">
+        {playoffStrategyChips.slice(0, 3).map((chip, index) => (
+          <PlayoffIntroRealTacticCard
+            key={chip.id}
+            chip={chip}
+            delayIndex={index}
+          />
+        ))}
+      </div>
+      <div className="playoff-intro-real-chip-grid playoff-intro-real-chip-grid--two">
+        {playoffStrategyChips.slice(3).map((chip, index) => (
+          <PlayoffIntroRealTacticCard
+            key={chip.id}
+            chip={chip}
+            delayIndex={index + 3}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PlayoffIntroDragStage() {
+  const chip = playoffStrategyChips[1];
+  return (
+    <div className="relative h-full w-full overflow-hidden px-4 py-3">
+      <div className="absolute left-4 right-4 top-3 grid grid-cols-[1fr_auto_1fr] items-start gap-2">
+        <PlayoffIntroMiniCoach
+          trainer={playoffIntroSpainTrainer}
+          target
+        />
+        <span className="pt-8 text-sm font-semibold text-zinc-500">VS</span>
+        <PlayoffIntroMiniCoach trainer={playoffIntroBrazilTrainer} muted />
+      </div>
+
+      <div className="playoff-intro-mini-hand absolute bottom-2 left-3 right-3 flex justify-center gap-2">
+        {playoffStrategyChips.slice(0, 3).map((item) => (
+          <PlayoffIntroRealTacticCard key={item.id} chip={item} mini />
+        ))}
+      </div>
+
+      <div
+        className="playoff-intro-drag-chip absolute left-1/2 top-1/2 z-20"
+        style={
+          {
+            "--chip-color": chip.color,
+          } as CSSProperties
+        }
+      >
+        <PlayoffIntroRealTacticCard chip={chip} dragging />
+      </div>
+      <span className="playoff-intro-drag-hand absolute left-1/2 top-1/2 z-30 flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white text-xs font-semibold text-black shadow-xl">
+        ↗
+      </span>
+    </div>
+  );
+}
+
+function PlayoffIntroOnePairStage() {
+  const chip = playoffStrategyChips[1];
+  return (
+    <div className="flex h-full w-full flex-col justify-center gap-3 px-4">
+      <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <div className="rounded-2xl border border-white/10 bg-black/25 px-3 py-3 text-center">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+            Resultado
+          </span>
+          <span className="mt-1 block text-3xl font-semibold text-white">2-1</span>
+          <span className="mt-1 block text-[10px] font-bold text-zinc-500">
+            como siempre
+          </span>
+        </div>
+        <span className="text-xl font-semibold text-zinc-500">+</span>
+        <div className="rounded-2xl border border-[#a7f600]/30 bg-[#a7f600]/10 px-3 py-3 text-center">
+          <div className="mx-auto flex w-max items-center gap-2">
+            <TeamFlag
+              teamId={playoffIntroSpainTrainer.teamId}
+              className="h-7 w-7 rounded-full object-cover"
+            />
+            <PlayoffIntroRealTacticCard chip={chip} mini />
+          </div>
+          <span className="mt-2 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#d7ffa8]">
+            entrenador + chip
+          </span>
+        </div>
+      </div>
+      <div className="rounded-2xl border border-[#a7f600]/30 bg-black/30 px-3 py-2 text-center">
+        <span className="text-sm font-semibold text-white">
+          Si <span className="text-[#a7f600]">Muro</span> se cumple:
+        </span>
+        <span className="ml-2 inline-flex rounded-md bg-[#a7f600] px-2 py-1 text-sm font-semibold text-black">
+          +2 pts extra
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function PlayoffIntroRealTacticCard({
+  chip,
+  delayIndex = 0,
+  dragging = false,
+  mini = false,
+}: {
+  chip: (typeof playoffStrategyChips)[number];
+  delayIndex?: number;
+  dragging?: boolean;
+  mini?: boolean;
+}) {
+  return (
+    <span
+      className={`playoff-battle-tactic playoff-intro-real-chip ${
+        mini ? "playoff-intro-real-chip--mini" : ""
+      } ${dragging ? "playoff-battle-tactic--source" : ""}`}
+      style={
+        {
+          "--tactic-color": chip.color,
+          "--chip-delay": `${delayIndex * 85}ms`,
+        } as CSSProperties
+      }
+    >
+      <span className="playoff-battle-tactic-icon">
+        <Image
+          src={chip.icon}
+          alt=""
+          fill
+          sizes="72px"
+          className="playoff-battle-tactic-icon-img"
+          unoptimized
+        />
+      </span>
+      <span className="playoff-intro-chip-points">+{chip.points} pts</span>
+    </span>
+  );
+}
+
+function PlayoffIntroMiniCoach({
+  muted = false,
+  target = false,
+  trainer,
+}: {
+  muted?: boolean;
+  target?: boolean;
+  trainer: TrainerDemoCard;
+}) {
+  return (
+    <div
+      className={`relative mx-auto w-[74px] ${
+        target ? "playoff-intro-coach-target rounded-lg" : ""
+      } ${muted ? "opacity-45" : ""}`}
+    >
+      <TrainerFullArtCard card={trainer} />
+      {target ? (
+        <span className="absolute -bottom-2 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[#a7f600] px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-black">
+          objetivo
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function PlayoffIntroCoachCard({
+  picked = false,
+  trainer,
+}: {
+  picked?: boolean;
+  trainer: TrainerDemoCard;
+}) {
+  return (
+    <div
+      className={`relative mx-auto w-[92px] rounded-lg ${
+        picked
+          ? "playoff-intro-coach-target shadow-[0_0_28px_rgba(167,246,0,0.12)]"
+          : ""
+      }`}
+    >
+      <TrainerFullArtCard card={trainer} />
+      {picked ? (
+        <span className="absolute -right-2 -top-2 z-40 flex h-7 w-7 items-center justify-center rounded-full bg-[#a7f600] text-black shadow-lg shadow-[#a7f600]/25">
+          <CheckIcon className="h-4 w-4" />
+        </span>
+      ) : null}
+      <span
+        className={`absolute -bottom-2 left-1/2 z-40 -translate-x-1/2 rounded-full px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] shadow-lg ${
+          picked ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-400"
+        }`}
+      >
+        {picked ? "Elegido" : "Tocar"}
+      </span>
     </div>
   );
 }
@@ -2335,13 +2889,17 @@ function ResultsSchedule({
           </span>
         </div>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-6 text-zinc-400">
-          <span>Eleccion acertada</span>
+          <span>Elección acertada</span>
           <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
             +1 punto
           </span>
           <span>Resultado exacto suma el valor de todos los</span>
           <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
             goles del partido
+          </span>
+          <span>En eliminatorias cuenta hasta 120 min</span>
+          <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-zinc-200">
+            sin tanda de penaltis
           </span>
         </p>
         <ResultsOpenBanner className="mt-4" />

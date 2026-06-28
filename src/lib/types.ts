@@ -48,6 +48,8 @@ export type Match = {
 export type PredictionMatch = {
   homeScore: string;
   awayScore: string;
+  trainerTeamId?: string;
+  tacticId?: string;
 };
 
 export type PredictionExtras = {
@@ -94,6 +96,7 @@ export type AdminResult = {
   source?: string;
   syncedAt?: string;
   events: AdminEvent[];
+  trainerTactics?: Record<string, string[]>;
 };
 
 export type AdminResults = Record<string, AdminResult>;

@@ -124,6 +124,69 @@ const skinPalette = {
   W: "#f6f2e8",
 };
 
+type TrainerDemoCardInput = {
+  id: string;
+  coach: string;
+  country: string;
+  teamId: string;
+  points: number;
+  artUrl: string;
+  primary: string;
+  secondary: string;
+  third: string;
+  light?: string;
+  hair?: string;
+  jacket?: string;
+};
+
+function createTrainerDemoCard({
+  id,
+  coach,
+  country,
+  teamId,
+  points,
+  artUrl,
+  primary,
+  secondary,
+  third,
+  light = "#f8fafc",
+  hair = "#3e3028",
+  jacket,
+}: TrainerDemoCardInput): TrainerDemoCard {
+  const edge = secondary;
+
+  return {
+    id,
+    coach,
+    country,
+    teamId,
+    points,
+    role: "DT",
+    artUrl,
+    background: `radial-gradient(circle at 46% 28%, ${light}66, transparent 20%), linear-gradient(135deg, ${primary}, #080b13 46%, ${secondary}cc 47%, ${third} 64%, #05070d)`,
+    glow: `${secondary}66`,
+    edge,
+    tones: {
+      primary,
+      secondary,
+      third,
+      light,
+    },
+    mosaic: brazilMosaic,
+    bust: {
+      pattern: coachBustPattern,
+      palette: {
+        ...skinPalette,
+        H: hair,
+        h: light,
+        J: jacket || primary,
+        D: "#090b13",
+        T: secondary,
+      },
+    },
+  };
+}
+
 export const trainerDemoCards: TrainerDemoCard[] = [
   {
     id: "brasil-ancelotti",
@@ -218,9 +281,207 @@ export const trainerDemoCards: TrainerDemoCard[] = [
       },
     },
   },
+  createTrainerDemoCard({
+    id: "mexico-aguirre",
+    coach: "Javier Aguirre",
+    country: "M\u00e9xico",
+    teamId: "mex",
+    points: 94,
+    artUrl: "/trainer-cards/mexico-aguirre.png",
+    primary: "#006847",
+    secondary: "#ce1126",
+    third: "#073b2b",
+    light: "#f7f7f7",
+  }),
+  createTrainerDemoCard({
+    id: "sudafrica-broos",
+    coach: "Hugo Broos",
+    country: "Sud\u00e1frica",
+    teamId: "rsa",
+    points: 83,
+    artUrl: "/trainer-cards/sudafrica-broos.png",
+    primary: "#007a4d",
+    secondary: "#ffb612",
+    third: "#002395",
+    light: "#f8fafc",
+  }),
+  createTrainerDemoCard({
+    id: "suiza-yakin",
+    coach: "Murat Yakin",
+    country: "Suiza",
+    teamId: "sui",
+    points: 90,
+    artUrl: "/trainer-cards/suiza-yakin.png",
+    primary: "#da291c",
+    secondary: "#ffffff",
+    third: "#70130f",
+    light: "#fff5f5",
+  }),
+  createTrainerDemoCard({
+    id: "canada-marsch",
+    coach: "Jesse Marsch",
+    country: "Canad\u00e1",
+    teamId: "can",
+    points: 87,
+    artUrl: "/trainer-cards/canada-marsch.png",
+    primary: "#d80621",
+    secondary: "#ffffff",
+    third: "#4b0b13",
+    light: "#fff1f2",
+  }),
+  createTrainerDemoCard({
+    id: "marruecos-ouahbi",
+    coach: "Mohamed Ouahbi",
+    country: "Marruecos",
+    teamId: "mar",
+    points: 88,
+    artUrl: "/trainer-cards/marruecos-ouahbi.png",
+    primary: "#c1272d",
+    secondary: "#006233",
+    third: "#5f1217",
+    light: "#f6fff8",
+  }),
+  createTrainerDemoCard({
+    id: "estados-unidos-pochettino",
+    coach: "Mauricio Pochettino",
+    country: "Estados Unidos",
+    teamId: "usa",
+    points: 89,
+    artUrl: "/trainer-cards/estados-unidos-pochettino.png",
+    primary: "#1d3f8f",
+    secondary: "#b31942",
+    third: "#071b4f",
+    light: "#ffffff",
+  }),
+  createTrainerDemoCard({
+    id: "australia-popovic",
+    coach: "Tony Popovic",
+    country: "Australia",
+    teamId: "aus",
+    points: 85,
+    artUrl: "/trainer-cards/australia-popovic.png",
+    primary: "#00843d",
+    secondary: "#ffcd00",
+    third: "#052f21",
+    light: "#f8fafc",
+  }),
+  createTrainerDemoCard({
+    id: "alemania-nagelsmann",
+    coach: "Julian Nagelsmann",
+    country: "Alemania",
+    teamId: "ger",
+    points: 94,
+    artUrl: "/trainer-cards/alemania-nagelsmann.png",
+    primary: "#111827",
+    secondary: "#ffce00",
+    third: "#dd0000",
+    light: "#f8fafc",
+  }),
+  createTrainerDemoCard({
+    id: "costa-de-marfil-fae",
+    coach: "Emerse Fa\u00e9",
+    country: "Costa de Marfil",
+    teamId: "civ",
+    points: 84,
+    artUrl: "/trainer-cards/costa-de-marfil-fae.png",
+    primary: "#f77f00",
+    secondary: "#009e60",
+    third: "#623412",
+    light: "#fff7ed",
+  }),
+  createTrainerDemoCard({
+    id: "paises-bajos-koeman",
+    coach: "Ronald Koeman",
+    country: "Pa\u00edses Bajos",
+    teamId: "ned",
+    points: 93,
+    artUrl: "/trainer-cards/paises-bajos-koeman.png",
+    primary: "#ff5a00",
+    secondary: "#21468b",
+    third: "#6a2500",
+    light: "#fff7ed",
+  }),
+  createTrainerDemoCard({
+    id: "japon-moriyasu",
+    coach: "Hajime Moriyasu",
+    country: "Jap\u00f3n",
+    teamId: "jpn",
+    points: 87,
+    artUrl: "/trainer-cards/japon-moriyasu.png",
+    primary: "#1f4ea8",
+    secondary: "#bc002d",
+    third: "#061a44",
+    light: "#ffffff",
+  }),
+  createTrainerDemoCard({
+    id: "belgica-garcia",
+    coach: "Rudi Garcia",
+    country: "B\u00e9lgica",
+    teamId: "bel",
+    points: 91,
+    artUrl: "/trainer-cards/belgica-garcia.png",
+    primary: "#111111",
+    secondary: "#fae042",
+    third: "#ed2939",
+    light: "#fff7cc",
+  }),
+  createTrainerDemoCard({
+    id: "egipto-hassan",
+    coach: "Hossam Hassan",
+    country: "Egipto",
+    teamId: "egy",
+    points: 85,
+    artUrl: "/trainer-cards/egipto-hassan.png",
+    primary: "#ce1126",
+    secondary: "#ffffff",
+    third: "#111111",
+    light: "#f8fafc",
+  }),
+  createTrainerDemoCard({
+    id: "cabo-verde-bubista",
+    coach: "Bubista",
+    country: "Cabo Verde",
+    teamId: "cpv",
+    points: 82,
+    artUrl: "/trainer-cards/cabo-verde-bubista.png",
+    primary: "#003893",
+    secondary: "#cf2027",
+    third: "#f7d116",
+    light: "#ffffff",
+  }),
+  createTrainerDemoCard({
+    id: "noruega-solbakken",
+    coach: "St\u00e5le Solbakken",
+    country: "Noruega",
+    teamId: "nor",
+    points: 86,
+    artUrl: "/trainer-cards/noruega-solbakken.png",
+    primary: "#ba0c2f",
+    secondary: "#00205b",
+    third: "#50101d",
+    light: "#ffffff",
+  }),
+  createTrainerDemoCard({
+    id: "placeholder-coach",
+    coach: "Por determinar",
+    country: "Por determinar",
+    teamId: "",
+    points: 0,
+    artUrl: "/trainer-cards/placeholder-coach.png",
+    primary: "#27272a",
+    secondary: "#a1a1aa",
+    third: "#09090b",
+    light: "#f4f4f5",
+  }),
 ];
 
-export function TrainerFullArtCard({ card }: { card: TrainerDemoCard }) {
+export function TrainerFullArtCard({
+  card,
+  priority = false,
+}: {
+  card: TrainerDemoCard;
+  priority?: boolean;
+}) {
   return (
     <article
       className={`trainer-full-card theme-dark relative aspect-[5/7] overflow-hidden rounded-lg ${card.className || ""}`}
@@ -236,7 +497,7 @@ export function TrainerFullArtCard({ card }: { card: TrainerDemoCard }) {
         src={card.artUrl}
         alt=""
         fill
-        priority
+        priority={priority}
         sizes="(max-width: 640px) 88vw, (max-width: 1024px) 42vw, 340px"
         className="trainer-card-art object-cover"
         unoptimized
@@ -265,7 +526,11 @@ export function TrainerFullArtCard({ card }: { card: TrainerDemoCard }) {
             className="block shrink-0 overflow-hidden rounded-sm border border-white/24 bg-white/10"
             style={{ height: "7.2cqw", width: "10.6cqw" }}
           >
-            <TeamFlag teamId={card.teamId} className="h-full w-full" />
+            {card.teamId ? (
+              <TeamFlag teamId={card.teamId} className="h-full w-full" />
+            ) : (
+              <TeamFlag teamId="ger" className="h-full w-full saturate-0" />
+            )}
           </span>
           <span
             className="truncate font-bold text-zinc-200"

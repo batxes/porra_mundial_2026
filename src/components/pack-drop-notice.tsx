@@ -146,6 +146,9 @@ export function PackDropWatcher({
   if (!items) return null;
   const total = items.reduce((sum, item) => sum + item.qty, 0);
   const isPremier = variant === "premier";
+  // El drop que suelta el admin (variant "drop") usa el look de Laporta
+  // (compensacion) con texto generico, no el de Florentino.
+  const isLaporta = isPremier || variant === "drop";
   const close = () => {
     setItems(null);
     try {
@@ -161,16 +164,13 @@ export function PackDropWatcher({
     }
   };
 
-  const title = isPremier
-    ? "¡Palanca!"
-    : variant === "launch"
-      ? "¡Es hora de renovar tu once!"
-      : "Es hora de renovar tu once";
+  const title =
+    variant === "launch" ? "¡Es hora de renovar tu once!" : "¡Palanca!";
   const subtitle = isPremier
     ? "Por el fallo de la app antes, roba un jugador de la Premier."
     : variant === "launch"
       ? `Tienes ${total} sobres esperando, ¡con uno de la Premier de regalo! ¡Suerte!`
-      : `Te traigo ${total} sobre${total === 1 ? "" : "s"} de fichajes. Ábrelos y mete un crack en tu once.`;
+      : `Por el fallo de la app de estos días, toma ${total} sobre${total === 1 ? "" : "s"} de compensación. ¡Ábrelo${total === 1 ? "" : "s"} y refuerza tu once!`;
 
   return (
     <div
@@ -188,7 +188,7 @@ export function PackDropWatcher({
         <div className="mb-3 flex items-end justify-between gap-2">
           <div className="min-w-0 pb-1">
             <span className="inline-flex items-center gap-1.5 rounded-md bg-[#ffd252]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#ffd252] ring-1 ring-[#ffd252]/30">
-              {isPremier ? "Compensación" : "Fichajes"}
+              {isLaporta ? "Compensación" : "Fichajes"}
             </span>
             <h3
               id="pack-drop-title"
@@ -201,7 +201,7 @@ export function PackDropWatcher({
             </p>
           </div>
           <Image
-            src={isPremier ? "/laporta.webp" : "/florentino.webp"}
+            src={isLaporta ? "/laporta.webp" : "/florentino.webp"}
             alt=""
             width={171}
             height={128}

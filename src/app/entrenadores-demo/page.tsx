@@ -15,7 +15,8 @@ export default function EntrenadoresDemoPage() {
             Entrenadores full art
           </h1>
           <p className="mt-2 max-w-2xl text-sm font-medium text-zinc-400 sm:text-base">
-            {"Brasil, Espa\u00f1a y Francia"}
+            Cartas de entrenadores clasificadas y placeholders de cruces por
+            determinar.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs font-bold text-zinc-300">

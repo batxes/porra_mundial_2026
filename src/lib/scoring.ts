@@ -1,4 +1,5 @@
 import type { AdminResults, Match, Player, PorraData, Prediction, Scorecard, ScoreEntry } from "@/lib/types";
+import { trainerTacticById } from "@/lib/trainer-tactics";
 
 const ruleMeta = {
   match_outcome_hit: { label: "Eleccion acertada", category: "Marcadores" },
@@ -9,6 +10,7 @@ const ruleMeta = {
   player_penalty_save: { label: "Penalti parado", category: "Tu once" },
   player_penalty_miss: { label: "Penalti fallado", category: "Tu once" },
   player_red_card: { label: "Tarjeta roja", category: "Tu once" },
+  trainer_tactic_hit: { label: "Chip de entrenador", category: "Entrenadores" },
   team_progression_hit: { label: "Acierto de fase", category: "Cuadro" },
   group_qualification_hit: { label: "Equipo clasificado en grupos", category: "Fase de grupos" },
   group_third_qualification_hit: { label: "Tercer clasificado acertado", category: "Fase de grupos" },
@@ -21,7 +23,7 @@ const ruleMeta = {
   tournament_top_scorer_hit: { label: "Máximo goleador", category: "Tus elecciones" },
 } as const;
 
-const GROUP_SCORING_ENABLED = false;
+const GROUP_SCORING_ENABLED = true;
 
 const eventRules = {
   goal: { ruleCode: "player_goal", points: 2 },
@@ -272,6 +274,24 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
           points: homeScore + awayScore,
           explanation: `Marcador exacto partido ${match.number}: ${homeScore}-${awayScore}`,
           sourceRef: `match-${match.number}`,
+        });
+      }
+
+      const trainerTeamId = forecast.trainerTeamId;
+      const tacticId = forecast.tacticId;
+      const tactic = tacticId ? trainerTacticById.get(tacticId) : null;
+      const tacticTeamIds = tacticId
+        ? result?.trainerTactics?.[tacticId] || []
+        : [];
+      if (trainerTeamId && tactic && tacticTeamIds.includes(trainerTeamId)) {
+        addEntry(entries, {
+          userId,
+          matchId: `wc26-${match.number}`,
+          matchNumber: match.number,
+          ruleCode: "trainer_tactic_hit",
+          points: tactic.points,
+          explanation: `${teamName(trainerTeamId)} - ${tactic.title} en el partido ${match.number}`,
+          sourceRef: `trainer-tactic-${match.number}-${trainerTeamId}-${tactic.id}`,
         });
       }
 

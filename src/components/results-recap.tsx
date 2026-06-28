@@ -5,6 +5,11 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { hasFinishedScore, PlayerAvatar, TeamFlag } from "@/components/common";
+import {
+  TrainerChipScorePill,
+  trainerChipsFromScoreEntries,
+  type TrainerChipPoints,
+} from "@/components/trainer-chip-score-pill";
 import { useAppContext } from "@/lib/app-context";
 import { playersById, schedule, teamsById } from "@/lib/data";
 import { translateSlot } from "@/lib/format";
@@ -73,6 +78,7 @@ type RecapItem = {
   pick: MatchPick | null;
   xiPlayers: { playerId: string; points: number }[];
   xiOther: number;
+  trainerChips: TrainerChipPoints[];
 };
 
 function matchOutcomeOf(home: number, away: number) {
@@ -283,6 +289,7 @@ export function ResultsRecapWatcher() {
           pick,
           xiPlayers,
           xiOther,
+          trainerChips: trainerChipsFromScoreEntries(entries),
         };
       })
       .sort((a, b) => b.match.number - a.match.number);
@@ -571,6 +578,12 @@ function RecapMatchRow({ item }: { item: RecapItem }) {
               </span>
             </span>
           ) : null}
+          {item.trainerChips.map((chip) => (
+            <TrainerChipScorePill
+              key={`${chip.teamId}-${chip.tacticId}`}
+              chip={chip}
+            />
+          ))}
       </div>
     </div>
   );

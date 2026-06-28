@@ -39,6 +39,7 @@ import {
   setGroupOrder,
   setPredictionExtra,
   setPredictionMatchScore,
+  setPredictionTrainerTactic,
   setXiFormation,
   setXiSelection,
   toggleThirdQualifier,
@@ -122,6 +123,7 @@ type AppContextValue = {
   toggleThirdQualifier: (group: string) => void;
   chooseMatchWinner: (matchNumber: number, teamId: string) => void;
   setPredictionScore: (matchNumber: number, side: "homeScore" | "awayScore", value: string) => void;
+  setPredictionTrainerTactic: (matchNumber: number, trainerTeamId: string, tacticId: string) => void;
   setPredictionExtra: (key: keyof Prediction["extras"], value: string) => void;
   toggleXiPlayer: (playerId: string) => void;
   setXiFormation: (formation: string) => void;
@@ -164,6 +166,39 @@ export function toDbEventType(type: string) {
   return dbEventTypes[type] || type;
 }
 
+type MatchTacticResultRow = {
+  match_id: string;
+  team_id: string;
+  tactic_id: string;
+};
+
+async function fetchMatchTacticResults(supabase: any): Promise<MatchTacticResultRow[]> {
+  const { data, error } = await supabase
+    .from("match_tactic_results")
+    .select("match_id, team_id, tactic_id");
+  if (error) {
+    console.warn("match_tactic_results:", error.message);
+    return [];
+  }
+  return (data || []) as MatchTacticResultRow[];
+}
+
+function applyMatchTacticResults(
+  results: AdminResults,
+  rows: MatchTacticResultRow[],
+) {
+  rows.forEach((row) => {
+    const number = String(row.match_id || "").replace("wc26-", "");
+    if (!number || !row.team_id || !row.tactic_id) return;
+    results[number] ||= { homeScore: "", awayScore: "", events: [] };
+    results[number].trainerTactics ||= {};
+    const teamIds = results[number].trainerTactics[row.tactic_id] || [];
+    if (!teamIds.includes(row.team_id)) {
+      results[number].trainerTactics[row.tactic_id] = [...teamIds, row.team_id];
+    }
+  });
+}
+
 const AppContext = createContext<AppContextValue | null>(null);
 
 const scoring = createEngine({ data, schedule });
@@ -172,12 +207,11 @@ function scorecardForUser(userId: string, prediction: Prediction, adminResults: 
   return scoring.calculateScorecard(normalizePrediction(prediction), adminResults, userId);
 }
 
-function profileTotalPoints(profile: Record<string, unknown> | null | undefined, fallback = 0) {
-  const total = Number(profile?.total_points);
-  return Number.isFinite(total) ? total : fallback;
+function profileTotalPoints(_profile: Record<string, unknown> | null | undefined, calculatedTotal = 0) {
+  return calculatedTotal;
 }
 
-function scorecardWithPersistedTotal(scorecard: Scorecard, total: number): Scorecard {
+function scorecardWithTotal(scorecard: Scorecard, total: number): Scorecard {
   return scorecard.total === total ? scorecard : { ...scorecard, total };
 }
 
@@ -335,13 +369,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const tournamentResponse = await supabase.from("tournaments").select("id, slug").eq("slug", "world-cup-2026").maybeSingle();
       const tournamentId = tournamentResponse.data?.id;
 
-      const [{ data: profiles }, { data: predictions }, { data: matches }, { data: events }] = await Promise.all([
+      const [{ data: profiles }, { data: predictions }, { data: matches }, { data: events }, tacticRows] = await Promise.all([
         supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
         tournamentId
           ? supabase.from("predictions").select("user_id, selections, completion_percent, is_definitive").eq("tournament_id", tournamentId)
           : Promise.resolve({ data: [] as any[], error: null }),
         supabase.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, status, stage").eq("status", "validated"),
         supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute"),
+        fetchMatchTacticResults(supabase),
       ]);
 
       const results: AdminResults = {};
@@ -369,6 +404,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           minute: event.minute,
         });
       });
+      applyMatchTacticResults(results, tacticRows);
 
       const predictionByUser = new Map<string, Prediction>(
         ((predictions || []) as any[]).map((item: any) => [item.user_id, normalizePrediction(item.selections as Prediction)]),
@@ -417,10 +453,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setLeaderboard(
         ((profiles || []) as any[])
           .map((profile: any) => {
-            const profilePrediction = predictionByUser.get(profile.id) || emptyPrediction();
-            const calculatedScorecard = scorecardForUser(profile.id, profilePrediction, results);
+            const profilePrediction = predictionByUser.get(profile.id) || null;
+            const calculatedScorecard = profilePrediction
+              ? scorecardForUser(profile.id, profilePrediction, results)
+              : scoring.scorecardFromEntries([]);
             const points = profileTotalPoints(profile, calculatedScorecard.total);
-            const scorecard = scorecardWithPersistedTotal(calculatedScorecard, points);
+            const scorecard = scorecardWithTotal(calculatedScorecard, points);
             return {
               id: profile.id,
               name: profile.display_name,
@@ -432,8 +470,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               isWolf: Boolean(profile.is_wolf),
               lateEdit: Boolean(profile.late_edit),
               isHidden: Boolean(profile.is_hidden),
-              complete: calculateCompletion(profilePrediction),
-              champion: profilePrediction.extras.worldChampion || profilePrediction.bracket.winners["104"] || "",
+              complete: profilePrediction ? calculateCompletion(profilePrediction) : 0,
+              champion: profilePrediction ? profilePrediction.extras.worldChampion || profilePrediction.bracket.winners["104"] || "" : "",
               prediction: profilePrediction,
               scorecard,
             };
@@ -470,18 +508,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       if (!usingSupabase) {
         const currentResults = getLocalAdminResults();
+        const nextLeaderboard = buildLeaderboard(getLocalUsers(), user?.id || null, prediction, currentResults);
         setAdminResults(currentResults);
-        setLeaderboard(buildLeaderboard(getLocalUsers(), user?.id || null, prediction, currentResults));
+        setLeaderboard(nextLeaderboard);
+        setUser((current) => {
+          if (!current) return current;
+          const profile = nextLeaderboard.find((candidate) => candidate.id === current.id);
+          return profile ? { ...current, points: profile.points } : current;
+        });
         return;
       }
 
       const supabase = getSupabaseBrowserClient() as any;
       if (!supabase) return;
 
-      const [{ data: profiles }, { data: matches }, { data: events }] = await Promise.all([
+      const [{ data: profiles }, { data: matches }, { data: events }, tacticRows] = await Promise.all([
         supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
         supabase.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, status, stage").eq("status", "validated"),
         supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute"),
+        fetchMatchTacticResults(supabase),
       ]);
 
       const results: AdminResults = {};
@@ -509,6 +554,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           minute: event.minute,
         });
       });
+      applyMatchTacticResults(results, tacticRows);
 
       // Reutiliza las porras ya cargadas: en este refresco solo cambian los
       // resultados y el total persistido en profiles.total_points.
@@ -516,33 +562,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         leaderboard.map((profile) => [profile.id, profile.prediction]),
       );
 
+      const nextLeaderboard = ((profiles || []) as any[])
+        .map((profile: any) => {
+          const profilePrediction = predictionByUser.get(profile.id) || null;
+          const calculatedScorecard = profilePrediction
+            ? scorecardForUser(profile.id, profilePrediction, results)
+            : scoring.scorecardFromEntries([]);
+          const points = profileTotalPoints(profile, calculatedScorecard.total);
+          const scorecard = scorecardWithTotal(calculatedScorecard, points);
+          return {
+            id: profile.id,
+            name: profile.display_name,
+            email: "",
+            avatarUrl: profile.avatar_url || "",
+            points,
+            isAdmin: Boolean(profile.is_admin),
+            isPro: Boolean(profile.is_pro),
+            isWolf: Boolean(profile.is_wolf),
+            lateEdit: Boolean(profile.late_edit),
+            isHidden: Boolean(profile.is_hidden),
+            complete: profilePrediction ? calculateCompletion(profilePrediction) : 0,
+            champion: profilePrediction ? profilePrediction.extras.worldChampion || profilePrediction.bracket.winners["104"] || "" : "",
+            prediction: profilePrediction,
+            scorecard,
+          };
+        })
+        .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+
       setAdminResults(results);
-      setLeaderboard(
-        ((profiles || []) as any[])
-          .map((profile: any) => {
-            const profilePrediction = predictionByUser.get(profile.id) || emptyPrediction();
-            const calculatedScorecard = scorecardForUser(profile.id, profilePrediction, results);
-            const points = profileTotalPoints(profile, calculatedScorecard.total);
-            const scorecard = scorecardWithPersistedTotal(calculatedScorecard, points);
-            return {
-              id: profile.id,
-              name: profile.display_name,
-              email: "",
-              avatarUrl: profile.avatar_url || "",
-              points,
-              isAdmin: Boolean(profile.is_admin),
-              isPro: Boolean(profile.is_pro),
-              isWolf: Boolean(profile.is_wolf),
-              lateEdit: Boolean(profile.late_edit),
-              isHidden: Boolean(profile.is_hidden),
-              complete: calculateCompletion(profilePrediction),
-              champion: profilePrediction.extras.worldChampion || profilePrediction.bracket.winners["104"] || "",
-              prediction: profilePrediction,
-              scorecard,
-            };
-          })
-          .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name)),
-      );
+      setLeaderboard(nextLeaderboard);
+      setUser((current) => {
+        if (!current) return current;
+        const profile = nextLeaderboard.find((candidate) => candidate.id === current.id);
+        return profile ? { ...current, points: profile.points } : current;
+      });
     } catch (error) {
       console.warn("refreshLiveData:", error);
     }
@@ -819,6 +872,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         throw new Error(`No se pudo guardar el partido: ${matchError.message}`);
       }
 
+      const matchId = `wc26-${matchNumber}`;
+      const { error: tacticDeleteError } = await supabase
+        .from("match_tactic_results")
+        .delete()
+        .eq("match_id", matchId);
+      if (tacticDeleteError) {
+        throw new Error(`No se pudieron borrar los chips: ${tacticDeleteError.message}`);
+      }
+
+      const tacticRows = Object.entries(payload.trainerTactics || {}).flatMap(
+        ([tacticId, teamIds]) =>
+          (teamIds || [])
+            .filter(Boolean)
+            .map((teamId) => ({
+              match_id: matchId,
+              team_id: teamId,
+              tactic_id: tacticId,
+            })),
+      );
+      if (tacticRows.length) {
+        const { error: tacticInsertError } = await supabase
+          .from("match_tactic_results")
+          .insert(tacticRows);
+        if (tacticInsertError) {
+          throw new Error(`No se pudieron guardar los chips: ${tacticInsertError.message}`);
+        }
+      }
+
       await refreshData();
     },
     [adminResults, prediction, refreshData, user?.id, usingSupabase],
@@ -890,6 +971,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
+    await supabase.from("match_tactic_results").delete().neq("match_id", "");
     await supabase.from("match_events").delete().neq("id", "");
     await supabase.from("matches").delete().like("id", "wc26-%");
     await refreshData();
@@ -1049,10 +1131,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const currentScorecard = useMemo(
     () => {
       if (!user) return scoring.scorecardFromEntries([]);
-      return scorecardWithPersistedTotal(
-        scorecardForUser(user.id, prediction, adminResults),
-        user.points,
-      );
+      return scorecardForUser(user.id, prediction, adminResults);
     },
     [adminResults, prediction, user],
   );
@@ -1099,6 +1178,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const match = schedule.find((candidate) => candidate.number === matchNumber);
         if (!match || hasMatchStarted(match)) return;
         replacePrediction(setPredictionMatchScore(prediction, matchNumber, side, value));
+      },
+      setPredictionTrainerTactic: (matchNumber, trainerTeamId, tacticId) => {
+        const match = schedule.find((candidate) => candidate.number === matchNumber);
+        if (!match || hasMatchStarted(match)) return;
+        replacePrediction(setPredictionTrainerTactic(prediction, matchNumber, trainerTeamId, tacticId));
       },
       setPredictionExtra: (key, value) => {
         if (hasTournamentStarted() && !user?.lateEdit) return;

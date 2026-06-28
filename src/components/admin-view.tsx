@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -29,8 +29,15 @@ import { PlayerSearchModal } from "@/components/player-search-modal";
 import { toDbEventType, useAppContext } from "@/lib/app-context";
 import { playersById, schedule, teamsById } from "@/lib/data";
 import { translateSlot } from "@/lib/format";
+import { buildResolvedPlayoffTeams } from "@/lib/playoff-teams";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
-import type { AdminEvent, ProviderSummary, UserProfile } from "@/lib/types";
+import { trainerTactics } from "@/lib/trainer-tactics";
+import type {
+  AdminEvent,
+  Match,
+  ProviderSummary,
+  UserProfile,
+} from "@/lib/types";
 
 type AdminTab =
   | "partidos"
@@ -105,6 +112,11 @@ export function AdminView() {
     };
   }, [user?.isAdmin, usingSupabase]);
 
+  const resolvedPlayoffTeams = useMemo(
+    () => buildResolvedPlayoffTeams(adminResults),
+    [adminResults],
+  );
+
   const emailFor = (profile: UserProfile) =>
     profile.email || emailsById[profile.id] || "";
 
@@ -150,6 +162,13 @@ export function AdminView() {
   const savedEntries = Object.entries(adminResults).sort(
     (a, b) => Number(a[0]) - Number(b[0]),
   );
+  const teamIdForMatchSide = (
+    match: Match,
+    side: "home" | "away",
+  ) =>
+    teamsById.has(match[side])
+      ? match[side]
+      : resolvedPlayoffTeams[String(match.number)]?.[side] || "";
 
   const openMatchEditor = (number: string) => {
     setMatchNumber(number);
@@ -210,8 +229,17 @@ export function AdminView() {
               >
                 {schedule.map((match) => (
                   <option key={match.number} value={match.number}>
-                    Partido {match.number} · {matchSideName(match.home)} vs{" "}
-                    {matchSideName(match.away)} · {match.date}
+                    Partido {match.number} ·{" "}
+                    {matchSideName(
+                      match.home,
+                      teamIdForMatchSide(match, "home"),
+                    )}{" "}
+                    vs{" "}
+                    {matchSideName(
+                      match.away,
+                      teamIdForMatchSide(match, "away"),
+                    )}{" "}
+                    · {match.date}
                   </option>
                 ))}
               </select>
@@ -254,11 +282,15 @@ export function AdminView() {
                     result.homeTeamId ||
                     (savedMatch && teamsById.has(savedMatch.home)
                       ? savedMatch.home
+                      : savedMatch
+                        ? resolvedPlayoffTeams[savedMatchNumber]?.home
                       : "");
                   const awayTeamId =
                     result.awayTeamId ||
                     (savedMatch && teamsById.has(savedMatch.away)
                       ? savedMatch.away
+                      : savedMatch
+                        ? resolvedPlayoffTeams[savedMatchNumber]?.away
                       : "");
                   const homeName =
                     (homeTeamId && teamsById.get(homeTeamId)?.name) ||
@@ -738,8 +770,16 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
     (candidate) => String(candidate.number) === matchNumber,
   );
   const saved = adminResults[matchNumber];
-  const scheduledHomeId = match && teamsById.has(match.home) ? match.home : "";
-  const scheduledAwayId = match && teamsById.has(match.away) ? match.away : "";
+  const resolvedPlayoffTeams = buildResolvedPlayoffTeams(adminResults);
+  const resolvedPlayoffMatch = resolvedPlayoffTeams[matchNumber];
+  const scheduledHomeId =
+    match && teamsById.has(match.home)
+      ? match.home
+      : resolvedPlayoffMatch?.home || "";
+  const scheduledAwayId =
+    match && teamsById.has(match.away)
+      ? match.away
+      : resolvedPlayoffMatch?.away || "";
 
   const [initial] = useState(() =>
     splitSavedEvents(
@@ -754,12 +794,19 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
   const [awayScore, setAwayScore] = useState(
     saved == null ? "" : String(saved.awayScore ?? ""),
   );
-  const [homeTeamId, setHomeTeamId] = useState(saved?.homeTeamId || "");
-  const [awayTeamId, setAwayTeamId] = useState(saved?.awayTeamId || "");
+  const [homeTeamId, setHomeTeamId] = useState(
+    saved?.homeTeamId || scheduledHomeId,
+  );
+  const [awayTeamId, setAwayTeamId] = useState(
+    saved?.awayTeamId || scheduledAwayId,
+  );
   const [homeGoals, setHomeGoals] = useState<GoalSlot[]>(initial.home);
   const [awayGoals, setAwayGoals] = useState<GoalSlot[]>(initial.away);
   const [mvpPlayerId, setMvpPlayerId] = useState(initial.mvpPlayerId);
   const [extras, setExtras] = useState<ExtraRow[]>(initial.extras);
+  const [trainerTacticsById, setTrainerTacticsById] = useState<
+    Record<string, string[]>
+  >(saved?.trainerTactics || {});
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -788,6 +835,48 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
     setExtras((current) =>
       current.map((row, i) => (i === index ? { ...row, ...patch } : row)),
     );
+  };
+
+  const sanitizeTrainerTactics = (
+    source = trainerTacticsById,
+  ): Record<string, string[]> => {
+    const validTeams = new Set([resolvedHomeId, resolvedAwayId].filter(Boolean));
+    return Object.fromEntries(
+      Object.entries(source)
+        .map(([tacticId, teamIds]) => [
+          tacticId,
+          Array.from(
+            new Set((teamIds || []).filter((teamId) => validTeams.has(teamId))),
+          ),
+        ])
+        .filter(([, teamIds]) => teamIds.length),
+    );
+  };
+
+  const isTrainerTacticChecked = (tacticId: string, teamId: string) =>
+    Boolean(teamId && (trainerTacticsById[tacticId] || []).includes(teamId));
+
+  const toggleTrainerTacticTeam = (
+    tacticId: string,
+    teamId: string,
+    checked: boolean,
+  ) => {
+    if (!teamId) return;
+    setTrainerTacticsById((current) => {
+      const next = { ...current };
+      const teamIds = new Set(next[tacticId] || []);
+      if (checked) {
+        teamIds.add(teamId);
+      } else {
+        teamIds.delete(teamId);
+      }
+      if (teamIds.size) {
+        next[tacticId] = Array.from(teamIds);
+      } else {
+        delete next[tacticId];
+      }
+      return sanitizeTrainerTactics(next);
+    });
   };
 
   const pickerPlayerId = pickerTarget
@@ -911,6 +1000,7 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
       }
       return candidate;
     });
+    const finalTrainerTactics = sanitizeTrainerTactics();
 
     setSaving(true);
     try {
@@ -920,9 +1010,10 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
       await saveAdminResult(matchNumber, {
         homeScore,
         awayScore,
-        homeTeamId,
-        awayTeamId,
+        homeTeamId: resolvedHomeId,
+        awayTeamId: resolvedAwayId,
         events: mergedEvents,
+        trainerTactics: finalTrainerTactics,
         source: "manual",
       });
 
@@ -1134,6 +1225,61 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
         </Notice>
       ) : null}
 
+      <div className="space-y-3">
+        <div>
+          <h4 className="font-semibold text-white">Chips de entrenador</h4>
+          <p className="text-sm text-slate-400">
+            Marca manualmente qué equipo cumple cada chip. Si eliges ambos,
+            puntúan los dos. Solo cuentan los 120 minutos; no marques nada de la
+            tanda de penaltis. En Estratega cuenta el gol de falta o córner
+            directo, o con asistencia del lanzador; el penalti no cuenta.
+          </p>
+        </div>
+        <div className="grid gap-2">
+          {trainerTactics.map((tactic) => (
+            <div
+              key={tactic.id}
+              className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-slate-950/40 p-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+            >
+              <span className="flex min-w-0 items-center gap-2 text-slate-200">
+                <span className="min-w-0 truncate font-semibold">
+                  {tactic.title}
+                </span>
+                <span className="shrink-0 rounded-full bg-cyan-400/10 px-2 py-0.5 text-xs font-bold text-cyan-200">
+                  +{tactic.points}
+                </span>
+              </span>
+              <span className="grid gap-2 sm:grid-cols-2">
+                {[
+                  { label: resolvedHomeId ? teamName(resolvedHomeId) : "Local", teamId: resolvedHomeId },
+                  { label: resolvedAwayId ? teamName(resolvedAwayId) : "Visitante", teamId: resolvedAwayId },
+                ].map((option) => (
+                  <span
+                    key={option.label}
+                    className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-slate-200"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isTrainerTacticChecked(tactic.id, option.teamId)}
+                      disabled={!option.teamId}
+                      onChange={(event) =>
+                        toggleTrainerTacticTeam(
+                          tactic.id,
+                          option.teamId,
+                          event.target.checked,
+                        )
+                      }
+                      className="h-4 w-4 accent-cyan-400"
+                    />
+                    <span className="min-w-0 truncate">{option.label}</span>
+                  </span>
+                ))}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {homeCount || awayCount ? (
         <div className="space-y-4">
           <div>
@@ -1292,6 +1438,10 @@ function ProviderList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function matchSideName(value: string) {
-  return teamsById.get(value)?.name || value;
+function matchSideName(value: string, resolvedTeamId = "") {
+  return (
+    (resolvedTeamId && teamsById.get(resolvedTeamId)?.name) ||
+    teamsById.get(value)?.name ||
+    translateSlot(value)
+  );
 }

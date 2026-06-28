@@ -96,7 +96,27 @@ const sections: RulesSection[] = [
       ["Clavas el resultado exacto", "+goles del partido"],
     ],
     highlight: "Clavas el resultado exacto",
-    note: "El resultado exacto suma además tantos puntos como goles tenga el partido: un 3-2 clavado son 5 puntos extra.",
+    note: "El resultado se valida con el marcador tras 120 minutos como máximo: 90 minutos más prórroga. La tanda de penaltis no cuenta. El resultado exacto suma además tantos puntos como goles tenga el partido: un 3-2 clavado son 5 puntos extra.",
+  },
+  {
+    step: "5",
+    title: "Chips de entrenador",
+    lock: "Cada partido, hasta su inicio",
+    description:
+      "En playoffs eliges un entrenador y un chip por partido. Si ese chip se cumple para el equipo elegido, sumas sus puntos.",
+    rules: [
+      ["Goleador: tu equipo marca 3 o más goles", "+2"],
+      ["Muro: tu equipo deja la portería a cero", "+2"],
+      ["Abrelatas: tu equipo marca el primer gol", "+2"],
+      [
+        "Estratega: gol de falta o córner, directo o con asistencia del lanzador; no cuenta penalti",
+        "+2",
+      ],
+      ["Carnicero: roja para tu equipo", "+5"],
+      ["VAR: te hacen penalti", "+3"],
+    ],
+    highlight: "Carnicero: roja para tu equipo",
+    note: "Todos los chips se validan solo hasta los 120 minutos. Nada de lo que ocurra en la tanda de penaltis suma para chips ni resultado.",
   },
 ];
 

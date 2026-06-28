@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import Image from "next/image";
 import {
@@ -14,6 +14,7 @@ import {
   useDroppable,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -21,12 +22,25 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import {
+  FinishedMatchCard,
+  hasFinishedScore,
+  trainerResultChipForMatch,
+} from "@/components/common";
+import {
   TrainerFullArtCard,
   trainerDemoCards,
   type TrainerDemoCard,
 } from "@/components/trainer-full-art-card";
-import { teamsById } from "@/lib/data";
+import { data, schedule, teamsById } from "@/lib/data";
 import { flagUrl } from "@/lib/format";
+import {
+  buildPredictionPlayoffTeams,
+  buildResolvedPlayoffTeams,
+  type ResolvedPlayoffTeams,
+} from "@/lib/playoff-teams";
+import { hasMatchStarted as hasScheduledMatchStarted } from "@/lib/prediction";
+import { createEngine } from "@/lib/scoring";
+import type { AdminResults, Match, Prediction } from "@/lib/types";
 
 type IconType = "ball" | "glove" | "bolt" | "target" | "red-card" | "whistle";
 
@@ -45,8 +59,14 @@ type PlayoffMatch = {
   id: string;
   stage: string;
   date: string;
+  time: string;
   venue: string;
   trainers: [string, string];
+};
+
+type PlayoffDateGroup = {
+  date: string;
+  matches: PlayoffMatch[];
 };
 
 type PlayoffPhase = {
@@ -54,6 +74,11 @@ type PlayoffPhase = {
   title: string;
   short: string;
   matches: PlayoffMatch[];
+};
+
+type PlayoffResultsProgress = {
+  done: number;
+  total: number;
 };
 
 type Pick = {
@@ -80,7 +105,7 @@ const tactics: Tactic[] = [
   {
     id: "over-25",
     title: "Goleador",
-    name: "Si el partido supera 2.5 goles.",
+    name: "Marca +2.5 goles.",
     short: "Over 2.5",
     points: 2,
     rarity: "comun",
@@ -89,19 +114,19 @@ const tactics: Tactic[] = [
   },
   {
     id: "clean-sheet",
-    title: "Portería a 0",
-    name: "Si no encaja gol.",
-    short: "Cero",
-    points: 3,
+    title: "Muro",
+    name: "No encaja gol.",
+    short: "Muro",
+    points: 2,
     rarity: "dificil",
     color: "#69d744",
     icon: "glove",
   },
   {
     id: "first-goal",
-    title: "Primer gol",
-    name: "Si marca el primero.",
-    short: "Primero",
+    title: "Abrelatas",
+    name: "Marca primero.",
+    short: "Abrelatas",
     points: 2,
     rarity: "comun",
     color: "#d946ef",
@@ -109,35 +134,38 @@ const tactics: Tactic[] = [
   },
   {
     id: "set-piece",
-    title: "Balón parado",
-    name: "Si marca a balón parado.",
-    short: "ABP",
-    points: 4,
+    title: "Estratega",
+    name: "Gol de falta o córner.",
+    short: "Estratega",
+    points: 2,
     rarity: "dificil",
     color: "#38bdf8",
     icon: "target",
   },
   {
     id: "red-card",
-    title: "Tarjeta roja",
-    name: "Si hay expulsión.",
-    short: "Roja",
-    points: 4,
+    title: "Carnicero",
+    name: "Expulsan tu jugador.",
+    short: "Carnicero",
+    points: 5,
     rarity: "dificil",
     color: "#ff4d2d",
     icon: "red-card",
   },
   {
     id: "penalty",
-    title: "Penalti",
-    name: "Si se señala penalti.",
-    short: "Penalti",
+    title: "VAR",
+    name: "Te hacen penalti.",
+    short: "VAR",
     points: 3,
     rarity: "dificil",
     color: "#f5c518",
     icon: "whistle",
   },
 ];
+
+const pendingTrainer = (matchNumber: number, side: "home" | "away") =>
+  `placeholder-coach-${matchNumber}-${side}`;
 
 const playoffPhases: PlayoffPhase[] = [
   {
@@ -146,32 +174,132 @@ const playoffPhases: PlayoffPhase[] = [
     short: "D16",
     matches: [
       {
-        id: "r32-1",
+        id: "73",
         stage: "Dieciseisavos",
         date: "28 JUN 2026",
-        venue: "Ciudad de México",
-        trainers: ["brasil-ancelotti", "espana-de-la-fuente"],
+        time: "21:00",
+        venue: "SoFi Stadium, Inglewood",
+        trainers: ["sudafrica-broos", "canada-marsch"],
       },
       {
-        id: "r32-2",
+        id: "76",
         stage: "Dieciseisavos",
         date: "29 JUN 2026",
-        venue: "Toronto",
-        trainers: ["francia-deschamps", "brasil-ancelotti"],
+        time: "19:00",
+        venue: "NRG Stadium, Houston",
+        trainers: ["brasil-ancelotti", "japon-moriyasu"],
       },
       {
-        id: "r32-3",
+        id: "74",
         stage: "Dieciseisavos",
         date: "29 JUN 2026",
-        venue: "Miami",
-        trainers: ["espana-de-la-fuente", "francia-deschamps"],
+        time: "22:30",
+        venue: "Gillette Stadium, Foxborough",
+        trainers: ["alemania-nagelsmann", pendingTrainer(74, "away")],
       },
       {
-        id: "r32-4",
+        id: "75",
         stage: "Dieciseisavos",
         date: "30 JUN 2026",
-        venue: "Seattle",
-        trainers: ["brasil-ancelotti", "francia-deschamps"],
+        time: "03:00",
+        venue: "Estadio BBVA, Guadalupe",
+        trainers: ["paises-bajos-koeman", "marruecos-ouahbi"],
+      },
+      {
+        id: "78",
+        stage: "Dieciseisavos",
+        date: "30 JUN 2026",
+        time: "19:00",
+        venue: "AT&T Stadium, Arlington",
+        trainers: ["costa-de-marfil-fae", "noruega-solbakken"],
+      },
+      {
+        id: "77",
+        stage: "Dieciseisavos",
+        date: "30 JUN 2026",
+        time: "23:00",
+        venue: "MetLife Stadium, East Rutherford",
+        trainers: ["francia-deschamps", pendingTrainer(77, "away")],
+      },
+      {
+        id: "79",
+        stage: "Dieciseisavos",
+        date: "1 JUL 2026",
+        time: "03:00",
+        venue: "Estadio Azteca, Mexico City",
+        trainers: ["mexico-aguirre", pendingTrainer(79, "away")],
+      },
+      {
+        id: "80",
+        stage: "Dieciseisavos",
+        date: "1 JUL 2026",
+        time: "18:00",
+        venue: "Mercedes-Benz Stadium, Atlanta",
+        trainers: [pendingTrainer(80, "home"), pendingTrainer(80, "away")],
+      },
+      {
+        id: "82",
+        stage: "Dieciseisavos",
+        date: "1 JUL 2026",
+        time: "22:00",
+        venue: "Lumen Field, Seattle",
+        trainers: ["belgica-garcia", pendingTrainer(82, "away")],
+      },
+      {
+        id: "81",
+        stage: "Dieciseisavos",
+        date: "2 JUL 2026",
+        time: "02:00",
+        venue: "Levi's Stadium, Santa Clara",
+        trainers: ["estados-unidos-pochettino", pendingTrainer(81, "away")],
+      },
+      {
+        id: "84",
+        stage: "Dieciseisavos",
+        date: "2 JUL 2026",
+        time: "21:00",
+        venue: "SoFi Stadium, Inglewood",
+        trainers: ["espana-de-la-fuente", pendingTrainer(84, "away")],
+      },
+      {
+        id: "83",
+        stage: "Dieciseisavos",
+        date: "3 JUL 2026",
+        time: "01:00",
+        venue: "BMO Field, Toronto",
+        trainers: [pendingTrainer(83, "home"), pendingTrainer(83, "away")],
+      },
+      {
+        id: "85",
+        stage: "Dieciseisavos",
+        date: "3 JUL 2026",
+        time: "05:00",
+        venue: "BC Place, Vancouver",
+        trainers: ["suiza-yakin", pendingTrainer(85, "away")],
+      },
+      {
+        id: "88",
+        stage: "Dieciseisavos",
+        date: "3 JUL 2026",
+        time: "20:00",
+        venue: "AT&T Stadium, Arlington",
+        trainers: ["australia-popovic", "egipto-hassan"],
+      },
+      {
+        id: "86",
+        stage: "Dieciseisavos",
+        date: "4 JUL 2026",
+        time: "00:00",
+        venue: "Hard Rock Stadium, Miami Gardens",
+        trainers: [pendingTrainer(86, "home"), "cabo-verde-bubista"],
+      },
+      {
+        id: "87",
+        stage: "Dieciseisavos",
+        date: "4 JUL 2026",
+        time: "03:30",
+        venue: "Arrowhead Stadium, Kansas City",
+        trainers: [pendingTrainer(87, "home"), pendingTrainer(87, "away")],
       },
     ],
   },
@@ -181,25 +309,68 @@ const playoffPhases: PlayoffPhase[] = [
     short: "OCT",
     matches: [
       {
-        id: "r16-1",
+        id: "90",
         stage: "Octavos",
         date: "4 JUL 2026",
-        venue: "Dallas",
-        trainers: ["espana-de-la-fuente", "brasil-ancelotti"],
+        time: "19:00",
+        venue: "NRG Stadium, Houston",
+        trainers: [pendingTrainer(90, "home"), pendingTrainer(90, "away")],
       },
       {
-        id: "r16-2",
+        id: "89",
+        stage: "Octavos",
+        date: "4 JUL 2026",
+        time: "23:00",
+        venue: "Lincoln Financial Field, Philadelphia",
+        trainers: [pendingTrainer(89, "home"), pendingTrainer(89, "away")],
+      },
+      {
+        id: "91",
         stage: "Octavos",
         date: "5 JUL 2026",
-        venue: "Los Angeles",
-        trainers: ["francia-deschamps", "espana-de-la-fuente"],
+        time: "22:00",
+        venue: "MetLife Stadium, East Rutherford",
+        trainers: [pendingTrainer(91, "home"), pendingTrainer(91, "away")],
       },
       {
-        id: "r16-3",
+        id: "92",
         stage: "Octavos",
         date: "6 JUL 2026",
-        venue: "New York",
-        trainers: ["brasil-ancelotti", "francia-deschamps"],
+        time: "02:00",
+        venue: "Estadio Azteca, Mexico City",
+        trainers: [pendingTrainer(92, "home"), pendingTrainer(92, "away")],
+      },
+      {
+        id: "93",
+        stage: "Octavos",
+        date: "6 JUL 2026",
+        time: "21:00",
+        venue: "AT&T Stadium, Arlington",
+        trainers: [pendingTrainer(93, "home"), pendingTrainer(93, "away")],
+      },
+      {
+        id: "94",
+        stage: "Octavos",
+        date: "7 JUL 2026",
+        time: "02:00",
+        venue: "Lumen Field, Seattle",
+        trainers: [pendingTrainer(94, "home"), pendingTrainer(94, "away")],
+      },
+      {
+        id: "95",
+        stage: "Octavos",
+        date: "7 JUL 2026",
+        time: "18:00",
+        venue: "Mercedes-Benz Stadium, Atlanta",
+        trainers: [pendingTrainer(95, "home"), pendingTrainer(95, "away")],
+      },
+      {
+        id: "96",
+        stage: "Octavos",
+        date: "7 JUL 2026",
+        time: "22:00",
+        venue: "BC Place, Vancouver",
+        trainers: [pendingTrainer(96, "home"), pendingTrainer(96, "away")],
       },
     ],
   },
@@ -209,18 +380,36 @@ const playoffPhases: PlayoffPhase[] = [
     short: "QF",
     matches: [
       {
-        id: "qf-1",
+        id: "97",
         stage: "Cuartos",
         date: "9 JUL 2026",
-        venue: "Kansas City",
-        trainers: ["brasil-ancelotti", "espana-de-la-fuente"],
+        time: "22:00",
+        venue: "Gillette Stadium, Foxborough",
+        trainers: [pendingTrainer(97, "home"), pendingTrainer(97, "away")],
       },
       {
-        id: "qf-2",
+        id: "98",
         stage: "Cuartos",
         date: "10 JUL 2026",
-        venue: "Philadelphia",
-        trainers: ["francia-deschamps", "brasil-ancelotti"],
+        time: "21:00",
+        venue: "SoFi Stadium, Inglewood",
+        trainers: [pendingTrainer(98, "home"), pendingTrainer(98, "away")],
+      },
+      {
+        id: "99",
+        stage: "Cuartos",
+        date: "11 JUL 2026",
+        time: "23:00",
+        venue: "Hard Rock Stadium, Miami Gardens",
+        trainers: [pendingTrainer(99, "home"), pendingTrainer(99, "away")],
+      },
+      {
+        id: "100",
+        stage: "Cuartos",
+        date: "12 JUL 2026",
+        time: "03:00",
+        venue: "Arrowhead Stadium, Kansas City",
+        trainers: [pendingTrainer(100, "home"), pendingTrainer(100, "away")],
       },
     ],
   },
@@ -230,18 +419,35 @@ const playoffPhases: PlayoffPhase[] = [
     short: "SF",
     matches: [
       {
-        id: "sf-1",
-        stage: "Semifinal",
+        id: "101",
+        stage: "Semifinales",
         date: "14 JUL 2026",
-        venue: "Dallas",
-        trainers: ["espana-de-la-fuente", "francia-deschamps"],
+        time: "21:00",
+        venue: "AT&T Stadium, Arlington",
+        trainers: [pendingTrainer(101, "home"), pendingTrainer(101, "away")],
       },
       {
-        id: "sf-2",
-        stage: "Semifinal",
+        id: "102",
+        stage: "Semifinales",
         date: "15 JUL 2026",
-        venue: "Atlanta",
-        trainers: ["brasil-ancelotti", "espana-de-la-fuente"],
+        time: "21:00",
+        venue: "Mercedes-Benz Stadium, Atlanta",
+        trainers: [pendingTrainer(102, "home"), pendingTrainer(102, "away")],
+      },
+    ],
+  },
+  {
+    id: "third-place",
+    title: "Tercer puesto",
+    short: "3/4",
+    matches: [
+      {
+        id: "103",
+        stage: "Tercer puesto",
+        date: "18 JUL 2026",
+        time: "23:00",
+        venue: "Hard Rock Stadium, Miami Gardens",
+        trainers: [pendingTrainer(103, "home"), pendingTrainer(103, "away")],
       },
     ],
   },
@@ -251,19 +457,41 @@ const playoffPhases: PlayoffPhase[] = [
     short: "FIN",
     matches: [
       {
-        id: "final-1",
+        id: "104",
         stage: "Final",
         date: "19 JUL 2026",
-        venue: "New Jersey",
-        trainers: ["espana-de-la-fuente", "francia-deschamps"],
+        time: "21:00",
+        venue: "MetLife Stadium, East Rutherford",
+        trainers: [pendingTrainer(104, "home"), pendingTrainer(104, "away")],
       },
     ],
   },
 ];
 
+const initialPlayoffPhase = playoffPhases[0];
+const allPlayoffMatches = playoffPhases.flatMap((phase) => phase.matches);
+export const playoffResultsMatchCount = allPlayoffMatches.length;
+const defaultPlayoffScheduleMatches = schedule.filter(
+  (match) => match.number >= 73,
+);
+const defaultPlayoffScheduleByNumber = new Map(
+  defaultPlayoffScheduleMatches.map((match) => [match.number, match]),
+);
+const playoffMatchById = new Map(
+  allPlayoffMatches.map((match) => [match.id, match]),
+);
+const scoringEngine = createEngine({ data, schedule });
 const trainerById = new Map(
   trainerDemoCards.map((trainer) => [trainer.id, trainer]),
 );
+const trainerIdByTeamId = new Map(
+  trainerDemoCards
+    .filter((trainer) => trainer.teamId)
+    .map((trainer) => [trainer.teamId, trainer.id]),
+);
+const placeholderTrainer = trainerById.get("placeholder-coach");
+const genericTrainerPrefix = "team-coach-";
+const emptyAdminResults: AdminResults = {};
 const tacticById = new Map(tactics.map((tactic) => [tactic.id, tactic]));
 const tacticIconAssets: Record<IconType, string> = {
   ball: "/prediction-icons/over25.png",
@@ -274,10 +502,176 @@ const tacticIconAssets: Record<IconType, string> = {
   whistle: "/prediction-icons/penalty.png",
 };
 
+function getTrainerCard(trainerId: string) {
+  const trainer = trainerById.get(trainerId);
+  if (trainer) return trainer;
+  if (trainerId.startsWith("placeholder-coach-") && placeholderTrainer) {
+    return { ...placeholderTrainer, id: trainerId };
+  }
+  if (trainerId.startsWith(genericTrainerPrefix) && placeholderTrainer) {
+    const teamId = trainerId.slice(genericTrainerPrefix.length);
+    const team = teamsById.get(teamId);
+    if (team) {
+      return {
+        ...placeholderTrainer,
+        id: trainerId,
+        coach: "Seleccionador",
+        country: team.name,
+        teamId,
+        points: 80,
+      };
+    }
+  }
+  return undefined;
+}
+
+function trainerIdForTeam(teamId?: string, fallbackTrainerId = "") {
+  if (!teamId || !teamsById.has(teamId)) return fallbackTrainerId;
+  return trainerIdByTeamId.get(teamId) || `${genericTrainerPrefix}${teamId}`;
+}
+
 function getTrainers(match: PlayoffMatch) {
   return match.trainers
-    .map((trainerId) => trainerById.get(trainerId))
+    .map((trainerId) => getTrainerCard(trainerId))
     .filter(Boolean) as TrainerDemoCard[];
+}
+
+function applyResolvedTeamsToPhases(
+  phases: PlayoffPhase[],
+  resolvedTeams: ResolvedPlayoffTeams,
+) {
+  return phases.map((phase) => ({
+    ...phase,
+    matches: phase.matches.map((match) => {
+      const teams = resolvedTeams[match.id];
+      return {
+        ...match,
+        trainers: [
+          trainerIdForTeam(teams?.home, match.trainers[0]),
+          trainerIdForTeam(teams?.away, match.trainers[1]),
+        ] as [string, string],
+      };
+    }),
+  }));
+}
+
+function playoffMatchNumber(match: PlayoffMatch) {
+  return Number.parseInt(match.id, 10);
+}
+
+function playoffScheduleMatch(
+  match: PlayoffMatch,
+  scheduleByNumber = defaultPlayoffScheduleByNumber,
+) {
+  const number = playoffMatchNumber(match);
+  return Number.isFinite(number) ? scheduleByNumber.get(number) : undefined;
+}
+
+function actualPlayoffTeamId(
+  match: Match | undefined,
+  result: AdminResults[string] | undefined,
+  side: "home" | "away",
+) {
+  const override = result?.[`${side}TeamId`];
+  if (override && teamsById.has(override)) return override;
+
+  const scheduled = match?.[side];
+  return scheduled && teamsById.has(scheduled) ? scheduled : undefined;
+}
+
+function getPredictionPick(match: PlayoffMatch, prediction?: Prediction) {
+  const current =
+    prediction?.matchPredictions[String(playoffMatchNumber(match))];
+  if (!current?.trainerTeamId || !current.tacticId) return undefined;
+
+  const trainer = getTrainers(match).find(
+    (candidate) => candidate.teamId === current.trainerTeamId,
+  );
+  return trainer ? { trainerId: trainer.id, tacticId: current.tacticId } : undefined;
+}
+
+function getPredictionResult(match: PlayoffMatch, prediction?: Prediction) {
+  const current =
+    prediction?.matchPredictions[String(playoffMatchNumber(match))];
+  if (!current) return undefined;
+
+  return {
+    homeGoals: current.homeScore,
+    awayGoals: current.awayScore,
+  };
+}
+
+function isPredictionValueSet(value: string | undefined) {
+  return value !== undefined && value !== "";
+}
+
+function isControlledPlayoffComplete(
+  match: PlayoffMatch,
+  prediction?: Prediction,
+) {
+  const current =
+    prediction?.matchPredictions[String(playoffMatchNumber(match))];
+
+  return Boolean(
+    isPredictionValueSet(current?.homeScore) &&
+    isPredictionValueSet(current?.awayScore) &&
+    current?.trainerTeamId &&
+    current.tacticId,
+  );
+}
+
+function defaultTrainerIdForMatch(match: PlayoffMatch) {
+  const trainer = getTrainers(match).find((candidate) => candidate.teamId);
+  return trainer?.id;
+}
+
+function trainerBelongsToMatch(match: PlayoffMatch, trainerId?: string) {
+  return Boolean(
+    trainerId &&
+      getTrainers(match).some(
+        (trainer) => trainer.id === trainerId && trainer.teamId,
+      ),
+  );
+}
+
+function groupPlayoffMatchesByDate(matches: PlayoffMatch[]) {
+  return matches.reduce<PlayoffDateGroup[]>((groups, match) => {
+    const group = groups.find((item) => item.date === match.date);
+    if (group) {
+      group.matches.push(match);
+      return groups;
+    }
+    return [...groups, { date: match.date, matches: [match] }];
+  }, []);
+}
+
+function filterPlayoffMatches(
+  matches: PlayoffMatch[],
+  matchIds?: readonly string[],
+) {
+  if (!matchIds?.length) return matches;
+  const allowedMatchIds = new Set(matchIds);
+  return matches.filter((match) => allowedMatchIds.has(match.id));
+}
+
+const playoffCollisionDetection: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args);
+  return pointerCollisions.length > 0 ? pointerCollisions : closestCenter(args);
+};
+
+function usePlayoffCompactLayout() {
+  const [isCompact, setIsCompact] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 760px)");
+    const sync = () => setIsCompact(media.matches);
+
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  return isCompact;
 }
 
 function PredictionIcon({ type }: { type: IconType }) {
@@ -288,7 +682,6 @@ function PredictionIcon({ type }: { type: IconType }) {
       fill
       sizes="(max-width: 760px) 44vw, 128px"
       className="playoff-battle-tactic-icon-img"
-      priority
       unoptimized
     />
   );
@@ -298,62 +691,93 @@ function arcadeText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function PredictionCard({
+const PredictionCard = memo(function PredictionCard({
   active = false,
   activeTrainer,
+  disabled = false,
   dragId,
   draggingTacticId,
   matchId,
   onSelect,
   orderIndex,
   tactic,
+  useDragOverlay = false,
 }: {
   active?: boolean;
   activeTrainer?: TrainerDemoCard | null;
+  disabled?: boolean;
   dragId: string;
   draggingTacticId?: string | null;
   matchId: string;
   onSelect: (matchId: string, tacticId: string) => void;
   orderIndex: number;
   tactic: Tactic;
+  useDragOverlay?: boolean;
 }) {
   const { attributes, isDragging, listeners, setNodeRef, transform } =
     useDraggable({
       id: dragId,
       data: { matchId, tacticId: tactic.id, type: "tactic" },
+      disabled,
     });
+  const isSource = draggingTacticId === tactic.id;
+  const isLifted = isSource || isDragging;
   const style = {
     "--tactic-color": tactic.color,
     "--tactic-index": orderIndex,
     transform: CSS.Translate.toString(transform),
   } as TacticStyle;
-  const isSource = draggingTacticId === tactic.id;
   const isMuted = Boolean(draggingTacticId && !isSource);
 
   return (
     <button
       ref={setNodeRef}
       type="button"
+      disabled={disabled}
       onClick={() => onSelect(matchId, tactic.id)}
       className={`playoff-battle-tactic ${
         active ? "playoff-battle-tactic--picked" : ""
+      } ${isLifted ? "playoff-battle-tactic--source" : ""} ${
+        isLifted && useDragOverlay
+          ? "playoff-battle-tactic--overlay-source"
+          : ""
       } ${
-        isSource || isDragging ? "playoff-battle-tactic--source" : ""
-      } ${isMuted ? "playoff-battle-tactic--muted" : ""} ${
-        draggingTacticId ? "playoff-battle-tactic--dragging" : ""
+        isMuted ? "playoff-battle-tactic--muted" : ""
       }`}
       style={style}
       {...listeners}
       {...attributes}
     >
-      <span className="playoff-battle-tactic-title">{arcadeText(tactic.title)}</span>
+      <TacticCardFace
+        active={active}
+        activeTrainer={activeTrainer}
+        tactic={tactic}
+      />
+    </button>
+  );
+});
+
+function TacticCardFace({
+  active = false,
+  activeTrainer,
+  tactic,
+}: {
+  active?: boolean;
+  activeTrainer?: TrainerDemoCard | null;
+  tactic: Tactic;
+}) {
+  return (
+    <>
+      <span className="playoff-battle-tactic-title">
+        {arcadeText(tactic.title)}
+      </span>
       <span className="playoff-battle-tactic-icon">
         <PredictionIcon type={tactic.icon} />
       </span>
-      <span className="playoff-battle-tactic-copy">{arcadeText(tactic.name)}</span>
-      <span className="playoff-battle-tactic-points">
-        {tactic.points} puntos
+      <span className="playoff-battle-tactic-copy">
+        {arcadeText(tactic.name)}
       </span>
+      <span className="playoff-battle-tactic-points">+{tactic.points} pts</span>
       {active ? (
         <span className="playoff-battle-tactic-stamp">
           <span>En carta</span>
@@ -366,25 +790,7 @@ function PredictionCard({
           ) : null}
         </span>
       ) : null}
-    </button>
-  );
-}
-
-function DragPreview({ tactic }: { tactic: Tactic }) {
-  return (
-    <div
-      className="playoff-battle-tactic playoff-battle-tactic--preview"
-      style={{ "--tactic-color": tactic.color } as TacticStyle}
-    >
-      <span className="playoff-battle-tactic-title">{arcadeText(tactic.title)}</span>
-      <span className="playoff-battle-tactic-icon">
-        <PredictionIcon type={tactic.icon} />
-      </span>
-      <span className="playoff-battle-tactic-copy">{arcadeText(tactic.name)}</span>
-      <span className="playoff-battle-tactic-points">
-        {tactic.points} puntos
-      </span>
-    </div>
+    </>
   );
 }
 
@@ -448,10 +854,12 @@ function CoachCardStylePanel({
   );
 }
 
-function HeroTrainerDrop({
+const HeroTrainerDrop = memo(function HeroTrainerDrop({
   activeDrag,
   align,
+  dropScope = "default",
   hoveredTrainerId,
+  locked = false,
   match,
   onTapTrainer,
   pick,
@@ -460,7 +868,9 @@ function HeroTrainerDrop({
 }: {
   activeDrag: ActiveDrag;
   align: "left" | "right";
+  dropScope?: string;
   hoveredTrainerId?: string | null;
+  locked?: boolean;
   match: PlayoffMatch;
   onTapTrainer: (matchId: string, trainerId: string) => void;
   pick?: Pick;
@@ -468,12 +878,15 @@ function HeroTrainerDrop({
   trainer: TrainerDemoCard;
 }) {
   const { isOver, setNodeRef } = useDroppable({
-    id: `drop:${match.id}:${trainer.id}`,
+    id: `drop:${dropScope}:${match.id}:${trainer.id}`,
     data: { matchId: match.id, trainerId: trainer.id, type: "trainer-drop" },
+    disabled: locked || !trainer.teamId,
   });
   const selected = pick?.trainerId === trainer.id;
-  const tactic = selected && pick?.tacticId ? tacticById.get(pick.tacticId) : null;
-  const canDrop = activeDrag?.matchId === match.id;
+  const tactic =
+    selected && pick?.tacticId ? tacticById.get(pick.tacticId) : null;
+  const canDrop =
+    Boolean(trainer.teamId) && !locked && activeDrag?.matchId === match.id;
   const canAssign = canDrop;
   const dropDimmed =
     canDrop && hoveredTrainerId != null && hoveredTrainerId !== trainer.id;
@@ -488,17 +901,17 @@ function HeroTrainerDrop({
       ref={setNodeRef}
       type="button"
       aria-label={actionLabel}
+      disabled={locked || !trainer.teamId}
       onClick={() => onTapTrainer(match.id, trainer.id)}
       className={`playoff-battle-coach playoff-battle-coach--${align} ${
         selected ? "playoff-battle-coach--picked" : ""
       } ${targeted ? "playoff-battle-coach--targeted" : ""} ${
         pick && !selected && !targeted ? "playoff-battle-coach--unpicked" : ""
-      } ${
-        dropDimmed ? "playoff-battle-coach--drop-dimmed" : ""
-      } ${
+      } ${dropDimmed ? "playoff-battle-coach--drop-dimmed" : ""} ${
         isOver ? "playoff-battle-coach--over" : ""
       } ${canDrop ? "playoff-battle-coach--drop-ready" : ""}`}
     >
+      <span className="playoff-battle-coach-ground-shadow" aria-hidden="true" />
       <TrainerFullArtCard card={trainer} />
       <CoachCardHeader trainer={trainer} />
       <CoachCardStylePanel
@@ -522,7 +935,7 @@ function HeroTrainerDrop({
       ) : null}
     </button>
   );
-}
+});
 
 const playoffMonthIndex: Record<string, number> = {
   JUN: 5,
@@ -531,13 +944,60 @@ const playoffMonthIndex: Record<string, number> = {
 
 function playoffKickoffMs(match: PlayoffMatch) {
   const [dayText, monthText, yearText] = match.date.split(" ");
+  const [hourText, minuteText] = match.time.split(":");
+  const day = Number.parseInt(dayText, 10);
+  const month = playoffMonthIndex[monthText] ?? 0;
+  const year = Number.parseInt(yearText, 10);
+  const hour = Number.parseInt(hourText, 10);
+  const minute = Number.parseInt(minuteText, 10);
+
+  // Kickoff times are displayed in Madrid summer time.
+  return Date.UTC(year, month, day, hour - 2, minute, 0);
+}
+
+function playoffDateKey(date: string) {
+  const [dayText, monthText, yearText] = date.split(" ");
   const day = Number.parseInt(dayText, 10);
   const month = playoffMonthIndex[monthText] ?? 0;
   const year = Number.parseInt(yearText, 10);
 
-  // Demo playoff dates do not include kickoff time. Use 20:00 Madrid summer
-  // time, matching the product rule that picks close just before kickoff.
-  return Date.UTC(year, month, day, 18, 0, 0);
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(
+    2,
+    "0",
+  )}`;
+}
+
+function formatPlayoffDay(date: string) {
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "numeric",
+    month: "long",
+    timeZone: "Europe/Madrid",
+    weekday: "long",
+  }).format(new Date(`${playoffDateKey(date)}T12:00:00Z`));
+}
+
+function getNextPlayableMatchId(matches: PlayoffMatch[]) {
+  const now = Date.now();
+  const upcoming = matches
+    .filter((match) => playoffKickoffMs(match) > now)
+    .sort((a, b) => playoffKickoffMs(a) - playoffKickoffMs(b));
+
+  return upcoming[0]?.id ?? matches[0]?.id ?? null;
+}
+
+function requestedPlayoffMatchIdFromUrl() {
+  if (typeof window === "undefined") return null;
+
+  const matchId = new URLSearchParams(window.location.search).get("match");
+  return matchId && playoffMatchById.has(matchId) ? matchId : null;
+}
+
+function playoffPhaseForMatchId(matchId: string | null) {
+  if (!matchId) return undefined;
+
+  return playoffPhases.find((phase) =>
+    phase.matches.some((match) => match.id === matchId),
+  );
 }
 
 function formatPlayoffCountdown(ms: number) {
@@ -551,6 +1011,94 @@ function formatPlayoffCountdown(ms: number) {
   if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
   if (minutes > 0) return `${minutes}m ${seconds}s`;
   return `${seconds}s`;
+}
+
+function isMatchPredictionComplete(pick?: Pick, result?: MatchResult) {
+  // A score counts only when actually filled — an empty string "" is the unset
+  // state (shown as "?"), and "" != null is true, so guard against it. "0" is valid.
+  const hasScore = (v?: string | null) =>
+    v !== undefined && v !== null && v !== "";
+  return Boolean(
+    pick?.trainerId &&
+    pick.tacticId &&
+    hasScore(result?.homeGoals) &&
+    hasScore(result?.awayGoals),
+  );
+}
+
+function isPlayoffPredictionComplete(
+  matchId: string,
+  picks: Record<string, Pick>,
+  results: Record<string, MatchResult>,
+) {
+  return isMatchPredictionComplete(picks[matchId], results[matchId]);
+}
+
+function PlayoffResultsHeader({
+  done,
+  onOpenHelp,
+  total,
+}: {
+  done: number;
+  onOpenHelp?: () => void;
+  total: number;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-bold tracking-tight text-white">
+            Resultados
+          </h2>
+          {onOpenHelp ? (
+            <button
+              type="button"
+              onClick={onOpenHelp}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 transition hover:border-[#a7f600]/50 hover:bg-[#a7f600]/12 hover:text-[#a7f600] focus:outline-none focus:ring-2 focus:ring-[#a7f600]/60"
+              aria-label="Ver tutorial de resultados playoffs"
+              title="Ver tutorial"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="9" />
+                <path d="M9.7 9a2.4 2.4 0 0 1 4.5 1.2c0 1.8-2.2 2.1-2.2 3.7" />
+                <path d="M12 17h.01" />
+              </svg>
+            </button>
+          ) : null}
+        </div>
+        <span className="text-sm font-semibold text-zinc-500 sm:pb-1">
+          {done}/{total}
+        </span>
+      </div>
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-6 text-zinc-400">
+        <span>Elección acertada</span>
+        <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
+          +1 punto
+        </span>
+        <span>Resultado exacto suma el valor de todos los</span>
+        <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
+          goles del partido
+        </span>
+        <span>Elige entrenador y estrategia</span>
+        <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-black">
+          obligatorio
+        </span>
+        <span>Cuenta hasta 120 min</span>
+        <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-zinc-200">
+          sin tanda de penaltis
+        </span>
+      </p>
+    </div>
+  );
 }
 
 function PlayoffCountdown({ match }: { match: PlayoffMatch }) {
@@ -597,19 +1145,23 @@ function PlayoffCountdown({ match }: { match: PlayoffMatch }) {
   );
 }
 
-function ScoreStepper({
+const ScoreStepper = memo(function ScoreStepper({
+  disabled = false,
   label,
   onChange,
   value,
 }: {
+  disabled?: boolean;
   label: string;
   onChange: (value: string) => void;
   value?: string;
 }) {
+  const hasValue = value !== undefined && value !== "";
   const numericValue = Number.parseInt(value ?? "0", 10);
   const score = Number.isFinite(numericValue) ? numericValue : 0;
   const setScore = (delta: number) => {
-    onChange(String(Math.max(0, Math.min(99, score + delta))));
+    const baseScore = hasValue ? score : 0;
+    onChange(String(Math.max(0, Math.min(99, baseScore + delta))));
   };
 
   return (
@@ -617,15 +1169,19 @@ function ScoreStepper({
       <button
         className="playoff-battle-score-button"
         type="button"
+        disabled={disabled}
         onClick={() => setScore(1)}
         aria-label={`${label} +1`}
       >
         +
       </button>
-      <span className="playoff-battle-score-value">{score}</span>
+      <span className="playoff-battle-score-value">
+        {hasValue ? score : "?"}
+      </span>
       <button
         className="playoff-battle-score-button"
         type="button"
+        disabled={disabled}
         onClick={() => setScore(-1)}
         aria-label={`${label} -1`}
       >
@@ -633,7 +1189,7 @@ function ScoreStepper({
       </button>
     </div>
   );
-}
+});
 
 function RoundTeamFlag({
   className = "",
@@ -645,12 +1201,15 @@ function RoundTeamFlag({
   teamId?: string;
 }) {
   const team = teamId ? teamsById.get(teamId) : null;
-  if (!team) return null;
+  const placeholderTeam = teamsById.get("ger");
+  const resolvedTeam = team || placeholderTeam;
+  if (!resolvedTeam) return null;
+  const resolvedClassName = `${className}${team ? "" : " saturate-0"}`.trim();
 
   return (
     <Image
-      className={className}
-      src={flagUrl(team)}
+      className={resolvedClassName}
+      src={flagUrl(resolvedTeam)}
       alt=""
       width={size}
       height={size}
@@ -683,48 +1242,28 @@ function PhaseSelector({
   );
 }
 
-function MatchSelector({
-  activeMatchId,
-  matches,
-  onSelect,
-}: {
-  activeMatchId: string;
-  matches: PlayoffMatch[];
-  onSelect: (matchId: string) => void;
-}) {
-  return (
-    <div className="playoff-battle-selector" aria-label="Partidos de la fase">
-      {matches.map((match, index) => {
-        const trainers = getTrainers(match);
-        return (
-          <button
-            key={match.id}
-            type="button"
-            onClick={() => onSelect(match.id)}
-            className={activeMatchId === match.id ? "is-active" : ""}
-          >
-            <span>Partido {index + 1}</span>
-            <strong>
-              {trainers[0]?.country} vs {trainers[1]?.country}
-            </strong>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function MatchResultControls({
+const MatchResultControls = memo(function MatchResultControls({
+  locked = false,
   match,
   onUpdate,
   result,
   trainers,
 }: {
+  locked?: boolean;
   match: PlayoffMatch;
   onUpdate: (matchId: string, patch: Partial<MatchResult>) => void;
   result?: MatchResult;
   trainers: TrainerDemoCard[];
 }) {
+  const updateHome = useCallback(
+    (value: string) => onUpdate(match.id, { homeGoals: value }),
+    [match.id, onUpdate],
+  );
+  const updateAway = useCallback(
+    (value: string) => onUpdate(match.id, { awayGoals: value }),
+    [match.id, onUpdate],
+  );
+
   return (
     <div className="playoff-battle-scoreboard">
       <div className="playoff-battle-score-row">
@@ -737,7 +1276,8 @@ function MatchResultControls({
         <ScoreStepper
           label={`Goles ${trainers[0]?.country ?? "local"}`}
           value={result?.homeGoals}
-          onChange={(value) => onUpdate(match.id, { homeGoals: value })}
+          disabled={locked}
+          onChange={updateHome}
         />
         <span className="playoff-battle-score-divider" aria-hidden="true">
           -
@@ -745,7 +1285,8 @@ function MatchResultControls({
         <ScoreStepper
           label={`Goles ${trainers[1]?.country ?? "visitante"}`}
           value={result?.awayGoals}
-          onChange={(value) => onUpdate(match.id, { awayGoals: value })}
+          disabled={locked}
+          onChange={updateAway}
         />
         {trainers[1] ? (
           <RoundTeamFlag
@@ -756,9 +1297,9 @@ function MatchResultControls({
       </div>
     </div>
   );
-}
+});
 
-function PickState({
+const PickState = memo(function PickState({
   tactic,
   trainer,
 }: {
@@ -773,7 +1314,7 @@ function PickState({
     : undefined;
 
   return (
-    <div
+    <span
       key={isPicked ? `${trainer?.id}-${tactic?.id}` : "empty"}
       aria-live="polite"
       className={`playoff-battle-pick-state ${
@@ -797,20 +1338,581 @@ function PickState({
         </>
       ) : (
         <>
-          <span>Elige chip</span>
           <span>+</span>
-          <span>DT</span>
+          <span>Elegir chip</span>
         </>
       )}
+    </span>
+  );
+});
+
+const MobileTrainerChoice = memo(function MobileTrainerChoice({
+  activeTrainerId,
+  disabled = false,
+  matchId,
+  onSelectTrainer,
+  trainers,
+}: {
+  activeTrainerId?: string;
+  disabled?: boolean;
+  matchId: string;
+  onSelectTrainer: (matchId: string, trainerId: string) => void;
+  trainers: TrainerDemoCard[];
+}) {
+  return (
+    <div
+      className="playoff-battle-mobile-trainer-toggle"
+      aria-label="Entrenador para el chip"
+    >
+      {trainers.map((trainer) => {
+        const isActive = activeTrainerId === trainer.id;
+
+        return (
+          <button
+            key={trainer.id}
+            type="button"
+            disabled={disabled || !trainer.teamId}
+            onClick={() => onSelectTrainer(matchId, trainer.id)}
+            className={isActive ? "is-active" : ""}
+            aria-pressed={isActive}
+          >
+            <RoundTeamFlag
+              teamId={trainer.teamId}
+              className="playoff-battle-mobile-trainer-flag"
+              size={28}
+            />
+            <span>
+              <strong>{trainer.country}</strong>
+              <small>{arcadeText(trainer.coach)}</small>
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
-}
+});
 
-export function PlayoffsBalatroDemo() {
-  const [activePhaseId, setActivePhaseId] = useState(playoffPhases[0].id);
-  const [activeMatchByPhase, setActiveMatchByPhase] = useState<
-    Record<string, string>
-  >({});
+const PlayoffHandPopover = memo(function PlayoffHandPopover({
+  activeTrainerId,
+  disabled = false,
+  dragScope,
+  draggingTacticId,
+  matchId,
+  onSelectTactic,
+  onSelectTrainer,
+  pick,
+  pickedTrainer,
+  trainers,
+}: {
+  activeTrainerId?: string;
+  disabled?: boolean;
+  dragScope: string;
+  draggingTacticId?: string | null;
+  matchId: string;
+  onSelectTactic: (matchId: string, tacticId: string) => void;
+  onSelectTrainer: (matchId: string, trainerId: string) => void;
+  pick?: Pick;
+  pickedTrainer?: TrainerDemoCard | null;
+  trainers: TrainerDemoCard[];
+}) {
+  return (
+    <div id={`playoff-hand-${matchId}`} className="playoff-battle-hand-popover">
+      <MobileTrainerChoice
+        activeTrainerId={activeTrainerId}
+        disabled={disabled}
+        matchId={matchId}
+        onSelectTrainer={onSelectTrainer}
+        trainers={trainers}
+      />
+      <div className="playoff-battle-hand-callout">
+        <strong className="playoff-battle-hand-callout-desktop">
+          CLICK O ARRASTRA LA TACTICA
+        </strong>
+        <strong className="playoff-battle-hand-callout-mobile">
+          TOCA UN CHIP PARA LANZARLO
+        </strong>
+      </div>
+      <div className="playoff-battle-hand playoff-battle-hand--popover">
+        {tactics.map((tactic, index) => (
+          <PredictionCard
+            key={tactic.id}
+            active={pick?.tacticId === tactic.id}
+            activeTrainer={pick?.tacticId === tactic.id ? pickedTrainer : null}
+            disabled={disabled}
+            dragId={`${dragScope}:tactic:${matchId}:${tactic.id}`}
+            draggingTacticId={draggingTacticId}
+            matchId={matchId}
+            onSelect={onSelectTactic}
+            orderIndex={index}
+            tactic={tactic}
+          />
+        ))}
+      </div>
+    </div>
+  );
+});
+
+const MobileChipCoachDrop = memo(function MobileChipCoachDrop({
+  activeDrag,
+  activeTrainerId,
+  disabled = false,
+  match,
+  onSelectTrainer,
+  pick,
+  pickedTactic,
+  trainer,
+}: {
+  activeDrag: ActiveDrag;
+  activeTrainerId?: string;
+  disabled?: boolean;
+  match: PlayoffMatch;
+  onSelectTrainer: (matchId: string, trainerId: string) => void;
+  pick?: Pick;
+  pickedTactic?: Tactic | null;
+  trainer: TrainerDemoCard;
+}) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: `drop:mobile-modal:${match.id}:${trainer.id}`,
+    data: { matchId: match.id, trainerId: trainer.id, type: "trainer-drop" },
+    disabled: disabled || !trainer.teamId,
+  });
+  const isActive = activeTrainerId === trainer.id;
+  const isPicked = pick?.trainerId === trainer.id;
+  const shownTactic = isPicked ? pickedTactic : null;
+  const canDrop =
+    Boolean(trainer.teamId) && !disabled && activeDrag?.matchId === match.id;
+
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      disabled={disabled || !trainer.teamId}
+      onClick={() => onSelectTrainer(match.id, trainer.id)}
+      className={`playoff-mobile-chip-coach playoff-battle-coach ${
+        isActive ? "is-active" : ""
+      } ${isPicked ? "is-picked playoff-battle-coach--picked" : ""} ${
+        pick && !isPicked ? "playoff-battle-coach--unpicked" : ""
+      } ${canDrop ? "playoff-battle-coach--drop-ready" : ""} ${
+        isOver ? "playoff-battle-coach--over" : ""
+      }`}
+      aria-pressed={isActive}
+    >
+      <span className="playoff-battle-coach-ground-shadow" aria-hidden="true" />
+      <TrainerFullArtCard card={trainer} />
+      <CoachCardHeader trainer={trainer} />
+      <CoachCardStylePanel
+        key={`${match.id}-${trainer.id}-${shownTactic?.id ?? (isActive || canDrop ? "ready" : "empty")}`}
+        tactic={shownTactic}
+        canAssign={(isActive || canDrop) && !shownTactic}
+      />
+      <span className="playoff-mobile-chip-coach-marker">
+        {isPicked
+          ? "Elegido"
+          : isActive
+            ? "Activo"
+            : canDrop
+              ? "Suelta"
+              : "Tocar"}
+      </span>
+    </button>
+  );
+});
+
+const MobileChipModal = memo(function MobileChipModal({
+  activeDrag,
+  activeTrainerId,
+  disabled = false,
+  match,
+  onClose,
+  onSelectTactic,
+  onSelectTrainer,
+  pick,
+}: {
+  activeDrag: ActiveDrag;
+  activeTrainerId?: string;
+  disabled?: boolean;
+  match?: PlayoffMatch | null;
+  onClose: () => void;
+  onSelectTactic: (matchId: string, tacticId: string) => void;
+  onSelectTrainer: (matchId: string, trainerId: string) => void;
+  pick?: Pick;
+}) {
+  useEffect(() => {
+    if (!match) return undefined;
+
+    const scrollY = window.scrollY;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyPosition = document.body.style.position;
+    const previousBodyTop = document.body.style.top;
+    const previousBodyLeft = document.body.style.left;
+    const previousBodyRight = document.body.style.right;
+    const previousBodyWidth = document.body.style.width;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousHtmlOverscrollBehavior =
+      document.documentElement.style.overscrollBehavior;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+    document.documentElement.style.overflow = "hidden";
+    document.documentElement.style.overscrollBehavior = "none";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.position = previousBodyPosition;
+      document.body.style.top = previousBodyTop;
+      document.body.style.left = previousBodyLeft;
+      document.body.style.right = previousBodyRight;
+      document.body.style.width = previousBodyWidth;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.documentElement.style.overscrollBehavior =
+        previousHtmlOverscrollBehavior;
+      window.scrollTo(0, scrollY);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [match, onClose]);
+
+  if (!match) return null;
+
+  const trainers = getTrainers(match);
+  const pickedTactic = pick ? tacticById.get(pick.tacticId) : null;
+  const pickedTrainer = pick ? getTrainerCard(pick.trainerId) : null;
+  const activeTrainer =
+    trainers.find((trainer) => trainer.id === activeTrainerId) ??
+    pickedTrainer ??
+    trainers[0] ??
+    null;
+  const modalTitleId = `playoff-chip-modal-title-${match.id}`;
+
+  return (
+    <div
+      id={`playoff-hand-${match.id}`}
+      className="playoff-mobile-chip-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={modalTitleId}
+    >
+      <button
+        type="button"
+        className="playoff-mobile-chip-modal-backdrop"
+        aria-label="Cerrar selector de chip"
+        onClick={onClose}
+      />
+      <div className="playoff-mobile-chip-modal-sheet">
+        <span className="playoff-mobile-chip-modal-handle" aria-hidden="true" />
+        <header className="playoff-mobile-chip-modal-header">
+          <span>Estrategia</span>
+          <strong id={modalTitleId}>
+            {trainers[0]?.country ?? "Equipo"} vs{" "}
+            {trainers[1]?.country ?? "Equipo"}
+          </strong>
+          <button type="button" onClick={onClose}>
+            ACEPTAR
+          </button>
+        </header>
+
+        <div className="playoff-mobile-chip-coaches">
+          {trainers.map((trainer) => (
+            <MobileChipCoachDrop
+              key={trainer.id}
+              activeDrag={activeDrag}
+              activeTrainerId={activeTrainer?.id}
+              disabled={disabled}
+              match={match}
+              onSelectTrainer={onSelectTrainer}
+              pick={pick}
+              pickedTactic={pickedTactic}
+              trainer={trainer}
+            />
+          ))}
+        </div>
+
+        <div className="playoff-battle-hand-callout playoff-mobile-chip-callout">
+          <strong>TOCA O ARRASTRA UN CHIP</strong>
+        </div>
+
+        <div className="playoff-mobile-chip-hand">
+          {tactics.map((tactic, index) => (
+            <PredictionCard
+              key={tactic.id}
+              active={pick?.tacticId === tactic.id}
+              activeTrainer={
+                pick?.tacticId === tactic.id ? pickedTrainer : null
+              }
+              disabled={disabled || !activeTrainer}
+              dragId={`mobile-modal:tactic:${match.id}:${tactic.id}`}
+              draggingTacticId={
+                activeDrag?.matchId === match.id ? activeDrag.tacticId : null
+              }
+              matchId={match.id}
+              onSelect={onSelectTactic}
+              orderIndex={index}
+              tactic={tactic}
+              useDragOverlay
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const PlayoffMatchRow = memo(function PlayoffMatchRow({
+  isHandOpen,
+  locked,
+  match,
+  onToggleHand,
+  onUpdateResult,
+  pick,
+  result,
+}: {
+  isHandOpen: boolean;
+  locked: boolean;
+  match: PlayoffMatch;
+  onToggleHand: (matchId: string) => void;
+  onUpdateResult: (matchId: string, patch: Partial<MatchResult>) => void;
+  pick?: Pick;
+  result?: MatchResult;
+}) {
+  const trainers = getTrainers(match);
+  const pickedTactic = pick ? tacticById.get(pick.tacticId) : null;
+  const pickedTrainer = pick ? getTrainerCard(pick.trainerId) : null;
+  const isComplete = isMatchPredictionComplete(pick, result);
+
+  return (
+    <article
+      data-playoff-match-id={match.id}
+      className={`playoff-battle-match-row ${isHandOpen ? "is-open" : ""}`}
+    >
+      <div className="playoff-battle-stage playoff-battle-stage--compact">
+        <div className="playoff-battle-center">
+          <span
+            className={`playoff-battle-match-status ${
+              isComplete ? "is-complete" : ""
+            }`}
+          >
+            {isComplete ? "Completo" : "Incompleto"}
+          </span>
+          <div className="playoff-battle-match-card playoff-battle-match-card--compact">
+            <div className="playoff-battle-vs">VS</div>
+            <div className="playoff-battle-date-block">
+              <time className="playoff-battle-match-date">{match.time}</time>
+              <PlayoffCountdown match={match} />
+            </div>
+
+            <MatchResultControls
+              match={match}
+              locked={locked}
+              onUpdate={onUpdateResult}
+              result={result}
+              trainers={trainers}
+            />
+
+            <button
+              type="button"
+              className="playoff-battle-pick-trigger"
+              disabled={locked}
+              aria-expanded={isHandOpen}
+              aria-controls={`playoff-hand-${match.id}`}
+              onClick={() => onToggleHand(match.id)}
+            >
+              <PickState tactic={pickedTactic} trainer={pickedTrainer} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+});
+
+const PlayoffArenaMatch = memo(function PlayoffArenaMatch({
+  activeDrag,
+  activeTrainerId,
+  hoveredTrainerId,
+  isHandOpen,
+  locked,
+  match,
+  onSelectTactic,
+  onTapTrainer,
+  onToggleHand,
+  onUpdateResult,
+  pick,
+  result,
+}: {
+  activeDrag: ActiveDrag;
+  activeTrainerId?: string;
+  hoveredTrainerId?: string | null;
+  isHandOpen: boolean;
+  locked: boolean;
+  match: PlayoffMatch;
+  onSelectTactic: (matchId: string, tacticId: string) => void;
+  onTapTrainer: (matchId: string, trainerId: string) => void;
+  onToggleHand: (matchId: string) => void;
+  onUpdateResult: (matchId: string, patch: Partial<MatchResult>) => void;
+  pick?: Pick;
+  result?: MatchResult;
+}) {
+  const trainers = getTrainers(match);
+  const pickedTactic = pick ? tacticById.get(pick.tacticId) : null;
+  const pickedTrainer = pick ? getTrainerCard(pick.trainerId) : null;
+  const trainerDisplayPick =
+    activeDrag?.matchId === match.id ? undefined : pick;
+  const draggingTacticId =
+    activeDrag?.matchId === match.id ? activeDrag.tacticId : null;
+  const isComplete = isMatchPredictionComplete(pick, result);
+
+  return (
+    <div
+      data-playoff-match-id={match.id}
+      className={`playoff-battle-desktop-arena ${isHandOpen ? "is-open" : ""}`}
+    >
+      <div
+        className={`playoff-battle-stage ${
+          activeDrag ? "playoff-battle-stage--dragging" : ""
+        }`}
+      >
+        {trainers[0] ? (
+          <HeroTrainerDrop
+            activeDrag={activeDrag}
+            align="left"
+            dropScope="arena"
+            hoveredTrainerId={hoveredTrainerId}
+            locked={locked}
+            match={match}
+            onTapTrainer={onTapTrainer}
+            pick={trainerDisplayPick}
+            targeted={activeTrainerId === trainers[0].id}
+            trainer={trainers[0]}
+          />
+        ) : null}
+
+        {trainers[1] ? (
+          <HeroTrainerDrop
+            activeDrag={activeDrag}
+            align="right"
+            dropScope="arena"
+            hoveredTrainerId={hoveredTrainerId}
+            locked={locked}
+            match={match}
+            onTapTrainer={onTapTrainer}
+            pick={trainerDisplayPick}
+            targeted={activeTrainerId === trainers[1].id}
+            trainer={trainers[1]}
+          />
+        ) : null}
+
+        <div className="playoff-battle-center">
+          <span
+            className={`playoff-battle-match-status ${
+              isComplete ? "is-complete" : ""
+            }`}
+          >
+            {isComplete ? "Completo" : "Incompleto"}
+          </span>
+          <div className="playoff-battle-match-card">
+            <div className="playoff-battle-vs">VS</div>
+            <div className="playoff-battle-date-block">
+              <time className="playoff-battle-match-date">{match.time}</time>
+              <PlayoffCountdown match={match} />
+            </div>
+
+            <MatchResultControls
+              match={match}
+              locked={locked}
+              onUpdate={onUpdateResult}
+              result={result}
+              trainers={trainers}
+            />
+
+            <button
+              type="button"
+              className="playoff-battle-pick-trigger"
+              disabled={locked}
+              aria-expanded={isHandOpen}
+              aria-controls={`playoff-hand-${match.id}`}
+              onClick={() => onToggleHand(match.id)}
+            >
+              <PickState tactic={pickedTactic} trainer={pickedTrainer} />
+            </button>
+          </div>
+
+          {isHandOpen ? (
+            <PlayoffHandPopover
+              activeTrainerId={activeTrainerId}
+              dragScope="arena"
+              draggingTacticId={draggingTacticId}
+              disabled={locked}
+              matchId={match.id}
+              onSelectTactic={onSelectTactic}
+              onSelectTrainer={onTapTrainer}
+              pick={pick}
+              pickedTrainer={pickedTrainer}
+              trainers={trainers}
+            />
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+function PlayoffsBattleSurface({
+  adminResults,
+  embedded = false,
+  initialOpenMatchId,
+  matchIds,
+  onOpenHelp,
+  onProgressChange,
+  onScoreChange,
+  onTrainerTacticChange,
+  prediction,
+  scheduleMatches = defaultPlayoffScheduleMatches,
+  showResultsHeader = false,
+  showPhaseSelector = true,
+}: {
+  adminResults?: AdminResults;
+  embedded?: boolean;
+  initialOpenMatchId?: string | null;
+  matchIds?: readonly string[];
+  onOpenHelp?: () => void;
+  onScoreChange?: (
+    matchNumber: number,
+    side: "homeScore" | "awayScore",
+    value: string,
+  ) => void;
+  onProgressChange?: (progress: PlayoffResultsProgress) => void;
+  onTrainerTacticChange?: (
+    matchNumber: number,
+    trainerTeamId: string,
+    tacticId: string,
+  ) => void;
+  prediction?: Prediction;
+  scheduleMatches?: Match[];
+  showResultsHeader?: boolean;
+  showPhaseSelector?: boolean;
+}) {
+  const [requestedMatchId] = useState(requestedPlayoffMatchIdFromUrl);
+  const initialPhase =
+    playoffPhaseForMatchId(requestedMatchId) ?? initialPlayoffPhase;
+  const [activePhaseId, setActivePhaseId] = useState(initialPhase.id);
+  const [openHandMatchId, setOpenHandMatchId] = useState<string | null>(() => {
+    if (initialOpenMatchId !== undefined) return initialOpenMatchId;
+    return (
+      requestedMatchId ??
+      getNextPlayableMatchId(
+        filterPlayoffMatches(initialPhase.matches, matchIds),
+      )
+    );
+  });
+  const [mobileChipMatchId, setMobileChipMatchId] = useState<string | null>(
+    null,
+  );
   const [activeDrag, setActiveDrag] = useState<ActiveDrag>(null);
   const [hoveredTrainerId, setHoveredTrainerId] = useState<string | null>(null);
   const [activeTrainerByMatch, setActiveTrainerByMatch] = useState<
@@ -818,82 +1920,249 @@ export function PlayoffsBalatroDemo() {
   >({});
   const [picks, setPicks] = useState<Record<string, Pick>>({});
   const [results, setResults] = useState<Record<string, MatchResult>>({});
+  const activeTrainerByMatchRef = useRef(activeTrainerByMatch);
+  const picksRef = useRef(picks);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, {
       activationConstraint: { delay: 140, tolerance: 8 },
     }),
   );
+  const isCompactLayout = usePlayoffCompactLayout();
+  const isControlled = Boolean(
+    prediction && onScoreChange && onTrainerTacticChange,
+  );
+  const playoffAdminResults = adminResults || emptyAdminResults;
+  const resolvedPlayoffTeams = useMemo(
+    () =>
+      isControlled && prediction
+        ? buildPredictionPlayoffTeams(playoffAdminResults, prediction)
+        : buildResolvedPlayoffTeams(playoffAdminResults),
+    [isControlled, playoffAdminResults, prediction],
+  );
+  const resolvedPlayoffPhases = useMemo(
+    () => applyResolvedTeamsToPhases(playoffPhases, resolvedPlayoffTeams),
+    [resolvedPlayoffTeams],
+  );
+  const resolvedPlayoffPhaseById = useMemo(
+    () => new Map(resolvedPlayoffPhases.map((phase) => [phase.id, phase])),
+    [resolvedPlayoffPhases],
+  );
+  const resolvedPlayoffMatchById = useMemo(
+    () =>
+      new Map(
+        resolvedPlayoffPhases
+          .flatMap((phase) => phase.matches)
+          .map((match) => [match.id, match]),
+      ),
+    [resolvedPlayoffPhases],
+  );
 
   const activePhase =
-    playoffPhases.find((phase) => phase.id === activePhaseId) ??
-    playoffPhases[0];
-  const activeMatchId =
-    activeMatchByPhase[activePhase.id] ?? activePhase.matches[0].id;
-  const activeMatch =
-    activePhase.matches.find((match) => match.id === activeMatchId) ??
-    activePhase.matches[0];
-  const trainers = getTrainers(activeMatch);
-  const activePick = picks[activeMatch.id];
-  const activeResult = results[activeMatch.id];
-  const activeTactic = activeDrag ? tacticById.get(activeDrag.tacticId) : null;
-  const pickedTactic = activePick ? tacticById.get(activePick.tacticId) : null;
-  const pickedTrainer = activePick ? trainerById.get(activePick.trainerId) : null;
-  const trainerDisplayPick =
-    activeDrag?.matchId === activeMatch.id ? undefined : activePick;
-  const activeTrainerId =
-    activeTrainerByMatch[activeMatch.id] ??
-    activePick?.trainerId ??
-    trainers[0]?.id;
-  const visibleTactics = tactics;
+    resolvedPlayoffPhaseById.get(activePhaseId) ??
+    resolvedPlayoffPhases[0] ??
+    initialPlayoffPhase;
+  const activePhaseMatches = useMemo(
+    () => filterPlayoffMatches(activePhase.matches, matchIds),
+    [activePhase, matchIds],
+  );
+  const scheduleByNumber = useMemo(
+    () => new Map(scheduleMatches.map((match) => [match.number, match])),
+    [scheduleMatches],
+  );
+  const activeDateGroups = useMemo(
+    () =>
+      groupPlayoffMatchesByDate(
+        activePhaseMatches.filter(
+          (match) =>
+            !hasFinishedScore(
+              adminResults?.[String(playoffMatchNumber(match))],
+            ),
+        ),
+      ),
+    [activePhaseMatches, adminResults],
+  );
+  const finishedDateGroups = useMemo(
+    () =>
+      groupPlayoffMatchesByDate(
+        activePhaseMatches.filter((match) =>
+          hasFinishedScore(adminResults?.[String(playoffMatchNumber(match))]),
+        ),
+      ),
+    [activePhaseMatches, adminResults],
+  );
+  const isPlayoffLocked = useCallback(
+    (match: PlayoffMatch) => {
+      const scheduledMatch = playoffScheduleMatch(match, scheduleByNumber);
+      return scheduledMatch
+        ? hasScheduledMatchStarted(scheduledMatch)
+        : playoffKickoffMs(match) <= Date.now();
+    },
+    [scheduleByNumber],
+  );
+  const pickForMatch = useCallback(
+    (match: PlayoffMatch) =>
+      isControlled ? getPredictionPick(match, prediction) : picks[match.id],
+    [isControlled, picks, prediction],
+  );
+  const resultForMatch = useCallback(
+    (match: PlayoffMatch) =>
+      isControlled ? getPredictionResult(match, prediction) : results[match.id],
+    [isControlled, prediction, results],
+  );
+  const completedPlayoffMatches = useMemo(
+    () =>
+      allPlayoffMatches.filter((match) =>
+        isControlled
+          ? isControlledPlayoffComplete(match, prediction)
+          : isPlayoffPredictionComplete(match.id, picks, results),
+      ).length,
+    [isControlled, picks, prediction, results],
+  );
+  const renderDesktopMatches = isCompactLayout !== true;
+  const renderMobileMatches = isCompactLayout !== false;
+  const hasFinishedPlayoffMatches = finishedDateGroups.length > 0;
+  const scorecard = useMemo(
+    () =>
+      prediction && adminResults && hasFinishedPlayoffMatches
+        ? scoringEngine.calculateScorecard(prediction, adminResults)
+        : undefined,
+    [adminResults, hasFinishedPlayoffMatches, prediction],
+  );
 
-  const setPhase = (phaseId: string) => {
-    setActivePhaseId(phaseId);
-    setActiveDrag(null);
-    setHoveredTrainerId(null);
-  };
-
-  const setMatch = (matchId: string) => {
-    setActiveMatchByPhase((current) => ({
-      ...current,
-      [activePhase.id]: matchId,
-    }));
-    setActiveDrag(null);
-    setHoveredTrainerId(null);
-  };
-
-  const assignPick = (matchId: string, trainerId: string, tacticId: string) => {
-    setActiveTrainerByMatch((current) => ({
-      ...current,
-      [matchId]: trainerId,
-    }));
-    setPicks((current) => ({
-      ...current,
-      [matchId]: { tacticId, trainerId },
-    }));
-  };
-
-  const updateResult = (matchId: string, patch: Partial<MatchResult>) => {
-    setResults((current) => ({
-      ...current,
-      [matchId]: {
-        ...current[matchId],
-        ...patch,
-      },
-    }));
-  };
-
-  const handleDragStart = (event: DragStartEvent) => {
-    const data = event.active.data.current;
-    if (data?.type !== "tactic") return;
-    setActiveDrag({
-      matchId: String(data.matchId),
-      tacticId: String(data.tacticId),
+  useEffect(() => {
+    onProgressChange?.({
+      done: completedPlayoffMatches,
+      total: playoffResultsMatchCount,
     });
-    setHoveredTrainerId(null);
-  };
+  }, [completedPlayoffMatches, onProgressChange]);
 
-  const handleDragOver = (event: DragOverEvent) => {
+  useEffect(() => {
+    if (!requestedMatchId) return;
+
+    window.setTimeout(() => {
+      const targets = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          `[data-playoff-match-id="${requestedMatchId}"]`,
+        ),
+      );
+      const visibleTarget =
+        targets.find((target) => target.offsetParent !== null) ?? targets[0];
+      visibleTarget?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 140);
+  }, [requestedMatchId]);
+
+  const setPhase = useCallback(
+    (phaseId: string) => {
+      const nextPhase =
+        resolvedPlayoffPhaseById.get(phaseId) ??
+        resolvedPlayoffPhases[0] ??
+        initialPlayoffPhase;
+      setActivePhaseId(phaseId);
+      setActiveDrag(null);
+      setHoveredTrainerId(null);
+      setMobileChipMatchId(null);
+      setOpenHandMatchId(
+        initialOpenMatchId !== undefined
+          ? initialOpenMatchId
+          : getNextPlayableMatchId(
+              filterPlayoffMatches(nextPhase.matches, matchIds),
+            ),
+      );
+    },
+    [
+      initialOpenMatchId,
+      matchIds,
+      resolvedPlayoffPhaseById,
+      resolvedPlayoffPhases,
+    ],
+  );
+
+  const assignPick = useCallback(
+    (matchId: string, trainerId: string, tacticId: string) => {
+      const match = resolvedPlayoffMatchById.get(matchId);
+      const trainer = getTrainerCard(trainerId);
+      if (!match || !trainer?.teamId || isPlayoffLocked(match)) return;
+
+      const nextActiveTrainerByMatch = {
+        ...activeTrainerByMatchRef.current,
+        [matchId]: trainerId,
+      };
+      activeTrainerByMatchRef.current = nextActiveTrainerByMatch;
+      setActiveTrainerByMatch(nextActiveTrainerByMatch);
+
+      if (isControlled && onTrainerTacticChange) {
+        onTrainerTacticChange(
+          playoffMatchNumber(match),
+          trainer.teamId,
+          tacticId,
+        );
+        return;
+      }
+
+      const nextPicks = {
+        ...picksRef.current,
+        [matchId]: { tacticId, trainerId },
+      };
+      picksRef.current = nextPicks;
+      setPicks(nextPicks);
+    },
+    [
+      isControlled,
+      isPlayoffLocked,
+      onTrainerTacticChange,
+      resolvedPlayoffMatchById,
+    ],
+  );
+
+  const updateResult = useCallback(
+    (matchId: string, patch: Partial<MatchResult>) => {
+      const match = resolvedPlayoffMatchById.get(matchId);
+      if (!match || isPlayoffLocked(match)) return;
+
+      if (isControlled && onScoreChange) {
+        const matchNumber = playoffMatchNumber(match);
+        if (patch.homeGoals !== undefined) {
+          onScoreChange(matchNumber, "homeScore", patch.homeGoals);
+        }
+        if (patch.awayGoals !== undefined) {
+          onScoreChange(matchNumber, "awayScore", patch.awayGoals);
+        }
+        return;
+      }
+
+      setResults((current) => ({
+        ...current,
+        [matchId]: {
+          ...current[matchId],
+          ...patch,
+        },
+      }));
+    },
+    [isControlled, isPlayoffLocked, onScoreChange, resolvedPlayoffMatchById],
+  );
+
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const data = event.active.data.current;
+      if (data?.type !== "tactic") return;
+      const match = resolvedPlayoffMatchById.get(String(data.matchId));
+      if (match && isPlayoffLocked(match)) return;
+      setActiveDrag({
+        matchId: String(data.matchId),
+        tacticId: String(data.tacticId),
+      });
+      if (isCompactLayout === true) {
+        setMobileChipMatchId(String(data.matchId));
+      } else {
+        setOpenHandMatchId(String(data.matchId));
+      }
+      setHoveredTrainerId(null);
+    },
+    [isCompactLayout, isPlayoffLocked, resolvedPlayoffMatchById],
+  );
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
     const active = event.active.data.current;
     const over = event.over?.data.current;
     if (active?.type !== "tactic" || over?.type !== "trainer-drop") {
@@ -905,144 +2174,429 @@ export function PlayoffsBalatroDemo() {
       return;
     }
     setHoveredTrainerId(String(over.trainerId));
-  };
+  }, []);
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const active = event.active.data.current;
-    const over = event.over?.data.current;
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const active = event.active.data.current;
+      const over = event.over?.data.current;
+      setActiveDrag(null);
+      setHoveredTrainerId(null);
+      if (active?.type !== "tactic" || over?.type !== "trainer-drop") return;
+      if (String(active.matchId) !== String(over.matchId)) return;
+      assignPick(
+        String(over.matchId),
+        String(over.trainerId),
+        String(active.tacticId),
+      );
+      if (isCompactLayout === true) {
+        setMobileChipMatchId(String(over.matchId));
+      } else {
+        setOpenHandMatchId(String(over.matchId));
+      }
+    },
+    [assignPick, isCompactLayout],
+  );
+
+  const handleSelectTactic = useCallback(
+    (matchId: string, tacticId: string) => {
+      const match = resolvedPlayoffMatchById.get(matchId);
+      if (!match || isPlayoffLocked(match)) return;
+      const currentPick = isControlled
+        ? getPredictionPick(match, prediction)
+        : picksRef.current[matchId];
+      const activeTrainerId = activeTrainerByMatchRef.current[matchId];
+      const trainerId =
+        (trainerBelongsToMatch(match, activeTrainerId)
+          ? activeTrainerId
+          : undefined) ??
+        currentPick?.trainerId ??
+        defaultTrainerIdForMatch(match);
+      if (!trainerId) return;
+      assignPick(matchId, trainerId, tacticId);
+      if (isCompactLayout !== true) {
+        setOpenHandMatchId(matchId);
+      }
+    },
+    [
+      assignPick,
+      isCompactLayout,
+      isControlled,
+      isPlayoffLocked,
+      prediction,
+      resolvedPlayoffMatchById,
+    ],
+  );
+
+  const handleTapTrainer = useCallback(
+    (matchId: string, trainerId: string) => {
+      const match = resolvedPlayoffMatchById.get(matchId);
+      const trainer = getTrainerCard(trainerId);
+      if (!match || !trainer?.teamId || isPlayoffLocked(match)) return;
+
+      const nextActiveTrainerByMatch = {
+        ...activeTrainerByMatchRef.current,
+        [matchId]: trainerId,
+      };
+      activeTrainerByMatchRef.current = nextActiveTrainerByMatch;
+      setActiveTrainerByMatch(nextActiveTrainerByMatch);
+      if (isCompactLayout === true) {
+        setMobileChipMatchId(matchId);
+      } else {
+        setOpenHandMatchId(matchId);
+      }
+    },
+    [isCompactLayout, isPlayoffLocked, resolvedPlayoffMatchById],
+  );
+
+  const handleDragCancel = useCallback(() => {
     setActiveDrag(null);
     setHoveredTrainerId(null);
-    if (active?.type !== "tactic" || over?.type !== "trainer-drop") return;
-    if (String(active.matchId) !== String(over.matchId)) return;
-    assignPick(
-      String(over.matchId),
-      String(over.trainerId),
-      String(active.tacticId),
-    );
-  };
+  }, []);
 
-  const handleSelectTactic = (matchId: string, tacticId: string) => {
-    if (!activeTrainerId) return;
-    assignPick(matchId, activeTrainerId, tacticId);
-  };
+  const handleToggleHand = useCallback(
+    (matchId: string) => {
+      const match = resolvedPlayoffMatchById.get(matchId);
+      if (match && isPlayoffLocked(match)) return;
+      if (isCompactLayout === true) {
+        setMobileChipMatchId((current) =>
+          current === matchId ? null : matchId,
+        );
+        return;
+      }
+      setOpenHandMatchId((current) => (current === matchId ? null : matchId));
+    },
+    [isCompactLayout, isPlayoffLocked, resolvedPlayoffMatchById],
+  );
 
-  const handleTapTrainer = (matchId: string, trainerId: string) => {
-    setActiveTrainerByMatch((current) => ({
-      ...current,
-      [matchId]: trainerId,
-    }));
-  };
+  const handleCloseMobileChipModal = useCallback(() => {
+    setMobileChipMatchId(null);
+  }, []);
 
-  const handleDragCancel = () => {
-    setActiveDrag(null);
-    setHoveredTrainerId(null);
-  };
+  const handleMobileSelectTactic = useCallback(
+    (matchId: string, tacticId: string) => {
+      handleSelectTactic(matchId, tacticId);
+    },
+    [handleSelectTactic],
+  );
 
-  return (
-    <section className="playoff-battle-shell theme-dark">
-      <div className="playoff-battle-stadium" aria-hidden="true" />
-      <PhaseSelector activePhaseId={activePhase.id} onSelect={setPhase} />
-      <MatchSelector
-        activeMatchId={activeMatch.id}
-        matches={activePhase.matches}
-        onSelect={setMatch}
-      />
+  const renderFinishedMatchCard = useCallback(
+    (match: PlayoffMatch) => {
+      const matchNumber = playoffMatchNumber(match);
+      const result = adminResults?.[String(matchNumber)];
+      if (!result || !hasFinishedScore(result)) return null;
+
+      const scheduledMatch = playoffScheduleMatch(match, scheduleByNumber);
+      const cardMatch =
+        scheduledMatch ??
+        ({
+          number: matchNumber,
+          date: playoffDateKey(match.date),
+          time: match.time,
+          home: "",
+          away: "",
+          venue: match.venue,
+          stage: match.stage,
+        } satisfies Match);
+      const current = prediction?.matchPredictions[String(matchNumber)];
+      const resolvedTeams = resolvedPlayoffTeams[String(matchNumber)];
+      const hasPick =
+        current?.homeScore !== "" &&
+        current?.homeScore != null &&
+        current?.awayScore !== "" &&
+        current?.awayScore != null;
+
+      return (
+        <FinishedMatchCard
+          key={match.id}
+          match={cardMatch}
+          result={result}
+          pickHome={current?.homeScore}
+          pickAway={current?.awayScore}
+          hasPick={hasPick}
+          homeTeamId={
+            actualPlayoffTeamId(scheduledMatch, result, "home") ||
+            resolvedTeams?.home
+          }
+          awayTeamId={
+            actualPlayoffTeamId(scheduledMatch, result, "away") ||
+            resolvedTeams?.away
+          }
+          showTrainerChipSlot
+          trainerChip={
+            prediction
+              ? trainerResultChipForMatch(matchNumber, prediction, scorecard)
+              : null
+          }
+        />
+      );
+    },
+    [adminResults, prediction, resolvedPlayoffTeams, scheduleByNumber, scorecard],
+  );
+
+  const mobileChipMatch =
+    isCompactLayout === true && mobileChipMatchId
+      ? (resolvedPlayoffMatchById.get(mobileChipMatchId) ?? null)
+      : null;
+  const mobileChipPick = mobileChipMatch
+    ? pickForMatch(mobileChipMatch)
+    : undefined;
+  const mobileChipActiveTrainerId = mobileChipMatch
+    ? ((trainerBelongsToMatch(
+        mobileChipMatch,
+        activeTrainerByMatch[mobileChipMatch.id],
+      )
+        ? activeTrainerByMatch[mobileChipMatch.id]
+        : undefined) ??
+      mobileChipPick?.trainerId ??
+      defaultTrainerIdForMatch(mobileChipMatch))
+    : undefined;
+  const activeDragTactic =
+    activeDrag && isCompactLayout === true
+      ? (tacticById.get(activeDrag.tacticId) ?? null)
+      : null;
+
+  const content = (
+    <>
+      {showResultsHeader ? (
+        <PlayoffResultsHeader
+          done={completedPlayoffMatches}
+          onOpenHelp={onOpenHelp}
+          total={playoffResultsMatchCount}
+        />
+      ) : null}
+
+      {!embedded && showPhaseSelector ? (
+        <PhaseSelector activePhaseId={activePhase.id} onSelect={setPhase} />
+      ) : null}
+      {embedded && showPhaseSelector ? (
+        <div className="playoff-battle-embedded-selectors">
+          <PhaseSelector activePhaseId={activePhase.id} onSelect={setPhase} />
+        </div>
+      ) : null}
 
       <DndContext
-        id="playoffs-balatro-dnd"
+        id={embedded ? "playoffs-results-dnd" : "playoffs-balatro-dnd"}
         sensors={sensors}
-        collisionDetection={(args) => {
-          const pointerCollisions = pointerWithin(args);
-          return pointerCollisions.length > 0
-            ? pointerCollisions
-            : closestCenter(args);
-        }}
+        collisionDetection={playoffCollisionDetection}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <div
-          className={`playoff-battle-stage ${
-            activeDrag ? "playoff-battle-stage--dragging" : ""
-          }`}
-        >
-          {trainers[0] ? (
-            <HeroTrainerDrop
-              activeDrag={activeDrag}
-              align="left"
-              hoveredTrainerId={hoveredTrainerId}
-              match={activeMatch}
-              onTapTrainer={handleTapTrainer}
-              pick={trainerDisplayPick}
-              targeted={activeTrainerId === trainers[0].id}
-              trainer={trainers[0]}
-            />
-          ) : null}
+        {renderDesktopMatches ? (
+          <div className="playoff-battle-desktop-stack">
+            {activeDateGroups.map((group) => (
+              <section key={group.date} className="playoff-battle-date-group">
+                <h3 className="playoff-battle-date-heading">
+                  {formatPlayoffDay(group.date)}
+                </h3>
+                <div className="playoff-battle-date-matches">
+                  {group.matches.map((match) => {
+                    const pick = pickForMatch(match);
+                    const result = resultForMatch(match);
+                    const locked = isPlayoffLocked(match);
+                    const matchActiveDrag =
+                      activeDrag?.matchId === match.id ? activeDrag : null;
+                    const rawActiveTrainerId = activeTrainerByMatch[match.id];
+                    const activeTrainerId =
+                      (trainerBelongsToMatch(match, rawActiveTrainerId)
+                        ? rawActiveTrainerId
+                        : undefined) ??
+                      pick?.trainerId ??
+                      defaultTrainerIdForMatch(match);
 
-          {trainers[1] ? (
-            <HeroTrainerDrop
-              activeDrag={activeDrag}
-              align="right"
-              hoveredTrainerId={hoveredTrainerId}
-              match={activeMatch}
-              onTapTrainer={handleTapTrainer}
-              pick={trainerDisplayPick}
-              targeted={activeTrainerId === trainers[1].id}
-              trainer={trainers[1]}
-            />
-          ) : null}
-
-          <div
-            className={`playoff-battle-hand ${
-              activeDrag ? "playoff-battle-hand--dragging" : ""
-            } ${activePick ? "playoff-battle-hand--has-pick" : ""}`}
-          >
-            {visibleTactics.map((tactic, index) => (
-              <PredictionCard
-              key={tactic.id}
-              active={activePick?.tacticId === tactic.id}
-              activeTrainer={
-                activePick?.tacticId === tactic.id ? pickedTrainer : null
-              }
-              dragId={`tactic:${activeMatch.id}:${tactic.id}`}
-              draggingTacticId={activeDrag?.tacticId ?? null}
-              matchId={activeMatch.id}
-                onSelect={handleSelectTactic}
-                orderIndex={index}
-                tactic={tactic}
-              />
+                    return (
+                      <PlayoffArenaMatch
+                        key={match.id}
+                        activeDrag={matchActiveDrag}
+                        activeTrainerId={activeTrainerId}
+                        hoveredTrainerId={
+                          matchActiveDrag ? hoveredTrainerId : null
+                        }
+                        isHandOpen={openHandMatchId === match.id}
+                        locked={locked}
+                        match={match}
+                        onSelectTactic={handleSelectTactic}
+                        onTapTrainer={handleTapTrainer}
+                        onToggleHand={handleToggleHand}
+                        onUpdateResult={updateResult}
+                        pick={pick}
+                        result={result}
+                      />
+                    );
+                  })}
+                </div>
+              </section>
             ))}
           </div>
+        ) : null}
 
-          <div className="playoff-battle-center">
-            <div className="playoff-battle-match-card">
-              <div className="playoff-battle-vs">VS</div>
-              <div className="playoff-battle-date-block">
-                <time className="playoff-battle-match-date">
-                  {activeMatch.date}
-                </time>
-                <PlayoffCountdown match={activeMatch} />
-              </div>
+        {renderMobileMatches ? (
+          <div className="playoff-battle-mobile-list">
+            <div className="playoff-battle-list">
+              <section className="playoff-battle-phase-block">
+                <h3 className="playoff-battle-phase-heading">
+                  <span>{activePhase.short}</span>
+                  <strong>{activePhase.title}</strong>
+                </h3>
+                {activeDateGroups.map((group) => (
+                  <section
+                    key={group.date}
+                    className="playoff-battle-date-group"
+                  >
+                    <h4 className="playoff-battle-date-heading">
+                      {formatPlayoffDay(group.date)}
+                    </h4>
+                    <div className="playoff-battle-match-stack">
+                      {group.matches.map((match) => {
+                        const pick = pickForMatch(match);
+                        const result = resultForMatch(match);
+                        const locked = isPlayoffLocked(match);
 
-              <MatchResultControls
-                match={activeMatch}
-                onUpdate={updateResult}
-                result={activeResult}
-                trainers={trainers}
-              />
-
-              <div className="playoff-battle-pick-row">
-                <PickState tactic={pickedTactic} trainer={pickedTrainer} />
-              </div>
+                        return (
+                          <PlayoffMatchRow
+                            key={match.id}
+                            isHandOpen={mobileChipMatchId === match.id}
+                            locked={locked}
+                            match={match}
+                            onToggleHand={handleToggleHand}
+                            onUpdateResult={updateResult}
+                            pick={pick}
+                            result={result}
+                          />
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </section>
             </div>
           </div>
-        </div>
+        ) : null}
 
-        <DragOverlay dropAnimation={null} zIndex={90}>
-          {activeTactic ? <DragPreview tactic={activeTactic} /> : null}
+        {renderMobileMatches ? (
+          <MobileChipModal
+            activeDrag={activeDrag}
+            activeTrainerId={mobileChipActiveTrainerId}
+            disabled={mobileChipMatch ? isPlayoffLocked(mobileChipMatch) : true}
+            match={mobileChipMatch}
+            onClose={handleCloseMobileChipModal}
+            onSelectTactic={handleMobileSelectTactic}
+            onSelectTrainer={handleTapTrainer}
+            pick={mobileChipPick}
+          />
+        ) : null}
+
+        <DragOverlay dropAnimation={null}>
+          {activeDragTactic ? (
+            <div
+              className="playoff-battle-tactic playoff-battle-tactic--drag-overlay"
+              style={
+                {
+                  "--tactic-color": activeDragTactic.color,
+                } as TacticStyle
+              }
+            >
+              <TacticCardFace tactic={activeDragTactic} />
+            </div>
+          ) : null}
         </DragOverlay>
       </DndContext>
+
+      {finishedDateGroups.length ? (
+        <div
+          className={`space-y-4 ${
+            activeDateGroups.length ? "border-t border-white/10 pt-5" : ""
+          }`}
+        >
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
+            Jugados
+          </p>
+          <div className="space-y-4">
+            {finishedDateGroups.map((group) => (
+              <section key={group.date} className="space-y-3">
+                <h3 className="text-xl font-bold text-white first-letter:capitalize">
+                  {formatPlayoffDay(group.date)}
+                </h3>
+                <div className="space-y-4">
+                  {group.matches.map((match) => renderFinishedMatchCard(match))}
+                </div>
+              </section>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <section className="playoff-battle-embedded playoff-battle-embedded--compact theme-dark">
+        {content}
+      </section>
+    );
+  }
+
+  return (
+    <section className="playoff-battle-shell playoff-battle-shell--list theme-dark">
+      <div className="playoff-battle-stadium" aria-hidden="true" />
+      {content}
     </section>
   );
+}
+
+export function PlayoffsBalatroResults({
+  adminResults,
+  initialOpenMatchId,
+  matchIds,
+  onScoreChange,
+  onOpenHelp,
+  onProgressChange,
+  onTrainerTacticChange,
+  prediction,
+  scheduleMatches,
+  showResultsHeader = true,
+  showPhaseSelector = true,
+}: {
+  adminResults?: AdminResults;
+  initialOpenMatchId?: string | null;
+  matchIds?: readonly string[];
+  onScoreChange: (
+    matchNumber: number,
+    side: "homeScore" | "awayScore",
+    value: string,
+  ) => void;
+  onOpenHelp?: () => void;
+  onProgressChange?: (progress: PlayoffResultsProgress) => void;
+  onTrainerTacticChange: (
+    matchNumber: number,
+    trainerTeamId: string,
+    tacticId: string,
+  ) => void;
+  prediction: Prediction;
+  scheduleMatches?: Match[];
+  showResultsHeader?: boolean;
+  showPhaseSelector?: boolean;
+}) {
+  return (
+    <PlayoffsBattleSurface
+      adminResults={adminResults}
+      embedded
+      initialOpenMatchId={initialOpenMatchId}
+      matchIds={matchIds}
+      onScoreChange={onScoreChange}
+      onOpenHelp={onOpenHelp}
+      onProgressChange={onProgressChange}
+      onTrainerTacticChange={onTrainerTacticChange}
+      prediction={prediction}
+      scheduleMatches={scheduleMatches}
+      showResultsHeader={showResultsHeader}
+      showPhaseSelector={showPhaseSelector}
+    />
+  );
+}
+
+export function PlayoffsBalatroDemo() {
+  return <PlayoffsBattleSurface />;
 }

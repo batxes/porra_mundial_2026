@@ -4,6 +4,13 @@ import { useState } from "react";
 
 import { hasFinishedScore, PlayerAvatar, TeamFlag } from "@/components/common";
 import { isFinishedResult } from "@/components/results-recap";
+import {
+  addTrainerChipPoints,
+  sortTrainerChips,
+  TrainerChipScorePill,
+  type TrainerChipPoints,
+  trainerChipFromScoreEntry,
+} from "@/components/trainer-chip-score-pill";
 import { playersById, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
 import type { AdminResult, AdminResults, UserProfile } from "@/lib/types";
@@ -31,6 +38,7 @@ function userMatchReport(
   let outcome = 0;
   const xiByPlayer = new Map<string, number>();
   let xiOther = 0;
+  const trainerByChip = new Map<string, TrainerChipPoints>();
   profile.scorecard.entries.forEach((entry) => {
     if (entry.matchNumber !== matchNumber) return;
     total += entry.points;
@@ -45,12 +53,22 @@ function userMatchReport(
       } else {
         xiOther += entry.points;
       }
+    } else if (entry.ruleCode === "trainer_tactic_hit") {
+      const chip = trainerChipFromScoreEntry(entry);
+      if (chip) addTrainerChipPoints(trainerByChip, chip);
     }
   });
   const xiPlayers = [...xiByPlayer.entries()]
     .map(([playerId, points]) => ({ playerId, points }))
     .sort((a, b) => b.points - a.points);
-  return { total, exact, outcome, xiPlayers, xiOther };
+  return {
+    total,
+    exact,
+    outcome,
+    xiPlayers,
+    xiOther,
+    trainerChips: sortTrainerChips(trainerByChip),
+  };
 }
 
 type FeedMatch = { match: (typeof schedule)[number]; result: AdminResult };
@@ -78,9 +96,11 @@ function buildFinishedJornadas(results: AdminResults): FeedJornada[] {
 }
 
 export function ProfileJornadaFeed({
+  defaultOpenAll = false,
   profile,
   results,
 }: {
+  defaultOpenAll?: boolean;
   profile: UserProfile;
   results: AdminResults;
 }) {
@@ -101,7 +121,7 @@ export function ProfileJornadaFeed({
           key={jornada.date}
           jornada={jornada}
           profile={profile}
-          defaultOpen={index === 0}
+          defaultOpen={defaultOpenAll || index === 0}
         />
       ))}
     </div>
@@ -305,6 +325,12 @@ function FeedMatchRow({
             </span>
           </span>
         ) : null}
+        {report.trainerChips.map((chip) => (
+          <TrainerChipScorePill
+            key={`${chip.teamId}-${chip.tacticId}`}
+            chip={chip}
+          />
+        ))}
       </div>
     </div>
   );
