@@ -92,16 +92,48 @@ export function TrainerChipScorePill({
 }: {
   chip: TrainerChipPoints;
 }) {
+  const hit = chip.points > 0;
   return (
-    <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] py-px pl-px pr-1.5 text-[10px] font-medium text-zinc-400">
+    <span
+      className={`inline-flex max-w-full items-center gap-1 rounded-full border py-px pl-px pr-1.5 text-[10px] font-medium ${
+        hit
+          ? "border-[#a7f600]/40 bg-[#a7f600]/15 text-[#a7f600]"
+          : "border-white/10 bg-white/[0.05] text-zinc-400"
+      }`}
+    >
       <TeamFlag
         teamId={chip.teamId}
         className="size-4 shrink-0 rounded-full border border-white/15 object-cover"
       />
       <span className="min-w-0 max-w-[5.5rem] truncate">{chip.title}</span>
-      <span className={chip.points >= 0 ? "text-white" : "text-red-400"}>
+      <span className={hit ? "text-[#a7f600]" : "text-white"}>
         {signedPoints(chip.points)}
       </span>
+    </span>
+  );
+}
+
+export function TrainerChipPickPill({
+  className = "",
+  tacticId,
+  teamId,
+}: {
+  className?: string;
+  tacticId?: string;
+  teamId?: string;
+}) {
+  const tactic = tacticId ? trainerTacticById.get(tacticId) : null;
+  if (!teamId || !tactic) return null;
+
+  return (
+    <span
+      className={`inline-flex max-w-full items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] py-px pl-px pr-1.5 text-[10px] font-medium text-zinc-300 ${className}`}
+    >
+      <TeamFlag
+        teamId={teamId}
+        className="size-4 shrink-0 rounded-full border border-white/15 object-cover"
+      />
+      <span className="min-w-0 max-w-[5.5rem] truncate">{tactic.title}</span>
     </span>
   );
 }

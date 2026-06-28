@@ -54,6 +54,7 @@ import {
   addTrainerChipPoints,
   matchTrainerTacticLines,
   sortTrainerChips,
+  TrainerChipPickPill,
   TrainerChipScorePill,
   type TrainerChipPoints,
   trainerChipFromScoreEntry,
@@ -110,6 +111,7 @@ function madridTodayKey() {
 }
 
 const resultsReminderKey = "porra26_results_reminder_date";
+const showHomeGroupPhaseReport = false;
 
 function resolveHomePlayoffMatch(
   match: Match,
@@ -1006,22 +1008,20 @@ function buildHomeGroupPreviewProfiles(): UserProfile[] {
 export function HomeGroupReportPreview() {
   const leaderboard = useMemo(() => buildHomeGroupPreviewProfiles(), []);
   const currentUser = leaderboard[0];
+  const report = useMemo(
+    () => buildGroupPhaseReport(leaderboard, homeGroupPreviewResults),
+    [leaderboard],
+  );
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
-      <HomeFeedSection
-        currentUserId={currentUser?.id || ""}
-        currentUserName={currentUser?.name || ""}
-        hasUser
-        leaderboard={leaderboard}
-        nextMatchdayKey=""
-        onScoreChange={() => undefined}
-        prediction={currentUser?.prediction || emptyPrediction()}
-        ready
-        results={homeGroupPreviewResults}
-        saveState={null}
-        upcomingMatches={[]}
-      />
+      {report ? (
+        <GroupPhaseReportCard
+          currentUserId={currentUser?.id || ""}
+          currentUserName={currentUser?.name || ""}
+          report={report}
+        />
+      ) : null}
     </main>
   );
 }
@@ -2026,7 +2026,10 @@ function HomeFeedSection({
 }) {
   const jornadas = useMemo(() => buildJornadas(results), [results]);
   const groupPhaseReport = useMemo(
-    () => buildGroupPhaseReport(leaderboard, results),
+    () =>
+      showHomeGroupPhaseReport
+        ? buildGroupPhaseReport(leaderboard, results)
+        : null,
     [leaderboard, results],
   );
   const mobileOpenJornadaDate =
@@ -3002,6 +3005,13 @@ function MatchPicksModal({
       return {
         profile,
         pick: hasPick && pick ? pick : null,
+        trainerPick:
+          match.number >= 73 && pick?.trainerTeamId && pick.tacticId
+            ? {
+                tacticId: pick.tacticId,
+                teamId: pick.trainerTeamId,
+              }
+            : null,
         xiPlayers,
         matchPoints: report ? report.total : null,
         scoringPlayerIds,
@@ -3009,7 +3019,11 @@ function MatchPicksModal({
       };
     })
     .filter(
-      (row) => row.pick || row.xiPlayers.length || row.trainerChips.length,
+      (row) =>
+        row.pick ||
+        row.trainerPick ||
+        row.xiPlayers.length ||
+        row.trainerChips.length,
     );
 
   // Orden por clasificacion general (el de `leaderboard`): el buscador ya
@@ -3156,6 +3170,7 @@ function MatchPicksModal({
               profile,
               scoringPlayerIds,
               trainerChips,
+              trainerPick,
               xiPlayers,
             }) => (
               <Link
@@ -3179,7 +3194,7 @@ function MatchPicksModal({
                         </span>
                       ) : null}
                     </p>
-                    {xiPlayers.length || trainerChips.length ? (
+                    {xiPlayers.length || trainerChips.length || trainerPick ? (
                       <div className="mt-1 flex flex-wrap items-center gap-1">
                         {xiPlayers.map((player) => {
                           const scored = scoringPlayerIds.has(player.id);
@@ -3200,12 +3215,19 @@ function MatchPicksModal({
                             </span>
                           );
                         })}
-                        {trainerChips.map((chip) => (
-                          <TrainerChipScorePill
-                            key={`${chip.teamId}-${chip.tacticId}`}
-                            chip={chip}
+                        {trainerChips.length ? (
+                          trainerChips.map((chip) => (
+                            <TrainerChipScorePill
+                              key={`${chip.teamId}-${chip.tacticId}`}
+                              chip={chip}
+                            />
+                          ))
+                        ) : trainerPick ? (
+                          <TrainerChipPickPill
+                            tacticId={trainerPick.tacticId}
+                            teamId={trainerPick.teamId}
                           />
-                        ))}
+                        ) : null}
                       </div>
                     ) : null}
                   </div>

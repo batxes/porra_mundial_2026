@@ -1421,6 +1421,80 @@ const MatchResultControls = memo(function MatchResultControls({
   );
 });
 
+function predictionScoreValue(value?: string | null) {
+  return isPredictionValueSet(value ?? undefined) ? value : "?";
+}
+
+const ReadOnlyScoreValue = memo(function ReadOnlyScoreValue({
+  value,
+}: {
+  value?: string | null;
+}) {
+  return (
+    <span className="playoff-battle-score-value playoff-battle-score-value--readonly">
+      {predictionScoreValue(value)}
+    </span>
+  );
+});
+
+const ReadOnlyScorePair = memo(function ReadOnlyScorePair({
+  result,
+}: {
+  result?: MatchResult;
+}) {
+  return (
+    <div className="playoff-battle-readonly-score-pair">
+      <ReadOnlyScoreValue value={result?.homeGoals} />
+      <span className="playoff-battle-score-divider" aria-hidden="true">
+        -
+      </span>
+      <ReadOnlyScoreValue value={result?.awayGoals} />
+    </div>
+  );
+});
+
+const ReadOnlyMatchResult = memo(function ReadOnlyMatchResult({
+  result,
+  trainers,
+}: {
+  result?: MatchResult;
+  trainers: TrainerDemoCard[];
+}) {
+  return (
+    <div className="playoff-battle-scoreboard playoff-battle-scoreboard--readonly">
+      <div className="playoff-battle-score-row">
+        {trainers[0] ? (
+          <span className="playoff-battle-score-team">
+            <RoundTeamFlag
+              teamId={trainers[0].teamId}
+              className="playoff-battle-score-flag"
+            />
+            <span className="playoff-battle-score-country">
+              {trainers[0].country}
+            </span>
+          </span>
+        ) : null}
+        <ReadOnlyScoreValue value={result?.homeGoals} />
+        <span className="playoff-battle-score-divider" aria-hidden="true">
+          -
+        </span>
+        <ReadOnlyScoreValue value={result?.awayGoals} />
+        {trainers[1] ? (
+          <span className="playoff-battle-score-team">
+            <RoundTeamFlag
+              teamId={trainers[1].teamId}
+              className="playoff-battle-score-flag"
+            />
+            <span className="playoff-battle-score-country">
+              {trainers[1].country}
+            </span>
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+});
+
 const PickState = memo(function PickState({
   className = "",
   tactic,
@@ -1465,6 +1539,49 @@ const PickState = memo(function PickState({
           <span>+</span>
           <span>Elegir estilo</span>
         </>
+      )}
+    </span>
+  );
+});
+
+const ReadOnlyPickState = memo(function ReadOnlyPickState({
+  className = "",
+  tactic,
+  trainer,
+}: {
+  className?: string;
+  tactic?: Tactic | null;
+  trainer?: TrainerDemoCard | null;
+}) {
+  const isPicked = Boolean(tactic && trainer);
+  const style = tactic
+    ? ({
+        "--tactic-color": tactic.color,
+      } as TacticStyle)
+    : undefined;
+
+  return (
+    <span
+      className={`playoff-battle-pick-state playoff-battle-pick-state--readonly ${className} ${
+        isPicked
+          ? "playoff-battle-pick-state--picked"
+          : "playoff-battle-pick-state--empty"
+      }`}
+      style={style}
+    >
+      {isPicked ? (
+        <>
+          {trainer ? (
+            <RoundTeamFlag
+              teamId={trainer.teamId}
+              className="playoff-battle-pick-flag"
+              size={22}
+            />
+          ) : null}
+          <span>{tactic ? arcadeText(tactic.title) : ""}</span>
+        </>
+      ) : (
+        <span>Sin chip</span>
       )}
     </span>
   );
@@ -1882,42 +1999,60 @@ const PlayoffMatchRow = memo(function PlayoffMatchRow({
 
       <div className="playoff-battle-mobile-scoreline">
         <PlayoffCompactTeamSide reversed trainer={trainers[0]} />
-        <div className="playoff-battle-mobile-score-controls">
-          <ScoreStepper
-            label={`Goles ${trainers[0]?.country ?? "local"}`}
-            value={result?.homeGoals}
-            disabled={locked}
-            onChange={(value) => onUpdateResult(match.id, { homeGoals: value })}
-            variant="inline"
-          />
-          <span className="playoff-battle-score-divider" aria-hidden="true">
-            -
-          </span>
-          <ScoreStepper
-            label={`Goles ${trainers[1]?.country ?? "visitante"}`}
-            value={result?.awayGoals}
-            disabled={locked}
-            onChange={(value) => onUpdateResult(match.id, { awayGoals: value })}
-            variant="inline"
-          />
-        </div>
+        {locked ? (
+          <ReadOnlyScorePair result={result} />
+        ) : (
+          <div className="playoff-battle-mobile-score-controls">
+            <ScoreStepper
+              label={`Goles ${trainers[0]?.country ?? "local"}`}
+              value={result?.homeGoals}
+              disabled={locked}
+              onChange={(value) =>
+                onUpdateResult(match.id, { homeGoals: value })
+              }
+              variant="inline"
+            />
+            <span className="playoff-battle-score-divider" aria-hidden="true">
+              -
+            </span>
+            <ScoreStepper
+              label={`Goles ${trainers[1]?.country ?? "visitante"}`}
+              value={result?.awayGoals}
+              disabled={locked}
+              onChange={(value) =>
+                onUpdateResult(match.id, { awayGoals: value })
+              }
+              variant="inline"
+            />
+          </div>
+        )}
         <PlayoffCompactTeamSide trainer={trainers[1]} />
       </div>
 
-      <button
-        type="button"
-        className="playoff-battle-mobile-chip-trigger"
-        disabled={locked}
-        aria-expanded={isHandOpen}
-        aria-controls={`playoff-hand-${match.id}`}
-        onClick={() => onToggleHand(match.id)}
-      >
-        <PickState
-          className="home-trainer-chip-state playoff-battle-mobile-chip-state"
-          tactic={pickedTactic}
-          trainer={pickedTrainer}
-        />
-      </button>
+      {locked ? (
+        <div className="playoff-battle-mobile-chip-trigger playoff-battle-mobile-chip-trigger--readonly">
+          <ReadOnlyPickState
+            className="home-trainer-chip-state playoff-battle-mobile-chip-state"
+            tactic={pickedTactic}
+            trainer={pickedTrainer}
+          />
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="playoff-battle-mobile-chip-trigger"
+          disabled={locked}
+          aria-expanded={isHandOpen}
+          aria-controls={`playoff-hand-${match.id}`}
+          onClick={() => onToggleHand(match.id)}
+        >
+          <PickState
+            className="home-trainer-chip-state playoff-battle-mobile-chip-state"
+            tactic={pickedTactic}
+            trainer={pickedTrainer}
+          />
+        </button>
+      )}
 
       <div className="playoff-battle-mobile-card-footer">
         <PlayoffCountdown compact match={match} />
@@ -2017,27 +2152,41 @@ const PlayoffArenaMatch = memo(function PlayoffArenaMatch({
               <PlayoffCountdown match={match} />
             </div>
 
-            <MatchResultControls
-              match={match}
-              locked={locked}
-              onUpdate={onUpdateResult}
-              result={result}
-              trainers={trainers}
-            />
+            {locked ? (
+              <>
+                <ReadOnlyMatchResult result={result} trainers={trainers} />
+                <div className="playoff-battle-pick-trigger playoff-battle-pick-trigger--readonly">
+                  <ReadOnlyPickState
+                    tactic={pickedTactic}
+                    trainer={pickedTrainer}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <MatchResultControls
+                  match={match}
+                  locked={locked}
+                  onUpdate={onUpdateResult}
+                  result={result}
+                  trainers={trainers}
+                />
 
-            <button
-              type="button"
-              className="playoff-battle-pick-trigger"
-              disabled={locked}
-              aria-expanded={isHandOpen}
-              aria-controls={`playoff-hand-${match.id}`}
-              onClick={() => onToggleHand(match.id)}
-            >
-              <PickState tactic={pickedTactic} trainer={pickedTrainer} />
-            </button>
+                <button
+                  type="button"
+                  className="playoff-battle-pick-trigger"
+                  disabled={locked}
+                  aria-expanded={isHandOpen}
+                  aria-controls={`playoff-hand-${match.id}`}
+                  onClick={() => onToggleHand(match.id)}
+                >
+                  <PickState tactic={pickedTactic} trainer={pickedTrainer} />
+                </button>
+              </>
+            )}
           </div>
 
-          {isHandOpen ? (
+          {!locked && isHandOpen ? (
             <PlayoffHandPopover
               activeTrainerId={activeTrainerId}
               dragScope="arena"

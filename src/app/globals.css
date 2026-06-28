@@ -4262,6 +4262,19 @@ summary {
   padding: 0.7rem 0.7rem 0.58rem;
 }
 
+.playoff-battle-scoreboard--readonly {
+  border-color: rgba(167, 246, 0, 0.18);
+  background:
+    radial-gradient(190px at 4% 50%, rgba(0, 99, 75, 0.24), transparent 72%),
+    radial-gradient(
+      190px at 96% 50%,
+      rgba(216, 159, 40, 0.18),
+      transparent 72%
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 64%),
+    rgba(8, 11, 15, 0.54);
+}
+
 .playoff-battle-score-row {
   display: grid;
   grid-template-columns: minmax(4.25rem, 5.7rem) auto auto auto minmax(
@@ -4340,6 +4353,14 @@ summary {
   font-weight: 950;
   line-height: 1;
   text-align: center;
+}
+
+.playoff-battle-score-value--readonly {
+  border-color: rgba(255, 255, 255, 0.11);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 28%),
+    rgba(0, 0, 0, 0.58);
+  color: #ffffff;
 }
 
 .playoff-battle-score-button {
@@ -4514,6 +4535,24 @@ summary {
   font-size: clamp(0.7rem, 1.25vw, 0.86rem);
   line-height: 1;
   padding: 0.34rem 0.44rem;
+}
+
+.playoff-battle-pick-state--readonly {
+  cursor: default;
+  animation: none;
+}
+
+.playoff-battle-pick-state--readonly.playoff-battle-pick-state--picked {
+  border-color: rgba(255, 255, 255, 0.14);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.065),
+      rgba(255, 255, 255, 0.015)
+    ),
+    rgba(10, 14, 18, 0.72);
+  box-shadow: none;
+  color: #e4e4e7;
 }
 
 .playoff-battle-pick-row > button {
@@ -6009,6 +6048,21 @@ summary {
   gap: 0.32rem;
 }
 
+.playoff-battle-readonly-score-pair {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+}
+
+.playoff-battle-readonly-score-pair .playoff-battle-score-value {
+  width: 2.28rem;
+  height: 2rem;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
 .playoff-battle-mobile-chip-trigger {
   display: flex;
   width: min(100% - 3rem, 216px);
@@ -6026,6 +6080,10 @@ summary {
 
 .playoff-battle-mobile-chip-trigger:disabled {
   cursor: not-allowed;
+}
+
+.playoff-battle-mobile-chip-trigger--readonly {
+  cursor: default;
 }
 
 .playoff-battle-mobile-chip-trigger .playoff-battle-mobile-chip-state {
@@ -6226,6 +6284,18 @@ summary {
     rgba(15, 15, 16, 0.58);
   color: rgba(228, 228, 231, 0.72);
   text-shadow: none;
+}
+
+.home-trainer-chip-state.playoff-battle-pick-state--readonly.playoff-battle-pick-state--picked {
+  border-color: rgba(255, 255, 255, 0.14);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.055),
+      rgba(255, 255, 255, 0.015)
+    ),
+    rgba(15, 15, 16, 0.58);
+  color: #e4e4e7;
 }
 
 .home-trainer-chip-state .playoff-battle-pick-flag {
