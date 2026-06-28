@@ -24,6 +24,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   FinishedMatchCard,
   hasFinishedScore,
+  LockedPredictionMatchCard,
   trainerResultChipForMatch,
 } from "@/components/common";
 import {
@@ -2682,6 +2683,60 @@ function PlayoffsBattleSurface({
     [handleSelectTactic],
   );
 
+  const renderLockedPredictionCard = useCallback(
+    (match: PlayoffMatch) => {
+      const matchNumber = playoffMatchNumber(match);
+      const scheduledMatch = playoffScheduleMatch(match, scheduleByNumber);
+      const cardMatch =
+        scheduledMatch ??
+        ({
+          number: matchNumber,
+          date: playoffDateKey(match.date),
+          time: match.time,
+          home: "",
+          away: "",
+          venue: match.venue,
+          stage: match.stage,
+        } satisfies Match);
+      const result = resultForMatch(match);
+      const pick = pickForMatch(match);
+      const pickedTrainer = pick ? getTrainerCard(pick.trainerId) : null;
+      const pickedTactic = pick ? tacticById.get(pick.tacticId) : null;
+      const resolvedTeams = resolvedPlayoffTeams[String(matchNumber)];
+      const trainers = getTrainers(match);
+      const hasPick =
+        isPredictionValueSet(result?.homeGoals) &&
+        isPredictionValueSet(result?.awayGoals);
+      const trainerChip =
+        pickedTrainer?.teamId && pickedTactic
+          ? {
+              teamId: pickedTrainer.teamId,
+              title: pickedTactic.title,
+              points: 0,
+            }
+          : null;
+
+      return (
+        <LockedPredictionMatchCard
+          key={match.id}
+          match={cardMatch}
+          pickHome={result?.homeGoals}
+          pickAway={result?.awayGoals}
+          hasPick={hasPick}
+          homeTeamId={resolvedTeams?.home || trainers[0]?.teamId}
+          awayTeamId={resolvedTeams?.away || trainers[1]?.teamId}
+          trainerChip={trainerChip}
+        />
+      );
+    },
+    [
+      pickForMatch,
+      resolvedPlayoffTeams,
+      resultForMatch,
+      scheduleByNumber,
+    ],
+  );
+
   const renderFinishedMatchCard = useCallback(
     (match: PlayoffMatch) => {
       const matchNumber = playoffMatchNumber(match);
@@ -2804,6 +2859,8 @@ function PlayoffsBattleSurface({
                     const pick = pickForMatch(match);
                     const result = resultForMatch(match);
                     const locked = isPlayoffLocked(match);
+                    if (locked) return renderLockedPredictionCard(match);
+
                     const matchActiveDrag =
                       activeDrag?.matchId === match.id ? activeDrag : null;
                     const rawActiveTrainerId = activeTrainerByMatch[match.id];
@@ -2869,6 +2926,7 @@ function PlayoffsBattleSurface({
                         const pick = pickForMatch(match);
                         const result = resultForMatch(match);
                         const locked = isPlayoffLocked(match);
+                        if (locked) return renderLockedPredictionCard(match);
 
                         return (
                           <PlayoffMatchRow

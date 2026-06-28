@@ -3168,10 +3168,11 @@ summary {
 }
 
 .playoff-battle-phase-selector {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  width: min(100%, 1000px);
   gap: 0.5rem;
+  margin-inline: auto;
   margin-bottom: 0.55rem;
 }
 
@@ -3191,7 +3192,8 @@ summary {
 }
 
 .playoff-battle-phase-selector button {
-  min-width: 7.6rem;
+  min-width: 0;
+  width: 100%;
 }
 
 .playoff-battle-phase-selector button span,
@@ -5191,6 +5193,7 @@ summary {
 
   .playoff-battle-phase-selector,
   .playoff-battle-selector {
+    display: flex;
     flex-wrap: nowrap;
     justify-content: flex-start;
     width: calc(100% + 1.8rem);

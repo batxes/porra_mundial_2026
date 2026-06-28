@@ -2802,6 +2802,99 @@ export function FinishedMatchCard({
   );
 }
 
+export function LockedPredictionMatchCard({
+  match,
+  pickHome = "",
+  pickAway = "",
+  hasPick = false,
+  homeTeamId,
+  awayTeamId,
+  trainerChip = null,
+}: {
+  match: Match;
+  pickHome?: string;
+  pickAway?: string;
+  hasPick?: boolean;
+  homeTeamId?: string;
+  awayTeamId?: string;
+  trainerChip?: TrainerResultChip | null;
+}) {
+  const scoreText = hasPick ? `${pickHome} - ${pickAway}` : "? - ?";
+
+  return (
+    <article
+      className="match-card mx-auto mt-2 flex h-full w-full max-w-[580px] flex-col overflow-hidden rounded-[22px] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] sm:mt-3"
+      style={{
+        background:
+          "radial-gradient(250px at 0% 0%, rgba(0, 99, 75, 0.18) 0%, rgba(47, 47, 47, 0) 70%), radial-gradient(250px at 100% 0%, rgba(216, 159, 40, 0.16) 0%, rgba(47, 47, 47, 0) 70%), var(--match-card-bg)",
+      }}
+    >
+      <div className="flex items-center justify-between gap-3 px-3 pb-0 pt-3 sm:px-4 sm:pt-4">
+        <span>{matchStageLabel(match)}</span>
+        <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/25 px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.14em] text-zinc-300">
+          <span className="size-1.5 rounded-full bg-rose-400" />
+          En juego
+        </span>
+      </div>
+
+      <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start py-2 pb-3">
+        <SnapshotResultTeam
+          teamId={homeTeamId}
+          fallback={translateSlot(match.home)}
+        />
+        <div className="flex h-full flex-col items-center justify-start gap-1.5 pt-3">
+          <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+            Tu pronostico
+          </span>
+          <span
+            className={`rounded-lg bg-black/30 px-4 py-1.5 text-2xl font-bold leading-none sm:text-3xl ${
+              hasPick ? "text-white" : "text-zinc-600"
+            }`}
+          >
+            {scoreText}
+          </span>
+          <LockedTrainerChip chip={trainerChip} />
+        </div>
+        <SnapshotResultTeam
+          teamId={awayTeamId}
+          fallback={translateSlot(match.away)}
+        />
+      </div>
+
+      <div className="mt-auto border-t border-white/10 px-3 py-2 sm:px-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="min-w-0 truncate text-xs text-zinc-400">
+            {match.venue}
+          </p>
+          <span className="text-xs font-bold text-zinc-500">
+            {hasPick ? "Pendiente de resultado" : "No rellenaste este resultado"}
+          </span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function LockedTrainerChip({ chip }: { chip: TrainerResultChip | null }) {
+  if (!chip) {
+    return (
+      <span className="inline-flex max-w-[10rem] items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-bold text-zinc-500">
+        Sin chip
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex max-w-[12rem] items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] py-1 pl-1 pr-3 text-xs font-semibold text-zinc-300 shadow-inner shadow-black/20">
+      <TeamFlag
+        teamId={chip.teamId}
+        className="size-6 shrink-0 rounded-full border border-white/15 object-cover"
+      />
+      <span className="min-w-0 truncate">{chip.title}</span>
+    </span>
+  );
+}
+
 function SnapshotResultTeam({
   teamId,
   fallback,
