@@ -22,7 +22,10 @@ import {
   resolveSlot,
   scheduleUtc,
 } from "@/lib/prediction";
-import { calculateGroupTables } from "@/lib/playoff-teams";
+import {
+  buildResolvedPlayoffTeams,
+  calculateGroupTables,
+} from "@/lib/playoff-teams";
 import { trainerTacticById } from "@/lib/trainer-tactics";
 import type {
   AdminEvent,
@@ -2266,6 +2269,21 @@ export type TrainerResultChip = {
   points: number;
 };
 
+function trainerPickChipForMatch(
+  matchNumber: number,
+  prediction: Prediction,
+): TrainerResultChip | null {
+  const pick = prediction.matchPredictions[String(matchNumber)];
+  const tactic = pick?.tacticId ? trainerTacticById.get(pick.tacticId) : null;
+  if (!pick?.trainerTeamId || !tactic) return null;
+
+  return {
+    teamId: pick.trainerTeamId,
+    title: tactic.title,
+    points: tactic.points,
+  };
+}
+
 export function trainerResultChipForMatch(
   matchNumber: number,
   prediction: Prediction,
@@ -2316,6 +2334,10 @@ function ResultsSummary({
   });
   const isHidden = (match: Match) => maskUnstarted && !hasMatchStarted(match);
   const hiddenCount = completedMatches.filter(isHidden).length;
+  const resolvedPlayoffTeams = useMemo(
+    () => (results ? buildResolvedPlayoffTeams(results) : {}),
+    [results],
+  );
   const matchesByDate = completedMatches.reduce<Record<string, Match[]>>(
     (grouped, match) => {
       const dateKey = snapshotResultDateKey(match);
@@ -2358,8 +2380,13 @@ function ResultsSummary({
             <div className="grid gap-3 lg:grid-cols-2">
               {(matchesByDate[dateKey] || []).map((match) => {
                 const score = prediction.matchPredictions[String(match.number)];
-                const home = resolveSlot(match.home, match.number, prediction);
-                const away = resolveSlot(match.away, match.number, prediction);
+                const resolvedTeams = resolvedPlayoffTeams[String(match.number)];
+                const home =
+                  resolvedTeams?.home ||
+                  resolveSlot(match.home, match.number, prediction);
+                const away =
+                  resolvedTeams?.away ||
+                  resolveSlot(match.away, match.number, prediction);
                 const hidden = isHidden(match);
                 const matchResult = results?.[String(match.number)];
                 const trainerChip = trainerResultChipForMatch(
@@ -2367,6 +2394,10 @@ function ResultsSummary({
                   prediction,
                   scorecard,
                 );
+                const trainerPickChip =
+                  match.number >= 73
+                    ? trainerPickChipForMatch(match.number, prediction)
+                    : null;
 
                 if (hasFinishedScore(matchResult)) {
                   return (
@@ -2411,20 +2442,28 @@ function ResultsSummary({
                         fallback={translateSlot(match.home)}
                       />
                       <div className="flex h-full items-center justify-center pt-5">
-                        <span
-                          className={`rounded-lg bg-black/25 px-3 py-2 text-center text-xl font-bold text-white ${
-                            hidden ? "select-none blur-sm" : ""
-                          }`}
-                          aria-label={
-                            hidden
-                              ? "Resultado oculto hasta el inicio del partido"
-                              : undefined
-                          }
-                        >
-                          {hidden
-                            ? "? - ?"
-                            : `${score.homeScore} - ${score.awayScore}`}
-                        </span>
+                        <div className="flex flex-col items-center gap-2">
+                          <span
+                            className={`rounded-lg bg-black/25 px-3 py-2 text-center text-xl font-bold text-white ${
+                              hidden ? "select-none blur-sm" : ""
+                            }`}
+                            aria-label={
+                              hidden
+                                ? "Resultado oculto hasta el inicio del partido"
+                                : undefined
+                            }
+                          >
+                            {hidden
+                              ? "? - ?"
+                              : `${score.homeScore} - ${score.awayScore}`}
+                          </span>
+                          {match.number >= 73 ? (
+                            <PendingTrainerChip
+                              chip={trainerPickChip}
+                              hidden={hidden}
+                            />
+                          ) : null}
+                        </div>
                       </div>
                       <SnapshotResultTeam
                         teamId={away}
@@ -2564,6 +2603,40 @@ function FinishedTrainerChip({
       <span className={hit ? "text-[#a7f600]" : "text-zinc-500"}>
         {chip.points > 0 ? `+${chip.points}` : "0"}
       </span>
+    </span>
+  );
+}
+
+function PendingTrainerChip({
+  chip,
+  hidden,
+}: {
+  chip: TrainerResultChip | null;
+  hidden: boolean;
+}) {
+  if (hidden) {
+    return (
+      <span className="inline-flex max-w-[8rem] items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[10px] font-bold text-zinc-500">
+        Chip oculto
+      </span>
+    );
+  }
+
+  if (!chip) {
+    return (
+      <span className="inline-flex max-w-[8rem] items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[10px] font-bold text-zinc-500">
+        Sin chip
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex max-w-[8rem] items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] py-px pl-px pr-1.5 text-[10px] font-medium text-zinc-300">
+      <TeamFlag
+        teamId={chip.teamId}
+        className="size-4 shrink-0 rounded-full border border-white/15 object-cover"
+      />
+      <span className="min-w-0 truncate">{chip.title}</span>
     </span>
   );
 }
