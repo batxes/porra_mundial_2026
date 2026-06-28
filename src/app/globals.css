@@ -6581,10 +6581,129 @@ summary {
   transform: none;
 }
 
+@media (min-width: 761px) {
+  .playoff-mobile-chip-modal {
+    align-items: center;
+    padding: clamp(1.5rem, 4vw, 3.5rem);
+    touch-action: auto;
+  }
+
+  .playoff-mobile-chip-modal-backdrop {
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(14px) saturate(1.08);
+  }
+
+  .playoff-mobile-chip-modal-sheet {
+    width: min(980px, calc(100vw - 4rem));
+    max-height: min(88dvh, 780px);
+    border-radius: 24px;
+    padding: clamp(1rem, 2vw, 1.35rem);
+    box-shadow:
+      0 34px 110px rgba(0, 0, 0, 0.68),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    animation: playoff-desktop-chip-dialog 220ms
+      cubic-bezier(0.18, 1.05, 0.22, 1) both;
+  }
+
+  .playoff-mobile-chip-modal-handle {
+    display: none;
+  }
+
+  .playoff-mobile-chip-modal-header {
+    min-height: 3.25rem;
+    margin-bottom: 0.15rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 0.95rem;
+  }
+
+  .playoff-mobile-chip-modal-header span {
+    font-size: 0.6rem;
+  }
+
+  .playoff-mobile-chip-modal-header strong {
+    font-size: clamp(0.98rem, 1.45vw, 1.22rem);
+    line-height: 1.02;
+    white-space: normal;
+  }
+
+  .playoff-mobile-chip-modal-header button {
+    min-height: 2.5rem;
+    padding-inline: 1.15rem;
+  }
+
+  .playoff-mobile-chip-coaches {
+    grid-template-columns: repeat(2, minmax(180px, 220px));
+    justify-content: center;
+    gap: clamp(1.2rem, 4vw, 3rem);
+    margin-bottom: 0.8rem;
+    padding-top: 1.15rem;
+  }
+
+  .playoff-mobile-chip-coach.playoff-battle-coach {
+    width: min(100%, 220px);
+  }
+
+  .playoff-mobile-chip-coach-marker {
+    top: 0.54rem;
+    right: 0.54rem;
+    font-size: 0.56rem;
+    padding: 0.28rem 0.44rem;
+  }
+
+  .playoff-mobile-chip-callout {
+    min-height: 1.9rem;
+    margin: 0.75rem 0 1rem;
+    padding-top: 1.02rem;
+    font-size: 0.7rem;
+  }
+
+  .playoff-mobile-chip-hand {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.62rem;
+    max-width: 100%;
+    border-radius: 22px;
+    padding: 1.05rem 0.95rem 1.15rem;
+  }
+
+  .playoff-mobile-chip-hand .playoff-battle-tactic-title {
+    font-size: clamp(0.52rem, 0.76vw, 0.68rem);
+  }
+
+  .playoff-mobile-chip-hand .playoff-battle-tactic-copy {
+    font-size: clamp(0.52rem, 0.7vw, 0.64rem);
+  }
+
+  .playoff-mobile-chip-hand .playoff-battle-tactic-icon {
+    width: min(56%, 68px);
+  }
+}
+
+@media (min-width: 761px) and (max-width: 980px) {
+  .playoff-mobile-chip-modal-sheet {
+    width: min(720px, calc(100vw - 2rem));
+  }
+
+  .playoff-mobile-chip-hand {
+    grid-template-columns: repeat(3, minmax(108px, 1fr));
+  }
+}
+
 @keyframes playoff-mobile-chip-sheet {
   0% {
     opacity: 0;
     transform: translateY(32px) scale(0.98);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes playoff-desktop-chip-dialog {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
   }
 
   100% {

@@ -118,7 +118,7 @@ const tactics: Tactic[] = [
   {
     id: "clean-sheet",
     title: "Muro",
-    name: "No encaja gol.",
+    name: "No encaja gol",
     short: "Muro",
     points: 2,
     rarity: "dificil",
@@ -128,7 +128,7 @@ const tactics: Tactic[] = [
   {
     id: "first-goal",
     title: "Abrelatas",
-    name: "Marca primero.",
+    name: "Marca primero",
     short: "Abrelatas",
     points: 1,
     rarity: "comun",
@@ -138,7 +138,7 @@ const tactics: Tactic[] = [
   {
     id: "set-piece",
     title: "Estratega",
-    name: "Gol a balón parado.",
+    name: "Gol a balón parado",
     short: "Estratega",
     points: 3,
     rarity: "dificil",
@@ -148,7 +148,7 @@ const tactics: Tactic[] = [
   {
     id: "red-card",
     title: "Carnicero",
-    name: "Expulsan tu jugador.",
+    name: "Expulsan tu jugador",
     short: "Carnicero",
     points: 5,
     rarity: "dificil",
@@ -972,10 +972,6 @@ const HeroTrainerDrop = memo(function HeroTrainerDrop({
         <span className="playoff-battle-coach-picked-marker" aria-hidden="true">
           Elegido
         </span>
-      ) : targeted ? (
-        <span className="playoff-battle-coach-picked-marker" aria-hidden="true">
-          Activo
-        </span>
       ) : null}
       {false ? (
         <span className="playoff-battle-coach-lock">
@@ -1163,11 +1159,11 @@ function PlayoffResultsHeader({
         </span>
         <span>Resultado exacto suma el valor de todos los</span>
         <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
-          goles del partido
+          +goles del partido
         </span>
         <span>Elige entrenador y estrategia</span>
-        <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-black">
-          obligatorio
+        <span className="rounded-md bg-[#a7f600] px-2 py-0.5 text-[11px] font-semibold text-black">
+          +valor estrategia
         </span>
         <span>Cuenta hasta 120 min</span>
         <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-zinc-200">
@@ -1685,15 +1681,11 @@ const MobileChipCoachDrop = memo(function MobileChipCoachDrop({
         tactic={shownTactic}
         canAssign={(isActive || canDrop) && !shownTactic}
       />
-      <span className="playoff-mobile-chip-coach-marker">
-        {isPicked
-          ? "Elegido"
-          : isActive
-            ? "Activo"
-            : canDrop
-              ? "Suelta"
-              : "Tocar"}
-      </span>
+      {isPicked || canDrop || !isActive ? (
+        <span className="playoff-mobile-chip-coach-marker">
+          {isPicked ? "Elegido" : canDrop ? "Suelta" : "Elegir"}
+        </span>
+      ) : null}
     </button>
   );
 });
@@ -1814,7 +1806,7 @@ const MobileChipModal = memo(function MobileChipModal({
         </div>
 
         <div className="playoff-battle-hand-callout playoff-mobile-chip-callout">
-          <strong>TOCA O ARRASTRA UN CHIP</strong>
+          <strong>ELIGE O ARRASTRA UN CHIP</strong>
         </div>
 
         <div className="playoff-mobile-chip-hand">

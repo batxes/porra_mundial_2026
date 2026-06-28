@@ -151,7 +151,8 @@ export function HomeView() {
   const hasPendingPlayoffMatches = useMemo(
     () =>
       schedule.some(
-        (match) => isTrainerChipMatch(match) && isMatchPending(match, adminResults),
+        (match) =>
+          isTrainerChipMatch(match) && isMatchPending(match, adminResults),
       ),
     [adminResults],
   );
@@ -2804,7 +2805,7 @@ function SobresPromoBanner({ userId }: { userId: string }) {
       </span>
       <NextSobreCountdown />
       {unopened ? (
-        <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#a7f600] px-1.5 text-[11px] font-black leading-none text-black">
+        <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#a7f600] px-1.5 text-[11px] font-bold leading-none text-black">
           {unopened}
         </span>
       ) : null}
@@ -3081,8 +3082,9 @@ function HomeTrainerChipRow({
       {onOpenMobile ? (
         <button
           type="button"
-          className="flex w-full max-w-[13.6rem] justify-center border-0 bg-transparent p-0 text-inherit sm:hidden"
+          className="flex w-full max-w-[13.6rem] justify-center border-0 bg-transparent p-0 text-inherit"
           aria-haspopup="dialog"
+          aria-label="Elegir estrategia de entrenador"
           onClick={() => onOpenMobile(match.number)}
         >
           <TrainerTacticPickPill
@@ -3091,13 +3093,13 @@ function HomeTrainerChipRow({
           />
         </button>
       ) : null}
-      <span className={onOpenMobile ? "hidden sm:flex" : "flex"}>
+      {!onOpenMobile ? (
         <TrainerTacticPickPill
           href={trainerChipHref(match)}
           tacticId={matchPrediction?.tacticId}
           teamId={matchPrediction?.trainerTeamId}
         />
-      </span>
+      ) : null}
     </div>
   );
 }

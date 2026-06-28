@@ -234,7 +234,7 @@ const playoffStrategyChips = [
     id: "clean-sheet",
     title: "Muro",
     detail: "Portería a 0",
-    copy: "No encaja gol.",
+    copy: "No encaja gol",
     points: 2,
     color: "#69d744",
     icon: "/prediction-icons/clean-sheet.png",
@@ -243,7 +243,7 @@ const playoffStrategyChips = [
     id: "first-goal",
     title: "Abrelatas",
     detail: "Primer gol",
-    copy: "Marca primero.",
+    copy: "Marca primero",
     points: 1,
     color: "#d946ef",
     icon: "/prediction-icons/first-goal.png",
@@ -252,7 +252,7 @@ const playoffStrategyChips = [
     id: "set-piece",
     title: "Estratega",
     detail: "Balón parado",
-    copy: "Gol a balón parado.",
+    copy: "Gol a balón parado",
     points: 3,
     color: "#38bdf8",
     icon: "/prediction-icons/set-piece.png",
@@ -261,7 +261,7 @@ const playoffStrategyChips = [
     id: "red-card",
     title: "Carnicero",
     detail: "Roja",
-    copy: "Expulsan tu jugador.",
+    copy: "Expulsan tu jugador",
     points: 5,
     color: "#ff4d2d",
     icon: "/prediction-icons/red-card.png",
@@ -270,7 +270,7 @@ const playoffStrategyChips = [
     id: "comeback",
     title: "Remontada",
     detail: "Remontada",
-    copy: "Vas perdiendo y ganas.",
+    copy: "Vas perdiendo y ganas",
     points: 6,
     color: "#facc15",
     icon: "/prediction-icons/comeback.png",
@@ -489,4 +489,3 @@ function IntroCheckIcon({ className = "" }: { className?: string }) {
     </svg>
   );
 }
-

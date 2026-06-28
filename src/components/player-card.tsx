@@ -135,11 +135,11 @@ export function PlayerCard({
           backgroundPosition: "center",
           filter: legendary
             ? "hue-rotate(190deg) saturate(1.15)"
-              : accent.bgRotate
-                ? `hue-rotate(${accent.bgRotate}deg)`
-                : eliminated
-                  ? "saturate(0.2)"
-                  : undefined,
+            : accent.bgRotate
+              ? `hue-rotate(${accent.bgRotate}deg)`
+              : eliminated
+                ? "saturate(0.2)"
+                : undefined,
         }}
       />
 
@@ -239,7 +239,7 @@ export function PlayerCard({
             }}
           />
           <div
-            className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 font-black uppercase leading-none"
+            className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 font-bold uppercase leading-none"
             style={{
               top: "25%",
               border: "1.5px solid rgba(248,113,113,0.62)",
