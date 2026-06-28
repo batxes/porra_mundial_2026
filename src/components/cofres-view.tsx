@@ -26,13 +26,15 @@ import { ruletaCompletedEventName } from "@/components/ruleta-modal";
 import { soberaQuizCompletedEventName } from "@/components/sobera-quiz-modal";
 import { suarezDentistCompletedEventName } from "@/components/suarez-dentist-modal";
 import { useAppContext } from "@/lib/app-context";
-import { data, playersById, teamsById } from "@/lib/data";
+import { data, playersById, schedule as worldCupSchedule, teamsById } from "@/lib/data";
 import { initials, playerPhotoUrl } from "@/lib/format";
+import { scheduleUtc } from "@/lib/prediction";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { calculatePlayerStandings } from "@/lib/scoring";
 import {
   buildAlivePlayoffTeamIds,
   buildEliminatedPlayoffTeamIds,
+  buildResolvedPlayoffTeams,
 } from "@/lib/playoff-teams";
 import { STAR_PLAYER_IDS } from "@/lib/star-players";
 import { TOP150_PLAYER_IDS } from "@/lib/top150-players";
@@ -681,6 +683,26 @@ function cardFromRemote(row: {
 // JUGADOR (swaps) están deshabilitados. Poner en false para reactivarlo.
 const CARDS_DEMO: boolean = false;
 
+function startedUnvalidatedTeamIds(adminResults: AdminResults) {
+  const resolvedPlayoffTeams = buildResolvedPlayoffTeams(adminResults);
+  const lockedTeamIds = new Set<string>();
+  const now = Date.now();
+
+  worldCupSchedule.forEach((match) => {
+    const resolvedTeams = resolvedPlayoffTeams[String(match.number)];
+    if (now < new Date(scheduleUtc(match)).getTime()) return;
+    if (adminResults[String(match.number)]?.status === "validated") return;
+
+    [match.home, match.away, resolvedTeams?.home, resolvedTeams?.away].forEach(
+      (teamId) => {
+        if (teamId && teamsById.has(teamId)) lockedTeamIds.add(teamId);
+      },
+    );
+  });
+
+  return lockedTeamIds;
+}
+
 export function CofresView() {
   const {
     adminResults,
@@ -784,6 +806,10 @@ export function CofresView() {
   );
   const eliminatedPlayoffTeamIds = useMemo(
     () => buildEliminatedPlayoffTeamIds(adminResults || {}),
+    [adminResults],
+  );
+  const lockedSwapTeamIds = useMemo(
+    () => startedUnvalidatedTeamIds(adminResults || {}),
     [adminResults],
   );
   const isPlayerEliminated = useCallback(
@@ -1672,11 +1698,20 @@ export function CofresView() {
       const alreadyInXi = selectedPlayer
         ? activeXi.includes(selectedPlayer.id)
         : false;
+      const inTeamLocked = selectedPlayer
+        ? lockedSwapTeamIds.has(selectedPlayer.team)
+        : false;
+      const outTeamLocked = lockedSwapTeamIds.has(outPlayer.team);
       // La carta no puede subir el marcador a posteriori. Los empates valen
       // para cualquier puntuación (0 -> 0, 10 -> 10, etc.).
       const cardEligible = inPoints <= outPoints;
       const eligible = Boolean(
-        selectedPlayer && samePosition && !alreadyInXi && cardEligible,
+        selectedPlayer &&
+          samePosition &&
+          !alreadyInXi &&
+          !inTeamLocked &&
+          !outTeamLocked &&
+          cardEligible,
       );
 
       let reason = "Disponible";
@@ -1684,6 +1719,10 @@ export function CofresView() {
       else if (!samePosition)
         reason = `Solo ${positionLabel[selectedPlayer.position]}`;
       else if (alreadyInXi) reason = "Ya esta en tu once";
+      else if (inTeamLocked && outTeamLocked)
+        reason = "Sus equipos estan en juego";
+      else if (inTeamLocked) reason = "La carta esta en juego";
+      else if (outTeamLocked) reason = "Su equipo esta en juego";
       else if (!cardEligible)
         reason = `Tiene mas puntos que tu titular (${formatSigned(outPoints)})`;
 
@@ -1696,7 +1735,7 @@ export function CofresView() {
         reason,
       };
     },
-    [activeXi, pointsFor, selectedPlayer],
+    [activeXi, lockedSwapTeamIds, pointsFor, selectedPlayer],
   );
 
   const requestSwap = (candidate: SwapCandidate) => {

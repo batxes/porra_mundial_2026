@@ -1025,9 +1025,24 @@ function formatPlayoffDay(date: string) {
 function getNextPlayableMatchId(
   matches: PlayoffMatch[],
   scheduleByNumber = defaultPlayoffScheduleByNumber,
+  adminResults?: AdminResults,
 ) {
   const now = Date.now();
-  const upcoming = matches
+  const unresolved = matches.filter(
+    (match) =>
+      !hasFinishedScore(adminResults?.[String(playoffMatchNumber(match))]),
+  );
+  const started = unresolved
+    .filter((match) => playoffMatchKickoffMs(match, scheduleByNumber) <= now)
+    .sort(
+      (a, b) =>
+        playoffMatchKickoffMs(a, scheduleByNumber) -
+          playoffMatchKickoffMs(b, scheduleByNumber) ||
+        playoffMatchNumber(a) - playoffMatchNumber(b),
+    );
+  if (started.length) return started[0].id;
+
+  const upcoming = unresolved
     .filter((match) => playoffMatchKickoffMs(match, scheduleByNumber) > now)
     .sort(
       (a, b) =>
@@ -1036,12 +1051,13 @@ function getNextPlayableMatchId(
         playoffMatchNumber(a) - playoffMatchNumber(b),
     );
 
-  return upcoming[0]?.id ?? matches[0]?.id ?? null;
+  return upcoming[0]?.id ?? unresolved[0]?.id ?? matches[0]?.id ?? null;
 }
 
 function playoffMatchRequestFromUrl(
   scheduleByNumber = defaultPlayoffScheduleByNumber,
   matchIds?: readonly string[],
+  adminResults?: AdminResults,
 ) {
   if (typeof window === "undefined") {
     return { matchId: null, clearGoto: false };
@@ -1058,7 +1074,11 @@ function playoffMatchRequestFromUrl(
 
   if (params.get("goto") === "next") {
     return {
-      matchId: getNextPlayableMatchId(availableMatches, scheduleByNumber),
+      matchId: getNextPlayableMatchId(
+        availableMatches,
+        scheduleByNumber,
+        adminResults,
+      ),
       clearGoto: true,
     };
   }
@@ -2251,7 +2271,7 @@ function PlayoffsBattleSurface({
     [scheduleMatches],
   );
   const [initialMatchRequest] = useState(() =>
-    playoffMatchRequestFromUrl(scheduleByNumber, matchIds),
+    playoffMatchRequestFromUrl(scheduleByNumber, matchIds, adminResults),
   );
   const requestedMatchId = initialMatchRequest.matchId;
   const initialPhase =
@@ -2264,6 +2284,7 @@ function PlayoffsBattleSurface({
       getNextPlayableMatchId(
         filterPlayoffMatches(initialPhase.matches, matchIds),
         scheduleByNumber,
+        adminResults,
       )
     );
   });
@@ -2409,7 +2430,23 @@ function PlayoffsBattleSurface({
   useEffect(() => {
     if (!requestedMatchId) return;
 
-    window.setTimeout(() => {
+    let timer = 0;
+    let attempts = 0;
+    const maxAttempts = 30;
+
+    const clearGoto = () => {
+      if (!initialMatchRequest.clearGoto) return;
+      const current = new URLSearchParams(window.location.search);
+      current.delete("goto");
+      const query = current.toString();
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
+      );
+    };
+
+    const tryScroll = () => {
       const targets = Array.from(
         document.querySelectorAll<HTMLElement>(
           `[data-playoff-match-id="${requestedMatchId}"]`,
@@ -2417,19 +2454,22 @@ function PlayoffsBattleSurface({
       );
       const visibleTarget =
         targets.find((target) => target.offsetParent !== null) ?? targets[0];
-      visibleTarget?.scrollIntoView({ behavior: "smooth", block: "center" });
-
-      if (initialMatchRequest.clearGoto) {
-        const current = new URLSearchParams(window.location.search);
-        current.delete("goto");
-        const query = current.toString();
-        window.history.replaceState(
-          null,
-          "",
-          `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
-        );
+      if (!visibleTarget) {
+        if (attempts++ < maxAttempts) {
+          timer = window.setTimeout(tryScroll, 50);
+        }
+        return;
       }
-    }, 140);
+
+      visibleTarget.scrollIntoView({
+        behavior: document.visibilityState === "visible" ? "smooth" : "auto",
+        block: "center",
+      });
+      clearGoto();
+    };
+
+    tryScroll();
+    return () => window.clearTimeout(timer);
   }, [initialMatchRequest.clearGoto, requestedMatchId]);
 
   const setPhase = useCallback(
@@ -2448,12 +2488,14 @@ function PlayoffsBattleSurface({
           : getNextPlayableMatchId(
               filterPlayoffMatches(nextPhase.matches, matchIds),
               scheduleByNumber,
+              adminResults,
             ),
       );
     },
     [
       initialOpenMatchId,
       matchIds,
+      adminResults,
       resolvedPlayoffPhaseById,
       resolvedPlayoffPhases,
       scheduleByNumber,
