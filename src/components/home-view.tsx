@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   type CSSProperties,
   type ReactNode,
@@ -37,6 +38,10 @@ import {
   subscribeRankDelta,
 } from "@/components/results-recap";
 import { PlayerDetailModal } from "@/components/player-detail-modal";
+import {
+  PlayoffResultsIntroModal,
+  playoffResultsIntroStorageKey,
+} from "@/components/playoff-results-intro-modal";
 import { PlayoffTrainerChipModal } from "@/components/playoffs-balatro-demo";
 import { useAppContext } from "@/lib/app-context";
 import {
@@ -120,6 +125,7 @@ function resolveHomePlayoffMatch(
 }
 
 export function HomeView() {
+  const router = useRouter();
   const {
     adminResults,
     leaderboard: fullLeaderboard,
@@ -142,17 +148,52 @@ export function HomeView() {
     () => buildResolvedPlayoffTeams(adminResults),
     [adminResults],
   );
+  const hasPendingPlayoffMatches = useMemo(
+    () =>
+      schedule.some(
+        (match) => isTrainerChipMatch(match) && isMatchPending(match, adminResults),
+      ),
+    [adminResults],
+  );
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [homeChipMatchNumber, setHomeChipMatchNumber] = useState<number | null>(
     null,
   );
   const [homeSaveState, setHomeSaveState] = useState<HomeSaveState>("idle");
   const [reminderMatches, setReminderMatches] = useState<Match[]>([]);
+  const [showHomePlayoffIntroModal, setShowHomePlayoffIntroModal] =
+    useState(false);
+  const homePlayoffIntroQueuedRef = useRef(false);
   const rankBeforeUpdate = useSyncExternalStore(
     subscribeRankDelta,
     () => readRankBeforeUpdate(user?.id),
     () => null,
   );
+
+  useEffect(() => {
+    if (
+      !ready ||
+      !user?.id ||
+      !hasPendingPlayoffMatches ||
+      homePlayoffIntroQueuedRef.current
+    ) {
+      return;
+    }
+
+    try {
+      if (window.localStorage.getItem(playoffResultsIntroStorageKey) === "1") {
+        return;
+      }
+    } catch {
+      // Ignore storage failures.
+    }
+
+    homePlayoffIntroQueuedRef.current = true;
+    const frame = window.requestAnimationFrame(() =>
+      setShowHomePlayoffIntroModal(true),
+    );
+    return () => window.cancelAnimationFrame(frame);
+  }, [hasPendingPlayoffMatches, ready, user?.id]);
 
   useEffect(() => {
     if (!ready || !user) return;
@@ -292,6 +333,21 @@ export function HomeView() {
       }
     };
   }, []);
+
+  const dismissHomePlayoffIntroModal = () => {
+    homePlayoffIntroQueuedRef.current = true;
+    try {
+      window.localStorage.setItem(playoffResultsIntroStorageKey, "1");
+    } catch {
+      // Ignore storage failures.
+    }
+    setShowHomePlayoffIntroModal(false);
+  };
+
+  const startHomePlayoffIntroModal = () => {
+    dismissHomePlayoffIntroModal();
+    router.push("/porra?section=playoffResults&goto=next");
+  };
 
   return (
     <div className="flex flex-col gap-6 py-6 sm:py-8">
@@ -492,7 +548,13 @@ export function HomeView() {
         </aside>
       </div>
 
-      {reminderMatches.length ? (
+      {showHomePlayoffIntroModal ? (
+        <PlayoffResultsIntroModal
+          onClose={dismissHomePlayoffIntroModal}
+          onStartFilling={startHomePlayoffIntroModal}
+        />
+      ) : null}
+      {!showHomePlayoffIntroModal && reminderMatches.length ? (
         <ResultsReminderModal
           matches={reminderMatches}
           prediction={prediction}

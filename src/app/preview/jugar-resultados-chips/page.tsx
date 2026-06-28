@@ -7,7 +7,7 @@ const previewSections = [
   { done: 8, label: "Tus elecciones", step: "1", status: "complete", total: 8 },
   {
     done: 4,
-    label: "Resultados playoffs",
+    label: "Playoffs",
     step: "2",
     status: "pending",
     total: 32,
@@ -34,7 +34,7 @@ function PreviewStepTabs() {
     <div className="sticky top-0 z-30 -mx-4 overflow-x-auto border-b border-white/10 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 md:mx-0 md:overflow-visible md:px-0">
       <div className="flex w-max max-w-none gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1 md:grid md:w-full md:grid-cols-5">
         {previewSections.map((tab) => {
-          const active = tab.label === "Resultados playoffs";
+          const active = tab.label === "Playoffs";
           const complete = tab.status === "complete";
 
           return (
@@ -127,7 +127,7 @@ export default function JugarResultadosChipsPreviewPage() {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight text-white">
-                    Resultados playoffs
+                    Playoffs
                   </h2>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
                     Por jugar se mantiene el battle con cartas de entrenador. Al

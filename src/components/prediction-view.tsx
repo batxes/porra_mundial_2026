@@ -115,7 +115,7 @@ type SectionProgress = { done: number; status: SectionStatus; total: number };
 
 const playSections = [
   { id: "extras", label: "Tus elecciones", step: "1" },
-  { id: "playoffResults", label: "Resultados playoffs", step: "2" },
+  { id: "playoffResults", label: "Playoffs", step: "2" },
   { id: "xi", label: "Tu once", step: "3" },
   { id: "groups", label: "Fase de grupos", step: "4" },
   { id: "results", label: "Resultados grupos", step: "5" },
@@ -1188,18 +1188,18 @@ const playoffIntroSteps = [
   },
   {
     eyebrow: "2/4 Estrategias",
-    title: "Hay 5 chips distintos",
-    body: "Cada chip representa una forma de puntuar: goles, portería, primer golpe, balón parado o partido caliente.",
+    title: "Hay 6 estilos distintos",
+    body: "Cada estilo representa una forma de puntuar: goles, portería, primer golpe, balón parado, partido caliente o remontada.",
   },
   {
     eyebrow: "3/4 Arrastrar",
-    title: "Lanza el chip al entrenador",
-    body: "Toca una estrategia o arrástrala encima del entrenador elegido. El chip se queda pegado a ese entrenador.",
+    title: "Asocia el estilo al entrenador",
+    body: "Toca una estrategia o arrástrala encima del entrenador elegido. El estilo se queda pegado a ese entrenador.",
   },
   {
     eyebrow: "4/4 Regla final",
     title: "Todo lo demás sigue igual",
-    body: "Sigues puntuando por quiniela y resultado exacto como siempre. Ahora, además, puedes sumar el bonus del chip si la estrategia elegida se cumple.",
+    body: "Sigues puntuando por quiniela y resultado exacto como siempre. Ahora, además, puedes sumar el bonus del estilo si la estrategia elegida se cumple.",
   },
 ] as const;
 
@@ -1293,7 +1293,7 @@ function PlayoffResultsIntroModal({
 
         {step === 2 ? (
           <PlayoffIntroCallout tone="lime">
-            El resultado puntúa como siempre. Este chip es el extra de
+            El resultado puntúa como siempre. Este estilo es el extra de
             entrenador.
           </PlayoffIntroCallout>
         ) : null}
@@ -1428,6 +1428,15 @@ const playoffStrategyChips = [
     color: "#ff4d2d",
     icon: "/prediction-icons/red-card.png",
   },
+  {
+    id: "comeback",
+    title: "Remontada",
+    detail: "Remontada",
+    copy: "Vas perdiendo y ganas.",
+    points: 4,
+    color: "#facc15",
+    icon: "/prediction-icons/comeback.png",
+  },
 ] as const;
 
 function PlayoffIntroStrategyDeckStage() {
@@ -1515,7 +1524,7 @@ function PlayoffIntroOnePairStage() {
             <PlayoffIntroRealTacticCard chip={chip} mini />
           </div>
           <span className="mt-2 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#d7ffa8]">
-            entrenador + chip
+            entrenador + estilo
           </span>
         </div>
       </div>
