@@ -105,11 +105,11 @@ const sections: RulesSection[] = [
     description:
       "En playoffs eliges un entrenador y un chip por partido. Si ese chip se cumple para el equipo elegido, sumas sus puntos.",
     rules: [
-      ["Goleador: tu equipo marca 3 o más goles", "+2"],
+      ["Goleador: tu equipo marca 3 o más goles", "+3"],
       ["Muro: tu equipo deja la portería a cero", "+2"],
       ["Abrelatas: tu equipo marca el primer gol", "+1"],
       [
-        "Estratega: gol a balón parado, penalti incluido",
+        "Estratega: gol a balón parado si el lanzador marca o asiste; penalti incluido",
         "+3",
       ],
       ["Carnicero: roja para tu equipo", "+5"],

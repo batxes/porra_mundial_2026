@@ -2,7 +2,7 @@ export const trainerTactics = [
   {
     id: "over-25",
     title: "Goleador",
-    points: 2,
+    points: 3,
   },
   {
     id: "clean-sheet",

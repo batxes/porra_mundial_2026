@@ -110,7 +110,7 @@ const tactics: Tactic[] = [
     title: "Goleador",
     name: "MARCA 3 GOLES O MAS",
     short: "Over 2.5",
-    points: 2,
+    points: 3,
     rarity: "comun",
     color: "#ff3b24",
     icon: "ball",
@@ -612,7 +612,9 @@ function getPredictionPick(match: PlayoffMatch, prediction?: Prediction) {
   const trainer = getTrainers(match).find(
     (candidate) => candidate.teamId === current.trainerTeamId,
   );
-  return trainer ? { trainerId: trainer.id, tacticId: current.tacticId } : undefined;
+  return trainer
+    ? { trainerId: trainer.id, tacticId: current.tacticId }
+    : undefined;
 }
 
 function getPredictionResult(match: PlayoffMatch, prediction?: Prediction) {
@@ -645,6 +647,30 @@ function isControlledPlayoffComplete(
   );
 }
 
+export function getPlayoffResultsProgress(
+  adminResults?: AdminResults,
+  prediction?: Prediction,
+): PlayoffResultsProgress {
+  const resolvedTeams = prediction
+    ? buildPredictionPlayoffTeams(adminResults || emptyAdminResults, prediction)
+    : buildResolvedPlayoffTeams(adminResults || emptyAdminResults);
+  const resolvedPhases = applyResolvedTeamsToPhases(
+    playoffPhases,
+    resolvedTeams,
+    { useFallbackTrainers: false },
+  );
+  const availableMatches = resolvedPhases
+    .flatMap((phase) => phase.matches)
+    .filter(hasResolvedPlayoffTrainers);
+
+  return {
+    done: availableMatches.filter((match) =>
+      isControlledPlayoffComplete(match, prediction),
+    ).length,
+    total: availableMatches.length,
+  };
+}
+
 function defaultTrainerIdForMatch(match: PlayoffMatch) {
   const trainer = getTrainers(match).find((candidate) => candidate.teamId);
   return trainer?.id;
@@ -653,9 +679,9 @@ function defaultTrainerIdForMatch(match: PlayoffMatch) {
 function trainerBelongsToMatch(match: PlayoffMatch, trainerId?: string) {
   return Boolean(
     trainerId &&
-      getTrainers(match).some(
-        (trainer) => trainer.id === trainerId && trainer.teamId,
-      ),
+    getTrainers(match).some(
+      (trainer) => trainer.id === trainerId && trainer.teamId,
+    ),
   );
 }
 
@@ -766,9 +792,7 @@ const PredictionCard = memo(function PredictionCard({
         isLifted && useDragOverlay
           ? "playoff-battle-tactic--overlay-source"
           : ""
-      } ${
-        isMuted ? "playoff-battle-tactic--muted" : ""
-      }`}
+      } ${isMuted ? "playoff-battle-tactic--muted" : ""}`}
       style={style}
       {...listeners}
       {...attributes}
@@ -1154,6 +1178,23 @@ function PlayoffResultsHeader({
   );
 }
 
+function PlayoffPhaseUnavailable({ phaseTitle }: { phaseTitle: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-5 py-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
+        {phaseTitle}
+      </p>
+      <h3 className="mt-2 text-lg font-bold text-white">
+        Aún no hay cruces confirmados
+      </h3>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-400">
+        Cuando el admin confirme los equipos clasificados, los partidos de esta
+        ronda aparecerán aquí para pronosticar.
+      </p>
+    </div>
+  );
+}
+
 function PlayoffCountdown({
   compact = false,
   match,
@@ -1201,9 +1242,7 @@ function PlayoffCountdown({
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7.5V12l3 2" />
       </svg>
-      <span suppressHydrationWarning>
-        {countdownText}
-      </span>
+      <span suppressHydrationWarning>{countdownText}</span>
     </span>
   );
 }
@@ -1307,6 +1346,7 @@ function PhaseSelector({
         <button
           key={phase.id}
           type="button"
+          aria-label={phase.title}
           onClick={() => onSelect(phase.id)}
           className={activePhaseId === phase.id ? "is-active" : ""}
         >
@@ -2075,8 +2115,9 @@ function PlayoffsBattleSurface({
       )
     );
   });
-  const [mobileChipMatchId, setMobileChipMatchId] = useState<string | null>(() =>
-    mobileModalOnly ? (initialOpenMatchId ?? requestedMatchId ?? null) : null,
+  const [mobileChipMatchId, setMobileChipMatchId] = useState<string | null>(
+    () =>
+      mobileModalOnly ? (initialOpenMatchId ?? requestedMatchId ?? null) : null,
   );
   const [activeDrag, setActiveDrag] = useState<ActiveDrag>(null);
   const [hoveredTrainerId, setHoveredTrainerId] = useState<string | null>(null);
@@ -2125,15 +2166,20 @@ function PlayoffsBattleSurface({
       ),
     [resolvedPlayoffPhases],
   );
+  const availablePlayoffMatches = useMemo(() => {
+    const matches = resolvedPlayoffPhases.flatMap((phase) => phase.matches);
+    return isControlled ? matches.filter(hasResolvedPlayoffTrainers) : matches;
+  }, [isControlled, resolvedPlayoffPhases]);
+  const availablePlayoffMatchCount = availablePlayoffMatches.length;
 
   const activePhase =
     resolvedPlayoffPhaseById.get(activePhaseId) ??
     resolvedPlayoffPhases[0] ??
     initialPlayoffPhase;
-  const activePhaseMatches = useMemo(
-    () => filterPlayoffMatches(activePhase.matches, matchIds),
-    [activePhase, matchIds],
-  );
+  const activePhaseMatches = useMemo(() => {
+    const matches = filterPlayoffMatches(activePhase.matches, matchIds);
+    return isControlled ? matches.filter(hasResolvedPlayoffTrainers) : matches;
+  }, [activePhase, isControlled, matchIds]);
   const activeDateGroups = useMemo(
     () =>
       groupPlayoffMatchesByDate(
@@ -2155,6 +2201,10 @@ function PlayoffsBattleSurface({
       ),
     [activePhaseMatches, adminResults],
   );
+  const showUnresolvedPhaseMessage =
+    isControlled &&
+    activeDateGroups.length === 0 &&
+    finishedDateGroups.length === 0;
   const isPlayoffLocked = useCallback(
     (match: PlayoffMatch) => {
       if (isControlled && !hasResolvedPlayoffTrainers(match)) return true;
@@ -2178,15 +2228,12 @@ function PlayoffsBattleSurface({
   );
   const completedPlayoffMatches = useMemo(
     () =>
-      resolvedPlayoffPhases
-        .flatMap((phase) => phase.matches)
-        .filter((match) =>
-          isControlled
-            ? hasResolvedPlayoffTrainers(match) &&
-              isControlledPlayoffComplete(match, prediction)
-            : isPlayoffPredictionComplete(match.id, picks, results),
-        ).length,
-    [isControlled, picks, prediction, resolvedPlayoffPhases, results],
+      availablePlayoffMatches.filter((match) =>
+        isControlled
+          ? isControlledPlayoffComplete(match, prediction)
+          : isPlayoffPredictionComplete(match.id, picks, results),
+      ).length,
+    [availablePlayoffMatches, isControlled, picks, prediction, results],
   );
   const renderDesktopMatches = !mobileModalOnly && isCompactLayout !== true;
   const renderMobileMatches = !mobileModalOnly && isCompactLayout !== false;
@@ -2203,9 +2250,9 @@ function PlayoffsBattleSurface({
   useEffect(() => {
     onProgressChange?.({
       done: completedPlayoffMatches,
-      total: playoffResultsMatchCount,
+      total: availablePlayoffMatchCount,
     });
-  }, [completedPlayoffMatches, onProgressChange]);
+  }, [availablePlayoffMatchCount, completedPlayoffMatches, onProgressChange]);
 
   useEffect(() => {
     if (!requestedMatchId) return;
@@ -2535,7 +2582,13 @@ function PlayoffsBattleSurface({
         />
       );
     },
-    [adminResults, prediction, resolvedPlayoffTeams, scheduleByNumber, scorecard],
+    [
+      adminResults,
+      prediction,
+      resolvedPlayoffTeams,
+      scheduleByNumber,
+      scorecard,
+    ],
   );
 
   const mobileChipMatch =
@@ -2566,7 +2619,7 @@ function PlayoffsBattleSurface({
         <PlayoffResultsHeader
           done={completedPlayoffMatches}
           onOpenHelp={onOpenHelp}
-          total={playoffResultsMatchCount}
+          total={availablePlayoffMatchCount}
         />
       ) : null}
 
@@ -2633,6 +2686,9 @@ function PlayoffsBattleSurface({
                 </div>
               </section>
             ))}
+            {showUnresolvedPhaseMessage ? (
+              <PlayoffPhaseUnavailable phaseTitle={activePhase.title} />
+            ) : null}
           </div>
         ) : null}
 
@@ -2640,10 +2696,15 @@ function PlayoffsBattleSurface({
           <div className="playoff-battle-mobile-list">
             <div className="playoff-battle-list">
               <section className="playoff-battle-phase-block">
-                <h3 className="playoff-battle-phase-heading">
-                  <span>{activePhase.short}</span>
-                  <strong>{activePhase.title}</strong>
-                </h3>
+                {!showPhaseSelector ? (
+                  <h3 className="playoff-battle-phase-heading">
+                    <span>{activePhase.short}</span>
+                    <strong>{activePhase.title}</strong>
+                  </h3>
+                ) : null}
+                {showUnresolvedPhaseMessage ? (
+                  <PlayoffPhaseUnavailable phaseTitle={activePhase.title} />
+                ) : null}
                 {activeDateGroups.map((group) => (
                   <section
                     key={group.date}

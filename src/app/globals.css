@@ -5201,6 +5201,31 @@ summary {
     min-width: 7rem;
   }
 
+  .playoff-battle-embedded .playoff-battle-phase-selector {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    width: 100%;
+    margin-inline: 0;
+    overflow: visible;
+    gap: 0.35rem;
+    padding-inline: 0;
+    scroll-snap-type: none;
+  }
+
+  .playoff-battle-embedded .playoff-battle-phase-selector button {
+    min-width: 0;
+    padding: 0.54rem 0.24rem;
+    text-align: center;
+  }
+
+  .playoff-battle-embedded .playoff-battle-phase-selector button span {
+    font-size: 0.58rem;
+  }
+
+  .playoff-battle-embedded .playoff-battle-phase-selector button strong {
+    display: none;
+  }
+
   .playoff-battle-selector button {
     min-width: min(10rem, 54vw);
   }
@@ -6569,7 +6594,6 @@ summary {
 }
 
 @media (max-width: 760px) {
-  .playoff-battle-embedded-selectors,
   .playoff-battle-desktop-stack,
   .playoff-battle-desktop-arena {
     display: none;

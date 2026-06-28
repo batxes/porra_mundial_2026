@@ -226,7 +226,7 @@ const playoffStrategyChips = [
     title: "Goleador",
     detail: "3+ goles",
     copy: "MARCA 3 GOLES O MAS",
-    points: 2,
+    points: 3,
     color: "#ff3b24",
     icon: "/prediction-icons/over25.png",
   },

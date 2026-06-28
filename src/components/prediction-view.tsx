@@ -5,7 +5,6 @@ import Image from "next/image";
 import {
   type CSSProperties,
   type ReactNode,
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -51,8 +50,8 @@ import {
 } from "@/components/common";
 import { AuthModal } from "@/components/auth-modal";
 import {
+  getPlayoffResultsProgress,
   PlayoffsBalatroResults,
-  playoffResultsMatchCount,
 } from "@/components/playoffs-balatro-demo";
 import { PlayerSearchModal } from "@/components/player-search-modal";
 import {
@@ -82,6 +81,7 @@ import {
   xiCounts,
   xiRequirements,
 } from "@/lib/prediction";
+import { calculateGroupTables } from "@/lib/playoff-teams";
 import type {
   AdminResult,
   AdminResults,
@@ -89,6 +89,7 @@ import type {
   Player,
   Position,
   Prediction,
+  Scorecard,
   Team,
 } from "@/lib/types";
 
@@ -191,6 +192,7 @@ const playoffResultsIntroStorageKey = "porra26_playoff_results_intro_seen_v2";
 export function PredictionView() {
   const {
     adminResults,
+    currentScorecard,
     prediction,
     ready,
     replaceGroupOrder,
@@ -215,12 +217,6 @@ export function PredictionView() {
   const [showResultsIntroModal, setShowResultsIntroModal] = useState(false);
   const [showPlayoffResultsIntroModal, setShowPlayoffResultsIntroModal] =
     useState(false);
-  const [playoffResultsProgress, setPlayoffResultsProgress] =
-    useState<SectionProgress>(() => ({
-      done: 0,
-      total: playoffResultsMatchCount,
-      status: "pending",
-    }));
   const savedSignatureRef = useRef("");
   const latestSignatureRef = useRef("");
   const userKeyRef = useRef("");
@@ -244,13 +240,20 @@ export function PredictionView() {
     () => schedule.filter((match) => match.number >= 73),
     [],
   );
+  const playoffResultsProgress = useMemo<SectionProgress>(() => {
+    const progress = getPlayoffResultsProgress(adminResults, prediction);
+
+    return {
+      ...progress,
+      status:
+        progress.total > 0 && progress.done >= progress.total
+          ? "complete"
+          : "pending",
+    };
+  }, [adminResults, prediction]);
   const sectionProgresses = useMemo(
     () =>
-      getSectionProgresses(
-        prediction,
-        visibleMatches,
-        playoffResultsProgress,
-      ),
+      getSectionProgresses(prediction, visibleMatches, playoffResultsProgress),
     [playoffResultsProgress, prediction, visibleMatches],
   );
   // La edicion tardia (flag de admin) reabre las secciones para ese usuario;
@@ -268,18 +271,6 @@ export function PredictionView() {
       ]
     : playSections;
   const userId = user?.id || "";
-  const updatePlayoffResultsProgress = useCallback(
-    (progress: Pick<SectionProgress, "done" | "total">) => {
-      setPlayoffResultsProgress({
-        ...progress,
-        status:
-          progress.total > 0 && progress.done >= progress.total
-            ? "complete"
-            : "pending",
-      });
-    },
-    [],
-  );
   const changeSection = (nextSection: SectionId) => {
     if (nextSection === section) return;
     setSection(nextSection);
@@ -444,10 +435,7 @@ export function PredictionView() {
 
   useEffect(() => {
     if (!initialSectionResolved) return;
-    if (
-      section !== "playoffResults" ||
-      playoffResultsIntroQueuedRef.current
-    ) {
+    if (section !== "playoffResults" || playoffResultsIntroQueuedRef.current) {
       return;
     }
 
@@ -562,7 +550,6 @@ export function PredictionView() {
               prediction={prediction}
               scheduleMatches={playoffMatches}
               onScoreChange={setPredictionScore}
-              onProgressChange={updatePlayoffResultsProgress}
               onTrainerTacticChange={setPredictionTrainerTactic}
               onOpenHelp={openPlayoffResultsIntroModal}
             />
@@ -581,6 +568,8 @@ export function PredictionView() {
           {section === "groups" ? (
             <GroupStage
               prediction={prediction}
+              scorecard={currentScorecard}
+              results={adminResults}
               disabled={tournamentLocked}
               onReplaceGroupOrder={replaceGroupOrder}
               onToggleThirdQualifier={toggleThirdQualifier}
@@ -1161,8 +1150,8 @@ function ResultsIntroModal({ onClose }: { onClose: () => void }) {
             <div className="min-w-0 text-sm">
               <p className="font-bold text-white">Clavas el resultado exacto</p>
               <p className="mt-0.5 leading-5 text-zinc-400">
-                Sumas además tantos puntos como goles tenga el partido hasta
-                120 minutos.
+                Sumas además tantos puntos como goles tenga el partido hasta 120
+                minutos.
               </p>
             </div>
           </div>
@@ -1328,7 +1317,9 @@ function PlayoffResultsIntroModal({
             <button
               ref={primaryRef}
               type="button"
-              onClick={() => (isLast ? onStartFilling() : setStep((c) => c + 1))}
+              onClick={() =>
+                isLast ? onStartFilling() : setStep((c) => c + 1)
+              }
               className="rounded-lg bg-[#a7f600] px-5 py-2.5 text-sm font-bold text-black shadow-lg shadow-[#a7f600]/10 transition hover:bg-[#c7ff43]"
             >
               {isLast ? "Ir a rellenar" : "Siguiente"}
@@ -1372,10 +1363,7 @@ function PlayoffIntroCallout({
 function PlayoffIntroCoachChoiceStage() {
   return (
     <div className="grid h-full w-full grid-cols-[1fr_auto_1fr] items-center gap-2 px-3">
-      <PlayoffIntroCoachCard
-        trainer={playoffIntroSpainTrainer}
-        picked
-      />
+      <PlayoffIntroCoachCard trainer={playoffIntroSpainTrainer} picked />
       <span className="text-lg font-semibold text-zinc-500">VS</span>
       <PlayoffIntroCoachCard trainer={playoffIntroBrazilTrainer} />
     </div>
@@ -1388,7 +1376,7 @@ const playoffStrategyChips = [
     title: "Goleador",
     detail: "3+ goles",
     copy: "MARCA 3 GOLES O MAS",
-    points: 2,
+    points: 3,
     color: "#ff3b24",
     icon: "/prediction-icons/over25.png",
   },
@@ -1469,10 +1457,7 @@ function PlayoffIntroDragStage() {
   return (
     <div className="relative h-full w-full overflow-hidden px-4 py-3">
       <div className="absolute left-4 right-4 top-3 grid grid-cols-[1fr_auto_1fr] items-start gap-2">
-        <PlayoffIntroMiniCoach
-          trainer={playoffIntroSpainTrainer}
-          target
-        />
+        <PlayoffIntroMiniCoach trainer={playoffIntroSpainTrainer} target />
         <span className="pt-8 text-sm font-semibold text-zinc-500">VS</span>
         <PlayoffIntroMiniCoach trainer={playoffIntroBrazilTrainer} muted />
       </div>
@@ -1509,7 +1494,9 @@ function PlayoffIntroOnePairStage() {
           <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
             Resultado
           </span>
-          <span className="mt-1 block text-3xl font-semibold text-white">2-1</span>
+          <span className="mt-1 block text-3xl font-semibold text-white">
+            2-1
+          </span>
           <span className="mt-1 block text-[10px] font-bold text-zinc-500">
             como siempre
           </span>
@@ -1911,13 +1898,111 @@ function ExtraPlayerField({
   );
 }
 
+const topTwoGroupRuleCodes = new Set([
+  "group_qualification_hit",
+  "group_position_hit",
+]);
+const thirdGroupRuleCodes = new Set(["group_third_qualification_hit"]);
+
+function groupStageEntryParts(sourceRef: string) {
+  const match = sourceRef.match(
+    /^group-(?:qualified|position|third-qualified)-([A-L])-(.+)$/,
+  );
+  return match ? { group: match[1], teamId: match[2] } : null;
+}
+
+function groupStagePointsByGroup(scorecard: Scorecard, ruleCodes: Set<string>) {
+  const map = new Map<string, number>();
+  scorecard.entries.forEach((entry) => {
+    if (!ruleCodes.has(entry.ruleCode)) return;
+    const parts = groupStageEntryParts(entry.sourceRef);
+    if (!parts) return;
+    map.set(parts.group, (map.get(parts.group) || 0) + entry.points);
+  });
+  return map;
+}
+
+function groupStagePointsByTeam(scorecard: Scorecard, ruleCodes: Set<string>) {
+  const map = new Map<string, number>();
+  scorecard.entries.forEach((entry) => {
+    if (!ruleCodes.has(entry.ruleCode)) return;
+    const parts = groupStageEntryParts(entry.sourceRef);
+    if (!parts) return;
+    const key = `${parts.group}:${parts.teamId}`;
+    map.set(key, (map.get(key) || 0) + entry.points);
+  });
+  return map;
+}
+
+function groupStageRowTone({
+  actualPosition,
+  points,
+  predictedPosition,
+  scoringReady,
+}: {
+  actualPosition?: number;
+  points: number;
+  predictedPosition: number;
+  scoringReady: boolean;
+}) {
+  if (predictedPosition > 2) {
+    return {
+      className: "border-white/10 bg-white/[0.06]",
+      numberClassName: "text-white",
+      pointsClassName: "text-zinc-500",
+      showPoints: false,
+    };
+  }
+
+  if (!scoringReady || actualPosition == null) {
+    return {
+      className: "border-[#a7f600]/25 bg-[#a7f600]/10",
+      numberClassName: "text-[#a7f600]",
+      pointsClassName: "text-zinc-500",
+      showPoints: false,
+    };
+  }
+
+  if (actualPosition === predictedPosition && points === 3) {
+    return {
+      className:
+        "border-[#a7f600]/45 bg-[#a7f600]/12 shadow-[inset_0_0_0_1px_rgba(167,246,0,0.08)]",
+      numberClassName: "text-[#a7f600]",
+      pointsClassName: "text-[#a7f600]",
+      showPoints: true,
+    };
+  }
+
+  if (actualPosition <= 2 && points === 2) {
+    return {
+      className:
+        "border-amber-300/45 bg-amber-300/12 shadow-[inset_0_0_0_1px_rgba(252,211,77,0.08)]",
+      numberClassName: "text-amber-300",
+      pointsClassName: "text-amber-300",
+      showPoints: true,
+    };
+  }
+
+  return {
+    className:
+      "border-rose-400/35 bg-rose-400/10 shadow-[inset_0_0_0_1px_rgba(251,113,133,0.08)]",
+    numberClassName: "text-rose-200",
+    pointsClassName: "text-rose-200",
+    showPoints: true,
+  };
+}
+
 function GroupStage({
   prediction,
+  scorecard,
+  results,
   disabled,
   onReplaceGroupOrder,
   onToggleThirdQualifier,
 }: {
   prediction: Prediction;
+  scorecard: Scorecard;
+  results: AdminResults;
   disabled: boolean;
   onReplaceGroupOrder: (group: string, teamIds: string[]) => void;
   onToggleThirdQualifier: (group: string) => void;
@@ -1952,6 +2037,28 @@ function GroupStage({
     selected: selectedThirdGroups.includes(group),
   }));
   const thirdLimitReached = selectedThirdGroups.length >= 8;
+  const topTwoGroupPoints = groupStagePointsByGroup(
+    scorecard,
+    topTwoGroupRuleCodes,
+  );
+  const topTwoTeamPoints = groupStagePointsByTeam(
+    scorecard,
+    topTwoGroupRuleCodes,
+  );
+  const thirdQualifierPoints = groupStagePointsByGroup(
+    scorecard,
+    thirdGroupRuleCodes,
+  );
+  const groupTables = calculateGroupTables(results);
+  const scoringReady =
+    Object.values(groupTables).length > 0 &&
+    Object.values(groupTables).every((table) => table.complete);
+  const actualPositions = new Map<string, number>();
+  Object.entries(groupTables).forEach(([group, table]) => {
+    table.positions.forEach((row) => {
+      actualPositions.set(`${group}:${row.teamId}`, row.position);
+    });
+  });
 
   const handleGroupDragStart = (group: string, event: DragStartEvent) => {
     if (disabled) return;
@@ -2014,6 +2121,7 @@ function GroupStage({
             : "Arrastra desde el asa de la derecha para ordenar primero, segundo, tercero y cuarto. Después elige los 8 terceros que pasan."}
         </p>
       </div>
+      <GroupStageScoreSummary scorecard={scorecard} />
       <div className="grid gap-3 lg:grid-cols-2">
         {groups.map((group) => {
           const ordered = orderedGroupTeams(group, prediction);
@@ -2021,17 +2129,24 @@ function GroupStage({
           const completedCount = Object.values(prediction.groups[group]).filter(
             Boolean,
           ).length;
+          const groupPoints = topTwoGroupPoints.get(group);
           return (
             <Card key={group} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-white">Grupo {group}</h3>
-                <span
-                  className={`text-sm font-semibold ${
-                    completedCount === 4 ? "text-[#a7f600]" : "text-zinc-500"
-                  }`}
-                >
-                  {completedCount}/4
-                </span>
+                {groupPoints != null ? (
+                  <span className="shrink-0 rounded-full border border-[#a7f600]/40 bg-[#a7f600]/12 px-2 py-0.5 text-[11px] font-bold text-[#a7f600]">
+                    {formatSignedPoints(groupPoints)} pts
+                  </span>
+                ) : (
+                  <span
+                    className={`text-sm font-semibold ${
+                      completedCount === 4 ? "text-[#a7f600]" : "text-zinc-500"
+                    }`}
+                  >
+                    {completedCount}/4
+                  </span>
+                )}
               </div>
               <DndContext
                 sensors={sensors}
@@ -2055,6 +2170,15 @@ function GroupStage({
                         team={team}
                         index={index}
                         disabled={disabled}
+                        tone={groupStageRowTone({
+                          actualPosition: actualPositions.get(
+                            `${group}:${team.id}`,
+                          ),
+                          points:
+                            topTwoTeamPoints.get(`${group}:${team.id}`) || 0,
+                          predictedPosition: index + 1,
+                          scoringReady,
+                        })}
                         isDropTarget={
                           !disabled &&
                           overGroupTeam?.group === group &&
@@ -2103,6 +2227,8 @@ function GroupStage({
               <ThirdQualifierButton
                 key={row.group}
                 row={row}
+                points={thirdQualifierPoints.get(row.group) || 0}
+                scoringReady={scoringReady}
                 disabled={disabled}
                 limitReached={thirdLimitReached}
                 onToggle={onToggleThirdQualifier}
@@ -2112,9 +2238,7 @@ function GroupStage({
         </div>
 
         {prediction.bracket.thirdQualifiers.length === 8 ? (
-          <Notice>
-            Los terceros ya estan completos.
-          </Notice>
+          <Notice>Los terceros ya estan completos.</Notice>
         ) : (
           <Notice tone="warm">
             Elige 8 terceros clasificados para completar la fase de grupos.
@@ -2125,16 +2249,86 @@ function GroupStage({
   );
 }
 
+function GroupStageScoreSummary({ scorecard }: { scorecard: Scorecard }) {
+  const category = scorecard.categories.find(
+    (candidate) => candidate.label === "Fase de grupos",
+  );
+  const entries = category?.entries || [];
+  const ruleTotals = [
+    { ruleCode: "group_position_hit", label: "Orden exacto" },
+    { ruleCode: "group_qualification_hit", label: "Clasificados" },
+    { ruleCode: "group_third_qualification_hit", label: "Terceros" },
+  ].map((rule) => {
+    const ruleEntries = entries.filter(
+      (entry) => entry.ruleCode === rule.ruleCode,
+    );
+
+    return {
+      ...rule,
+      hits: ruleEntries.length,
+      points: ruleEntries.reduce((total, entry) => total + entry.points, 0),
+    };
+  });
+
+  return (
+    <Card className="space-y-3 border-[#a7f600]/25 bg-[#a7f600]/[0.04]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a7f600]">
+            Tu puntuación
+          </p>
+          <h3 className="mt-1 text-lg font-bold text-white">Fase de grupos</h3>
+        </div>
+        <div className="rounded-xl border border-[#a7f600]/25 bg-[#a7f600]/10 px-4 py-2 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a7f600]/80">
+            Puntos
+          </p>
+          <p className="mt-0.5 text-3xl font-black leading-none text-[#a7f600]">
+            {formatSignedPoints(category?.total || 0)}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        {ruleTotals.map((rule) => (
+          <div
+            key={rule.ruleCode}
+            className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/15 px-3 py-2"
+          >
+            <span className="min-w-0 truncate text-xs font-semibold text-zinc-300">
+              {rule.label}
+              <span className="ml-1 text-zinc-500">x{rule.hits}</span>
+            </span>
+            <span
+              className={`shrink-0 text-sm font-bold ${
+                rule.points > 0 ? "text-[#a7f600]" : "text-zinc-500"
+              }`}
+            >
+              {formatSignedPoints(rule.points)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function formatSignedPoints(value: number) {
+  return value > 0 ? `+${value}` : String(value);
+}
+
 function SortableGroupTeamRow({
   team,
   index,
   disabled,
   isDropTarget,
+  tone,
 }: {
   team: Team;
   index: number;
   disabled: boolean;
   isDropTarget: boolean;
+  tone: ReturnType<typeof groupStageRowTone>;
 }) {
   const {
     attributes,
@@ -2149,8 +2343,6 @@ function SortableGroupTeamRow({
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? "none" : transition,
   };
-  const isDirectQualifier = index < 2;
-
   return (
     <div
       ref={setNodeRef}
@@ -2158,22 +2350,16 @@ function SortableGroupTeamRow({
       className={`grid touch-pan-y select-none grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
         isDropTarget
           ? "border-[#a7f600] bg-[#a7f600]/15 shadow-[0_0_0_1px_rgba(167,246,0,0.35),0_0_24px_rgba(167,246,0,0.12)]"
-          : isDirectQualifier
-            ? "border-[#a7f600]/25 bg-[#a7f600]/10"
-            : "border-white/10 bg-white/[0.06]"
+          : tone.className
       } ${
         disabled
-          ? "cursor-not-allowed opacity-50"
+          ? "cursor-not-allowed"
           : isDragging
             ? "cursor-grabbing opacity-60"
             : ""
       }`}
     >
-      <span
-        className={`text-sm font-bold ${
-          isDirectQualifier ? "text-[#a7f600]" : "text-white"
-        }`}
-      >
+      <span className={`text-sm font-bold ${tone.numberClassName}`}>
         {index + 1}
       </span>
       <TeamBadge teamId={team.id} />
@@ -2204,16 +2390,41 @@ type ThirdQualifierRow = {
 
 function ThirdQualifierButton({
   row,
+  points,
+  scoringReady,
   disabled,
   limitReached,
   onToggle,
 }: {
   row: ThirdQualifierRow;
+  points: number;
+  scoringReady: boolean;
   disabled: boolean;
   limitReached: boolean;
   onToggle: (group: string) => void;
 }) {
   const isDisabled = disabled || !row.teamId || (!row.selected && limitReached);
+  const selectedClassName = row.selected
+    ? points > 0
+      ? "border-[#a7f600]/70 bg-[#a7f600]/12"
+      : scoringReady
+        ? "border-rose-400/40 bg-rose-400/10"
+        : "border-[#a7f600]/70 bg-[#a7f600]/12"
+    : "border-white/10 bg-white/[0.04]";
+  const badgeClassName = row.selected
+    ? points > 0
+      ? "bg-[#a7f600] text-black"
+      : scoringReady
+        ? "bg-rose-400 text-black"
+        : "bg-[#a7f600] text-black"
+    : "bg-white/10 text-zinc-400";
+  const actionClassName = row.selected
+    ? points > 0
+      ? "text-[#a7f600]"
+      : scoringReady
+        ? "text-rose-200"
+        : "text-[#a7f600]"
+    : "text-zinc-500";
   const toggle = () => {
     if (!isDisabled) onToggle(row.group);
   };
@@ -2234,18 +2445,18 @@ function ThirdQualifierButton({
       aria-pressed={row.selected}
       onClick={toggle}
       className={`grid w-full grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${
-        row.selected
-          ? "border-[#a7f600]/70 bg-[#a7f600]/12"
-          : "border-white/10 bg-white/[0.04]"
+        selectedClassName
       } ${
         isDisabled
-          ? "cursor-not-allowed opacity-45"
+          ? row.selected
+            ? "cursor-not-allowed"
+            : "cursor-not-allowed opacity-45"
           : "cursor-pointer hover:border-[#a7f600]/45 hover:bg-[#a7f600]/10"
       }`}
     >
       <span
         className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold ${
-          row.selected ? "bg-[#a7f600] text-black" : "bg-white/10 text-zinc-400"
+          badgeClassName
         }`}
       >
         {row.group}
@@ -2255,12 +2466,10 @@ function ThirdQualifierButton({
       ) : (
         <span className="text-sm text-zinc-500">Ordena el grupo primero</span>
       )}
-      <span
-        className={`text-xs font-bold ${
-          row.selected ? "text-[#a7f600]" : "text-zinc-500"
-        }`}
-      >
-        {actionLabel}
+      <span className={`text-xs font-bold ${actionClassName}`}>
+        {row.selected && scoringReady
+          ? formatSignedPoints(points)
+          : actionLabel}
       </span>
     </button>
   );

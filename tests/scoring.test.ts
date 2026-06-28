@@ -522,6 +522,12 @@ function actualKnockoutGroupResults() {
       73: { trainerTeamId: "mex", tacticId: "set-piece" },
     },
   } as any;
+  const goleadorPrediction = {
+    ...trainerPrediction,
+    matchPredictions: {
+      73: { trainerTeamId: "mex", tacticId: "over-25" },
+    },
+  } as any;
   const results = {
     73: {
       homeScore: 1,
@@ -529,6 +535,7 @@ function actualKnockoutGroupResults() {
       homeTeamId: "mex",
       awayTeamId: "kor",
       trainerTactics: {
+        "over-25": ["mex"],
         penalty: ["mex", "kor"],
         "set-piece": ["mex"],
         "red-card": ["kor"],
@@ -543,6 +550,7 @@ function actualKnockoutGroupResults() {
   const redCard = engine.calculateScorecard(redCardPrediction, results, "u1");
   const firstGoal = engine.calculateScorecard(firstGoalPrediction, results, "u1");
   const setPiece = engine.calculateScorecard(setPiecePrediction, results, "u1");
+  const goleador = engine.calculateScorecard(goleadorPrediction, results, "u1");
 
   assert.equal(hit.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 6);
   assert.equal(hit.categories.find((category) => category.label === "Entrenadores")?.total, 6);
@@ -550,6 +558,7 @@ function actualKnockoutGroupResults() {
   assert.equal(redCard.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 5);
   assert.equal(firstGoal.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 1);
   assert.equal(setPiece.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 3);
+  assert.equal(goleador.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 3);
 }
 
 console.log("scoring tests passed");
