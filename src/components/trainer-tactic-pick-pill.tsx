@@ -56,7 +56,7 @@ export function TrainerTacticPickPill({
     ) : (
       <>
         <span>+</span>
-        <span>Elegir chip</span>
+        <span>Elegir estilo</span>
       </>
     );
 

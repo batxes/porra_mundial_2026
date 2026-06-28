@@ -1,4 +1,4 @@
-import type { AdminResults, Match, Player, PorraData, Prediction, Scorecard, ScoreEntry } from "@/lib/types";
+import type { AdminResults, Match, Player, PorraData, Prediction, Scorecard, ScoreEntry, Team } from "@/lib/types";
 import { trainerTacticById } from "@/lib/trainer-tactics";
 
 const ruleMeta = {
@@ -473,11 +473,285 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
 
 export const scoringRules = ruleMeta;
 
+export type TeamStandingRow = {
+  team: Team;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  mostConcededScore: number;
+  redCards: number;
+  groupPlayed: number;
+  groupPoints: number;
+  groupPosition: number | null;
+  groupComplete: boolean;
+  progressionPoints: number;
+  stageRank: number;
+  stageLabel: string;
+  isEliminated: boolean;
+};
+
+const teamStageRanks = {
+  "Sin jugar": 0,
+  Grupos: 1,
+  Dieciseisavos: 2,
+  Octavos: 3,
+  Cuartos: 4,
+  Semifinales: 5,
+  Final: 6,
+  Campeon: 7,
+} as const;
+
+function parseResultScore(value: number | string | null | undefined) {
+  if (value === "" || value === null || value === undefined) return null;
+  const score = Number(value);
+  return Number.isFinite(score) && score >= 0 ? score : null;
+}
+
+function isResultScored(result: AdminResults[string] | undefined) {
+  return parseResultScore(result?.homeScore) !== null && parseResultScore(result?.awayScore) !== null;
+}
+
+function stageRankForMatch(stage: string) {
+  if (stage === "Dieciseisavos") return teamStageRanks.Dieciseisavos;
+  if (stage === "Octavos") return teamStageRanks.Octavos;
+  if (stage === "Cuartos") return teamStageRanks.Cuartos;
+  if (stage === "Semifinales") return teamStageRanks.Semifinales;
+  if (stage === "Final") return teamStageRanks.Final;
+  return teamStageRanks.Grupos;
+}
+
+function nextStageRankForWinner(stage: string) {
+  if (stage === "Dieciseisavos") return teamStageRanks.Octavos;
+  if (stage === "Octavos") return teamStageRanks.Cuartos;
+  if (stage === "Cuartos") return teamStageRanks.Semifinales;
+  if (stage === "Semifinales") return teamStageRanks.Final;
+  if (stage === "Final") return teamStageRanks.Campeon;
+  return teamStageRanks.Grupos;
+}
+
+function teamStageLabel(rank: number) {
+  if (rank >= teamStageRanks.Campeon) return "Campeón";
+  if (rank >= teamStageRanks.Final) return "Final";
+  if (rank >= teamStageRanks.Semifinales) return "Semifinales";
+  if (rank >= teamStageRanks.Cuartos) return "Cuartos";
+  if (rank >= teamStageRanks.Octavos) return "Octavos";
+  if (rank >= teamStageRanks.Dieciseisavos) return "Dieciseisavos";
+  if (rank >= teamStageRanks.Grupos) return "Grupos";
+  return "Sin jugar";
+}
+
+function teamProgressionPoints(stage: string) {
+  if (stage === "Dieciseisavos") return 5;
+  if (stage === "Octavos") return 10;
+  if (stage === "Cuartos") return 15;
+  if (stage === "Semifinales") return 20;
+  if (stage === "Final") return 25;
+  return 0;
+}
+
+function actualResultTeamId(
+  match: Match,
+  result: AdminResults[string] | undefined,
+  teamsById: Map<string, Team>,
+  side: "home" | "away",
+) {
+  const override = result?.[`${side}TeamId`];
+  const scheduled = match?.[side];
+  if (override && teamsById.has(override)) return override;
+  if (teamsById.has(scheduled)) return scheduled;
+  return "";
+}
+
+export function calculateTeamStandings(
+  adminResults: AdminResults,
+  allTeams: Team[],
+  schedule: Match[],
+): TeamStandingRow[] {
+  const teamsById = new Map(allTeams.map((team) => [team.id, team]));
+  const rows = new Map<string, TeamStandingRow>(
+    allTeams.map((team) => [
+      team.id,
+      {
+        team,
+        played: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        goalDifference: 0,
+        mostConcededScore: 0,
+        redCards: 0,
+        groupPlayed: 0,
+        groupPoints: 0,
+        groupPosition: null,
+        groupComplete: false,
+        progressionPoints: 0,
+        stageRank: teamStageRanks["Sin jugar"],
+        stageLabel: "Sin jugar",
+        isEliminated: false,
+      },
+    ]),
+  );
+  const groupExpectedMatches = new Map<string, number>();
+  const groupPlayedMatches = new Map<string, number>();
+
+  schedule.forEach((match) => {
+    const result = adminResults[String(match.number)];
+    const home = actualResultTeamId(match, result, teamsById, "home");
+    const away = actualResultTeamId(match, result, teamsById, "away");
+    const homeRow = rows.get(home);
+    const awayRow = rows.get(away);
+    if (!homeRow || !awayRow) return;
+
+    if (match.stage === "Grupos" && homeRow.team.group === awayRow.team.group) {
+      const group = homeRow.team.group;
+      groupExpectedMatches.set(group, (groupExpectedMatches.get(group) || 0) + 1);
+    }
+
+    (result?.events || []).forEach((event) => {
+      const type = String(event.type || "");
+      if ((type === "red_card" || type === "roja") && event.teamId) {
+        const eventRow = rows.get(event.teamId);
+        if (eventRow) eventRow.redCards += 1;
+      }
+    });
+
+    if (!isResultScored(result)) return;
+
+    const homeScore = parseResultScore(result?.homeScore) ?? 0;
+    const awayScore = parseResultScore(result?.awayScore) ?? 0;
+    const stageRank = stageRankForMatch(match.stage);
+
+    homeRow.played += 1;
+    awayRow.played += 1;
+    homeRow.goalsFor += homeScore;
+    homeRow.goalsAgainst += awayScore;
+    awayRow.goalsFor += awayScore;
+    awayRow.goalsAgainst += homeScore;
+    homeRow.stageRank = Math.max(homeRow.stageRank, stageRank);
+    awayRow.stageRank = Math.max(awayRow.stageRank, stageRank);
+
+    if (homeScore > awayScore) {
+      homeRow.wins += 1;
+      awayRow.losses += 1;
+    } else if (awayScore > homeScore) {
+      awayRow.wins += 1;
+      homeRow.losses += 1;
+    } else {
+      homeRow.draws += 1;
+      awayRow.draws += 1;
+    }
+
+    if (match.stage === "Grupos" && homeRow.team.group === awayRow.team.group) {
+      const group = homeRow.team.group;
+      groupPlayedMatches.set(group, (groupPlayedMatches.get(group) || 0) + 1);
+      homeRow.groupPlayed += 1;
+      awayRow.groupPlayed += 1;
+
+      if (homeScore > awayScore) {
+        homeRow.groupPoints += 3;
+      } else if (awayScore > homeScore) {
+        awayRow.groupPoints += 3;
+      } else {
+        homeRow.groupPoints += 1;
+        awayRow.groupPoints += 1;
+      }
+    }
+
+    const progressionPoints = teamProgressionPoints(match.stage);
+    if (progressionPoints && homeScore !== awayScore) {
+      const winner = homeScore > awayScore ? homeRow : awayRow;
+      const loser = homeScore > awayScore ? awayRow : homeRow;
+      winner.progressionPoints += progressionPoints;
+      winner.stageRank = Math.max(winner.stageRank, nextStageRankForWinner(match.stage));
+      loser.isEliminated = true;
+    }
+  });
+
+  const rowsList = Array.from(rows.values());
+  rowsList.forEach((row) => {
+    row.goalDifference = row.goalsFor - row.goalsAgainst;
+    row.mostConcededScore = row.goalsAgainst - row.goalsFor;
+    row.stageLabel = teamStageLabel(row.stageRank);
+    row.groupComplete =
+      (groupExpectedMatches.get(row.team.group) || 0) > 0 &&
+      groupExpectedMatches.get(row.team.group) === groupPlayedMatches.get(row.team.group);
+  });
+
+  const teamName = (teamId: string) => teamsById.get(teamId)?.name || "";
+  const groups = new Map<string, TeamStandingRow[]>();
+  rowsList.forEach((row) => {
+    groups.set(row.team.group, [...(groups.get(row.team.group) || []), row]);
+  });
+  groups.forEach((groupRows) => {
+    groupRows
+      .sort(
+        (a, b) =>
+          b.groupPoints - a.groupPoints ||
+          b.goalDifference - a.goalDifference ||
+          b.goalsFor - a.goalsFor ||
+          teamName(a.team.id).localeCompare(teamName(b.team.id)),
+      )
+      .forEach((row, index) => {
+        row.groupPosition = row.groupPlayed ? index + 1 : null;
+      });
+  });
+  const allGroupsComplete = Array.from(groups.values()).every((groupRows) =>
+    groupRows.every((row) => row.groupComplete),
+  );
+  const bestThirdTeamIds = new Set(
+    allGroupsComplete
+      ? Array.from(groups.values())
+          .map((groupRows) => groupRows.find((row) => row.groupPosition === 3))
+          .filter((row): row is TeamStandingRow => Boolean(row))
+          .sort(
+            (a, b) =>
+              b.groupPoints - a.groupPoints ||
+              b.goalDifference - a.goalDifference ||
+              b.goalsFor - a.goalsFor ||
+              teamName(a.team.id).localeCompare(teamName(b.team.id)),
+          )
+          .slice(0, 8)
+          .map((row) => row.team.id)
+      : [],
+  );
+  rowsList.forEach((row) => {
+    if (!row.groupComplete || row.stageRank > teamStageRanks.Grupos) return;
+    if (row.groupPosition === 4) row.isEliminated = true;
+    if (
+      allGroupsComplete &&
+      row.groupPosition === 3 &&
+      !bestThirdTeamIds.has(row.team.id)
+    ) {
+      row.isEliminated = true;
+    }
+  });
+
+  return rowsList.sort(
+    (a, b) =>
+      b.stageRank - a.stageRank ||
+      b.progressionPoints - a.progressionPoints ||
+      b.groupPoints - a.groupPoints ||
+      b.goalDifference - a.goalDifference ||
+      b.goalsFor - a.goalsFor ||
+      a.team.name.localeCompare(b.team.name),
+  );
+}
+
 export type PlayerStandingRow = {
   player: Player;
   points: number;
   goals: number;
+  penaltyGoals: number;
   mvps: number;
+  penaltySaves: number;
+  penaltyMisses: number;
+  redCards: number;
 };
 
 export function calculatePlayerStandings(adminResults: AdminResults, allPlayers: Player[]): PlayerStandingRow[] {
@@ -492,10 +766,24 @@ export function calculatePlayerStandings(adminResults: AdminResults, allPlayers:
       if (!rule) return;
 
       const points = rule.ruleCode === "player_goal" ? goalPointsByPosition[player.position] : rule.points;
-      const row = rows.get(player.id) || { player, points: 0, goals: 0, mvps: 0 };
+      const row =
+        rows.get(player.id) || {
+          player,
+          points: 0,
+          goals: 0,
+          penaltyGoals: 0,
+          mvps: 0,
+          penaltySaves: 0,
+          penaltyMisses: 0,
+          redCards: 0,
+        };
       row.points += points;
       if (rule.ruleCode === "player_goal" || rule.ruleCode === "player_penalty_goal") row.goals += 1;
+      if (rule.ruleCode === "player_penalty_goal") row.penaltyGoals += 1;
       if (rule.ruleCode === "player_match_mvp") row.mvps += 1;
+      if (rule.ruleCode === "player_penalty_save") row.penaltySaves += 1;
+      if (rule.ruleCode === "player_penalty_miss") row.penaltyMisses += 1;
+      if (rule.ruleCode === "player_red_card") row.redCards += 1;
       rows.set(player.id, row);
     });
   });

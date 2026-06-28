@@ -37,6 +37,7 @@ import {
   subscribeRankDelta,
 } from "@/components/results-recap";
 import { PlayerDetailModal } from "@/components/player-detail-modal";
+import { PlayoffTrainerChipModal } from "@/components/playoffs-balatro-demo";
 import { useAppContext } from "@/lib/app-context";
 import {
   TrainerFullArtCard,
@@ -126,6 +127,7 @@ export function HomeView() {
     ready,
     savePrediction,
     setPredictionScore,
+    setPredictionTrainerTactic,
     user,
   } = useAppContext();
   const leaderboard = useMemo(
@@ -141,6 +143,9 @@ export function HomeView() {
     [adminResults],
   );
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [homeChipMatchNumber, setHomeChipMatchNumber] = useState<number | null>(
+    null,
+  );
   const [homeSaveState, setHomeSaveState] = useState<HomeSaveState>("idle");
   const [reminderMatches, setReminderMatches] = useState<Match[]>([]);
   const rankBeforeUpdate = useSyncExternalStore(
@@ -224,6 +229,15 @@ export function HomeView() {
     if (!user) return;
     homeEditPendingRef.current = true;
     setPredictionScore(matchNumber, side, value);
+  };
+  const changeHomeTrainerTactic = (
+    matchNumber: number,
+    trainerTeamId: string,
+    tacticId: string,
+  ) => {
+    if (!user) return;
+    homeEditPendingRef.current = true;
+    setPredictionTrainerTactic(matchNumber, trainerTeamId, tacticId);
   };
 
   useEffect(() => {
@@ -389,6 +403,9 @@ export function HomeView() {
             leaderboard={leaderboard}
             nextMatchdayKey={nextMatchdayKey}
             onScoreChange={changeHomePredictionScore}
+            onTrainerChipOpen={(matchNumber) =>
+              setHomeChipMatchNumber(matchNumber)
+            }
             prediction={prediction}
             ready={ready}
             results={adminResults}
@@ -486,6 +503,16 @@ export function HomeView() {
         <PlayerDetailModal
           playerId={selectedPlayerId}
           onClose={() => setSelectedPlayerId(null)}
+        />
+      ) : null}
+      {homeChipMatchNumber ? (
+        <PlayoffTrainerChipModal
+          key={homeChipMatchNumber}
+          adminResults={adminResults}
+          matchNumber={homeChipMatchNumber}
+          onClose={() => setHomeChipMatchNumber(null)}
+          onTrainerTacticChange={changeHomeTrainerTactic}
+          prediction={prediction}
         />
       ) : null}
     </div>
@@ -1051,6 +1078,7 @@ function HomeFeedSection({
   leaderboard,
   nextMatchdayKey,
   onScoreChange,
+  onTrainerChipOpen,
   prediction,
   ready,
   results,
@@ -1066,6 +1094,7 @@ function HomeFeedSection({
     side: "homeScore" | "awayScore",
     value: string,
   ) => void;
+  onTrainerChipOpen?: (matchNumber: number) => void;
   prediction: Prediction;
   ready: boolean;
   results: AdminResults;
@@ -1081,7 +1110,7 @@ function HomeFeedSection({
     "";
   const hasContent = upcomingMatches.length > 0 || jornadas.length > 0;
   const matchesHref = upcomingMatches.some(isTrainerChipMatch)
-    ? "/porra?section=playoffResults"
+    ? "/porra?section=playoffResults&goto=next"
     : "/porra?section=results&goto=next";
 
   return (
@@ -1119,6 +1148,7 @@ function HomeFeedSection({
               hasUser={hasUser}
               matches={upcomingMatches}
               onScoreChange={onScoreChange}
+              onTrainerChipOpen={onTrainerChipOpen}
               prediction={prediction}
               results={results}
               saveState={saveState}
@@ -1172,6 +1202,7 @@ function UpcomingJornadaCard({
   hasUser,
   matches,
   onScoreChange,
+  onTrainerChipOpen,
   prediction,
   results,
   saveState,
@@ -1184,6 +1215,7 @@ function UpcomingJornadaCard({
     side: "homeScore" | "awayScore",
     value: string,
   ) => void;
+  onTrainerChipOpen?: (matchNumber: number) => void;
   prediction: Prediction;
   results: AdminResults;
   saveState: HomeSaveState | null;
@@ -1242,6 +1274,7 @@ function UpcomingJornadaCard({
             prediction={prediction}
             result={results[String(match.number)]}
             onScoreChange={onScoreChange}
+            onTrainerChipOpen={onTrainerChipOpen}
           />
         ))}
       </div>
@@ -2438,6 +2471,10 @@ function ResultsReminderModal({
   prediction: Prediction;
   onClose: () => void;
 }) {
+  const predictionHref = matches.some(isTrainerChipMatch)
+    ? "/porra?section=playoffResults&goto=next"
+    : "/porra?section=results&goto=next";
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
@@ -2523,7 +2560,7 @@ function ResultsReminderModal({
             Ahora no
           </button>
           <Link
-            href="/porra?section=results&goto=next"
+            href={predictionHref}
             prefetch={false}
             onClick={onClose}
             className="inline-flex items-center justify-center rounded-lg bg-[#a7f600] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#c7ff43]"
@@ -2596,7 +2633,7 @@ const playoffBannerChips = [
   },
   {
     id: "first-goal",
-    points: 2,
+    points: 1,
     color: "#d946ef",
     icon: "/prediction-icons/first-goal.png",
   },
@@ -2966,9 +3003,11 @@ function trainerChipHref(match: Match) {
 
 function HomeTrainerChipRow({
   match,
+  onOpenMobile,
   prediction,
 }: {
   match: Match;
+  onOpenMobile?: (matchNumber: number) => void;
   prediction: Prediction;
 }) {
   if (!isTrainerChipMatch(match)) return null;
@@ -2977,11 +3016,26 @@ function HomeTrainerChipRow({
 
   return (
     <div className="mx-3 mb-3 mt-1.5 flex justify-center sm:mx-4">
-      <TrainerTacticPickPill
-        href={trainerChipHref(match)}
-        tacticId={matchPrediction?.tacticId}
-        teamId={matchPrediction?.trainerTeamId}
-      />
+      {onOpenMobile ? (
+        <button
+          type="button"
+          className="flex w-full max-w-[13.6rem] justify-center border-0 bg-transparent p-0 text-inherit sm:hidden"
+          aria-haspopup="dialog"
+          onClick={() => onOpenMobile(match.number)}
+        >
+          <TrainerTacticPickPill
+            tacticId={matchPrediction?.tacticId}
+            teamId={matchPrediction?.trainerTeamId}
+          />
+        </button>
+      ) : null}
+      <span className={onOpenMobile ? "hidden sm:flex" : "flex"}>
+        <TrainerTacticPickPill
+          href={trainerChipHref(match)}
+          tacticId={matchPrediction?.tacticId}
+          teamId={matchPrediction?.trainerTeamId}
+        />
+      </span>
     </div>
   );
 }
@@ -2993,6 +3047,7 @@ function UpcomingMatchCard({
   prediction,
   result,
   onScoreChange,
+  onTrainerChipOpen,
 }: {
   compact?: boolean;
   hasUser: boolean;
@@ -3004,6 +3059,7 @@ function UpcomingMatchCard({
     side: "homeScore" | "awayScore",
     value: string,
   ) => void;
+  onTrainerChipOpen?: (matchNumber: number) => void;
 }) {
   const matchPrediction = prediction.matchPredictions[String(match.number)] || {
     homeScore: "",
@@ -3141,7 +3197,11 @@ function UpcomingMatchCard({
       )}
 
       {hasUser ? (
-        <HomeTrainerChipRow match={match} prediction={prediction} />
+        <HomeTrainerChipRow
+          match={match}
+          onOpenMobile={onTrainerChipOpen}
+          prediction={prediction}
+        />
       ) : null}
 
       {compact ? null : (

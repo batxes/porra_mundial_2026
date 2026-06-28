@@ -79,7 +79,11 @@ const links = [
   // "Jugar" lleva al proximo partido por jugar (mismo flujo que "Ver
   // partidos" del inicio). `match` mantiene el resaltado activo, ya que
   // usePathname no incluye la query.
-  { href: "/porra?section=results&goto=next", label: "Jugar", match: "/porra" },
+  {
+    href: "/porra?section=playoffResults&goto=next",
+    label: "Jugar",
+    match: "/porra",
+  },
   { href: "/clasificacion", label: "Clasificación" },
   { href: "/cofres", label: "Sobres" },
   { href: "/como-funciona", label: "Reglas" },

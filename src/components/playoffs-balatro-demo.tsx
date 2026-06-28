@@ -38,11 +38,14 @@ import {
   buildResolvedPlayoffTeams,
   type ResolvedPlayoffTeams,
 } from "@/lib/playoff-teams";
-import { hasMatchStarted as hasScheduledMatchStarted } from "@/lib/prediction";
+import {
+  hasMatchStarted as hasScheduledMatchStarted,
+  scheduleUtc,
+} from "@/lib/prediction";
 import { createEngine } from "@/lib/scoring";
 import type { AdminResults, Match, Prediction } from "@/lib/types";
 
-type IconType = "ball" | "glove" | "bolt" | "target" | "red-card" | "whistle";
+type IconType = "ball" | "glove" | "bolt" | "target" | "red-card" | "comeback";
 
 type Tactic = {
   id: string;
@@ -105,7 +108,7 @@ const tactics: Tactic[] = [
   {
     id: "over-25",
     title: "Goleador",
-    name: "Marca +2.5 goles.",
+    name: "MARCA 3 GOLES O MAS",
     short: "Over 2.5",
     points: 2,
     rarity: "comun",
@@ -127,7 +130,7 @@ const tactics: Tactic[] = [
     title: "Abrelatas",
     name: "Marca primero.",
     short: "Abrelatas",
-    points: 2,
+    points: 1,
     rarity: "comun",
     color: "#d946ef",
     icon: "bolt",
@@ -154,13 +157,13 @@ const tactics: Tactic[] = [
   },
   {
     id: "penalty",
-    title: "VAR",
-    name: "Te hacen penalti.",
-    short: "VAR",
-    points: 3,
+    title: "Remontada",
+    name: "VAS PERDIENDO Y GANAS",
+    short: "Remontada",
+    points: 4,
     rarity: "dificil",
     color: "#f5c518",
-    icon: "whistle",
+    icon: "comeback",
   },
 ];
 
@@ -477,9 +480,6 @@ const defaultPlayoffScheduleMatches = schedule.filter(
 const defaultPlayoffScheduleByNumber = new Map(
   defaultPlayoffScheduleMatches.map((match) => [match.number, match]),
 );
-const playoffMatchById = new Map(
-  allPlayoffMatches.map((match) => [match.id, match]),
-);
 const scoringEngine = createEngine({ data, schedule });
 const trainerById = new Map(
   trainerDemoCards.map((trainer) => [trainer.id, trainer]),
@@ -499,7 +499,7 @@ const tacticIconAssets: Record<IconType, string> = {
   bolt: "/prediction-icons/first-goal.png",
   target: "/prediction-icons/set-piece.png",
   "red-card": "/prediction-icons/red-card.png",
-  whistle: "/prediction-icons/penalty.png",
+  comeback: "/prediction-icons/comeback.png",
 };
 
 function getTrainerCard(trainerId: string) {
@@ -565,6 +565,16 @@ function playoffScheduleMatch(
 ) {
   const number = playoffMatchNumber(match);
   return Number.isFinite(number) ? scheduleByNumber.get(number) : undefined;
+}
+
+function playoffMatchKickoffMs(
+  match: PlayoffMatch,
+  scheduleByNumber = defaultPlayoffScheduleByNumber,
+) {
+  const scheduledMatch = playoffScheduleMatch(match, scheduleByNumber);
+  return scheduledMatch
+    ? new Date(scheduleUtc(scheduledMatch)).getTime()
+    : playoffKickoffMs(match);
 }
 
 function actualPlayoffTeamId(
@@ -976,20 +986,48 @@ function formatPlayoffDay(date: string) {
   }).format(new Date(`${playoffDateKey(date)}T12:00:00Z`));
 }
 
-function getNextPlayableMatchId(matches: PlayoffMatch[]) {
+function getNextPlayableMatchId(
+  matches: PlayoffMatch[],
+  scheduleByNumber = defaultPlayoffScheduleByNumber,
+) {
   const now = Date.now();
   const upcoming = matches
-    .filter((match) => playoffKickoffMs(match) > now)
-    .sort((a, b) => playoffKickoffMs(a) - playoffKickoffMs(b));
+    .filter((match) => playoffMatchKickoffMs(match, scheduleByNumber) > now)
+    .sort(
+      (a, b) =>
+        playoffMatchKickoffMs(a, scheduleByNumber) -
+          playoffMatchKickoffMs(b, scheduleByNumber) ||
+        playoffMatchNumber(a) - playoffMatchNumber(b),
+    );
 
   return upcoming[0]?.id ?? matches[0]?.id ?? null;
 }
 
-function requestedPlayoffMatchIdFromUrl() {
-  if (typeof window === "undefined") return null;
+function playoffMatchRequestFromUrl(
+  scheduleByNumber = defaultPlayoffScheduleByNumber,
+  matchIds?: readonly string[],
+) {
+  if (typeof window === "undefined") {
+    return { matchId: null, clearGoto: false };
+  }
 
-  const matchId = new URLSearchParams(window.location.search).get("match");
-  return matchId && playoffMatchById.has(matchId) ? matchId : null;
+  const params = new URLSearchParams(window.location.search);
+  const availableMatches = filterPlayoffMatches(allPlayoffMatches, matchIds);
+  const availableMatchIds = new Set(availableMatches.map((match) => match.id));
+  const matchId = params.get("match");
+
+  if (matchId && availableMatchIds.has(matchId)) {
+    return { matchId, clearGoto: false };
+  }
+
+  if (params.get("goto") === "next") {
+    return {
+      matchId: getNextPlayableMatchId(availableMatches, scheduleByNumber),
+      clearGoto: true,
+    };
+  }
+
+  return { matchId: null, clearGoto: false };
 }
 
 function playoffPhaseForMatchId(matchId: string | null) {
@@ -1101,9 +1139,15 @@ function PlayoffResultsHeader({
   );
 }
 
-function PlayoffCountdown({ match }: { match: PlayoffMatch }) {
+function PlayoffCountdown({
+  compact = false,
+  match,
+}: {
+  compact?: boolean;
+  match: PlayoffMatch;
+}) {
   const kickoff = useMemo(() => playoffKickoffMs(match), [match]);
-  const [now, setNow] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     let timer = 0;
@@ -1118,12 +1162,18 @@ function PlayoffCountdown({ match }: { match: PlayoffMatch }) {
     return () => window.clearTimeout(timer);
   }, [kickoff]);
 
-  if (now === null) return null;
-
   const remaining = kickoff - now;
+  const countdownText =
+    remaining > 0
+      ? `${compact ? "" : "Cierra en "}${formatPlayoffCountdown(remaining)}`
+      : "Cerrado";
 
   return (
-    <span className="playoff-battle-countdown">
+    <span
+      className={`playoff-battle-countdown ${
+        compact ? "playoff-battle-countdown--compact" : ""
+      }`}
+    >
       <svg
         aria-hidden="true"
         viewBox="0 0 24 24"
@@ -1136,10 +1186,8 @@ function PlayoffCountdown({ match }: { match: PlayoffMatch }) {
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7.5V12l3 2" />
       </svg>
-      <span>
-        {remaining > 0
-          ? `Cierra en ${formatPlayoffCountdown(remaining)}`
-          : "Cerrado"}
+      <span suppressHydrationWarning>
+        {countdownText}
       </span>
     </span>
   );
@@ -1149,11 +1197,13 @@ const ScoreStepper = memo(function ScoreStepper({
   disabled = false,
   label,
   onChange,
+  variant = "stacked",
   value,
 }: {
   disabled?: boolean;
   label: string;
   onChange: (value: string) => void;
+  variant?: "inline" | "stacked";
   value?: string;
 }) {
   const hasValue = value !== undefined && value !== "";
@@ -1163,30 +1213,41 @@ const ScoreStepper = memo(function ScoreStepper({
     const baseScore = hasValue ? score : 0;
     onChange(String(Math.max(0, Math.min(99, baseScore + delta))));
   };
+  const decrementButton = (
+    <button
+      className="playoff-battle-score-button"
+      type="button"
+      disabled={disabled}
+      onClick={() => setScore(-1)}
+      aria-label={`${label} -1`}
+    >
+      -
+    </button>
+  );
+  const incrementButton = (
+    <button
+      className="playoff-battle-score-button"
+      type="button"
+      disabled={disabled}
+      onClick={() => setScore(1)}
+      aria-label={`${label} +1`}
+    >
+      +
+    </button>
+  );
 
   return (
-    <div className="playoff-battle-score-control" aria-label={label}>
-      <button
-        className="playoff-battle-score-button"
-        type="button"
-        disabled={disabled}
-        onClick={() => setScore(1)}
-        aria-label={`${label} +1`}
-      >
-        +
-      </button>
+    <div
+      className={`playoff-battle-score-control ${
+        variant === "inline" ? "playoff-battle-score-control--inline" : ""
+      }`}
+      aria-label={label}
+    >
+      {variant === "inline" ? decrementButton : incrementButton}
       <span className="playoff-battle-score-value">
         {hasValue ? score : "?"}
       </span>
-      <button
-        className="playoff-battle-score-button"
-        type="button"
-        disabled={disabled}
-        onClick={() => setScore(-1)}
-        aria-label={`${label} -1`}
-      >
-        -
-      </button>
+      {variant === "inline" ? incrementButton : decrementButton}
     </div>
   );
 });
@@ -1300,9 +1361,11 @@ const MatchResultControls = memo(function MatchResultControls({
 });
 
 const PickState = memo(function PickState({
+  className = "",
   tactic,
   trainer,
 }: {
+  className?: string;
   tactic?: Tactic | null;
   trainer?: TrainerDemoCard | null;
 }) {
@@ -1317,7 +1380,7 @@ const PickState = memo(function PickState({
     <span
       key={isPicked ? `${trainer?.id}-${tactic?.id}` : "empty"}
       aria-live="polite"
-      className={`playoff-battle-pick-state ${
+      className={`playoff-battle-pick-state ${className} ${
         isPicked
           ? "playoff-battle-pick-state--picked"
           : "playoff-battle-pick-state--empty"
@@ -1339,12 +1402,74 @@ const PickState = memo(function PickState({
       ) : (
         <>
           <span>+</span>
-          <span>Elegir chip</span>
+          <span>Elegir estilo</span>
         </>
       )}
     </span>
   );
 });
+
+function PlayoffStatusBadge({ complete }: { complete: boolean }) {
+  return (
+    <span
+      aria-label={complete ? "Resultado rellenado" : "Resultado pendiente"}
+      className={`playoff-battle-mobile-status ${
+        complete ? "is-complete" : ""
+      }`}
+    >
+      <span className="playoff-battle-mobile-status-icon">
+        {complete ? <PlayoffCheckIcon /> : null}
+      </span>
+      {complete ? "Listo" : "Pendiente"}
+    </span>
+  );
+}
+
+function PlayoffCheckIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      className="playoff-battle-mobile-status-check"
+      fill="none"
+    >
+      <path
+        d="M3.4 8.2 6.5 11.1 12.8 4.8"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2.4"
+      />
+    </svg>
+  );
+}
+
+function PlayoffCompactTeamSide({
+  reversed = false,
+  trainer,
+}: {
+  reversed?: boolean;
+  trainer?: TrainerDemoCard;
+}) {
+  const teamName = trainer?.country ?? "Equipo";
+
+  return (
+    <span
+      className={`playoff-battle-mobile-team-side ${
+        reversed ? "is-reversed" : ""
+      }`}
+      title={teamName}
+      aria-label={teamName}
+    >
+      <RoundTeamFlag
+        teamId={trainer?.teamId}
+        className="playoff-battle-mobile-team-flag"
+        size={28}
+      />
+      <span>{teamName}</span>
+    </span>
+  );
+}
 
 const MobileTrainerChoice = memo(function MobileTrainerChoice({
   activeTrainerId,
@@ -1688,44 +1813,57 @@ const PlayoffMatchRow = memo(function PlayoffMatchRow({
   return (
     <article
       data-playoff-match-id={match.id}
-      className={`playoff-battle-match-row ${isHandOpen ? "is-open" : ""}`}
+      className={`playoff-battle-match-row playoff-battle-match-row--mobile-card ${
+        isHandOpen ? "is-open" : ""
+      }`}
     >
-      <div className="playoff-battle-stage playoff-battle-stage--compact">
-        <div className="playoff-battle-center">
-          <span
-            className={`playoff-battle-match-status ${
-              isComplete ? "is-complete" : ""
-            }`}
-          >
-            {isComplete ? "Completo" : "Incompleto"}
+      <header className="playoff-battle-mobile-card-header">
+        <span className="playoff-battle-mobile-stage">{match.stage}</span>
+        <time className="playoff-battle-mobile-time">{match.time}</time>
+        <PlayoffStatusBadge complete={isComplete} />
+      </header>
+
+      <div className="playoff-battle-mobile-scoreline">
+        <PlayoffCompactTeamSide reversed trainer={trainers[0]} />
+        <div className="playoff-battle-mobile-score-controls">
+          <ScoreStepper
+            label={`Goles ${trainers[0]?.country ?? "local"}`}
+            value={result?.homeGoals}
+            disabled={locked}
+            onChange={(value) => onUpdateResult(match.id, { homeGoals: value })}
+            variant="inline"
+          />
+          <span className="playoff-battle-score-divider" aria-hidden="true">
+            -
           </span>
-          <div className="playoff-battle-match-card playoff-battle-match-card--compact">
-            <div className="playoff-battle-vs">VS</div>
-            <div className="playoff-battle-date-block">
-              <time className="playoff-battle-match-date">{match.time}</time>
-              <PlayoffCountdown match={match} />
-            </div>
-
-            <MatchResultControls
-              match={match}
-              locked={locked}
-              onUpdate={onUpdateResult}
-              result={result}
-              trainers={trainers}
-            />
-
-            <button
-              type="button"
-              className="playoff-battle-pick-trigger"
-              disabled={locked}
-              aria-expanded={isHandOpen}
-              aria-controls={`playoff-hand-${match.id}`}
-              onClick={() => onToggleHand(match.id)}
-            >
-              <PickState tactic={pickedTactic} trainer={pickedTrainer} />
-            </button>
-          </div>
+          <ScoreStepper
+            label={`Goles ${trainers[1]?.country ?? "visitante"}`}
+            value={result?.awayGoals}
+            disabled={locked}
+            onChange={(value) => onUpdateResult(match.id, { awayGoals: value })}
+            variant="inline"
+          />
         </div>
+        <PlayoffCompactTeamSide trainer={trainers[1]} />
+      </div>
+
+      <button
+        type="button"
+        className="playoff-battle-mobile-chip-trigger"
+        disabled={locked}
+        aria-expanded={isHandOpen}
+        aria-controls={`playoff-hand-${match.id}`}
+        onClick={() => onToggleHand(match.id)}
+      >
+        <PickState
+          className="home-trainer-chip-state playoff-battle-mobile-chip-state"
+          tactic={pickedTactic}
+          trainer={pickedTrainer}
+        />
+      </button>
+
+      <div className="playoff-battle-mobile-card-footer">
+        <PlayoffCountdown compact match={match} />
       </div>
     </article>
   );
@@ -1867,6 +2005,8 @@ function PlayoffsBattleSurface({
   embedded = false,
   initialOpenMatchId,
   matchIds,
+  mobileModalOnly = false,
+  onMobileModalClose,
   onOpenHelp,
   onProgressChange,
   onScoreChange,
@@ -1880,6 +2020,8 @@ function PlayoffsBattleSurface({
   embedded?: boolean;
   initialOpenMatchId?: string | null;
   matchIds?: readonly string[];
+  mobileModalOnly?: boolean;
+  onMobileModalClose?: () => void;
   onOpenHelp?: () => void;
   onScoreChange?: (
     matchNumber: number,
@@ -1897,7 +2039,14 @@ function PlayoffsBattleSurface({
   showResultsHeader?: boolean;
   showPhaseSelector?: boolean;
 }) {
-  const [requestedMatchId] = useState(requestedPlayoffMatchIdFromUrl);
+  const scheduleByNumber = useMemo(
+    () => new Map(scheduleMatches.map((match) => [match.number, match])),
+    [scheduleMatches],
+  );
+  const [initialMatchRequest] = useState(() =>
+    playoffMatchRequestFromUrl(scheduleByNumber, matchIds),
+  );
+  const requestedMatchId = initialMatchRequest.matchId;
   const initialPhase =
     playoffPhaseForMatchId(requestedMatchId) ?? initialPlayoffPhase;
   const [activePhaseId, setActivePhaseId] = useState(initialPhase.id);
@@ -1907,11 +2056,12 @@ function PlayoffsBattleSurface({
       requestedMatchId ??
       getNextPlayableMatchId(
         filterPlayoffMatches(initialPhase.matches, matchIds),
+        scheduleByNumber,
       )
     );
   });
-  const [mobileChipMatchId, setMobileChipMatchId] = useState<string | null>(
-    null,
+  const [mobileChipMatchId, setMobileChipMatchId] = useState<string | null>(() =>
+    mobileModalOnly ? (initialOpenMatchId ?? requestedMatchId ?? null) : null,
   );
   const [activeDrag, setActiveDrag] = useState<ActiveDrag>(null);
   const [hoveredTrainerId, setHoveredTrainerId] = useState<string | null>(null);
@@ -1966,10 +2116,6 @@ function PlayoffsBattleSurface({
     () => filterPlayoffMatches(activePhase.matches, matchIds),
     [activePhase, matchIds],
   );
-  const scheduleByNumber = useMemo(
-    () => new Map(scheduleMatches.map((match) => [match.number, match])),
-    [scheduleMatches],
-  );
   const activeDateGroups = useMemo(
     () =>
       groupPlayoffMatchesByDate(
@@ -2019,8 +2165,9 @@ function PlayoffsBattleSurface({
       ).length,
     [isControlled, picks, prediction, results],
   );
-  const renderDesktopMatches = isCompactLayout !== true;
-  const renderMobileMatches = isCompactLayout !== false;
+  const renderDesktopMatches = !mobileModalOnly && isCompactLayout !== true;
+  const renderMobileMatches = !mobileModalOnly && isCompactLayout !== false;
+  const renderMobileChipModal = mobileModalOnly || renderMobileMatches;
   const hasFinishedPlayoffMatches = finishedDateGroups.length > 0;
   const scorecard = useMemo(
     () =>
@@ -2049,8 +2196,19 @@ function PlayoffsBattleSurface({
       const visibleTarget =
         targets.find((target) => target.offsetParent !== null) ?? targets[0];
       visibleTarget?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      if (initialMatchRequest.clearGoto) {
+        const current = new URLSearchParams(window.location.search);
+        current.delete("goto");
+        const query = current.toString();
+        window.history.replaceState(
+          null,
+          "",
+          `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
+        );
+      }
     }, 140);
-  }, [requestedMatchId]);
+  }, [initialMatchRequest.clearGoto, requestedMatchId]);
 
   const setPhase = useCallback(
     (phaseId: string) => {
@@ -2067,6 +2225,7 @@ function PlayoffsBattleSurface({
           ? initialOpenMatchId
           : getNextPlayableMatchId(
               filterPlayoffMatches(nextPhase.matches, matchIds),
+              scheduleByNumber,
             ),
       );
     },
@@ -2075,6 +2234,7 @@ function PlayoffsBattleSurface({
       matchIds,
       resolvedPlayoffPhaseById,
       resolvedPlayoffPhases,
+      scheduleByNumber,
     ],
   );
 
@@ -2152,14 +2312,19 @@ function PlayoffsBattleSurface({
         matchId: String(data.matchId),
         tacticId: String(data.tacticId),
       });
-      if (isCompactLayout === true) {
+      if (mobileModalOnly || isCompactLayout === true) {
         setMobileChipMatchId(String(data.matchId));
       } else {
         setOpenHandMatchId(String(data.matchId));
       }
       setHoveredTrainerId(null);
     },
-    [isCompactLayout, isPlayoffLocked, resolvedPlayoffMatchById],
+    [
+      isCompactLayout,
+      isPlayoffLocked,
+      mobileModalOnly,
+      resolvedPlayoffMatchById,
+    ],
   );
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
@@ -2189,13 +2354,13 @@ function PlayoffsBattleSurface({
         String(over.trainerId),
         String(active.tacticId),
       );
-      if (isCompactLayout === true) {
+      if (mobileModalOnly || isCompactLayout === true) {
         setMobileChipMatchId(String(over.matchId));
       } else {
         setOpenHandMatchId(String(over.matchId));
       }
     },
-    [assignPick, isCompactLayout],
+    [assignPick, isCompactLayout, mobileModalOnly],
   );
 
   const handleSelectTactic = useCallback(
@@ -2214,7 +2379,7 @@ function PlayoffsBattleSurface({
         defaultTrainerIdForMatch(match);
       if (!trainerId) return;
       assignPick(matchId, trainerId, tacticId);
-      if (isCompactLayout !== true) {
+      if (!mobileModalOnly && isCompactLayout !== true) {
         setOpenHandMatchId(matchId);
       }
     },
@@ -2223,6 +2388,7 @@ function PlayoffsBattleSurface({
       isCompactLayout,
       isControlled,
       isPlayoffLocked,
+      mobileModalOnly,
       prediction,
       resolvedPlayoffMatchById,
     ],
@@ -2240,13 +2406,18 @@ function PlayoffsBattleSurface({
       };
       activeTrainerByMatchRef.current = nextActiveTrainerByMatch;
       setActiveTrainerByMatch(nextActiveTrainerByMatch);
-      if (isCompactLayout === true) {
+      if (mobileModalOnly || isCompactLayout === true) {
         setMobileChipMatchId(matchId);
       } else {
         setOpenHandMatchId(matchId);
       }
     },
-    [isCompactLayout, isPlayoffLocked, resolvedPlayoffMatchById],
+    [
+      isCompactLayout,
+      isPlayoffLocked,
+      mobileModalOnly,
+      resolvedPlayoffMatchById,
+    ],
   );
 
   const handleDragCancel = useCallback(() => {
@@ -2269,9 +2440,19 @@ function PlayoffsBattleSurface({
     [isCompactLayout, isPlayoffLocked, resolvedPlayoffMatchById],
   );
 
+  const handleToggleMobileChip = useCallback(
+    (matchId: string) => {
+      const match = resolvedPlayoffMatchById.get(matchId);
+      if (match && isPlayoffLocked(match)) return;
+      setMobileChipMatchId((current) => (current === matchId ? null : matchId));
+    },
+    [isPlayoffLocked, resolvedPlayoffMatchById],
+  );
+
   const handleCloseMobileChipModal = useCallback(() => {
     setMobileChipMatchId(null);
-  }, []);
+    onMobileModalClose?.();
+  }, [onMobileModalClose]);
 
   const handleMobileSelectTactic = useCallback(
     (matchId: string, tacticId: string) => {
@@ -2335,7 +2516,7 @@ function PlayoffsBattleSurface({
   );
 
   const mobileChipMatch =
-    isCompactLayout === true && mobileChipMatchId
+    (mobileModalOnly || isCompactLayout === true) && mobileChipMatchId
       ? (resolvedPlayoffMatchById.get(mobileChipMatchId) ?? null)
       : null;
   const mobileChipPick = mobileChipMatch
@@ -2352,13 +2533,13 @@ function PlayoffsBattleSurface({
       defaultTrainerIdForMatch(mobileChipMatch))
     : undefined;
   const activeDragTactic =
-    activeDrag && isCompactLayout === true
+    activeDrag && (mobileModalOnly || isCompactLayout === true)
       ? (tacticById.get(activeDrag.tacticId) ?? null)
       : null;
 
   const content = (
     <>
-      {showResultsHeader ? (
+      {showResultsHeader && !mobileModalOnly ? (
         <PlayoffResultsHeader
           done={completedPlayoffMatches}
           onOpenHelp={onOpenHelp}
@@ -2366,10 +2547,10 @@ function PlayoffsBattleSurface({
         />
       ) : null}
 
-      {!embedded && showPhaseSelector ? (
+      {!embedded && showPhaseSelector && !mobileModalOnly ? (
         <PhaseSelector activePhaseId={activePhase.id} onSelect={setPhase} />
       ) : null}
-      {embedded && showPhaseSelector ? (
+      {embedded && showPhaseSelector && !mobileModalOnly ? (
         <div className="playoff-battle-embedded-selectors">
           <PhaseSelector activePhaseId={activePhase.id} onSelect={setPhase} />
         </div>
@@ -2460,7 +2641,7 @@ function PlayoffsBattleSurface({
                             isHandOpen={mobileChipMatchId === match.id}
                             locked={locked}
                             match={match}
-                            onToggleHand={handleToggleHand}
+                            onToggleHand={handleToggleMobileChip}
                             onUpdateResult={updateResult}
                             pick={pick}
                             result={result}
@@ -2475,7 +2656,7 @@ function PlayoffsBattleSurface({
           </div>
         ) : null}
 
-        {renderMobileMatches ? (
+        {renderMobileChipModal ? (
           <MobileChipModal
             activeDrag={activeDrag}
             activeTrainerId={mobileChipActiveTrainerId}
@@ -2504,7 +2685,7 @@ function PlayoffsBattleSurface({
         </DragOverlay>
       </DndContext>
 
-      {finishedDateGroups.length ? (
+      {!mobileModalOnly && finishedDateGroups.length ? (
         <div
           className={`space-y-4 ${
             activeDateGroups.length ? "border-t border-white/10 pt-5" : ""
@@ -2530,6 +2711,10 @@ function PlayoffsBattleSurface({
     </>
   );
 
+  if (mobileModalOnly) {
+    return content;
+  }
+
   if (embedded) {
     return (
       <section className="playoff-battle-embedded playoff-battle-embedded--compact theme-dark">
@@ -2543,6 +2728,46 @@ function PlayoffsBattleSurface({
       <div className="playoff-battle-stadium" aria-hidden="true" />
       {content}
     </section>
+  );
+}
+
+export function PlayoffTrainerChipModal({
+  adminResults,
+  matchNumber,
+  onClose,
+  onTrainerTacticChange,
+  prediction,
+  scheduleMatches,
+}: {
+  adminResults?: AdminResults;
+  matchNumber: number;
+  onClose: () => void;
+  onTrainerTacticChange: (
+    matchNumber: number,
+    trainerTeamId: string,
+    tacticId: string,
+  ) => void;
+  prediction: Prediction;
+  scheduleMatches?: Match[];
+}) {
+  const matchId = String(matchNumber);
+  const ignoreScoreChange = useCallback(() => undefined, []);
+
+  return (
+    <PlayoffsBattleSurface
+      adminResults={adminResults}
+      embedded
+      initialOpenMatchId={matchId}
+      matchIds={[matchId]}
+      mobileModalOnly
+      onMobileModalClose={onClose}
+      onScoreChange={ignoreScoreChange}
+      onTrainerTacticChange={onTrainerTacticChange}
+      prediction={prediction}
+      scheduleMatches={scheduleMatches}
+      showResultsHeader={false}
+      showPhaseSelector={false}
+    />
   );
 }
 

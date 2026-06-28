@@ -7,7 +7,7 @@ import {
   buildResolvedPlayoffTeams,
 } from "@/lib/playoff-teams";
 import { calculateCompletion, emptyPrediction, groupTeamAt } from "@/lib/prediction";
-import { createEngine } from "@/lib/scoring";
+import { calculateTeamStandings, createEngine } from "@/lib/scoring";
 
 const engine = createEngine({ data, schedule });
 const playerIdByPosition = (position: string) => data.players.find((player) => player.position === position)?.id || "";
@@ -227,6 +227,59 @@ function actualKnockoutGroupResults() {
 }
 
 {
+  const miniTeams = [
+    { id: "a", name: "A", code: "aaa", group: "A" },
+    { id: "b", name: "B", code: "bbb", group: "A" },
+  ] as any;
+  const miniSchedule = [
+    {
+      number: 1,
+      date: "2026-06-11",
+      time: "12:00 p.m. UTC+0",
+      home: "a",
+      away: "b",
+      venue: "Test",
+      stage: "Grupos",
+    },
+    {
+      number: 73,
+      date: "2026-06-28",
+      time: "12:00 p.m. UTC+0",
+      home: "a",
+      away: "b",
+      venue: "Test",
+      stage: "Dieciseisavos",
+    },
+  ] as any;
+  const results = {
+    1: {
+      homeScore: 3,
+      awayScore: 1,
+      events: [{ id: "red-b", playerId: "", teamId: "b", type: "red_card", minute: 80 }],
+    },
+    73: {
+      homeScore: 0,
+      awayScore: 2,
+      homeTeamId: "a",
+      awayTeamId: "b",
+      events: [],
+    },
+  } as any;
+  const standings = calculateTeamStandings(results, miniTeams, miniSchedule);
+  const teamA = standings.find((row) => row.team.id === "a");
+  const teamB = standings.find((row) => row.team.id === "b");
+
+  assert.equal(teamA?.groupPoints, 3);
+  assert.equal(teamA?.groupPosition, 1);
+  assert.equal(teamB?.goalsFor, 3);
+  assert.equal(teamB?.redCards, 1);
+  assert.equal(teamB?.progressionPoints, 5);
+  assert.equal(teamB?.stageLabel, "Octavos");
+  assert.equal(teamA?.isEliminated, true);
+  assert.equal(teamB?.isEliminated, false);
+}
+
+{
   const prediction = {
     groups: { A: { mex: "1", kor: "2", rsa: "3", cze: "4" } },
     bracket: { winners: {} },
@@ -388,13 +441,23 @@ function actualKnockoutGroupResults() {
       73: { trainerTeamId: "kor", tacticId: "red-card" },
     },
   } as any;
+  const firstGoalPrediction = {
+    ...trainerPrediction,
+    matchPredictions: {
+      73: { trainerTeamId: "mex", tacticId: "first-goal" },
+    },
+  } as any;
   const results = {
     73: {
       homeScore: 1,
       awayScore: 0,
       homeTeamId: "mex",
       awayTeamId: "kor",
-      trainerTactics: { penalty: ["mex", "kor"], "red-card": ["kor"] },
+      trainerTactics: {
+        penalty: ["mex", "kor"],
+        "red-card": ["kor"],
+        "first-goal": ["mex"],
+      },
       events: [],
     },
   } as any;
@@ -402,11 +465,13 @@ function actualKnockoutGroupResults() {
   const hit = engine.calculateScorecard(trainerPrediction, results, "u1");
   const miss = engine.calculateScorecard(missPrediction, results, "u1");
   const redCard = engine.calculateScorecard(redCardPrediction, results, "u1");
+  const firstGoal = engine.calculateScorecard(firstGoalPrediction, results, "u1");
 
-  assert.equal(hit.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 3);
-  assert.equal(hit.categories.find((category) => category.label === "Entrenadores")?.total, 3);
+  assert.equal(hit.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 4);
+  assert.equal(hit.categories.find((category) => category.label === "Entrenadores")?.total, 4);
   assert.equal(miss.entries.some((entry) => entry.ruleCode === "trainer_tactic_hit"), false);
   assert.equal(redCard.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 5);
+  assert.equal(firstGoal.entries.find((entry) => entry.ruleCode === "trainer_tactic_hit")?.points, 1);
 }
 
 console.log("scoring tests passed");

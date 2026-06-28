@@ -21,20 +21,207 @@ import { LeaderboardEvolution } from "@/components/leaderboard-evolution";
 import { LeaderboardVersus } from "@/components/leaderboard-versus";
 import { PlayerDetailModal } from "@/components/player-detail-modal";
 import { useAppContext } from "@/lib/app-context";
-import { data, teamsById } from "@/lib/data";
+import { data, schedule, teamsById } from "@/lib/data";
 import { buildPlayerOwnersMap } from "@/lib/player-owners";
 import {
   calculatePlayerStandings,
+  calculateTeamStandings,
   type PlayerStandingRow,
+  type TeamStandingRow,
 } from "@/lib/scoring";
-import type { UserProfile } from "@/lib/types";
+import type { Player, UserProfile } from "@/lib/types";
 
-type LeaderboardFilter = "all" | "pro" | "players" | "wolf";
+type LeaderboardFilter = "all" | "pro" | "players" | "teams" | "wolf";
+type PlayerLeaderboardMetric =
+  | "points"
+  | "goals"
+  | "mvps"
+  | "penaltyGoals"
+  | "penaltySaves"
+  | "penaltyMisses"
+  | "redCards";
+type TeamLeaderboardMetric = "goalsFor" | "mostConcededScore" | "redCards";
 
 const PLAYERS_PAGE_SIZE = 25;
+const TEAMS_PAGE_SIZE = 25;
+
+const PLAYER_LEADERBOARD_METRICS: Array<{
+  key: PlayerLeaderboardMetric;
+  label: string;
+  header: string;
+  valueLabel: string;
+  emptyTitle: string;
+  emptyDescription: string;
+}> = [
+  {
+    key: "points",
+    label: "Puntos",
+    header: "Puntos",
+    valueLabel: "pts",
+    emptyTitle: "Aún no hay puntos de jugadores",
+    emptyDescription:
+      "Cuando se registren goles, MVP, penaltis o tarjetas en los partidos, los futbolistas aparecerán aquí.",
+  },
+  {
+    key: "goals",
+    label: "Goles",
+    header: "Goles",
+    valueLabel: "goles",
+    emptyTitle: "Aún no hay goleadores",
+    emptyDescription:
+      "Cuando se registren goles o penaltis marcados, aparecerán aquí los máximos goleadores.",
+  },
+  {
+    key: "mvps",
+    label: "MVP",
+    header: "MVP",
+    valueLabel: "MVP",
+    emptyTitle: "Aún no hay MVP",
+    emptyDescription:
+      "Cuando se marquen MVP de partido, aparecerán aquí los jugadores más decisivos.",
+  },
+  {
+    key: "penaltyGoals",
+    label: "Pen. marcados",
+    header: "Pen. marcados",
+    valueLabel: "pen.",
+    emptyTitle: "Aún no hay penaltis marcados",
+    emptyDescription:
+      "Cuando se registren penaltis marcados, aparecerán aquí los especialistas.",
+  },
+  {
+    key: "penaltySaves",
+    label: "Pen. parados",
+    header: "Pen. parados",
+    valueLabel: "parados",
+    emptyTitle: "Aún no hay penaltis parados",
+    emptyDescription:
+      "Cuando se registren penaltis parados, aparecerán aquí los porteros protagonistas.",
+  },
+  {
+    key: "penaltyMisses",
+    label: "Pen. fallados",
+    header: "Pen. fallados",
+    valueLabel: "fallados",
+    emptyTitle: "Aún no hay penaltis fallados",
+    emptyDescription:
+      "Cuando se registren penaltis fallados, aparecerán aquí los jugadores afectados.",
+  },
+  {
+    key: "redCards",
+    label: "Rojas",
+    header: "Rojas",
+    valueLabel: "rojas",
+    emptyTitle: "Aún no hay tarjetas rojas",
+    emptyDescription:
+      "Cuando se registren expulsiones, aparecerán aquí los jugadores con más rojas.",
+  },
+];
+
+const TEAM_LEADERBOARD_METRICS: Array<{
+  key: TeamLeaderboardMetric;
+  label: string;
+  header: string;
+  valueLabel: string;
+  emptyTitle: string;
+  emptyDescription: string;
+}> = [
+  {
+    key: "goalsFor",
+    label: "Más goleadores",
+    header: "GF",
+    valueLabel: "goles",
+    emptyTitle: "Aún no hay equipos goleadores",
+    emptyDescription:
+      "Cuando se registren goles, aparecerán aquí los equipos más goleadores.",
+  },
+  {
+    key: "mostConcededScore",
+    label: "Más goleados",
+    header: "Avg contra",
+    valueLabel: "GF-GC",
+    emptyTitle: "Aún no hay equipos goleados",
+    emptyDescription:
+      "Se calcula en todo el Mundial como goles a favor menos goles encajados.",
+  },
+  {
+    key: "redCards",
+    label: "Rojas",
+    header: "Rojas",
+    valueLabel: "rojas",
+    emptyTitle: "Aún no hay rojas por equipo",
+    emptyDescription:
+      "Cuando se registren expulsiones, aparecerán aquí los equipos con más rojas.",
+  },
+];
 
 function normalizeSearch(value: string) {
   return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+function emptyPlayerStanding(player: Player): PlayerStandingRow {
+  return {
+    player,
+    points: 0,
+    goals: 0,
+    penaltyGoals: 0,
+    mvps: 0,
+    penaltySaves: 0,
+    penaltyMisses: 0,
+    redCards: 0,
+  };
+}
+
+function playerMetricValue(
+  row: PlayerStandingRow,
+  metric: PlayerLeaderboardMetric,
+) {
+  return row[metric];
+}
+
+function comparePlayerStandings(
+  a: PlayerStandingRow,
+  b: PlayerStandingRow,
+  metric: PlayerLeaderboardMetric,
+) {
+  return (
+    playerMetricValue(b, metric) - playerMetricValue(a, metric) ||
+    b.points - a.points ||
+    b.goals - a.goals ||
+    b.mvps - a.mvps ||
+    a.player.name.localeCompare(b.player.name)
+  );
+}
+
+function teamMetricValue(
+  row: TeamStandingRow,
+  metric: TeamLeaderboardMetric,
+) {
+  return row[metric];
+}
+
+function compareTeamStandings(
+  a: TeamStandingRow,
+  b: TeamStandingRow,
+  metric: TeamLeaderboardMetric,
+) {
+  return (
+    teamMetricValue(b, metric) - teamMetricValue(a, metric) ||
+    b.stageRank - a.stageRank ||
+    b.groupPoints - a.groupPoints ||
+    b.goalDifference - a.goalDifference ||
+    b.goalsFor - a.goalsFor ||
+    a.team.name.localeCompare(b.team.name)
+  );
+}
+
+function hasTeamMetric(row: TeamStandingRow, metric: TeamLeaderboardMetric) {
+  if (metric === "mostConcededScore") return row.played > 0;
+  return teamMetricValue(row, metric) > 0;
+}
+
+function formatSigned(value: number) {
+  return value > 0 ? `+${value}` : String(value);
 }
 
 export function LeaderboardView() {
@@ -46,6 +233,7 @@ export function LeaderboardView() {
     const timer = window.setTimeout(() => {
       const tab = new URLSearchParams(window.location.search).get("tab");
       if (tab === "jugadores") setFilter("players");
+      if (tab === "equipos") setFilter("teams");
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -58,6 +246,10 @@ export function LeaderboardView() {
   const wolfCount = leaderboard.filter((profile) => profile.isWolf).length;
   const playerStandings = useMemo(
     () => calculatePlayerStandings(adminResults, data.players),
+    [adminResults],
+  );
+  const teamStandings = useMemo(
+    () => calculateTeamStandings(adminResults, data.teams, schedule),
     [adminResults],
   );
   // Mapa jugador -> participantes que lo tienen en su once (ver player-owners).
@@ -80,6 +272,8 @@ export function LeaderboardView() {
         description={
           filter === "players"
             ? "Los futbolistas que más puntos han sumado con goles, MVP, penaltis y tarjetas."
+            : filter === "teams"
+              ? "Las selecciones ordenadas por goles, goleados y tarjetas rojas."
             : filter === "wolf"
               ? "La clasificación de la manada 🐺. Solo visible para sus miembros."
               : "La tabla se ordena por puntos y muestra el campeón elegido por cada participante."
@@ -110,6 +304,12 @@ export function LeaderboardView() {
               count={playerStandings.length}
               onClick={() => setFilter("players")}
             />
+            <FilterTab
+              active={filter === "teams"}
+              label="Equipos"
+              count={teamStandings.length}
+              onClick={() => setFilter("teams")}
+            />
             {isWolf ? (
               <FilterTab
                 active={filter === "wolf"}
@@ -121,7 +321,7 @@ export function LeaderboardView() {
             ) : null}
           </div>
 
-          {filter !== "players" ? (
+          {filter !== "players" && filter !== "teams" ? (
             <div className="flex w-full items-center gap-1 sm:w-auto">
               <ViewTab
                 active={view === "table"}
@@ -153,6 +353,8 @@ export function LeaderboardView() {
         </Card>
       ) : filter === "players" ? (
         <PlayerLeaderboard standings={playerStandings} owners={playerOwners} />
+      ) : filter === "teams" ? (
+        <TeamLeaderboard standings={teamStandings} />
       ) : !leaderboard.length ? (
         <EmptyState
           icon="0"
@@ -209,6 +411,207 @@ export function LeaderboardView() {
   );
 }
 
+function TeamLeaderboard({ standings }: { standings: TeamStandingRow[] }) {
+  const [query, setQuery] = useState("");
+  const [metric, setMetric] = useState<TeamLeaderboardMetric>("goalsFor");
+  const [limit, setLimit] = useState(TEAMS_PAGE_SIZE);
+
+  const normalized = normalizeSearch(query.trim());
+  const metricConfig =
+    TEAM_LEADERBOARD_METRICS.find((item) => item.key === metric) ||
+    TEAM_LEADERBOARD_METRICS[0];
+  const metricCounts = useMemo(() => {
+    const counts = {} as Record<TeamLeaderboardMetric, number>;
+    TEAM_LEADERBOARD_METRICS.forEach((item) => {
+      counts[item.key] = standings.filter((row) =>
+        hasTeamMetric(row, item.key),
+      ).length;
+    });
+    return counts;
+  }, [standings]);
+
+  const filtered = useMemo(
+    () =>
+      standings
+        .filter((row) => {
+          if (!hasTeamMetric(row, metric)) return false;
+          if (!normalized) return true;
+          return normalizeSearch(`${row.team.name} ${row.team.group}`).includes(
+            normalized,
+          );
+        })
+        .sort((a, b) => compareTeamStandings(a, b, metric)),
+    [metric, normalized, standings],
+  );
+  const visible = filtered.slice(0, limit);
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+          Ordenar por
+        </span>
+        <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
+          {TEAM_LEADERBOARD_METRICS.map((item) => (
+            <StatMetricButton
+              key={item.key}
+              active={metric === item.key}
+              label={item.label}
+              count={metricCounts[item.key]}
+              onClick={() => {
+                setMetric(item.key);
+                setLimit(TEAMS_PAGE_SIZE);
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <label className="flex w-full max-w-sm items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+        <input
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setLimit(TEAMS_PAGE_SIZE);
+          }}
+          placeholder="Buscar equipo o grupo"
+          className="min-w-0 flex-1 bg-transparent text-sm font-medium text-white outline-none placeholder:text-zinc-500"
+        />
+        {query ? (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery("");
+              setLimit(TEAMS_PAGE_SIZE);
+            }}
+            className="text-xs font-semibold text-zinc-400 hover:text-white"
+          >
+            Borrar
+          </button>
+        ) : null}
+      </label>
+
+      {!filtered.length ? (
+        <EmptyState
+          icon="0"
+          title={normalized ? "Sin resultados" : metricConfig.emptyTitle}
+          description={
+            normalized
+              ? `Ningún equipo con ${metricConfig.label.toLowerCase()} coincide con esa búsqueda.`
+              : metricConfig.emptyDescription
+          }
+        />
+      ) : (
+        <Card className="overflow-hidden p-0">
+          <LeaderboardHeaderRow
+            middleLabel="Equipo"
+            rightLabel={metricConfig.header}
+          />
+          <div className="divide-y divide-white/10">
+            {visible.map((row, index) => (
+              <TeamRankRow
+                key={row.team.id}
+                row={row}
+                metric={metric}
+                metricConfig={metricConfig}
+                position={rankForTeamMetric(filtered, index, metric)}
+              />
+            ))}
+          </div>
+          {filtered.length > limit ? (
+            <button
+              type="button"
+              onClick={() => setLimit((current) => current + TEAMS_PAGE_SIZE)}
+              className="w-full border-t border-white/10 px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/5 hover:text-white"
+            >
+              Mostrar mas ({filtered.length - limit} restantes)
+            </button>
+          ) : null}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function TeamRankRow({
+  row,
+  metric,
+  metricConfig,
+  position,
+}: {
+  row: TeamStandingRow;
+  metric: TeamLeaderboardMetric;
+  metricConfig: (typeof TEAM_LEADERBOARD_METRICS)[number];
+  position: number;
+}) {
+  const metricValue = teamMetricValue(row, metric);
+  const value =
+    metric === "mostConcededScore"
+        ? formatSigned(row.goalDifference)
+        : metricValue;
+  const valueTone =
+    metric === "mostConcededScore"
+      ? row.goalDifference < 0
+        ? "text-red-400"
+        : row.goalDifference > 0
+          ? "text-emerald-300"
+          : "text-white"
+      : "text-white";
+
+  return (
+    <div className="grid w-full grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
+      <span
+        className="flex h-8 w-8 items-center justify-center text-sm font-bold text-zinc-300"
+        aria-label={`Puesto ${position}`}
+      >
+        <RankNumber position={position} />
+      </span>
+      <span className="flex min-w-0 items-center gap-3">
+        <TeamFlag
+          teamId={row.team.id}
+          className="h-7 w-9 shrink-0 rounded-md object-cover ring-1 ring-white/10"
+        />
+        <span className="min-w-0">
+          <strong className="flex min-w-0 items-center gap-2 text-sm text-white">
+            <span className="truncate">{row.team.name}</span>
+            <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-zinc-400">
+              Grupo {row.team.group}
+            </span>
+            {row.isEliminated ? (
+              <span className="rounded-full border border-red-400/30 bg-red-500/10 px-1.5 py-0.5 text-[10px] font-bold text-red-300">
+                Eliminado
+              </span>
+            ) : null}
+          </strong>
+          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-semibold text-zinc-500">
+            <span>PJ {row.played}</span>
+            <span>GF {row.goalsFor}</span>
+            <span>GC {row.goalsAgainst}</span>
+            <span>DG {formatSigned(row.goalDifference)}</span>
+            <span>Rojas {row.redCards}</span>
+            {row.groupPosition ? (
+              <span>Grupo #{row.groupPosition}</span>
+            ) : null}
+          </span>
+        </span>
+      </span>
+      <span className="text-right">
+        <strong
+          className={`block max-w-24 truncate text-lg font-bold sm:max-w-none ${valueTone}`}
+        >
+          {value}
+        </strong>
+        <span className="text-xs font-semibold text-zinc-500">
+          {metricConfig.valueLabel}
+        </span>
+        <span className="mt-0.5 block text-[11px] font-semibold text-zinc-600">
+          {row.stageLabel}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 function PlayerLeaderboard({
   standings,
   owners,
@@ -217,40 +620,50 @@ function PlayerLeaderboard({
   owners: Map<string, UserProfile[]>;
 }) {
   const [query, setQuery] = useState("");
+  const [metric, setMetric] = useState<PlayerLeaderboardMetric>("points");
   const [limit, setLimit] = useState(PLAYERS_PAGE_SIZE);
   const [selected, setSelected] = useState<string | null>(null);
 
   const normalized = normalizeSearch(query.trim());
-  const searchableStandings = useMemo(() => {
-    if (!normalized) return standings;
+  const metricConfig =
+    PLAYER_LEADERBOARD_METRICS.find((item) => item.key === metric) ||
+    PLAYER_LEADERBOARD_METRICS[0];
+  const metricCounts = useMemo(() => {
+    const counts = {} as Record<PlayerLeaderboardMetric, number>;
+    PLAYER_LEADERBOARD_METRICS.forEach((item) => {
+      counts[item.key] =
+        item.key === "points"
+          ? standings.length
+          : standings.filter((row) => playerMetricValue(row, item.key) > 0)
+              .length;
+    });
+    return counts;
+  }, [standings]);
 
+  const filtered = useMemo(() => {
     const scoredRows = new Map(
       standings.map((row) => [row.player.id, row] as const),
     );
+    const rows = normalized
+      ? data.players.map(
+          (player) => scoredRows.get(player.id) || emptyPlayerStanding(player),
+        )
+      : standings;
 
-    return data.players
-      .map(
-        (player) =>
-          scoredRows.get(player.id) || {
-            player,
-            points: 0,
-            goals: 0,
-            mvps: 0,
-          },
-      )
-      .sort(
-        (a, b) =>
-          b.points - a.points ||
-          b.goals - a.goals ||
-          a.player.name.localeCompare(b.player.name),
-      );
-  }, [normalized, standings]);
-  const filtered = normalized
-    ? searchableStandings.filter(({ player }) => {
-        const team = teamsById.get(player.team)?.name || "";
-        return normalizeSearch(`${player.name} ${team}`).includes(normalized);
+    return rows
+      .filter((row) => {
+        if (metric !== "points" && playerMetricValue(row, metric) <= 0) {
+          return false;
+        }
+        if (!normalized) return true;
+
+        const team = teamsById.get(row.player.team)?.name || "";
+        return normalizeSearch(`${row.player.name} ${team}`).includes(
+          normalized,
+        );
       })
-    : searchableStandings;
+      .sort((a, b) => comparePlayerStandings(a, b, metric));
+  }, [metric, normalized, standings]);
   const visible = filtered.slice(0, limit);
 
   if (!standings.length) {
@@ -265,6 +678,26 @@ function PlayerLeaderboard({
 
   return (
     <div className="space-y-4">
+      <div className="space-y-2">
+        <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+          Ordenar por
+        </span>
+        <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
+          {PLAYER_LEADERBOARD_METRICS.map((item) => (
+            <StatMetricButton
+              key={item.key}
+              active={metric === item.key}
+              label={item.label}
+              count={metricCounts[item.key]}
+              onClick={() => {
+                setMetric(item.key);
+                setLimit(PLAYERS_PAGE_SIZE);
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
       <label className="flex w-full max-w-sm items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
         <input
           value={query}
@@ -292,18 +725,24 @@ function PlayerLeaderboard({
       {!filtered.length ? (
         <EmptyState
           icon="0"
-          title="Sin resultados"
-          description="Ningún jugador con puntos coincide con esa búsqueda."
+          title={normalized ? "Sin resultados" : metricConfig.emptyTitle}
+          description={
+            normalized
+              ? `Ningún jugador con ${metricConfig.label.toLowerCase()} coincide con esa búsqueda.`
+              : metricConfig.emptyDescription
+          }
         />
       ) : (
         <Card className="overflow-hidden p-0">
-          <LeaderboardHeaderRow />
+          <LeaderboardHeaderRow rightLabel={metricConfig.header} />
           <div className="divide-y divide-white/10">
             {visible.map((row, index) => (
               <PlayerRankRow
                 key={row.player.id}
                 row={row}
-                position={rankFor(filtered, index)}
+                metric={metric}
+                metricConfig={metricConfig}
+                position={rankForPlayerMetric(filtered, index, metric)}
                 owners={owners.get(row.player.id)}
                 onSelect={setSelected}
               />
@@ -333,15 +772,21 @@ function PlayerLeaderboard({
 
 function PlayerRankRow({
   row,
+  metric,
+  metricConfig,
   position,
   owners,
   onSelect,
 }: {
   row: PlayerStandingRow;
+  metric: PlayerLeaderboardMetric;
+  metricConfig: (typeof PLAYER_LEADERBOARD_METRICS)[number];
   position: number;
   owners?: UserProfile[];
   onSelect: (playerId: string) => void;
 }) {
+  const value = playerMetricValue(row, metric);
+
   return (
     <button
       type="button"
@@ -372,9 +817,16 @@ function PlayerRankRow({
       </span>
       <span className="text-right">
         <strong className="block text-lg font-bold text-white">
-          {row.points}
+          {value}
         </strong>
-        <span className="text-xs font-semibold text-zinc-500">pts</span>
+        <span className="text-xs font-semibold text-zinc-500">
+          {metricConfig.valueLabel}
+        </span>
+        {metric !== "points" ? (
+          <span className="mt-0.5 block text-[11px] font-semibold text-zinc-600">
+            {row.points} pts
+          </span>
+        ) : null}
       </span>
     </button>
   );
@@ -459,6 +911,42 @@ function FilterTab({
   );
 }
 
+function StatMetricButton({
+  active,
+  count,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  count: number;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+        active
+          ? "border-[#a7f600]/50 bg-[#a7f600]/10 text-[#d7ff6a] shadow-[inset_0_0_0_1px_rgba(167,246,0,0.08)]"
+          : "border-white/10 bg-white/[0.03] text-zinc-400 hover:border-white/20 hover:bg-white/[0.06] hover:text-white"
+      }`}
+    >
+      <span>{label}</span>
+      <span
+        className={`rounded-full px-1.5 text-[10px] font-bold ${
+          active
+            ? "bg-[#a7f600]/15 text-[#d7ff6a]"
+            : "bg-white/10 text-zinc-500"
+        }`}
+      >
+        {count}
+      </span>
+    </button>
+  );
+}
+
 function ViewTab({
   active,
   kind,
@@ -511,12 +999,18 @@ function ViewTab({
   );
 }
 
-function LeaderboardHeaderRow() {
+function LeaderboardHeaderRow({
+  middleLabel = "Jugador",
+  rightLabel = "Puntos",
+}: {
+  middleLabel?: string;
+  rightLabel?: string;
+} = {}) {
   return (
     <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-white/10 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
       <span>#</span>
-      <span>Jugador</span>
-      <span className="text-right">Puntos</span>
+      <span>{middleLabel}</span>
+      <span className="text-right">{rightLabel}</span>
     </div>
   );
 }
@@ -578,6 +1072,38 @@ function rankFor(leaderboard: Array<{ points: number }>, index: number) {
   while (
     rank > 1 &&
     leaderboard[index].points === leaderboard[rank - 2].points
+  ) {
+    rank -= 1;
+  }
+  return rank;
+}
+
+function rankForPlayerMetric(
+  leaderboard: PlayerStandingRow[],
+  index: number,
+  metric: PlayerLeaderboardMetric,
+) {
+  let rank = index + 1;
+  while (
+    rank > 1 &&
+    playerMetricValue(leaderboard[index], metric) ===
+      playerMetricValue(leaderboard[rank - 2], metric)
+  ) {
+    rank -= 1;
+  }
+  return rank;
+}
+
+function rankForTeamMetric(
+  leaderboard: TeamStandingRow[],
+  index: number,
+  metric: TeamLeaderboardMetric,
+) {
+  let rank = index + 1;
+  while (
+    rank > 1 &&
+    teamMetricValue(leaderboard[index], metric) ===
+      teamMetricValue(leaderboard[rank - 2], metric)
   ) {
     rank -= 1;
   }

@@ -1233,6 +1233,7 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
             puntúan los dos. Solo cuentan los 120 minutos; no marques nada de la
             tanda de penaltis. En Estratega cuenta el gol de falta o córner
             directo, o con asistencia del lanzador; el penalti no cuenta.
+            Remontada se marca si el equipo empieza perdiendo y acaba ganando.
           </p>
         </div>
         <div className="grid gap-2">
