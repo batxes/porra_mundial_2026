@@ -32,6 +32,12 @@ import {
 import type { Player, UserProfile } from "@/lib/types";
 
 type LeaderboardFilter = "all" | "pro" | "players" | "teams" | "wolf";
+type ParticipantLeaderboardMetric =
+  | "total"
+  | "results"
+  | "groups"
+  | "xi"
+  | "elections";
 type PlayerLeaderboardMetric =
   | "points"
   | "goals"
@@ -44,6 +50,18 @@ type TeamLeaderboardMetric = "goalsFor" | "mostConcededScore" | "redCards";
 
 const PLAYERS_PAGE_SIZE = 25;
 const TEAMS_PAGE_SIZE = 25;
+
+const PARTICIPANT_LEADERBOARD_METRICS: Array<{
+  key: ParticipantLeaderboardMetric;
+  label: string;
+  header: string;
+}> = [
+  { key: "total", label: "Global", header: "Puntos" },
+  { key: "results", label: "Resultados", header: "Resultados" },
+  { key: "groups", label: "Fase grupos", header: "Grupos" },
+  { key: "xi", label: "Once", header: "Once" },
+  { key: "elections", label: "Elecciones", header: "Elecciones" },
+];
 
 const PLAYER_LEADERBOARD_METRICS: Array<{
   key: PlayerLeaderboardMetric;
@@ -193,6 +211,39 @@ function comparePlayerStandings(
   );
 }
 
+function participantMetricValue(
+  profile: UserProfile,
+  metric: ParticipantLeaderboardMetric,
+) {
+  if (metric === "total") return profile.points;
+
+  return (profile.scorecard?.entries || [])
+    .filter((entry) => {
+      if (metric === "results") {
+        return (
+          entry.ruleCode === "match_outcome_hit" ||
+          entry.ruleCode === "match_exact_score"
+        );
+      }
+      if (metric === "groups") return entry.ruleCode.startsWith("group_");
+      if (metric === "xi") return entry.ruleCode.startsWith("player_");
+      return entry.ruleCode.startsWith("tournament_");
+    })
+    .reduce((total, entry) => total + entry.points, 0);
+}
+
+function compareParticipants(
+  a: UserProfile,
+  b: UserProfile,
+  metric: ParticipantLeaderboardMetric,
+) {
+  return (
+    participantMetricValue(b, metric) - participantMetricValue(a, metric) ||
+    b.points - a.points ||
+    a.name.localeCompare(b.name)
+  );
+}
+
 function teamMetricValue(
   row: TeamStandingRow,
   metric: TeamLeaderboardMetric,
@@ -224,16 +275,31 @@ function formatSigned(value: number) {
   return value > 0 ? `+${value}` : String(value);
 }
 
+function isParticipantMetric(
+  value: string | null,
+): value is ParticipantLeaderboardMetric {
+  return PARTICIPANT_LEADERBOARD_METRICS.some((item) => item.key === value);
+}
+
 export function LeaderboardView() {
   const { leaderboard: fullLeaderboard, adminResults, ready, user } = useAppContext();
   const [filter, setFilter] = useState<LeaderboardFilter>("all");
   const [view, setView] = useState<"table" | "chart" | "vs">("table");
+  const [participantMetric, setParticipantMetric] =
+    useState<ParticipantLeaderboardMetric>("total");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const tab = new URLSearchParams(window.location.search).get("tab");
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      const score = params.get("score");
       if (tab === "jugadores") setFilter("players");
       if (tab === "equipos") setFilter("teams");
+      if (isParticipantMetric(score)) {
+        setParticipantMetric(score);
+        setFilter("all");
+        setView("table");
+      }
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -263,6 +329,39 @@ export function LeaderboardView() {
       : filter === "wolf"
         ? leaderboard.filter((profile) => profile.isWolf)
         : leaderboard;
+  const participantMetricConfig =
+    PARTICIPANT_LEADERBOARD_METRICS.find(
+      (item) => item.key === participantMetric,
+    ) || PARTICIPANT_LEADERBOARD_METRICS[0];
+  const participantMetricCounts = useMemo(() => {
+    const counts = {} as Record<ParticipantLeaderboardMetric, number>;
+    PARTICIPANT_LEADERBOARD_METRICS.forEach((item) => {
+      counts[item.key] =
+        item.key === "total"
+          ? visible.length
+          : visible.filter((profile) => participantMetricValue(profile, item.key) !== 0)
+              .length;
+    });
+    return counts;
+  }, [visible]);
+  const tableVisible = useMemo(
+    () =>
+      visible
+        .slice()
+        .sort((a, b) => compareParticipants(a, b, participantMetric)),
+    [participantMetric, visible],
+  );
+  const totalRankByProfileId = useMemo(() => {
+    const totalVisible = visible
+      .slice()
+      .sort((a, b) => compareParticipants(a, b, "total"));
+    return new Map(
+      totalVisible.map((profile, index) => [
+        profile.id,
+        rankForParticipantMetric(totalVisible, index, "total"),
+      ]),
+    );
+  }, [visible]);
 
   return (
     <div className="space-y-6">
@@ -394,18 +493,43 @@ export function LeaderboardView() {
           currentUserId={user?.id}
         />
       ) : (
-        <Card className="overflow-hidden p-0">
-          <LeaderboardHeaderRow />
-          <div className="divide-y divide-white/10">
-            {visible.map((profile, index) => (
-              <LeaderboardRow
-                key={profile.id}
-                profile={profile}
-                position={rankFor(visible, index)}
-              />
-            ))}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+              Puntos por
+            </span>
+            <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
+              {PARTICIPANT_LEADERBOARD_METRICS.map((item) => (
+                <StatMetricButton
+                  key={item.key}
+                  active={participantMetric === item.key}
+                  label={item.label}
+                  count={participantMetricCounts[item.key]}
+                  onClick={() => setParticipantMetric(item.key)}
+                />
+              ))}
+            </div>
           </div>
-        </Card>
+
+          <Card className="overflow-hidden p-0">
+            <LeaderboardHeaderRow rightLabel={participantMetricConfig.header} />
+            <div className="divide-y divide-white/10">
+              {tableVisible.map((profile, index) => (
+                <LeaderboardRow
+                  key={profile.id}
+                  profile={profile}
+                  metric={participantMetric}
+                  position={rankForParticipantMetric(
+                    tableVisible,
+                    index,
+                    participantMetric,
+                  )}
+                  totalPosition={totalRankByProfileId.get(profile.id) || index + 1}
+                />
+              ))}
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );
@@ -1016,12 +1140,24 @@ function LeaderboardHeaderRow({
 }
 
 function LeaderboardRow({
+  metric,
   profile,
   position,
+  totalPosition,
 }: {
+  metric: ParticipantLeaderboardMetric;
   profile: UserProfile;
   position: number;
+  totalPosition: number;
 }) {
+  const value = participantMetricValue(profile, metric);
+  const valueTone =
+    value < 0
+      ? "text-red-400"
+      : metric !== "total" && value > 0
+        ? "text-[#d7ff6a]"
+        : "text-white";
+
   return (
     <Link
       href={`/perfil/${encodeURIComponent(profile.id)}`}
@@ -1058,20 +1194,31 @@ function LeaderboardRow({
         </span>
       </span>
       <span className="text-right">
-        <strong className="block text-lg font-bold text-white">
-          {profile.points}
+        <strong className={`block text-lg font-bold ${valueTone}`}>
+          {value}
         </strong>
-        <span className="text-xs font-semibold text-zinc-500">pts</span>
+        {metric === "total" ? (
+          <span className="text-xs font-semibold text-zinc-500">pts</span>
+        ) : (
+          <span className="mt-0.5 block text-[11px] font-semibold text-zinc-600">
+            #{totalPosition} global
+          </span>
+        )}
       </span>
     </Link>
   );
 }
 
-function rankFor(leaderboard: Array<{ points: number }>, index: number) {
+function rankForParticipantMetric(
+  leaderboard: UserProfile[],
+  index: number,
+  metric: ParticipantLeaderboardMetric,
+) {
   let rank = index + 1;
   while (
     rank > 1 &&
-    leaderboard[index].points === leaderboard[rank - 2].points
+    participantMetricValue(leaderboard[index], metric) ===
+      participantMetricValue(leaderboard[rank - 2], metric)
   ) {
     rank -= 1;
   }

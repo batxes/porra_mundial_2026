@@ -1559,7 +1559,7 @@ function GroupPhaseReportCard({
             </p>
           </div>
           <Link
-            href="/clasificacion"
+            href="/clasificacion?score=groups"
             className="inline-flex w-fit shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10"
           >
             Ver clasificación
