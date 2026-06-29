@@ -2,16 +2,19 @@ import { teamsById } from "@/lib/data";
 import { playerPhotoOverrides } from "@/lib/generated/player-photos";
 import type { Match, Player, Team } from "@/lib/types";
 
+// Player photos are served from jsDelivr (GitHub CDN) to avoid counting against
+// Vercel's Edge Request quota. Paths in playerPhotoOverrides are relative to /public.
+const PHOTO_CDN = "https://cdn.jsdelivr.net/gh/batxes/porra_mundial_2026@main/public";
+
 export function flagUrl(team: Team) {
   return `https://flagcdn.com/w80/${team.code}.png`;
 }
 
-// Placeholder para los jugadores sin foto (ni override fotmob ni api-sports).
-export const NO_PIC_URL = "/player-photos/fotmob/no-pic.png";
+export const NO_PIC_URL = `${PHOTO_CDN}/player-photos/fotmob/no-pic.png`;
 
 export function playerPhotoUrl(player: Player) {
   if (player.photo) return player.photo;
-  if (playerPhotoOverrides[player.id]) return playerPhotoOverrides[player.id];
+  if (playerPhotoOverrides[player.id]) return `${PHOTO_CDN}${playerPhotoOverrides[player.id]}`;
   if (player.apiPlayerId) return `https://media.api-sports.io/football/players/${player.apiPlayerId}.png`;
   return NO_PIC_URL;
 }
