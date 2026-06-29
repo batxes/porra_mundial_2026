@@ -220,6 +220,12 @@ const DROP_OPTIONS = [
     pool: "francia",
   },
   {
+    key: "porteros",
+    title: "Sobre Porteros",
+    image: "/sobre-porteros.webp",
+    pool: "porteros",
+  },
+  {
     key: "defensas",
     title: "Sobre Defensas",
     image: "/sobre-defensas.webp",

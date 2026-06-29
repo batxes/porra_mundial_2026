@@ -4,27 +4,26 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  HogueraModal,
-  type HogueraConfig,
-  type HogueraResult,
-  type HogueraReward,
-  hogueraCompletedEventName,
-} from "@/components/hoguera-modal";
+  PorteroPenaltyModal,
+  type PorteroPenaltyConfig,
+  type PorteroPenaltyResult,
+  type PorteroPenaltyReward,
+  porteroPenaltyCompletedEventName,
+} from "@/components/portero-penalty-modal";
 import { useAppContext } from "@/lib/app-context";
 import { notifyCardsChanged } from "@/lib/cofres";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
-type HogueraStatusRow = {
+type PorteroPenaltyStatusRow = {
   active?: boolean;
   completed?: boolean;
-  hoguera_id?: string;
-  title?: string;
-  goal_meters?: number;
-  flame_every_meters?: number;
+  portero_penalty_id?: string;
   rewards?: unknown;
+  title?: string;
+  total_shots?: number;
 };
 
-type HogueraRpcClient = {
+type PorteroPenaltyRpcClient = {
   auth: {
     getSession: () => Promise<{
       data: { session: { user?: unknown } | null };
@@ -49,30 +48,24 @@ const PACK_META: Record<string, { image: string; title: string }> = {
   francia: { image: "/sobre-francia.webp", title: "Sobre Francia" },
 };
 
-const DEFAULT_REWARDS: HogueraReward[] = [
+const DEFAULT_REWARDS: PorteroPenaltyReward[] = [
   {
-    image: PACK_META.defensas.image,
-    meters: 25,
-    pool: "defensas",
-    title: PACK_META.defensas.title,
+    image: PACK_META.porteros.image,
+    minSaves: 1,
+    pool: "porteros",
+    title: PACK_META.porteros.title,
   },
   {
-    image: PACK_META.medios.image,
-    meters: 50,
-    pool: "medios",
-    title: PACK_META.medios.title,
+    image: PACK_META.porteros.image,
+    minSaves: 2,
+    pool: "porteros",
+    title: PACK_META.porteros.title,
   },
   {
-    image: PACK_META.premier.image,
-    meters: 75,
-    pool: "premier",
-    title: PACK_META.premier.title,
-  },
-  {
-    image: PACK_META.sub21.image,
-    meters: 100,
-    pool: "sub21",
-    title: PACK_META.sub21.title,
+    image: PACK_META.porteros.image,
+    minSaves: 4,
+    pool: "porteros",
+    title: PACK_META.porteros.title,
   },
 ];
 
@@ -80,19 +73,19 @@ function firstRow<T>(data: unknown): T | null {
   return Array.isArray(data) ? ((data[0] as T | undefined) ?? null) : (data as T);
 }
 
-function parseRewards(value: unknown): HogueraReward[] {
+function parseRewards(value: unknown): PorteroPenaltyReward[] {
   if (!Array.isArray(value)) return [];
-  const parsed: HogueraReward[] = [];
+  const parsed: PorteroPenaltyReward[] = [];
   value.forEach((item) => {
     if (!item || typeof item !== "object") return;
-    const row = item as { meters?: unknown; pool?: unknown; title?: unknown };
+    const row = item as { minSaves?: unknown; pool?: unknown; title?: unknown };
     const pool = typeof row.pool === "string" ? row.pool : "";
     const meta = PACK_META[pool];
-    const meters = Number(row.meters);
-    if (!meta || !Number.isFinite(meters)) return;
+    const minSaves = Number(row.minSaves);
+    if (!meta || !Number.isFinite(minSaves)) return;
     parsed.push({
       image: meta.image,
-      meters,
+      minSaves,
       pool,
       title: typeof row.title === "string" ? row.title : meta.title,
     });
@@ -100,50 +93,51 @@ function parseRewards(value: unknown): HogueraReward[] {
   return parsed;
 }
 
-function configFromStatus(status: HogueraStatusRow | null): HogueraConfig | null {
-  if (!status?.hoguera_id) return null;
+function configFromStatus(
+  status: PorteroPenaltyStatusRow | null,
+): PorteroPenaltyConfig | null {
+  if (!status?.portero_penalty_id) return null;
   const rewards = parseRewards(status.rewards);
   return {
-    id: status.hoguera_id,
-    title: status.title || "SALTA LA HOGUERA",
-    goalMeters: Number(status.goal_meters) || 100,
-    flameEveryMeters: Number(status.flame_every_meters) || 5,
+    id: status.portero_penalty_id,
     rewards: rewards.length ? rewards : DEFAULT_REWARDS,
-  } satisfies HogueraConfig;
+    title: status.title || "MARRERO BAJO PALOS",
+    totalShots: Number(status.total_shots) || 5,
+  } satisfies PorteroPenaltyConfig;
 }
 
-function sameHogueraConfig(
-  current: HogueraConfig | null,
-  next: HogueraConfig | null,
+function samePorteroPenaltyConfig(
+  current: PorteroPenaltyConfig | null,
+  next: PorteroPenaltyConfig | null,
 ) {
   if (current === next) return true;
   if (!current || !next) return false;
   if (
     current.id !== next.id ||
     current.title !== next.title ||
-    current.goalMeters !== next.goalMeters ||
-    current.flameEveryMeters !== next.flameEveryMeters ||
-    current.rewards.length !== next.rewards.length
+    current.totalShots !== next.totalShots ||
+    (current.rewards?.length || 0) !== (next.rewards?.length || 0)
   ) {
     return false;
   }
-  return current.rewards.every((reward, index) => {
-    const other = next.rewards[index];
+  return (current.rewards || []).every((reward, index) => {
+    const other = next.rewards?.[index];
     return (
       Boolean(other) &&
-      reward.image === other.image &&
-      reward.meters === other.meters &&
+      reward.image === other?.image &&
+      reward.minSaves === other.minSaves &&
       reward.pool === other.pool &&
       reward.title === other.title
     );
   });
 }
 
-export function HogueraGate() {
+export function PorteroPenaltyGate() {
   const router = useRouter();
   const { ready, usingSupabase, user } = useAppContext();
   const [open, setOpen] = useState(false);
-  const [hoguera, setHoguera] = useState<HogueraConfig | null>(null);
+  const [porteroPenalty, setPorteroPenalty] =
+    useState<PorteroPenaltyConfig | null>(null);
   const completedRef = useRef<string | null>(null);
   const dismissedRef = useRef<string | null>(null);
 
@@ -158,7 +152,7 @@ export function HogueraGate() {
       return;
     }
     const supabase = getSupabaseBrowserClient() as unknown as
-      | HogueraRpcClient
+      | PorteroPenaltyRpcClient
       | null;
     if (!supabase) return;
     const { data: sessionData } = await supabase.auth.getSession();
@@ -166,9 +160,9 @@ export function HogueraGate() {
       setOpen(false);
       return;
     }
-    const { data, error } = await supabase.rpc("hoguera_status");
+    const { data, error } = await supabase.rpc("portero_penalty_status");
     if (error) return;
-    const status = firstRow<HogueraStatusRow>(data);
+    const status = firstRow<PorteroPenaltyStatusRow>(data);
     const next = configFromStatus(status);
     const alreadyCompletedHere =
       Boolean(next?.id) && completedRef.current === next?.id;
@@ -181,7 +175,9 @@ export function HogueraGate() {
         !alreadyCompletedHere &&
         !dismissedHere,
     );
-    setHoguera((current) => (sameHogueraConfig(current, next) ? current : next));
+    setPorteroPenalty((current) =>
+      samePorteroPenaltyConfig(current, next) ? current : next,
+    );
     setOpen((prev) => {
       if (shouldOpen) return true;
       if (prev && Boolean(status?.active)) return true;
@@ -209,55 +205,53 @@ export function HogueraGate() {
     };
   }, [checkStatus, ready, usingSupabase, user]);
 
-  // El modal de la hoguera llama a onCompleted de forma sincrona (fire-and-forget),
-  // asi que el RPC corre como efecto: no relanza ni bloquea el modal. Marcamos la
-  // jugada como consumida de inmediato para que el polling no reabra el modal.
-  const handleCompleted = useCallback(async (result: HogueraResult) => {
+  const handleCompleted = useCallback(async (result: PorteroPenaltyResult) => {
     completedRef.current = result.configId;
     const supabase = getSupabaseBrowserClient() as unknown as
-      | HogueraRpcClient
+      | PorteroPenaltyRpcClient
       | null;
     if (!supabase) return;
     try {
-      const { data, error } = await supabase.rpc("complete_hoguera", {
-        p_hoguera_id: result.configId,
-        p_meters: result.metersReached,
+      const { data, error } = await supabase.rpc("complete_portero_penalty", {
+        p_portero_penalty_id: result.configId,
+        p_saves: result.saves,
+        p_shots: result.shots,
+        p_total_shots: result.totalShots,
       });
       if (error) throw new Error(error.message);
       const row = firstRow<{
         awarded_drop_ids?: unknown;
-        hoguera_id?: unknown;
+        portero_penalty_id?: unknown;
       }>(data);
       const awardedDropIds = Array.isArray(row?.awarded_drop_ids)
         ? (row.awarded_drop_ids as string[])
         : [];
       notifyCardsChanged();
       window.dispatchEvent(
-        new CustomEvent(hogueraCompletedEventName, {
+        new CustomEvent(porteroPenaltyCompletedEventName, {
           detail: { ...result, awardedDropIds, configId: result.configId },
         }),
       );
     } catch {
-      // El modal no espera este RPC; si falla, el sobre no se concede. La jugada
-      // ya quedo marcada como consumida arriba para no reabrir en bucle.
+      // El modal ya quedo consumido localmente; si falla el RPC no reabrimos en bucle.
     }
   }, []);
 
   const closeModal = useCallback(() => {
-    if (hoguera?.id) dismissedRef.current = hoguera.id;
+    if (porteroPenalty?.id) dismissedRef.current = porteroPenalty.id;
     setOpen(false);
-  }, [hoguera]);
+  }, [porteroPenalty]);
 
   const goToPacks = useCallback(() => {
     setOpen(false);
     router.push("/cofres");
   }, [router]);
 
-  if (!open || !hoguera) return null;
+  if (!open || !porteroPenalty) return null;
   return (
-    <HogueraModal
+    <PorteroPenaltyModal
       allowReplay={false}
-      config={hoguera}
+      config={porteroPenalty}
       onClose={closeModal}
       onCompleted={handleCompleted}
       onOpenPacks={goToPacks}

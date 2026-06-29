@@ -22,6 +22,7 @@ import {
 import { adivinaCompletedEventName } from "@/components/adivina-modal";
 import { hogueraCompletedEventName } from "@/components/hoguera-modal";
 import { PlayerCard } from "@/components/player-card";
+import { porteroPenaltyCompletedEventName } from "@/components/portero-penalty-modal";
 import { ruletaCompletedEventName } from "@/components/ruleta-modal";
 import { soberaQuizCompletedEventName } from "@/components/sobera-quiz-modal";
 import { suarezDentistCompletedEventName } from "@/components/suarez-dentist-modal";
@@ -67,6 +68,7 @@ const CardUpgradeOverlay = dynamic(
 const packAwardCompletedEvents = [
   adivinaCompletedEventName,
   hogueraCompletedEventName,
+  porteroPenaltyCompletedEventName,
   ruletaCompletedEventName,
   soberaQuizCompletedEventName,
   suarezDentistCompletedEventName,
@@ -80,6 +82,7 @@ type ThemedPool =
   | "stars"
   | "francia"
   | "premier"
+  | "porteros"
   | "defensas"
   | "medios"
   | "delanteros";
@@ -399,6 +402,11 @@ const PACK_VISUALS: Array<{
     title: "Sobre Francia",
     image: "/sobre-francia.webp",
     flap: "royal",
+  },
+  {
+    title: "Sobre Porteros",
+    image: "/sobre-porteros.webp",
+    flap: "white",
   },
   {
     title: "Sobre Defensas",

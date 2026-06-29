@@ -59,6 +59,7 @@ const SEGMENT_OPTIONS: Array<{
   { value: "sub21", label: "Promesas", image: "/sobre21.webp" },
   { value: "francia", label: "Francia", image: "/sobre-francia.webp" },
   { value: "premier", label: "Premier", image: "/sobre-premier.webp" },
+  { value: "porteros", label: "Porteros", image: "/sobre-porteros.webp" },
 ];
 
 const VALID_POOLS = new Set(

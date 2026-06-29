@@ -48,6 +48,7 @@ const POOL_IMAGE: Record<string, string> = {
   sub21: "/sobre21.webp",
   francia: "/sobre-francia.webp",
   premier: "/sobre-premier.webp",
+  porteros: "/sobre-porteros.webp",
 };
 
 // Color de cada casilla: vivo, pero algo mas cerca de la paleta de la app.
@@ -62,6 +63,7 @@ const POOL_COLOR: Record<string, string> = {
   sub21: "#0891b2",
   francia: "#3157d5",
   premier: "#7c3aed",
+  porteros: "#f59e0b",
 };
 const CASI_COLOR = "#2f3036";
 

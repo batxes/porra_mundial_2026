@@ -48,6 +48,7 @@ const PACK_META: Record<string, { image: string; title: string }> = {
   madrid: { image: "/sobre-madrid.webp", title: "Sobre Madrid" },
   medios: { image: "/sobre-medios.webp", title: "Sobre Mediocentros" },
   premier: { image: "/sobre-premier.webp", title: "Sobre Premier" },
+  porteros: { image: "/sobre-porteros.webp", title: "Sobre Porteros" },
   stars: { image: "/sobre-estrellas.webp", title: "Sobre Estrellas" },
   sub21: { image: "/sobre21.webp", title: "Sobre Promesas" },
 };
