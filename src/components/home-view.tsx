@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  type CSSProperties,
   type ReactNode,
   useEffect,
   useMemo,
@@ -44,6 +45,11 @@ import {
 import { PlayoffTrainerChipModal } from "@/components/playoffs-balatro-demo";
 import { CircularBracketPanel } from "@/components/circular-bracket-demo-view";
 import { useAppContext } from "@/lib/app-context";
+import {
+  TrainerFullArtCard,
+  trainerDemoCards,
+  type TrainerDemoCard,
+} from "@/components/trainer-full-art-card";
 import { TrainerTacticPickPill } from "@/components/trainer-tactic-pick-pill";
 import {
   addTrainerChipPoints,
@@ -451,7 +457,7 @@ export function HomeView() {
         <div className="flex flex-col gap-6">
           {user ? (
             <div className="flex flex-col gap-3">
-              <HomeBracketSection />
+              <PlayoffsPromoBanner />
               <SobresPromoBanner userId={user.id} />
             </div>
           ) : null}
@@ -3576,26 +3582,101 @@ function NextSobreCountdown() {
 // titular a dos tonos, cuenta atrás segmentada hasta las 10:00, pill con los
 // sobres sin abrir, y los 3 sobres reales (estrellas · diario · promesas) en
 // abanico. Va en la columna de Novedades.
-function HomeBracketSection() {
+const playoffBannerTrainerIds = [
+  "francia-deschamps",
+  "espana-de-la-fuente",
+  "brasil-ancelotti",
+] as const;
+
+const playoffBannerTrainers = playoffBannerTrainerIds
+  .map((id) => trainerDemoCards.find((card) => card.id === id))
+  .filter((card): card is TrainerDemoCard => Boolean(card));
+
+const playoffBannerChips = [
+  {
+    id: "clean-sheet",
+    points: 2,
+    color: "#69d744",
+    icon: "/prediction-icons/clean-sheet.png",
+  },
+  {
+    id: "first-goal",
+    points: 1,
+    color: "#d946ef",
+    icon: "/prediction-icons/first-goal.png",
+  },
+  {
+    id: "set-piece",
+    points: 3,
+    color: "#38bdf8",
+    icon: "/prediction-icons/set-piece.png",
+  },
+  {
+    id: "red-card",
+    points: 5,
+    color: "#ff4d2d",
+    icon: "/prediction-icons/red-card.png",
+  },
+] as const;
+
+function PlayoffsPromoBanner() {
   return (
-    <section className="space-y-3">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#a7f600]">
-            Fase final
-          </p>
-          <h2 className="mt-1 text-xl font-bold tracking-tight text-white">
-            Cuadro del Mundial
-          </h2>
-        </div>
-      </div>
-      <CircularBracketPanel unframed />
-    </section>
+    <Link
+      href="/porra?section=playoffResults"
+      className="home-playoff-banner theme-dark group"
+      aria-label="Ir a la fase de playoffs para seleccionar entrenador"
+    >
+      <span className="home-playoff-banner-field" aria-hidden="true" />
+      <span className="home-playoff-banner-shine" aria-hidden="true" />
+
+      <span className="home-playoff-banner-copy">
+        <span className="home-playoff-banner-kicker">Fase de playoffs</span>
+        <span className="home-playoff-banner-title">Elige resultados</span>
+      </span>
+
+      <span className="home-playoff-banner-visual" aria-hidden="true">
+        <span className="home-playoff-banner-cards">
+          {playoffBannerTrainers.map((trainer, index) => (
+            <span key={trainer.id} className="home-playoff-banner-card">
+              <TrainerFullArtCard card={trainer} priority={index === 1} />
+            </span>
+          ))}
+        </span>
+        <span className="home-playoff-banner-chips">
+          {playoffBannerChips.map((chip) => (
+            <span
+              key={chip.id}
+              className="home-playoff-banner-chip"
+              style={
+                {
+                  "--home-chip-color": chip.color,
+                } as CSSProperties
+              }
+            >
+              <span className="home-playoff-banner-chip-icon">
+                <Image
+                  src={chip.icon}
+                  alt=""
+                  fill
+                  sizes="44px"
+                  className="object-contain"
+                  unoptimized
+                />
+              </span>
+              <span className="home-playoff-banner-chip-points">
+                +{chip.points}
+              </span>
+            </span>
+          ))}
+        </span>
+      </span>
+    </Link>
   );
 }
 
 function SobresPromoBanner({ userId }: { userId: string }) {
   const [unopened, setUnopened] = useState<number | null>(null);
+  const [bracketOpen, setBracketOpen] = useState(false);
   useEffect(() => {
     // setState diferido para no leer estado en el render (evita mismatch de
     // hidratación y el lint de setState síncrono en effect). En prod (Supabase)
@@ -3621,20 +3702,90 @@ function SobresPromoBanner({ userId }: { userId: string }) {
   }, [userId]);
 
   return (
-    <Link
-      href="/cofres"
-      className="group flex w-full max-w-full items-center justify-center gap-2 rounded-lg border border-[#a7f600]/25 bg-[#a7f600]/[0.08] px-3 py-2 transition hover:bg-[#a7f600]/[0.13] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a7f600]"
+    <>
+      <div className="flex w-full max-w-full flex-col gap-2 rounded-lg border border-[#a7f600]/25 bg-[#a7f600]/[0.08] p-2">
+        <Link
+          href="/cofres"
+          className="group flex w-full max-w-full items-center justify-center gap-2 rounded-md px-2 py-1.5 transition hover:bg-[#a7f600]/[0.1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a7f600]"
+        >
+          <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#a7f600]/70">
+            Nuevo sobre en
+          </span>
+          <NextSobreCountdown />
+          {unopened ? (
+            <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#a7f600] px-1.5 text-[11px] font-bold leading-none text-black">
+              {unopened}
+            </span>
+          ) : null}
+        </Link>
+        <button
+          type="button"
+          onClick={() => setBracketOpen(true)}
+          className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-white transition hover:border-[#a7f600]/45 hover:bg-[#a7f600]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a7f600]"
+        >
+          VER CUADRO MUNDIAL
+        </button>
+      </div>
+      <WorldCupBracketModal
+        open={bracketOpen}
+        onClose={() => setBracketOpen(false)}
+      />
+    </>
+  );
+}
+
+function WorldCupBracketModal({
+  onClose,
+  open,
+}: {
+  onClose: () => void;
+  open: boolean;
+}) {
+  useEffect(() => {
+    if (!open) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose, open]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[45] flex items-center justify-center bg-black/80 px-3 py-5 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Cuadro del Mundial"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
-      <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#a7f600]/70">
-        Nuevo sobre en
-      </span>
-      <NextSobreCountdown />
-      {unopened ? (
-        <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#a7f600] px-1.5 text-[11px] font-bold leading-none text-black">
-          {unopened}
-        </span>
-      ) : null}
-    </Link>
+      <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-white/12 bg-[#070707] p-4 shadow-2xl shadow-black sm:p-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#a7f600]">
+              Fase final
+            </p>
+            <h2 className="mt-1 text-xl font-bold tracking-tight text-white">
+              Cuadro del Mundial
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/10 text-lg font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a7f600]"
+            aria-label="Cerrar cuadro mundial"
+          >
+            ×
+          </button>
+        </div>
+        <CircularBracketPanel unframed />
+      </div>
+    </div>
   );
 }
 
