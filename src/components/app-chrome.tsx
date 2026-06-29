@@ -333,6 +333,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                     // prefetch del segmento cacheado interfiere con el scroll
                     // al proximo partido al navegar desde el menu.
                     prefetch={link.match ? false : undefined}
+                    scroll={link.match ? false : undefined}
                     className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
                       active
                         ? "bg-white text-black"
@@ -452,6 +453,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                       : undefined
                   }
                   prefetch={link.match ? false : undefined}
+                  scroll={link.match ? false : undefined}
                   className={`relative inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-center text-[11px] font-semibold transition sm:px-2 sm:text-xs ${
                     active
                       ? "bg-white text-black"

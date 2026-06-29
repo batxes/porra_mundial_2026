@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import {
   type CSSProperties,
   type ReactNode,
@@ -191,6 +192,8 @@ const resultsIntroStorageKey = "porra26_results_intro_seen";
 const playoffResultsIntroStorageKey = "porra26_playoff_results_intro_seen_v2";
 
 export function PredictionView() {
+  const searchParams = useSearchParams();
+  const searchSignature = searchParams.toString();
   const {
     adminResults,
     currentScorecard,
@@ -281,9 +284,8 @@ export function PredictionView() {
   };
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
     const requestedSection =
-      params.get("section") || window.location.hash.slice(1);
+      searchParams.get("section") || window.location.hash.slice(1);
     const normalizedSection = normalizeSectionId(requestedSection);
 
     const frame = window.requestAnimationFrame(() => {
@@ -296,7 +298,7 @@ export function PredictionView() {
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [searchParams, searchSignature]);
   const predictionSignature = useMemo(
     () =>
       JSON.stringify({

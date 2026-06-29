@@ -354,7 +354,7 @@ export function HomeView() {
 
   const startHomePlayoffIntroModal = () => {
     dismissHomePlayoffIntroModal();
-    router.push("/porra?section=playoffResults&goto=next");
+    router.push("/porra?section=playoffResults&goto=next", { scroll: false });
   };
 
   return (
@@ -2059,6 +2059,7 @@ function HomeFeedSection({
         </div>
         <Link
           href={matchesHref}
+          scroll={false}
           className="w-fit shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10"
         >
           Ver partidos
@@ -3530,6 +3531,7 @@ function ResultsReminderModal({
           <Link
             href={predictionHref}
             prefetch={false}
+            scroll={false}
             onClick={onClose}
             className="inline-flex items-center justify-center rounded-lg bg-[#a7f600] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#c7ff43]"
           >

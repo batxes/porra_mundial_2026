@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -1059,12 +1060,13 @@ function playoffMatchRequestFromUrl(
   scheduleByNumber = defaultPlayoffScheduleByNumber,
   matchIds?: readonly string[],
   adminResults?: AdminResults,
+  queryString?: string,
 ) {
   if (typeof window === "undefined") {
     return { matchId: null, clearGoto: false };
   }
 
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(queryString ?? window.location.search);
   const availableMatches = filterPlayoffMatches(allPlayoffMatches, matchIds);
   const availableMatchIds = new Set(availableMatches.map((match) => match.id));
   const matchId = params.get("match");
@@ -2267,13 +2269,21 @@ function PlayoffsBattleSurface({
   showResultsHeader?: boolean;
   showPhaseSelector?: boolean;
 }) {
+  const searchParams = useSearchParams();
+  const querySignature = searchParams.toString();
   const scheduleByNumber = useMemo(
     () => new Map(scheduleMatches.map((match) => [match.number, match])),
     [scheduleMatches],
   );
   const matchRequest = useMemo(
-    () => playoffMatchRequestFromUrl(scheduleByNumber, matchIds, adminResults),
-    [adminResults, matchIds, scheduleByNumber],
+    () =>
+      playoffMatchRequestFromUrl(
+        scheduleByNumber,
+        matchIds,
+        adminResults,
+        querySignature,
+      ),
+    [adminResults, matchIds, querySignature, scheduleByNumber],
   );
   const requestedMatchId = matchRequest.matchId;
   const requestedPhaseId = playoffPhaseForMatchId(requestedMatchId)?.id;
@@ -2424,6 +2434,7 @@ function PlayoffsBattleSurface({
 
     let timer = 0;
     let attempts = 0;
+    let settleAttempts = 0;
     const maxAttempts = 30;
 
     const clearGoto = () => {
@@ -2457,10 +2468,16 @@ function PlayoffsBattleSurface({
         behavior: document.visibilityState === "visible" ? "smooth" : "auto",
         block: "center",
       });
+
+      if (settleAttempts++ < 2) {
+        timer = window.setTimeout(tryScroll, 140);
+        return;
+      }
+
       clearGoto();
     };
 
-    tryScroll();
+    timer = window.setTimeout(tryScroll, 120);
     return () => window.clearTimeout(timer);
   }, [matchRequest.clearGoto, requestedMatchId]);
 
