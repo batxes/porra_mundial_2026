@@ -17,7 +17,11 @@ import { schedule, teamsById } from "@/lib/data";
 import { translateSlot } from "@/lib/format";
 import { useAppContext } from "@/lib/app-context";
 import { resultLoserTeamId, resultWinnerTeamId } from "@/lib/match-events";
-import { confirmedRound32Teams } from "@/lib/playoff-teams";
+import {
+  buildResolvedPlayoffTeams,
+  confirmedRound32Teams,
+  type ResolvedPlayoffTeams,
+} from "@/lib/playoff-teams";
 import { emptyPrediction, resolveSlot, scheduleUtc } from "@/lib/prediction";
 import { trainerTacticById } from "@/lib/trainer-tactics";
 import type { AdminResults, Match, Prediction } from "@/lib/types";
@@ -93,6 +97,7 @@ type MatchPopoverContent = {
   marketRows: MarketRow[];
   subtitle: string;
   title: string;
+  userPlay: UserPlay | null;
 };
 
 type TeamPopoverContent = {
@@ -119,6 +124,20 @@ type ChipPopularityRow = {
   tacticId: string;
   tacticTitle: string;
   teamId: string;
+};
+
+type UserPlay = {
+  awayScore: string;
+  awayTeamId: string;
+  exactPoints: number | null;
+  homeScore: string;
+  homeTeamId: string;
+  outcomePoints: number | null;
+  resultStatus: "exact" | "miss" | "outcome" | "pending";
+  tacticPoints: number | null;
+  tacticStatus: "hit" | "miss" | "pending";
+  tacticTitle: string;
+  trainerTeamId: string;
 };
 
 type TeamResultRow = {
@@ -332,6 +351,124 @@ function chipPopularityRows(match: Match, predictions: Prediction[]) {
     .slice(0, 5);
 
   return { rows, total };
+}
+
+function isUserValueSet(value: string | undefined) {
+  return value !== undefined && value !== "";
+}
+
+function userScoreLabel(value: string) {
+  return isUserValueSet(value) ? value : "?";
+}
+
+function scoreOutcome(home: number, away: number) {
+  if (home === away) return "draw";
+  return home > away ? "home" : "away";
+}
+
+function resolvedPopoverTeam(
+  match: Match,
+  side: Side,
+  adminResults: AdminResults,
+  resolvedTeams: ResolvedPlayoffTeams,
+  userPrediction: Prediction,
+) {
+  const result = adminResults[String(match.number)];
+  const savedTeamId = result?.[`${side}TeamId`];
+  if (savedTeamId && teamsById.has(savedTeamId)) return savedTeamId;
+
+  const resolvedTeamId = resolvedTeams[String(match.number)]?.[side];
+  if (resolvedTeamId && teamsById.has(resolvedTeamId)) return resolvedTeamId;
+
+  const confirmedTeamId = confirmedRound32Teams[String(match.number)]?.[side];
+  if (confirmedTeamId && teamsById.has(confirmedTeamId)) return confirmedTeamId;
+
+  const scheduledTeamId = match[side];
+  if (teamsById.has(scheduledTeamId)) return scheduledTeamId;
+
+  const predictedTeamId = resolveSlot(
+    match[side],
+    match.number,
+    userPrediction,
+  );
+  return teamsById.has(predictedTeamId) ? predictedTeamId : "";
+}
+
+function userPlayForMatch(
+  match: Match,
+  adminResults: AdminResults,
+  resolvedTeams: ResolvedPlayoffTeams,
+  userPrediction: Prediction,
+): UserPlay | null {
+  const current = userPrediction.matchPredictions?.[String(match.number)];
+  if (!current) return null;
+  const result = adminResults[String(match.number)];
+
+  const tactic = current.tacticId
+    ? trainerTacticById.get(current.tacticId)
+    : null;
+  const hasScore =
+    isUserValueSet(current.homeScore) || isUserValueSet(current.awayScore);
+  const hasChip = Boolean(current.trainerTeamId && tactic);
+  if (!hasScore && !hasChip) return null;
+  const finalScore = resultScore(result);
+  const forecastHome = scoreValue(current.homeScore);
+  const forecastAway = scoreValue(current.awayScore);
+  const hasCompleteScore = forecastHome !== null && forecastAway !== null;
+  let resultStatus: UserPlay["resultStatus"] = "pending";
+  let exactPoints: number | null = null;
+  let outcomePoints: number | null = null;
+
+  if (finalScore && isFinishedResult(result) && hasCompleteScore) {
+    if (forecastHome === finalScore.home && forecastAway === finalScore.away) {
+      resultStatus = "exact";
+      exactPoints = finalScore.home + finalScore.away;
+      outcomePoints = 1;
+    } else if (
+      scoreOutcome(forecastHome, forecastAway) ===
+      scoreOutcome(finalScore.home, finalScore.away)
+    ) {
+      resultStatus = "outcome";
+      outcomePoints = 1;
+    } else {
+      resultStatus = "miss";
+    }
+  }
+  const tacticHit =
+    Boolean(current.trainerTeamId && tactic) &&
+    Boolean(
+      result?.trainerTactics?.[tactic?.id || ""]?.includes(
+        current.trainerTeamId || "",
+      ),
+    );
+  const tacticStatus =
+    tacticHit ? "hit" : isFinishedResult(result) && hasChip ? "miss" : "pending";
+
+  return {
+    awayScore: current.awayScore,
+    awayTeamId: resolvedPopoverTeam(
+      match,
+      "away",
+      adminResults,
+      resolvedTeams,
+      userPrediction,
+    ),
+    exactPoints,
+    homeScore: current.homeScore,
+    homeTeamId: resolvedPopoverTeam(
+      match,
+      "home",
+      adminResults,
+      resolvedTeams,
+      userPrediction,
+    ),
+    outcomePoints,
+    resultStatus,
+    tacticPoints: tactic?.points ?? null,
+    tacticStatus,
+    tacticTitle: tactic?.title || "",
+    trainerTeamId: current.trainerTeamId || "",
+  };
 }
 
 function polar(deg: number, radius: number): Point {
@@ -802,6 +939,8 @@ function buildPopoverContent(
   marketSnapshot: MarketSnapshot | null,
   adminResults: AdminResults,
   chipPredictions: Prediction[],
+  userPrediction: Prediction,
+  resolvedTeams: ResolvedPlayoffTeams,
 ): PopoverContent | null {
   if (activeId.startsWith("team:")) {
     const teamId = activeId.slice("team:".length);
@@ -830,6 +969,12 @@ function buildPopoverContent(
     marketRows: marketRowsForMatch(match, matchByNumber, marketSnapshot),
     subtitle: `${match.stage} - ${formatPopoverMatchDate(match)}`,
     title: marketTitleForMatch(match),
+    userPlay: userPlayForMatch(
+      match,
+      adminResults,
+      resolvedTeams,
+      userPrediction,
+    ),
   };
 }
 
@@ -1128,6 +1273,152 @@ function ChipPopularitySection({
   );
 }
 
+function UserPlayFlag({
+  fallback,
+  teamId,
+}: {
+  fallback: string;
+  teamId: string;
+}) {
+  const code = teamsById.get(teamId)?.code.toUpperCase() || fallback;
+
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      <span className="inline-flex h-5 w-5 shrink-0 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
+        {teamId ? (
+          <TeamFlag teamId={teamId} className="h-full w-full rounded-full" />
+        ) : null}
+      </span>
+      <span className="truncate text-[11px] font-bold tracking-wide text-zinc-300">
+        {code}
+      </span>
+    </span>
+  );
+}
+
+function userChipBadge(play: UserPlay) {
+  if (play.tacticPoints == null) return null;
+
+  if (play.tacticStatus === "hit") {
+    return {
+      className: "bg-[#a7f600]/15 text-[#a7f600]",
+      label: `Ganado +${play.tacticPoints}`,
+    };
+  }
+
+  if (play.tacticStatus === "miss") {
+    return {
+      className: "bg-red-500/10 text-red-300",
+      label: "No salio",
+    };
+  }
+
+  return {
+    className: "bg-white/10 text-zinc-300",
+    label: "En juego",
+  };
+}
+
+function userScoreClass(status: UserPlay["resultStatus"]) {
+  if (status === "exact") {
+    return "border border-[#a7f600]/35 bg-[#a7f600]/15 text-[#a7f600]";
+  }
+  if (status === "outcome") {
+    return "border border-[#a7f600]/30 bg-white/[0.06] text-white";
+  }
+  if (status === "miss") {
+    return "border border-white/10 bg-white/[0.06] text-zinc-500";
+  }
+  return "border border-white/10 bg-black/25 text-white";
+}
+
+function userScoreBadges(play: UserPlay) {
+  const badges: Array<{ label: string; value: string }> = [];
+  if (play.resultStatus === "exact" && play.exactPoints !== null) {
+    badges.push({ label: "Exacto", value: `+${play.exactPoints}` });
+  }
+  if (
+    (play.resultStatus === "exact" || play.resultStatus === "outcome") &&
+    play.outcomePoints !== null
+  ) {
+    badges.push({ label: "Quiniela", value: `+${play.outcomePoints}` });
+  }
+  return badges;
+}
+
+function UserPlaySection({ play }: { play: UserPlay | null }) {
+  const chipBadge = play ? userChipBadge(play) : null;
+  const scoreBadges = play ? userScoreBadges(play) : [];
+
+  return (
+    <div className="mt-3 border-t border-white/10 pt-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold text-white">Tu jugada</p>
+        <p className="text-[11px] text-zinc-500">
+          {play ? "Guardada" : "Pendiente"}
+        </p>
+      </div>
+      {play ? (
+        <div className="space-y-2">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-md bg-white/[0.035] px-2 py-2">
+            <UserPlayFlag fallback="LOC" teamId={play.homeTeamId} />
+            <span
+              className={`rounded-full px-2.5 py-1 text-sm font-black tabular-nums ${userScoreClass(
+                play.resultStatus,
+              )}`}
+              title="Tu prediccion"
+            >
+              {userScoreLabel(play.homeScore)}-{userScoreLabel(play.awayScore)}
+            </span>
+            <span className="flex min-w-0 justify-end">
+              <UserPlayFlag fallback="VIS" teamId={play.awayTeamId} />
+            </span>
+          </div>
+          {scoreBadges.length ? (
+            <div className="flex flex-wrap items-center gap-1">
+              {scoreBadges.map((badge) => (
+                <span
+                  key={badge.label}
+                  className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400"
+                >
+                  {badge.label}
+                  <span className="text-white">{badge.value}</span>
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <div className="flex min-h-8 items-center gap-2 rounded-md bg-white/[0.035] px-2 py-1.5">
+            {play.trainerTeamId ? (
+              <span className="inline-flex h-5 w-5 shrink-0 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
+                <TeamFlag
+                  teamId={play.trainerTeamId}
+                  className="h-full w-full rounded-full"
+                />
+              </span>
+            ) : (
+              <span className="h-5 w-5 shrink-0 rounded-full bg-white/10 ring-1 ring-white/10" />
+            )}
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-zinc-300">
+              {play.tacticTitle || "Sin chip"}
+            </span>
+            {chipBadge ? (
+              <span
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${chipBadge.className}`}
+              >
+                {chipBadge.label}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs leading-5 text-zinc-500">
+          Todavia no has guardado resultado ni chip para este cruce.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function TeamResultList({ results }: { results: TeamResultRow[] }) {
   if (!results.length) {
     return (
@@ -1216,6 +1507,7 @@ function BracketPopoverBody({ content }: { content: PopoverContent }) {
           <MarketStatRow key={row.code} row={row} top={index === 0} />
         ))}
       </div>
+      <UserPlaySection play={content.userPlay} />
       <ChipPopularitySection rows={content.chipRows} total={content.chipTotal} />
     </div>
   );
@@ -1229,6 +1521,7 @@ function CircularBracketDemo({
   matches,
   prediction,
   unframed = false,
+  userPrediction,
 }: {
   adminResults: AdminResults;
   chipPredictions: Prediction[];
@@ -1237,10 +1530,15 @@ function CircularBracketDemo({
   matches: Match[];
   prediction: Prediction;
   unframed?: boolean;
+  userPrediction: Prediction;
 }) {
   const matchByNumber = useMemo(
     () => new Map(matches.map((match) => [match.number, match])),
     [matches],
+  );
+  const resolvedTeams = useMemo(
+    () => buildResolvedPlayoffTeams(adminResults),
+    [adminResults],
   );
   const state = useMemo(
     () => buildBracketState(adminResults, matches, geometry, prediction),
@@ -1257,6 +1555,8 @@ function CircularBracketDemo({
         marketSnapshot,
         adminResults,
         chipPredictions,
+        userPrediction,
+        resolvedTeams,
       )
     : null;
   const closePopover = useCallback(() => setActivePopover(null), []);
@@ -1460,6 +1760,7 @@ export function CircularBracketPanel({
       matches={playoffMatches}
       prediction={prediction}
       unframed={unframed}
+      userPrediction={currentPrediction}
     />
   );
 }
