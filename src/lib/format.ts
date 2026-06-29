@@ -4,7 +4,7 @@ import type { Match, Player, Team } from "@/lib/types";
 
 // Player photos are served from jsDelivr (GitHub CDN) to avoid counting against
 // Vercel's Edge Request quota. Paths in playerPhotoOverrides are relative to /public.
-const PHOTO_CDN = "https://cdn.jsdelivr.net/gh/asierba/porra_mundial_2026@main/public";
+const PHOTO_CDN = "https://cdn.jsdelivr.net/gh/batxes/porra_mundial_2026@main/public";
 
 export function flagUrl(team: Team) {
   return `https://flagcdn.com/w80/${team.code}.png`;
