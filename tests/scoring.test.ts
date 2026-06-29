@@ -361,11 +361,12 @@ function actualKnockoutGroupResults() {
     },
   } as any);
 
-  assert.equal(card.total, 7);
+  // El cuadro ("team_progression_hit") ya no puntua, asi que el pick correcto de
+  // bracket.winners[73]="kor" no suma: solo cuentan los eventos de penaltis.
+  assert.equal(card.total, 2);
   assert.deepEqual(
     card.entries.map((entry) => [entry.ruleCode, entry.points]),
     [
-      ["team_progression_hit", 5],
       ["player_penalty_goal", 1],
       ["player_penalty_miss", -1],
       ["player_penalty_save", 2],
@@ -608,11 +609,17 @@ function actualKnockoutGroupResults() {
     104: { homeScore: 1, awayScore: 0, homeTeamId: "mex", awayTeamId: "arg", events: [] },
   } as any;
   const card = engine.calculateScorecard(knockoutHits, knockoutResults, "u1");
+  // El cuadro ya no puntua: ni entradas team_progression_hit ni categoria "Cuadro".
   assert.deepEqual(
     card.entries.filter((entry) => entry.ruleCode === "team_progression_hit").map((entry) => entry.points),
-    [5, 10, 15, 20, 25],
+    [],
   );
-  assert.equal(card.categories.find((category) => category.label === "Cuadro")?.total, 75);
+  assert.equal(card.categories.find((category) => category.label === "Cuadro"), undefined);
+  // El bonus de Campeon del Mundial se mantiene (acertar el ganador del 104).
+  assert.deepEqual(
+    card.entries.filter((entry) => entry.ruleCode === "tournament_champion_hit").map((entry) => entry.points),
+    [25],
+  );
 }
 
 {

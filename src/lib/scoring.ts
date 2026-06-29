@@ -105,15 +105,6 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
     });
   }
 
-  function knockoutProgressionPoints(match: Match) {
-    if (match.stage === "Dieciseisavos") return 5;
-    if (match.stage === "Octavos") return 10;
-    if (match.stage === "Cuartos") return 15;
-    if (match.stage === "Semifinales") return 20;
-    if (match.stage === "Final") return 25;
-    return 0;
-  }
-
   function calculateGroupPositions(adminResults: AdminResults) {
     const byGroup: Record<string, { teams: Map<string, { teamId: string; pts: number; gf: number; ga: number; gd: number }>; playedMatches: number; expectedMatches: number }> = {};
 
@@ -302,18 +293,8 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
           actualTeamId(match, result, "home"),
           actualTeamId(match, result, "away"),
         );
-        const progressionPoints = knockoutProgressionPoints(match);
-        if (progressionPoints && actualWinner && prediction.bracket?.winners?.[String(match.number)] === actualWinner) {
-          addEntry(entries, {
-            userId,
-            matchId: `wc26-${match.number}`,
-            matchNumber: match.number,
-            ruleCode: "team_progression_hit",
-            points: progressionPoints,
-            explanation: `${teamName(actualWinner)} pasa en el partido ${match.number}`,
-            sourceRef: `winner-${match.number}`,
-          });
-        }
+        // El cuadro (acertar quien pasa de ronda, "team_progression_hit") ya no
+        // puntua: feature retirada. Se mantiene solo el bonus de campeon.
         const predictedChampion = prediction.extras?.worldChampion || prediction.bracket?.winners?.["104"];
         if (match.number === 104 && actualWinner && predictedChampion === actualWinner) {
           addEntry(entries, {

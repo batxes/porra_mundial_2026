@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  type CSSProperties,
   type ReactNode,
   useEffect,
   useMemo,
@@ -43,12 +42,8 @@ import {
   playoffResultsIntroStorageKey,
 } from "@/components/playoff-results-intro-modal";
 import { PlayoffTrainerChipModal } from "@/components/playoffs-balatro-demo";
+import { CircularBracketPanel } from "@/components/circular-bracket-demo-view";
 import { useAppContext } from "@/lib/app-context";
-import {
-  TrainerFullArtCard,
-  trainerDemoCards,
-  type TrainerDemoCard,
-} from "@/components/trainer-full-art-card";
 import { TrainerTacticPickPill } from "@/components/trainer-tactic-pick-pill";
 import {
   addTrainerChipPoints,
@@ -456,7 +451,7 @@ export function HomeView() {
         <div className="flex flex-col gap-6">
           {user ? (
             <div className="flex flex-col gap-3">
-              <PlayoffsPromoBanner />
+              <HomeBracketSection />
               <SobresPromoBanner userId={user.id} />
             </div>
           ) : null}
@@ -3581,95 +3576,21 @@ function NextSobreCountdown() {
 // titular a dos tonos, cuenta atrás segmentada hasta las 10:00, pill con los
 // sobres sin abrir, y los 3 sobres reales (estrellas · diario · promesas) en
 // abanico. Va en la columna de Novedades.
-const playoffBannerTrainerIds = [
-  "francia-deschamps",
-  "espana-de-la-fuente",
-  "brasil-ancelotti",
-] as const;
-
-const playoffBannerTrainers = playoffBannerTrainerIds
-  .map((id) => trainerDemoCards.find((card) => card.id === id))
-  .filter((card): card is TrainerDemoCard => Boolean(card));
-
-const playoffBannerChips = [
-  {
-    id: "clean-sheet",
-    points: 2,
-    color: "#69d744",
-    icon: "/prediction-icons/clean-sheet.png",
-  },
-  {
-    id: "first-goal",
-    points: 1,
-    color: "#d946ef",
-    icon: "/prediction-icons/first-goal.png",
-  },
-  {
-    id: "set-piece",
-    points: 3,
-    color: "#38bdf8",
-    icon: "/prediction-icons/set-piece.png",
-  },
-  {
-    id: "red-card",
-    points: 5,
-    color: "#ff4d2d",
-    icon: "/prediction-icons/red-card.png",
-  },
-] as const;
-
-function PlayoffsPromoBanner() {
+function HomeBracketSection() {
   return (
-    <Link
-      href="/porra?section=playoffResults"
-      className="home-playoff-banner theme-dark group"
-      aria-label="Ir a la fase de playoffs para seleccionar entrenador"
-    >
-      <span className="home-playoff-banner-field" aria-hidden="true" />
-      <span className="home-playoff-banner-shine" aria-hidden="true" />
-
-      <span className="home-playoff-banner-copy">
-        <span className="home-playoff-banner-kicker">Fase de playoffs</span>
-        <span className="home-playoff-banner-title">Elige resultados</span>
-      </span>
-
-      <span className="home-playoff-banner-visual" aria-hidden="true">
-        <span className="home-playoff-banner-cards">
-          {playoffBannerTrainers.map((trainer, index) => (
-            <span key={trainer.id} className="home-playoff-banner-card">
-              <TrainerFullArtCard card={trainer} priority={index === 1} />
-            </span>
-          ))}
-        </span>
-        <span className="home-playoff-banner-chips">
-          {playoffBannerChips.map((chip) => (
-            <span
-              key={chip.id}
-              className="home-playoff-banner-chip"
-              style={
-                {
-                  "--home-chip-color": chip.color,
-                } as CSSProperties
-              }
-            >
-              <span className="home-playoff-banner-chip-icon">
-                <Image
-                  src={chip.icon}
-                  alt=""
-                  fill
-                  sizes="44px"
-                  className="object-contain"
-                  unoptimized
-                />
-              </span>
-              <span className="home-playoff-banner-chip-points">
-                +{chip.points}
-              </span>
-            </span>
-          ))}
-        </span>
-      </span>
-    </Link>
+    <section className="space-y-3">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#a7f600]">
+            Fase final
+          </p>
+          <h2 className="mt-1 text-xl font-bold tracking-tight text-white">
+            Cuadro del Mundial
+          </h2>
+        </div>
+      </div>
+      <CircularBracketPanel unframed />
+    </section>
   );
 }
 

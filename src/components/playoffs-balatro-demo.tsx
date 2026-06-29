@@ -1032,15 +1032,6 @@ function getNextPlayableMatchId(
     (match) =>
       !hasFinishedScore(adminResults?.[String(playoffMatchNumber(match))]),
   );
-  const started = unresolved
-    .filter((match) => playoffMatchKickoffMs(match, scheduleByNumber) <= now)
-    .sort(
-      (a, b) =>
-        playoffMatchKickoffMs(a, scheduleByNumber) -
-          playoffMatchKickoffMs(b, scheduleByNumber) ||
-        playoffMatchNumber(a) - playoffMatchNumber(b),
-    );
-  if (started.length) return started[0].id;
 
   const upcoming = unresolved
     .filter((match) => playoffMatchKickoffMs(match, scheduleByNumber) > now)
@@ -1050,8 +1041,18 @@ function getNextPlayableMatchId(
           playoffMatchKickoffMs(b, scheduleByNumber) ||
         playoffMatchNumber(a) - playoffMatchNumber(b),
     );
+  if (upcoming.length) return upcoming[0].id;
 
-  return upcoming[0]?.id ?? unresolved[0]?.id ?? matches[0]?.id ?? null;
+  const started = unresolved
+    .filter((match) => playoffMatchKickoffMs(match, scheduleByNumber) <= now)
+    .sort(
+      (a, b) =>
+        playoffMatchKickoffMs(b, scheduleByNumber) -
+          playoffMatchKickoffMs(a, scheduleByNumber) ||
+        playoffMatchNumber(a) - playoffMatchNumber(b),
+    );
+
+  return started[0]?.id ?? unresolved[0]?.id ?? matches[0]?.id ?? null;
 }
 
 function playoffMatchRequestFromUrl(
@@ -2270,10 +2271,12 @@ function PlayoffsBattleSurface({
     () => new Map(scheduleMatches.map((match) => [match.number, match])),
     [scheduleMatches],
   );
-  const [initialMatchRequest] = useState(() =>
-    playoffMatchRequestFromUrl(scheduleByNumber, matchIds, adminResults),
+  const matchRequest = useMemo(
+    () => playoffMatchRequestFromUrl(scheduleByNumber, matchIds, adminResults),
+    [adminResults, matchIds, scheduleByNumber],
   );
-  const requestedMatchId = initialMatchRequest.matchId;
+  const requestedMatchId = matchRequest.matchId;
+  const requestedPhaseId = playoffPhaseForMatchId(requestedMatchId)?.id;
   const initialPhase =
     playoffPhaseForMatchId(requestedMatchId) ?? initialPlayoffPhase;
   const [activePhaseId, setActivePhaseId] = useState(initialPhase.id);
@@ -2345,39 +2348,29 @@ function PlayoffsBattleSurface({
   }, [isControlled, resolvedPlayoffPhases]);
   const availablePlayoffMatchCount = availablePlayoffMatches.length;
 
+  const effectiveActivePhaseId =
+    matchRequest.clearGoto && requestedPhaseId ? requestedPhaseId : activePhaseId;
   const activePhase =
-    resolvedPlayoffPhaseById.get(activePhaseId) ??
+    resolvedPlayoffPhaseById.get(effectiveActivePhaseId) ??
     resolvedPlayoffPhases[0] ??
     initialPlayoffPhase;
   const activePhaseMatches = useMemo(() => {
     const matches = filterPlayoffMatches(activePhase.matches, matchIds);
     return isControlled ? matches.filter(hasResolvedPlayoffTrainers) : matches;
   }, [activePhase, isControlled, matchIds]);
-  const activeDateGroups = useMemo(
-    () =>
-      groupPlayoffMatchesByDate(
-        activePhaseMatches.filter(
-          (match) =>
-            !hasFinishedScore(
-              adminResults?.[String(playoffMatchNumber(match))],
-            ),
-        ),
-      ),
-    [activePhaseMatches, adminResults],
+  const playoffDateGroups = useMemo(
+    () => groupPlayoffMatchesByDate(activePhaseMatches),
+    [activePhaseMatches],
   );
-  const finishedDateGroups = useMemo(
+  const hasFinishedPlayoffMatches = useMemo(
     () =>
-      groupPlayoffMatchesByDate(
-        activePhaseMatches.filter((match) =>
-          hasFinishedScore(adminResults?.[String(playoffMatchNumber(match))]),
-        ),
+      activePhaseMatches.some((match) =>
+        hasFinishedScore(adminResults?.[String(playoffMatchNumber(match))]),
       ),
     [activePhaseMatches, adminResults],
   );
   const showUnresolvedPhaseMessage =
-    isControlled &&
-    activeDateGroups.length === 0 &&
-    finishedDateGroups.length === 0;
+    isControlled && playoffDateGroups.length === 0;
   const isPlayoffLocked = useCallback(
     (match: PlayoffMatch) => {
       if (isControlled && !hasResolvedPlayoffTrainers(match)) return true;
@@ -2411,7 +2404,6 @@ function PlayoffsBattleSurface({
   const renderDesktopMatches = !mobileModalOnly && isCompactLayout !== true;
   const renderMobileMatches = !mobileModalOnly && isCompactLayout !== false;
   const renderMobileChipModal = mobileModalOnly || renderMobileMatches;
-  const hasFinishedPlayoffMatches = finishedDateGroups.length > 0;
   const scorecard = useMemo(
     () =>
       prediction && adminResults && hasFinishedPlayoffMatches
@@ -2435,7 +2427,7 @@ function PlayoffsBattleSurface({
     const maxAttempts = 30;
 
     const clearGoto = () => {
-      if (!initialMatchRequest.clearGoto) return;
+      if (!matchRequest.clearGoto) return;
       const current = new URLSearchParams(window.location.search);
       current.delete("goto");
       const query = current.toString();
@@ -2470,7 +2462,7 @@ function PlayoffsBattleSurface({
 
     tryScroll();
     return () => window.clearTimeout(timer);
-  }, [initialMatchRequest.clearGoto, requestedMatchId]);
+  }, [matchRequest.clearGoto, requestedMatchId]);
 
   const setPhase = useCallback(
     (phaseId: string) => {
@@ -2839,6 +2831,82 @@ function PlayoffsBattleSurface({
     ],
   );
 
+  const renderPlayoffMatchCard = useCallback(
+    (
+      match: PlayoffMatch,
+      variant: "desktop" | "mobile",
+      activeTrainerId?: string,
+      matchActiveDrag?: ActiveDrag,
+    ) => {
+      const matchResult = adminResults?.[String(playoffMatchNumber(match))];
+      if (hasFinishedScore(matchResult)) {
+        return (
+          <div
+            key={match.id}
+            data-playoff-match-id={match.id}
+            className="playoff-battle-finished-match"
+          >
+            {renderFinishedMatchCard(match)}
+          </div>
+        );
+      }
+
+      const pick = pickForMatch(match);
+      const result = resultForMatch(match);
+      const locked = isPlayoffLocked(match);
+      if (locked) return renderLockedPredictionCard(match);
+
+      if (variant === "mobile") {
+        return (
+          <PlayoffMatchRow
+            key={match.id}
+            isHandOpen={mobileChipMatchId === match.id}
+            locked={locked}
+            match={match}
+            onToggleHand={handleToggleMobileChip}
+            onUpdateResult={updateResult}
+            pick={pick}
+            result={result}
+          />
+        );
+      }
+
+      return (
+        <PlayoffArenaMatch
+          key={match.id}
+          activeDrag={matchActiveDrag ?? null}
+          activeTrainerId={activeTrainerId}
+          hoveredTrainerId={matchActiveDrag ? hoveredTrainerId : null}
+          isHandOpen={openHandMatchId === match.id}
+          locked={locked}
+          match={match}
+          onSelectTactic={handleSelectTactic}
+          onTapTrainer={handleTapTrainer}
+          onToggleHand={handleToggleHand}
+          onUpdateResult={updateResult}
+          pick={pick}
+          result={result}
+        />
+      );
+    },
+    [
+      adminResults,
+      handleSelectTactic,
+      handleTapTrainer,
+      handleToggleHand,
+      handleToggleMobileChip,
+      hoveredTrainerId,
+      isPlayoffLocked,
+      mobileChipMatchId,
+      openHandMatchId,
+      pickForMatch,
+      renderFinishedMatchCard,
+      renderLockedPredictionCard,
+      resultForMatch,
+      updateResult,
+    ],
+  );
+
   const mobileChipMatch =
     (mobileModalOnly || isCompactLayout === true) && mobileChipMatchId
       ? (resolvedPlayoffMatchById.get(mobileChipMatchId) ?? null)
@@ -2891,7 +2959,7 @@ function PlayoffsBattleSurface({
       >
         {renderDesktopMatches ? (
           <div className="playoff-battle-desktop-stack">
-            {activeDateGroups.map((group) => (
+            {playoffDateGroups.map((group) => (
               <section key={group.date} className="playoff-battle-date-group">
                 <h3 className="playoff-battle-date-heading">
                   {formatPlayoffDay(group.date)}
@@ -2899,10 +2967,6 @@ function PlayoffsBattleSurface({
                 <div className="playoff-battle-date-matches">
                   {group.matches.map((match) => {
                     const pick = pickForMatch(match);
-                    const result = resultForMatch(match);
-                    const locked = isPlayoffLocked(match);
-                    if (locked) return renderLockedPredictionCard(match);
-
                     const matchActiveDrag =
                       activeDrag?.matchId === match.id ? activeDrag : null;
                     const rawActiveTrainerId = activeTrainerByMatch[match.id];
@@ -2913,24 +2977,11 @@ function PlayoffsBattleSurface({
                       pick?.trainerId ??
                       defaultTrainerIdForMatch(match);
 
-                    return (
-                      <PlayoffArenaMatch
-                        key={match.id}
-                        activeDrag={matchActiveDrag}
-                        activeTrainerId={activeTrainerId}
-                        hoveredTrainerId={
-                          matchActiveDrag ? hoveredTrainerId : null
-                        }
-                        isHandOpen={openHandMatchId === match.id}
-                        locked={locked}
-                        match={match}
-                        onSelectTactic={handleSelectTactic}
-                        onTapTrainer={handleTapTrainer}
-                        onToggleHand={handleToggleHand}
-                        onUpdateResult={updateResult}
-                        pick={pick}
-                        result={result}
-                      />
+                    return renderPlayoffMatchCard(
+                      match,
+                      "desktop",
+                      activeTrainerId,
+                      matchActiveDrag,
                     );
                   })}
                 </div>
@@ -2955,7 +3006,7 @@ function PlayoffsBattleSurface({
                 {showUnresolvedPhaseMessage ? (
                   <PlayoffPhaseUnavailable phaseTitle={activePhase.title} />
                 ) : null}
-                {activeDateGroups.map((group) => (
+                {playoffDateGroups.map((group) => (
                   <section
                     key={group.date}
                     className="playoff-battle-date-group"
@@ -2964,25 +3015,9 @@ function PlayoffsBattleSurface({
                       {formatPlayoffDay(group.date)}
                     </h4>
                     <div className="playoff-battle-match-stack">
-                      {group.matches.map((match) => {
-                        const pick = pickForMatch(match);
-                        const result = resultForMatch(match);
-                        const locked = isPlayoffLocked(match);
-                        if (locked) return renderLockedPredictionCard(match);
-
-                        return (
-                          <PlayoffMatchRow
-                            key={match.id}
-                            isHandOpen={mobileChipMatchId === match.id}
-                            locked={locked}
-                            match={match}
-                            onToggleHand={handleToggleMobileChip}
-                            onUpdateResult={updateResult}
-                            pick={pick}
-                            result={result}
-                          />
-                        );
-                      })}
+                      {group.matches.map((match) =>
+                        renderPlayoffMatchCard(match, "mobile"),
+                      )}
                     </div>
                   </section>
                 ))}
@@ -3020,29 +3055,6 @@ function PlayoffsBattleSurface({
         </DragOverlay>
       </DndContext>
 
-      {!mobileModalOnly && finishedDateGroups.length ? (
-        <div
-          className={`space-y-4 ${
-            activeDateGroups.length ? "border-t border-white/10 pt-5" : ""
-          }`}
-        >
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
-            Jugados
-          </p>
-          <div className="space-y-4">
-            {finishedDateGroups.map((group) => (
-              <section key={group.date} className="space-y-3">
-                <h3 className="text-xl font-bold text-white first-letter:capitalize">
-                  {formatPlayoffDay(group.date)}
-                </h3>
-                <div className="space-y-4">
-                  {group.matches.map((match) => renderFinishedMatchCard(match))}
-                </div>
-              </section>
-            ))}
-          </div>
-        </div>
-      ) : null}
     </>
   );
 
