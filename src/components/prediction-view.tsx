@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import {
   type CSSProperties,
   type ReactNode,
@@ -53,6 +54,7 @@ import {
   getPlayoffResultsProgress,
   PlayoffsBalatroResults,
 } from "@/components/playoffs-balatro-demo";
+import { WorldCupBracketModal } from "@/components/world-cup-bracket-modal";
 import { PlayerSearchModal } from "@/components/player-search-modal";
 import {
   TrainerFullArtCard,
@@ -190,6 +192,8 @@ const resultsIntroStorageKey = "porra26_results_intro_seen";
 const playoffResultsIntroStorageKey = "porra26_playoff_results_intro_seen_v2";
 
 export function PredictionView() {
+  const searchParams = useSearchParams();
+  const searchSignature = searchParams.toString();
   const {
     adminResults,
     currentScorecard,
@@ -280,9 +284,8 @@ export function PredictionView() {
   };
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
     const requestedSection =
-      params.get("section") || window.location.hash.slice(1);
+      searchParams.get("section") || window.location.hash.slice(1);
     const normalizedSection = normalizeSectionId(requestedSection);
 
     const frame = window.requestAnimationFrame(() => {
@@ -295,7 +298,7 @@ export function PredictionView() {
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [searchParams, searchSignature]);
   const predictionSignature = useMemo(
     () =>
       JSON.stringify({
@@ -818,55 +821,72 @@ function StepActionBar({
   const previous = sections[currentIndex - 1];
   const next = sections[currentIndex + 1];
   const progress = progresses[section];
+  const [bracketOpen, setBracketOpen] = useState(false);
+  const showBracketButton = section === "playoffResults";
 
   return (
-    <div className="fixed bottom-2 left-2 right-2 z-40 sm:bottom-4 sm:left-4 sm:right-4">
-      <div className="mx-auto flex max-w-6xl flex-col gap-2 rounded-2xl border border-white/10 bg-[#101010]/94 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.42)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {autoSaveState ? <AutoSaveStatus state={autoSaveState} /> : null}
-          <SectionProgressStatus progress={progress} />
-        </div>
+    <>
+      <div className="fixed bottom-2 left-2 right-2 z-40 sm:bottom-4 sm:left-4 sm:right-4">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 rounded-2xl border border-white/10 bg-[#101010]/94 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.42)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {autoSaveState ? <AutoSaveStatus state={autoSaveState} /> : null}
+            <SectionProgressStatus progress={progress} />
+            {showBracketButton ? (
+              <button
+                type="button"
+                onClick={() => setBracketOpen(true)}
+                className="inline-flex h-8 items-center rounded-full border border-white/10 bg-white/[0.06] px-3 text-xs font-black uppercase tracking-[0.12em] text-white transition hover:border-[#a7f600]/45 hover:bg-[#a7f600]/10 sm:h-9"
+              >
+                Ver cuadro
+              </button>
+            ) : null}
+          </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:items-center">
-          <button
-            type="button"
-            disabled={!previous}
-            onClick={() => previous && onSectionChange(previous.id)}
-            className="h-10 rounded-lg border border-white/10 bg-white/[0.06] px-2 text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:px-3"
-          >
-            Anterior
-          </button>
-
-          {next ? (
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:items-center">
             <button
               type="button"
-              onClick={() => onSectionChange(next.id)}
-              className="inline-flex h-10 min-w-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.10] px-2 text-sm font-semibold text-white transition hover:border-white/18 hover:bg-white/[0.14] sm:px-3"
+              disabled={!previous}
+              onClick={() => previous && onSectionChange(previous.id)}
+              className="h-10 rounded-lg border border-white/10 bg-white/[0.06] px-2 text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:px-3"
             >
-              <span>Siguiente</span>
-              <span className="hidden text-zinc-400 md:inline">
-                : {next.label}
-              </span>
+              Anterior
             </button>
-          ) : hasUser ? (
-            <Link
-              href="/perfil"
-              className="inline-flex h-10 items-center justify-center rounded-lg border border-white/12 bg-white/[0.10] px-2 text-sm font-semibold text-white transition hover:border-white/18 hover:bg-white/[0.14] sm:px-3"
-            >
-              Finalizar
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={onCreateAccount}
-              className="inline-flex h-10 items-center justify-center rounded-lg border border-white/12 bg-[#a7f600] px-2 text-sm font-semibold text-black transition hover:bg-[#c7ff43] sm:px-3"
-            >
-              Finalizar
-            </button>
-          )}
+
+            {next ? (
+              <button
+                type="button"
+                onClick={() => onSectionChange(next.id)}
+                className="inline-flex h-10 min-w-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.10] px-2 text-sm font-semibold text-white transition hover:border-white/18 hover:bg-white/[0.14] sm:px-3"
+              >
+                <span>Siguiente</span>
+                <span className="hidden text-zinc-400 md:inline">
+                  : {next.label}
+                </span>
+              </button>
+            ) : hasUser ? (
+              <Link
+                href="/perfil"
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-white/12 bg-white/[0.10] px-2 text-sm font-semibold text-white transition hover:border-white/18 hover:bg-white/[0.14] sm:px-3"
+              >
+                Finalizar
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={onCreateAccount}
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-white/12 bg-[#a7f600] px-2 text-sm font-semibold text-black transition hover:bg-[#c7ff43] sm:px-3"
+              >
+                Finalizar
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+      <WorldCupBracketModal
+        open={bracketOpen}
+        onClose={() => setBracketOpen(false)}
+      />
+    </>
   );
 }
 
