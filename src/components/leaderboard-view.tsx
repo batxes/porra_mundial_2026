@@ -22,6 +22,7 @@ import { LeaderboardVersus } from "@/components/leaderboard-versus";
 import { PlayerDetailModal } from "@/components/player-detail-modal";
 import { useAppContext } from "@/lib/app-context";
 import { data, schedule, teamsById } from "@/lib/data";
+import { latestLeaderboardMovements } from "@/lib/leaderboard-movement";
 import { buildPlayerOwnersMap } from "@/lib/player-owners";
 import {
   calculatePlayerStandings,
@@ -305,6 +306,10 @@ export function LeaderboardView() {
   }, []);
 
   const leaderboard = fullLeaderboard.filter((profile) => !profile.isHidden);
+  const leaderboardMovements = useMemo(
+    () => latestLeaderboardMovements(leaderboard, adminResults),
+    [adminResults, leaderboard],
+  );
   const proCount = leaderboard.filter((profile) => profile.isPro).length;
   // El tab de la manada y su clasificacion solo los ve quien tiene el tag 🐺
   // (y el admin, que puede verlo todo).
@@ -519,6 +524,7 @@ export function LeaderboardView() {
                   key={profile.id}
                   profile={profile}
                   metric={participantMetric}
+                  movement={leaderboardMovements.get(profile.id) || 0}
                   position={rankForParticipantMetric(
                     tableVisible,
                     index,
@@ -1141,11 +1147,13 @@ function LeaderboardHeaderRow({
 
 function LeaderboardRow({
   metric,
+  movement,
   profile,
   position,
   totalPosition,
 }: {
   metric: ParticipantLeaderboardMetric;
+  movement: number;
   profile: UserProfile;
   position: number;
   totalPosition: number;
@@ -1194,9 +1202,14 @@ function LeaderboardRow({
         </span>
       </span>
       <span className="text-right">
-        <strong className={`block text-lg font-bold ${valueTone}`}>
-          {value}
-        </strong>
+        <span className="flex items-center justify-end gap-1.5">
+          {metric === "total" ? (
+            <LeaderboardMovementChip movement={movement} />
+          ) : null}
+          <strong className={`block text-lg font-bold ${valueTone}`}>
+            {value}
+          </strong>
+        </span>
         {metric === "total" ? (
           <span className="text-xs font-semibold text-zinc-500">pts</span>
         ) : (
@@ -1206,6 +1219,35 @@ function LeaderboardRow({
         )}
       </span>
     </Link>
+  );
+}
+
+function LeaderboardMovementChip({ movement }: { movement: number }) {
+  return (
+    <span
+      title="Desde la ultima actualizacion"
+      className={`inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-bold leading-none ${
+        movement > 0
+          ? "bg-[#a7f600]/12 text-[#a7f600]"
+          : movement < 0
+            ? "bg-rose-400/12 text-rose-300"
+            : "bg-white/[0.06] text-zinc-500"
+      }`}
+    >
+      {movement > 0 ? (
+        <>
+          <span>▲</span>
+          <span>{movement}</span>
+        </>
+      ) : movement < 0 ? (
+        <>
+          <span>▼</span>
+          <span>{Math.abs(movement)}</span>
+        </>
+      ) : (
+        "="
+      )}
+    </span>
   );
 }
 

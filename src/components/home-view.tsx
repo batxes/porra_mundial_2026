@@ -70,6 +70,7 @@ import {
 } from "@/lib/cofres";
 import { data, playersById, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
+import { latestLeaderboardMovements } from "@/lib/leaderboard-movement";
 import { calculateShootoutScore } from "@/lib/match-events";
 import {
   buildResolvedPlayoffTeams,
@@ -146,6 +147,10 @@ export function HomeView() {
   const leaderboard = useMemo(
     () => fullLeaderboard.filter((profile) => !profile.isHidden),
     [fullLeaderboard],
+  );
+  const leaderboardMovements = useMemo(
+    () => latestLeaderboardMovements(leaderboard, adminResults),
+    [adminResults, leaderboard],
   );
   const topPlayers = useMemo(
     () => calculatePlayerStandings(adminResults, data.players).slice(0, 10),
@@ -509,6 +514,7 @@ export function HomeView() {
                 {leaderboard.slice(0, 10).map((profile, index) => (
                   <LeaderboardRow
                     key={profile.id}
+                    movement={leaderboardMovements.get(profile.id) || 0}
                     profile={profile}
                     position={index + 1}
                   />
@@ -3843,9 +3849,11 @@ function RecentSwapsFeed() {
 }
 
 function LeaderboardRow({
+  movement,
   profile,
   position,
 }: {
+  movement: number;
   profile: UserProfile;
   position: number;
 }) {
@@ -3870,9 +3878,37 @@ function LeaderboardRow({
         {profile.isPro ? <ProBadge /> : null}
         {profile.isWolf ? <WolfBadge /> : null}
       </strong>
-      <span className="shrink-0 text-sm font-bold text-white">
-        {profile.points}
-        <span className="ml-0.5 text-xs font-semibold text-zinc-500">pts</span>
+      <span className="flex shrink-0 items-center gap-1.5">
+        <span
+          title="Desde la ultima actualizacion"
+          className={`inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-bold leading-none ${
+            movement > 0
+              ? "bg-[#a7f600]/12 text-[#a7f600]"
+              : movement < 0
+                ? "bg-rose-400/12 text-rose-300"
+                : "bg-white/[0.06] text-zinc-500"
+          }`}
+        >
+          {movement > 0 ? (
+            <>
+              <span>▲</span>
+              <span>{movement}</span>
+            </>
+          ) : movement < 0 ? (
+            <>
+              <span>▼</span>
+              <span>{Math.abs(movement)}</span>
+            </>
+          ) : (
+            "="
+          )}
+        </span>
+        <span className="text-sm font-bold text-white">
+          {profile.points}
+          <span className="ml-0.5 text-xs font-semibold text-zinc-500">
+            pts
+          </span>
+        </span>
       </span>
     </Link>
   );
