@@ -12,8 +12,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import { SectionHeading, TeamFlag } from "@/components/common";
-import { schedule, teamsById } from "@/lib/data";
+import { PlayerAvatar, SectionHeading, TeamFlag } from "@/components/common";
+import { playersById, schedule, teamsById } from "@/lib/data";
 import { translateSlot } from "@/lib/format";
 import { useAppContext } from "@/lib/app-context";
 import { resultLoserTeamId, resultWinnerTeamId } from "@/lib/match-events";
@@ -24,7 +24,7 @@ import {
 } from "@/lib/playoff-teams";
 import { emptyPrediction, resolveSlot, scheduleUtc } from "@/lib/prediction";
 import { trainerTacticById } from "@/lib/trainer-tactics";
-import type { AdminResults, Match, Prediction } from "@/lib/types";
+import type { AdminResults, Match, Prediction, Scorecard } from "@/lib/types";
 
 const SIZE = 1000;
 const CENTER = SIZE / 2;
@@ -132,12 +132,20 @@ type UserPlay = {
   exactPoints: number | null;
   homeScore: string;
   homeTeamId: string;
+  otherPlayerPoints: number;
   outcomePoints: number | null;
+  players: UserPlayerRow[];
   resultStatus: "exact" | "miss" | "outcome" | "pending";
   tacticPoints: number | null;
   tacticStatus: "hit" | "miss" | "pending";
   tacticTitle: string;
   trainerTeamId: string;
+};
+
+type UserPlayerRow = {
+  playerId: string;
+  points: number | null;
+  teamId: string;
 };
 
 type TeamResultRow = {
@@ -394,26 +402,122 @@ function resolvedPopoverTeam(
   return teamsById.has(predictedTeamId) ? predictedTeamId : "";
 }
 
+function userPlayersForMatch(
+  match: Match,
+  result: AdminResults[string] | undefined,
+  userPrediction: Prediction,
+  currentScorecard: Scorecard,
+  homeTeamId: string,
+  awayTeamId: string,
+) {
+  const matchTeamIds = new Set([homeTeamId, awayTeamId].filter(Boolean));
+  const selectedPlayerIds = new Set(
+    (userPrediction.xi || []).filter((playerId) => {
+      const player = playersById.get(playerId);
+      return player ? matchTeamIds.has(player.team) : false;
+    }),
+  );
+  const eventPlayerById = new Map<string, string>();
+  (result?.events || []).forEach((event) => {
+    if (event.id && event.playerId) {
+      eventPlayerById.set(event.id, event.playerId);
+    }
+  });
+
+  const pointsByPlayer = new Map<string, number>();
+  let otherPlayerPoints = 0;
+  currentScorecard.entries.forEach((entry) => {
+    if (entry.matchNumber !== match.number) return;
+    if (!entry.ruleCode.startsWith("player_")) return;
+
+    const playerId = eventPlayerById.get(entry.sourceRef);
+    if (!playerId) {
+      otherPlayerPoints += entry.points;
+      return;
+    }
+
+    selectedPlayerIds.add(playerId);
+    pointsByPlayer.set(playerId, (pointsByPlayer.get(playerId) || 0) + entry.points);
+  });
+
+  const players = Array.from(selectedPlayerIds)
+    .flatMap((playerId): UserPlayerRow[] => {
+      const player = playersById.get(playerId);
+      return player
+        ? [
+            {
+              playerId,
+              points: pointsByPlayer.get(playerId) ?? null,
+              teamId: player.team,
+            },
+          ]
+        : [];
+    })
+    .sort((a, b) => {
+      const aPoints = a.points ?? -999;
+      const bPoints = b.points ?? -999;
+      const aPlayer = playersById.get(a.playerId);
+      const bPlayer = playersById.get(b.playerId);
+      return (
+        bPoints - aPoints ||
+        (aPlayer?.name || "").localeCompare(bPlayer?.name || "", "es", {
+          sensitivity: "base",
+        })
+      );
+    });
+
+  return { otherPlayerPoints, players };
+}
+
 function userPlayForMatch(
   match: Match,
   adminResults: AdminResults,
   resolvedTeams: ResolvedPlayoffTeams,
   userPrediction: Prediction,
+  currentScorecard: Scorecard,
 ): UserPlay | null {
   const current = userPrediction.matchPredictions?.[String(match.number)];
-  if (!current) return null;
   const result = adminResults[String(match.number)];
+  const homeTeamId = resolvedPopoverTeam(
+    match,
+    "home",
+    adminResults,
+    resolvedTeams,
+    userPrediction,
+  );
+  const awayTeamId = resolvedPopoverTeam(
+    match,
+    "away",
+    adminResults,
+    resolvedTeams,
+    userPrediction,
+  );
+  const userPlayers = userPlayersForMatch(
+    match,
+    result,
+    userPrediction,
+    currentScorecard,
+    homeTeamId,
+    awayTeamId,
+  );
 
-  const tactic = current.tacticId
+  const tactic = current?.tacticId
     ? trainerTacticById.get(current.tacticId)
     : null;
   const hasScore =
-    isUserValueSet(current.homeScore) || isUserValueSet(current.awayScore);
-  const hasChip = Boolean(current.trainerTeamId && tactic);
-  if (!hasScore && !hasChip) return null;
+    isUserValueSet(current?.homeScore) || isUserValueSet(current?.awayScore);
+  const hasChip = Boolean(current?.trainerTeamId && tactic);
+  if (
+    !hasScore &&
+    !hasChip &&
+    !userPlayers.players.length &&
+    userPlayers.otherPlayerPoints === 0
+  ) {
+    return null;
+  }
   const finalScore = resultScore(result);
-  const forecastHome = scoreValue(current.homeScore);
-  const forecastAway = scoreValue(current.awayScore);
+  const forecastHome = scoreValue(current?.homeScore);
+  const forecastAway = scoreValue(current?.awayScore);
   const hasCompleteScore = forecastHome !== null && forecastAway !== null;
   let resultStatus: UserPlay["resultStatus"] = "pending";
   let exactPoints: number | null = null;
@@ -435,39 +539,29 @@ function userPlayForMatch(
     }
   }
   const tacticHit =
-    Boolean(current.trainerTeamId && tactic) &&
+    Boolean(current?.trainerTeamId && tactic) &&
     Boolean(
       result?.trainerTactics?.[tactic?.id || ""]?.includes(
-        current.trainerTeamId || "",
+        current?.trainerTeamId || "",
       ),
     );
   const tacticStatus =
     tacticHit ? "hit" : isFinishedResult(result) && hasChip ? "miss" : "pending";
 
   return {
-    awayScore: current.awayScore,
-    awayTeamId: resolvedPopoverTeam(
-      match,
-      "away",
-      adminResults,
-      resolvedTeams,
-      userPrediction,
-    ),
+    awayScore: current?.awayScore ?? "",
+    awayTeamId,
     exactPoints,
-    homeScore: current.homeScore,
-    homeTeamId: resolvedPopoverTeam(
-      match,
-      "home",
-      adminResults,
-      resolvedTeams,
-      userPrediction,
-    ),
+    homeScore: current?.homeScore ?? "",
+    homeTeamId,
+    otherPlayerPoints: userPlayers.otherPlayerPoints,
     outcomePoints,
+    players: userPlayers.players,
     resultStatus,
     tacticPoints: tactic?.points ?? null,
     tacticStatus,
     tacticTitle: tactic?.title || "",
-    trainerTeamId: current.trainerTeamId || "",
+    trainerTeamId: current?.trainerTeamId || "",
   };
 }
 
@@ -941,6 +1035,7 @@ function buildPopoverContent(
   chipPredictions: Prediction[],
   userPrediction: Prediction,
   resolvedTeams: ResolvedPlayoffTeams,
+  currentScorecard: Scorecard,
 ): PopoverContent | null {
   if (activeId.startsWith("team:")) {
     const teamId = activeId.slice("team:".length);
@@ -974,6 +1069,7 @@ function buildPopoverContent(
       adminResults,
       resolvedTeams,
       userPrediction,
+      currentScorecard,
     ),
   };
 }
@@ -1346,6 +1442,65 @@ function userScoreBadges(play: UserPlay) {
   return badges;
 }
 
+function playerPointsLabel(points: number) {
+  return points > 0 ? `+${points}` : String(points);
+}
+
+function PlayerPointBadge({ points }: { points: number }) {
+  return (
+    <span
+      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+        points > 0
+          ? "bg-[#a7f600]/15 text-[#a7f600]"
+          : "bg-red-500/10 text-red-300"
+      }`}
+    >
+      {playerPointsLabel(points)}
+    </span>
+  );
+}
+
+function UserPlayersSection({ play }: { play: UserPlay }) {
+  if (!play.players.length && play.otherPlayerPoints === 0) return null;
+
+  return (
+    <div className="rounded-md bg-white/[0.035] px-2 py-1.5">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold text-white">Tus jugadores</p>
+        <p className="text-[10px] text-zinc-500">
+          {play.players.length}
+          {play.players.length === 1 ? " jugador" : " jugadores"}
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {play.players.map((row) => {
+          const player = playersById.get(row.playerId);
+          if (!player) return null;
+
+          return (
+            <span
+              key={row.playerId}
+              className="inline-flex max-w-full items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] py-px pl-px pr-1.5 text-[10px] font-medium text-zinc-300"
+            >
+              <PlayerAvatar player={player} className="size-5! text-[7px]" />
+              <span className="max-w-[8.5rem] truncate">{player.name}</span>
+              {row.points !== null ? (
+                <PlayerPointBadge points={row.points} />
+              ) : null}
+            </span>
+          );
+        })}
+        {play.otherPlayerPoints !== 0 ? (
+          <span className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
+            Tu once
+            <PlayerPointBadge points={play.otherPlayerPoints} />
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function UserPlaySection({ play }: { play: UserPlay | null }) {
   const chipBadge = play ? userChipBadge(play) : null;
   const scoreBadges = play ? userScoreBadges(play) : [];
@@ -1387,6 +1542,7 @@ function UserPlaySection({ play }: { play: UserPlay | null }) {
               ))}
             </div>
           ) : null}
+          <UserPlayersSection play={play} />
           <div className="flex min-h-8 items-center gap-2 rounded-md bg-white/[0.035] px-2 py-1.5">
             {play.trainerTeamId ? (
               <span className="inline-flex h-5 w-5 shrink-0 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
@@ -1517,6 +1673,7 @@ function CircularBracketDemo({
   adminResults,
   chipPredictions,
   className = "",
+  currentScorecard,
   geometry,
   matches,
   prediction,
@@ -1526,6 +1683,7 @@ function CircularBracketDemo({
   adminResults: AdminResults;
   chipPredictions: Prediction[];
   className?: string;
+  currentScorecard: Scorecard;
   geometry: Geometry;
   matches: Match[];
   prediction: Prediction;
@@ -1557,6 +1715,7 @@ function CircularBracketDemo({
         chipPredictions,
         userPrediction,
         resolvedTeams,
+        currentScorecard,
       )
     : null;
   const closePopover = useCallback(() => setActivePopover(null), []);
@@ -1734,6 +1893,7 @@ export function CircularBracketPanel({
 }) {
   const {
     adminResults,
+    currentScorecard,
     leaderboard,
     prediction: currentPrediction,
   } = useAppContext();
@@ -1756,6 +1916,7 @@ export function CircularBracketPanel({
       adminResults={adminResults}
       chipPredictions={chipPredictions}
       className={className}
+      currentScorecard={currentScorecard}
       geometry={geometry}
       matches={playoffMatches}
       prediction={prediction}
