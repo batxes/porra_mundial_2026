@@ -1573,12 +1573,23 @@ export function CofresView() {
           .filter((position): position is Position => Boolean(position)),
       );
       const samePosition = positions.size === 1 ? [...positions][0] : null;
-      const pool = samePosition
-        ? STAR_PLAYER_IDS.filter(
+      const filterAlive = Boolean(alivePlayoffTeamIds.size);
+      const aliveStarIds = STAR_PLAYER_IDS.filter((id) => {
+        const player = playersById.get(id);
+        return player && (!filterAlive || alivePlayoffTeamIds.has(player.team));
+      });
+      const samePositionPool = samePosition
+        ? aliveStarIds.filter(
             (id) => playersById.get(id)?.position === samePosition,
           )
-        : STAR_PLAYER_IDS;
-      const candidates = pool.length ? pool : STAR_PLAYER_IDS;
+        : [];
+      const candidates =
+        samePosition && samePositionPool.length
+          ? samePositionPool
+          : aliveStarIds;
+      if (!candidates.length) {
+        throw new Error("No hay legendarias vivas disponibles.");
+      }
       const resultPlayerId =
         candidates[Math.floor(Math.random() * candidates.length)];
       const id = `forge-${crypto.randomUUID()}`;
@@ -1592,7 +1603,7 @@ export function CofresView() {
         remote: false,
       };
     },
-    [usingSupabase, user],
+    [alivePlayoffTeamIds, usingSupabase, user],
   );
 
   // Lanza la forja: valida las 4 entradas, pide/forja la carta y abre el

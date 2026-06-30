@@ -1090,9 +1090,7 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
 
     const finalShootoutAttempts = isShootoutMatch
       ? shootoutAttempts.filter(
-          (attempt) =>
-            attempt.teamId &&
-            (attempt.shooterId || (!attempt.scored && attempt.goalkeeperId)),
+          (attempt) => attempt.teamId && (attempt.shooterId || attempt.goalkeeperId),
         )
       : [];
 
@@ -1105,13 +1103,12 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
         return;
       }
       const incompleteAttempt = finalShootoutAttempts.find(
-        (attempt) =>
-          !attempt.shooterId || (!attempt.scored && !attempt.goalkeeperId),
+        (attempt) => !attempt.shooterId,
       );
       if (incompleteAttempt) {
         toast.error("Tanda incompleta", {
           description:
-          "Cada lanzamiento necesita lanzador y, si falla, el portero que lo para.",
+            "Cada lanzamiento necesita lanzador. Si fue fuera o al poste, deja el portero vacio.",
         });
         return;
       }
@@ -1147,11 +1144,16 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
       (attempt, index) => {
         const order = index + 1;
         const attemptId = attempt.id || crypto.randomUUID();
+        const shootoutOutcome = attempt.scored
+          ? "scored"
+          : attempt.goalkeeperId
+            ? "saved"
+            : "missed";
         const baseDetails = {
           phase: "shootout",
           shootoutOrder: order,
           shootoutAttemptId: attemptId,
-          shootoutOutcome: attempt.scored ? "scored" : "saved",
+          shootoutOutcome,
         };
         const shooterEvent: AdminEvent = {
           id: crypto.randomUUID(),
@@ -1163,7 +1165,7 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
           details: baseDetails,
         };
 
-        if (attempt.scored) return [shooterEvent];
+        if (attempt.scored || !attempt.goalkeeperId) return [shooterEvent];
 
         return [
           shooterEvent,
@@ -1744,13 +1746,41 @@ function MatchEditor({ matchNumber }: { matchNumber: string }) {
                           Gol de tanda
                         </span>
                       ) : (
-                        playerButton(
-                          attempt.goalkeeperId,
-                          keeperTeamId
-                            ? `Portero de ${teamName(keeperTeamId)}`
-                            : "Portero que lo para",
-                          { kind: "shootoutGoalkeeper", index },
-                        )
+                        <div className="flex min-w-0 flex-col gap-2">
+                          {playerButton(
+                            attempt.goalkeeperId,
+                            keeperTeamId
+                              ? `Sin parada / portero de ${teamName(keeperTeamId)}`
+                              : "Sin parada / portero que lo para",
+                            { kind: "shootoutGoalkeeper", index },
+                          )}
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <span
+                              className={`rounded-full border px-2 py-1 font-semibold ${
+                                attempt.goalkeeperId
+                                  ? "border-sky-300/30 bg-sky-300/10 text-sky-100"
+                                  : "border-amber-300/30 bg-amber-300/10 text-amber-100"
+                              }`}
+                            >
+                              {attempt.goalkeeperId
+                                ? "Parada del portero"
+                                : "Fallo sin parada"}
+                            </span>
+                            {attempt.goalkeeperId ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateShootoutAttempt(index, {
+                                    goalkeeperId: "",
+                                  })
+                                }
+                                className="rounded-full border border-white/15 px-2 py-1 font-semibold text-slate-200 transition hover:bg-white/10"
+                              >
+                                Marcar sin parada
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
