@@ -61,7 +61,7 @@ const MAX_ROUNDS = 3;
 const DROP_MS = 860;
 const FEED_MS = 520;
 const EXPLOSION_MS = 980;
-const RISK_STEPS = [8, 14, 23, 35, 49, 66];
+const RISK_STEPS = [12, 22, 35, 50, 65, 80];
 
 const DEFAULT_REWARDS: RonaldaoLimboReward[] = [
   { image: "/sobre-defensas.webp", pool: "defensas", title: "Sobre Defensas" },
