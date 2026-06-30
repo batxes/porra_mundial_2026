@@ -104,6 +104,7 @@ const PRIVATE_AWARD_PACK_PREFIXES = [
   "special-hoguera-",
   "special-portero-",
   "special-suarez-",
+  "special-ronaldao-",
 ] as const;
 
 export function isPrivateAwardPackId(id: string) {
