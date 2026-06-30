@@ -12,6 +12,7 @@ import { OakQuizGate } from "@/components/oak-quiz-gate";
 import { PackDropWatcher } from "@/components/pack-drop-notice";
 import { PorteroPenaltyGate } from "@/components/portero-penalty-gate";
 import { ResultsRecapWatcher } from "@/components/results-recap";
+import { RonaldaoLimboGate } from "@/components/ronaldao-limbo-gate";
 import { RuletaGate } from "@/components/ruleta-gate";
 import { SoberaQuizGate } from "@/components/sobera-quiz-gate";
 import { SuarezDentistGate } from "@/components/suarez-dentist-gate";
@@ -503,6 +504,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       <HogueraGate />
       <PorteroPenaltyGate />
       <SuarezDentistGate />
+      <RonaldaoLimboGate />
       <SoberaQuizGate />
       <RuletaGate />
     </>
