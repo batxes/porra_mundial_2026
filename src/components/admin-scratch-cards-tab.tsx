@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { scratchCardsStatusChangedEventName } from "@/components/scratch-cards-gate";
 import { useAppContext } from "@/lib/app-context";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
@@ -141,6 +142,7 @@ export function AdminScratchCardsTab() {
       );
       if (rpcError) throw new Error(rpcError.message);
       setStatus(firstRow<ScratchCardsAdminStatus>(data));
+      window.dispatchEvent(new Event(scratchCardsStatusChangedEventName));
       toast.success(active ? "Rasca activado" : "Rasca pausado");
     } catch (err) {
       const msg =
