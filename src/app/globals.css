@@ -9715,3 +9715,201 @@ summary {
       translateY(calc(var(--scratch-result-i, 0) * 7px)) scale(1);
   }
 }
+/* Mourinho battle animations, mirrored from monsterbattle */
+@keyframes battle-hit {
+  0% { transform: translateX(0); }
+  15% { transform: translateX(-8px); }
+  30% { transform: translateX(6px); }
+  45% { transform: translateX(-4px); }
+  60% { transform: translateX(3px); }
+  75% { transform: translateX(-2px); }
+  100% { transform: translateX(0); }
+}
+
+.animate-battle-hit {
+  animation: battle-hit 0.4s ease-out;
+}
+
+@keyframes sprite-damage {
+  0% { filter: brightness(1) sepia(0) hue-rotate(0deg) saturate(1); }
+  10% { filter: brightness(3) sepia(1) hue-rotate(-30deg) saturate(4); }
+  25% { filter: brightness(0.6) sepia(0) hue-rotate(0deg) saturate(1); }
+  40% { filter: brightness(2.5) sepia(1) hue-rotate(-30deg) saturate(3); }
+  55% { filter: brightness(0.8) sepia(0) hue-rotate(0deg) saturate(1); }
+  70% { filter: brightness(2) sepia(1) hue-rotate(-30deg) saturate(2); }
+  85% { filter: brightness(1) sepia(0) hue-rotate(0deg) saturate(1); }
+  100% { filter: brightness(1) sepia(0) hue-rotate(0deg) saturate(1); }
+}
+
+.animate-sprite-damage {
+  animation: sprite-damage 0.6s ease-out !important;
+}
+
+@keyframes battle-hit-crit {
+  0% { transform: translateX(0) scale(1); }
+  8% { transform: translateX(-14px) scale(0.95); }
+  16% { transform: translateX(12px) scale(1.04); }
+  24% { transform: translateX(-10px) scale(0.97); }
+  32% { transform: translateX(8px) scale(1.02); }
+  44% { transform: translateX(-6px) scale(0.99); }
+  56% { transform: translateX(4px) scale(1.01); }
+  70% { transform: translateX(-2px); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+.animate-battle-hit-crit {
+  animation: battle-hit-crit 0.7s ease-out;
+}
+
+@keyframes sprite-damage-crit {
+  0% { filter: brightness(1) sepia(0) saturate(1); }
+  5% { filter: brightness(6) sepia(0) saturate(0); }
+  12% { filter: brightness(0.4) sepia(1) hue-rotate(-30deg) saturate(5); }
+  22% { filter: brightness(5) sepia(0) saturate(0); }
+  32% { filter: brightness(0.5) sepia(1) hue-rotate(-30deg) saturate(4); }
+  45% { filter: brightness(3) sepia(1) hue-rotate(-30deg) saturate(3); }
+  58% { filter: brightness(0.7) sepia(0) saturate(1); }
+  72% { filter: brightness(2) sepia(1) hue-rotate(-30deg) saturate(2); }
+  85% { filter: brightness(1.2) sepia(0) saturate(1); }
+  100% { filter: brightness(1) sepia(0) saturate(1); }
+}
+
+.animate-sprite-damage-crit {
+  animation: sprite-damage-crit 0.9s ease-out !important;
+}
+
+@keyframes crit-screen-flash {
+  0% { opacity: 0; }
+  18% { opacity: 1; }
+  45% { opacity: 0.35; }
+  100% { opacity: 0; }
+}
+
+.animate-crit-flash {
+  animation: crit-screen-flash 160ms ease-out forwards;
+}
+
+@keyframes damage-float-crit {
+  0% { transform: translate(-50%, 0) scale(0.3); opacity: 0; }
+  10% { transform: translate(-50%, -5px) scale(1.5); opacity: 1; }
+  25% { transform: translate(-50%, -15px) scale(1.1); opacity: 1; }
+  50% { transform: translate(-50%, -35px) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -80px) scale(0.9); opacity: 0; }
+}
+
+.animate-damage-float-crit {
+  animation: damage-float-crit 1.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes damage-float {
+  0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+  15% { transform: translate(-50%, -10px) scale(1.2); opacity: 1; }
+  30% { transform: translate(-50%, -20px) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -60px) scale(0.8); opacity: 0; }
+}
+
+.animate-damage-float {
+  animation: damage-float 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes battle-attack-player {
+  0% { transform: translate(0, 0); }
+  30% { transform: translate(20px, -10px) scale(1.05); }
+  60% { transform: translate(20px, -10px) scale(1.05); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+.animate-battle-attack-player {
+  animation: battle-attack-player 0.5s ease-in-out;
+}
+
+@keyframes battle-attack-opponent {
+  0% { transform: translate(0, 0); }
+  30% { transform: translate(-20px, 10px) scale(1.05); }
+  60% { transform: translate(-20px, 10px) scale(1.05); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+.animate-battle-attack-opponent {
+  animation: battle-attack-opponent 0.5s ease-in-out;
+}
+
+@keyframes dodge-player {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  38% { transform: translate3d(-24px, -12px, 0) scale(0.96); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+.animate-dodge-player {
+  animation: dodge-player 340ms cubic-bezier(0.2, 0.9, 0.2, 1) !important;
+  transition: none !important;
+  will-change: transform;
+}
+
+@keyframes dodge-opponent {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  38% { transform: translate3d(24px, -12px, 0) scale(0.96); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+.animate-dodge-opponent {
+  animation: dodge-opponent 340ms cubic-bezier(0.2, 0.9, 0.2, 1) !important;
+  transition: none !important;
+  will-change: transform;
+}
+
+@keyframes death-vfx {
+  from { -webkit-mask-position: 0 0; mask-position: 0 0; }
+  to { -webkit-mask-position: -720px 0; mask-position: -720px 0; }
+}
+
+.animate-death-vfx {
+  animation: death-vfx 0.8s steps(15) forwards;
+}
+
+@keyframes ko-slam {
+  0% { transform: scale(0.3) translateY(-60px); opacity: 0; }
+  40% { transform: scale(1.1) translateY(5px); opacity: 1; }
+  60% { transform: scale(0.95) translateY(-3px); }
+  80% { transform: scale(1.02) translateY(1px); }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.animate-ko-slam {
+  animation: ko-slam 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes mourinho-confetti-burst {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.2) rotate(0deg);
+  }
+  12% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(-50% + var(--confetti-x)), calc(-50% + var(--confetti-y)), 0) scale(1) rotate(300deg);
+  }
+}
+
+@keyframes mourinho-reward-pop {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.2) rotate(-10deg);
+  }
+  35% {
+    opacity: 1;
+    transform: translate3d(0, -8px, 0) scale(1.18) rotate(4deg);
+  }
+  58% {
+    transform: translate3d(0, 0, 0) scale(0.96) rotate(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+}

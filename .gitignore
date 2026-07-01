@@ -29,9 +29,15 @@
 
 # debug
 dev-*.log
+.next-dev*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Mourinho demo source assets are converted to committed WebP files.
+public/mourinho-*.png
+public/mourinho-mons/*.gif
+public/FX/dead/dead-vfx.png
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
