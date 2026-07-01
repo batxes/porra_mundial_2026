@@ -585,10 +585,15 @@ export function AdminDropTab() {
     const option = DROP_OPTIONS.find((item) => item.key === selectedKey);
     if (!option) return;
     const count = Math.max(1, Math.min(50, Math.floor(qty) || 1));
+    const requiresSpecificTarget = option.pool === APRILS_PACK_POOL;
     const targeted = targetUserId !== "all";
     const targetUser = targeted
       ? targetUsers.find((item) => item.id === targetUserId)
       : null;
+    if (requiresSpecificTarget && !targeted) {
+      toast.error("Elige un usuario concreto para enviar el sobre Aprils.");
+      return;
+    }
     if (targeted && !targetUser) {
       toast.error("Elige un usuario para enviar el sobre.");
       return;
@@ -1007,7 +1012,9 @@ export function AdminDropTab() {
             disabled={!usingSupabase}
             className="mt-2 w-full rounded-lg border border-white/10 bg-[#111] px-3 py-2.5 text-sm font-bold text-white outline-none transition focus:border-amber-200/70 disabled:opacity-60"
           >
-            <option value="all">Todos</option>
+            <option value="all" disabled={selectedKey === APRILS_PACK_POOL}>
+              Todos
+            </option>
             {targetUsers.map((profile) => (
               <option key={profile.id} value={profile.id}>
                 {profile.name || "Usuario"}
@@ -1047,10 +1054,14 @@ export function AdminDropTab() {
           className="rounded-lg bg-[#ffd252] px-5 py-3 text-sm font-bold text-black transition hover:bg-[#ffdd7a] disabled:opacity-60"
         >
           {busy
-            ? targetUserId === "all"
+            ? targetUserId === "all" && selectedKey !== APRILS_PACK_POOL
               ? "Soltando..."
               : "Enviando..."
-            : `${targetUserId === "all" ? "Soltar" : "Enviar"} ${qty} sobre${
+            : `${
+                targetUserId === "all" && selectedKey !== APRILS_PACK_POOL
+                  ? "Soltar"
+                  : "Enviar"
+              } ${qty} sobre${
                 qty === 1 ? "" : "s"
               }`}
         </button>
