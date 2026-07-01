@@ -27,6 +27,12 @@ import { ruletaCompletedEventName } from "@/components/ruleta-modal";
 import { soberaQuizCompletedEventName } from "@/components/sobera-quiz-modal";
 import { suarezDentistCompletedEventName } from "@/components/suarez-dentist-modal";
 import { useAppContext } from "@/lib/app-context";
+import {
+  APRILS_CARD_POINTS,
+  APRILS_PACK_IMAGE,
+  APRILS_PACK_TITLE,
+  isAprilsPlayerId,
+} from "@/lib/aprils";
 import { data, playersById, teamsById } from "@/lib/data";
 import { initials, playerPhotoUrl } from "@/lib/format";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
@@ -391,6 +397,11 @@ const PACK_VISUALS: Array<{
   {
     title: "Sobre Barcelona",
     image: "/sobre-barcelona.webp",
+    flap: "red",
+  },
+  {
+    title: APRILS_PACK_TITLE,
+    image: APRILS_PACK_IMAGE,
     flap: "red",
   },
   {
@@ -891,7 +902,10 @@ export function CofresView() {
   }, [effectiveResults]);
 
   const pointsFor = useCallback(
-    (playerId: string) => playerPoints.get(playerId) || 0,
+    (playerId: string) =>
+      isAprilsPlayerId(playerId)
+        ? APRILS_CARD_POINTS
+        : playerPoints.get(playerId) || 0,
     [playerPoints],
   );
 
@@ -935,7 +949,9 @@ export function CofresView() {
     : null;
   // Forja: se puede fundir CUALQUIER carta sin usar (comunes o legendarias; 4
   // legendarias → otra legendaria). El premio siempre es legendaria.
-  const forgeableCards = unusedCards;
+  const forgeableCards = unusedCards.filter(
+    (card) => !isAprilsPlayerId(card.playerId),
+  );
   // Cartas seleccionadas, resueltas a InventoryCard y filtradas a las que aún
   // existen y siguen siendo forjables (si una se usa/desaparece, se cae sola).
   const forgeInputs = useMemo(() => {

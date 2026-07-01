@@ -6,6 +6,11 @@ import { toast } from "sonner";
 
 import { packDropEventName } from "@/components/pack-drop-notice";
 import { useAppContext } from "@/lib/app-context";
+import {
+  APRILS_PACK_IMAGE,
+  APRILS_PACK_POOL,
+  APRILS_PACK_TITLE,
+} from "@/lib/aprils";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 // El cliente de Supabase no tiene tipos de la BBDD generados, así que tipamos el
@@ -208,6 +213,12 @@ const DROP_OPTIONS = [
     pool: "barcelona",
   },
   {
+    key: APRILS_PACK_POOL,
+    title: APRILS_PACK_TITLE,
+    image: APRILS_PACK_IMAGE,
+    pool: APRILS_PACK_POOL,
+  },
+  {
     key: "sub21",
     title: "Sobre Promesas",
     image: "/sobre21.webp",
@@ -253,13 +264,14 @@ const DROP_OPTIONS = [
 
 const REWARD_POOL_OPTIONS = DROP_OPTIONS.filter(
   (option): option is (typeof DROP_OPTIONS)[number] & { pool: string } =>
-    typeof option.pool === "string",
+    typeof option.pool === "string" && option.pool !== APRILS_PACK_POOL,
 );
 
 export function AdminDropTab() {
-  const { usingSupabase, user } = useAppContext();
+  const { leaderboard, usingSupabase, user } = useAppContext();
   const [selectedKey, setSelectedKey] = useState(DROP_OPTIONS[0].key);
   const [qty, setQty] = useState(1);
+  const [targetUserId, setTargetUserId] = useState("all");
   const [busy, setBusy] = useState(false);
   const [quizStatus, setQuizStatus] = useState<QuizAdminStatus | null>(null);
   const [quizAttempts, setQuizAttempts] = useState<QuizAttemptRow[]>([]);
@@ -282,6 +294,9 @@ export function AdminDropTab() {
   const [quizError, setQuizError] = useState("");
   const [quizNotice, setQuizNotice] = useState("");
   const [quizFormBusy, setQuizFormBusy] = useState(false);
+  const targetUsers = [...leaderboard].sort((a, b) =>
+    (a.name || "Usuario").localeCompare(b.name || "Usuario"),
+  );
 
   const resetQuizForm = () => {
     setEditingQuizId(null);
@@ -570,6 +585,14 @@ export function AdminDropTab() {
     const option = DROP_OPTIONS.find((item) => item.key === selectedKey);
     if (!option) return;
     const count = Math.max(1, Math.min(50, Math.floor(qty) || 1));
+    const targeted = targetUserId !== "all";
+    const targetUser = targeted
+      ? targetUsers.find((item) => item.id === targetUserId)
+      : null;
+    if (targeted && !targetUser) {
+      toast.error("Elige un usuario para enviar el sobre.");
+      return;
+    }
     setBusy(true);
     try {
       if (usingSupabase && user) {
@@ -578,25 +601,39 @@ export function AdminDropTab() {
         if (!supabase)
           throw new Error("No se ha podido conectar con Supabase.");
         for (let i = 0; i < count; i += 1) {
-          const { error } = await supabase.rpc("admin_create_card_drop", {
-            p_label: option.title,
-            p_pool: option.pool,
-          });
+          const { error } = targeted
+            ? await supabase.rpc("admin_create_user_card_drop", {
+                p_label: option.title,
+                p_pool: option.pool,
+                p_target_user_id: targetUserId,
+              })
+            : await supabase.rpc("admin_create_card_drop", {
+                p_label: option.title,
+                p_pool: option.pool,
+              });
           if (error) throw new Error(error.message);
         }
+      } else if (targeted) {
+        throw new Error("Los sobres dirigidos solo estan disponibles con Supabase.");
       }
       // Aviso "Florentino te regala fichajes" (lo recoge PackDropWatcher).
-      window.dispatchEvent(
-        new CustomEvent(packDropEventName, {
-          detail: {
-            items: [{ title: option.title, image: option.image, qty: count }],
-          },
-        }),
-      );
-      toast.success("¡Drop soltado!", {
+      if (!targeted || targetUserId === user?.id) {
+        window.dispatchEvent(
+          new CustomEvent(packDropEventName, {
+            detail: {
+              items: [{ title: option.title, image: option.image, qty: count }],
+            },
+          }),
+        );
+      }
+      toast.success(targeted ? "Sobre enviado" : "Drop soltado", {
         description: `${count} × ${option.title} ${
           count === 1 ? "disponible" : "disponibles"
-        } para todos.`,
+        } ${
+          targeted && targetUser
+            ? `para ${targetUser.name || "usuario"}.`
+            : "para todos."
+        }`,
       });
     } catch (error) {
       const msg =
@@ -920,7 +957,7 @@ export function AdminDropTab() {
       <div>
         <h3 className="text-xl font-semibold text-white">Soltar sobres</h3>
         <p className="mt-1 text-sm text-zinc-400">
-          Suelta sobres a todos los jugadores.{" "}
+          Suelta sobres a todos los jugadores o enviaselos a una persona concreta.{" "}
           {usingSupabase
             ? "Se crean en Supabase y aparecen en /cofres."
             : "En modo demo solo se lanza el aviso (no se persiste)."}
@@ -960,6 +997,25 @@ export function AdminDropTab() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
+        <label className="block min-w-[220px]">
+          <span className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
+            Destino
+          </span>
+          <select
+            value={targetUserId}
+            onChange={(event) => setTargetUserId(event.target.value)}
+            disabled={!usingSupabase}
+            className="mt-2 w-full rounded-lg border border-white/10 bg-[#111] px-3 py-2.5 text-sm font-bold text-white outline-none transition focus:border-amber-200/70 disabled:opacity-60"
+          >
+            <option value="all">Todos</option>
+            {targetUsers.map((profile) => (
+              <option key={profile.id} value={profile.id}>
+                {profile.name || "Usuario"}
+                {profile.isHidden ? " (oculto)" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5">
           <span className="text-sm font-semibold text-zinc-300">Cantidad</span>
           <div className="flex items-center gap-2">
@@ -990,7 +1046,13 @@ export function AdminDropTab() {
           onClick={() => void release()}
           className="rounded-lg bg-[#ffd252] px-5 py-3 text-sm font-bold text-black transition hover:bg-[#ffdd7a] disabled:opacity-60"
         >
-          {busy ? "Soltando..." : `Soltar ${qty} sobre${qty === 1 ? "" : "s"}`}
+          {busy
+            ? targetUserId === "all"
+              ? "Soltando..."
+              : "Enviando..."
+            : `${targetUserId === "all" ? "Soltar" : "Enviar"} ${qty} sobre${
+                qty === 1 ? "" : "s"
+              }`}
         </button>
       </div>
 
