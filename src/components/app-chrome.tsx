@@ -14,6 +14,7 @@ import { PorteroPenaltyGate } from "@/components/portero-penalty-gate";
 import { ResultsRecapWatcher } from "@/components/results-recap";
 import { RonaldaoLimboGate } from "@/components/ronaldao-limbo-gate";
 import { RuletaGate } from "@/components/ruleta-gate";
+import { ScratchCardsGate } from "@/components/scratch-cards-gate";
 import { SoberaQuizGate } from "@/components/sobera-quiz-gate";
 import { SuarezDentistGate } from "@/components/suarez-dentist-gate";
 import { useAppContext } from "@/lib/app-context";
@@ -505,6 +506,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       <PorteroPenaltyGate />
       <SuarezDentistGate />
       <RonaldaoLimboGate />
+      <ScratchCardsGate />
       <SoberaQuizGate />
       <RuletaGate />
     </>

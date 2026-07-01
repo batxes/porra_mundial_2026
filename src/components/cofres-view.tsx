@@ -23,7 +23,9 @@ import { adivinaCompletedEventName } from "@/components/adivina-modal";
 import { hogueraCompletedEventName } from "@/components/hoguera-modal";
 import { PlayerCard } from "@/components/player-card";
 import { porteroPenaltyCompletedEventName } from "@/components/portero-penalty-modal";
+import { ronaldaoLimboCompletedEventName } from "@/components/ronaldao-limbo-modal";
 import { ruletaCompletedEventName } from "@/components/ruleta-modal";
+import { scratchCardsCompletedEventName } from "@/components/scratch-cards-modal";
 import { soberaQuizCompletedEventName } from "@/components/sobera-quiz-modal";
 import { suarezDentistCompletedEventName } from "@/components/suarez-dentist-modal";
 import { useAppContext } from "@/lib/app-context";
@@ -75,7 +77,9 @@ const packAwardCompletedEvents = [
   adivinaCompletedEventName,
   hogueraCompletedEventName,
   porteroPenaltyCompletedEventName,
+  ronaldaoLimboCompletedEventName,
   ruletaCompletedEventName,
+  scratchCardsCompletedEventName,
   soberaQuizCompletedEventName,
   suarezDentistCompletedEventName,
 ] as const;
