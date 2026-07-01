@@ -37,7 +37,7 @@ export function WorldCupBracketModal({
       <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-white/12 bg-[#070707] p-4 shadow-2xl shadow-black sm:p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#a7f600]">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#a7f600]">
               Fase final
             </p>
             <h2 className="mt-1 text-xl font-bold tracking-tight text-white">

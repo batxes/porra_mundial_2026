@@ -835,7 +835,7 @@ function StepActionBar({
               <button
                 type="button"
                 onClick={() => setBracketOpen(true)}
-                className="inline-flex h-8 items-center rounded-full border border-white/10 bg-white/[0.06] px-3 text-xs font-black uppercase tracking-[0.12em] text-white transition hover:border-[#a7f600]/45 hover:bg-[#a7f600]/10 sm:h-9"
+                className="inline-flex h-8 items-center rounded-full border border-white/10 bg-white/[0.06] px-3 text-xs font-bold uppercase tracking-[0.12em] text-white transition hover:border-[#a7f600]/45 hover:bg-[#a7f600]/10 sm:h-9"
               >
                 Ver cuadro
               </button>
@@ -2303,7 +2303,7 @@ function GroupStageScoreSummary({ scorecard }: { scorecard: Scorecard }) {
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a7f600]/80">
             Puntos
           </p>
-          <p className="mt-0.5 text-3xl font-black leading-none text-[#a7f600]">
+          <p className="mt-0.5 text-3xl font-bold leading-none text-[#a7f600]">
             {formatSignedPoints(category?.total || 0)}
           </p>
         </div>

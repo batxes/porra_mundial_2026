@@ -321,7 +321,11 @@ function recentResultsForTeam(teamId: string, adminResults: AdminResults) {
           opponentId,
           opponentLabel: opponent?.name || "Rival",
           outcome:
-            forScore > againstScore ? "G" : forScore === againstScore ? "E" : "P",
+            forScore > againstScore
+              ? "G"
+              : forScore === againstScore
+                ? "E"
+                : "P",
           sortAt: new Date(scheduleUtc(match)).getTime(),
           stage: match.stage,
         },
@@ -454,7 +458,10 @@ function userPlayersForMatch(
     }
 
     selectedPlayerIds.add(playerId);
-    pointsByPlayer.set(playerId, (pointsByPlayer.get(playerId) || 0) + entry.points);
+    pointsByPlayer.set(
+      playerId,
+      (pointsByPlayer.get(playerId) || 0) + entry.points,
+    );
   });
 
   const players = Array.from(selectedPlayerIds)
@@ -562,8 +569,11 @@ function userPlayForMatch(
         current?.trainerTeamId || "",
       ),
     );
-  const tacticStatus =
-    tacticHit ? "hit" : isFinishedResult(result) && hasChip ? "miss" : "pending";
+  const tacticStatus = tacticHit
+    ? "hit"
+    : isFinishedResult(result) && hasChip
+      ? "miss"
+      : "pending";
 
   return {
     awayScore: current?.awayScore ?? "",
@@ -1044,9 +1054,13 @@ function buildBracketState(
   };
 }
 
-function realRound32TeamIds(matchNumber: number, matchByNumber: Map<number, Match>) {
+function realRound32TeamIds(
+  matchNumber: number,
+  matchByNumber: Map<number, Match>,
+) {
   const confirmed = confirmedRound32Teams[String(matchNumber)];
-  if (confirmed) return [confirmed.home || "", confirmed.away || ""].filter(Boolean);
+  if (confirmed)
+    return [confirmed.home || "", confirmed.away || ""].filter(Boolean);
 
   const match = matchByNumber.get(matchNumber);
   if (!match) return [];
@@ -1517,7 +1531,7 @@ function playerPointsLabel(points: number) {
 function PlayerPointBadge({ points }: { points: number }) {
   return (
     <span
-      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
         points > 0
           ? "bg-[#a7f600]/15 text-[#a7f600]"
           : "bg-red-500/10 text-red-300"
@@ -1586,7 +1600,7 @@ function UserPlaySection({ play }: { play: UserPlay | null }) {
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-md bg-white/[0.035] px-2 py-2">
             <UserPlayFlag fallback="LOC" teamId={play.homeTeamId} />
             <span
-              className={`rounded-full px-2.5 py-1 text-sm font-black tabular-nums ${userScoreClass(
+              className={`rounded-full px-2.5 py-1 text-sm font-bold tabular-nums ${userScoreClass(
                 play.resultStatus,
               )}`}
               title="Tu prediccion"
@@ -1627,7 +1641,7 @@ function UserPlaySection({ play }: { play: UserPlay | null }) {
             </span>
             {chipBadge ? (
               <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${chipBadge.className}`}
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${chipBadge.className}`}
               >
                 {chipBadge.label}
               </span>
@@ -1667,7 +1681,7 @@ function TeamResultList({ results }: { results: TeamResultRow[] }) {
             className="flex min-h-8 items-center gap-2 rounded-md bg-white/[0.035] px-2 py-1.5"
           >
             <span
-              className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${outcomeClass}`}
+              className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${outcomeClass}`}
             >
               {result.outcome}
             </span>
@@ -1732,7 +1746,10 @@ function BracketPopoverBody({ content }: { content: PopoverContent }) {
         ))}
       </div>
       <UserPlaySection play={content.userPlay} />
-      <ChipPopularitySection rows={content.chipRows} total={content.chipTotal} />
+      <ChipPopularitySection
+        rows={content.chipRows}
+        total={content.chipTotal}
+      />
     </div>
   );
 }
@@ -1770,7 +1787,9 @@ function CircularBracketDemo({
     () => buildBracketState(adminResults, matches, geometry, prediction),
     [adminResults, geometry, matches, prediction],
   );
-  const [activePopover, setActivePopover] = useState<ActivePopover | null>(null);
+  const [activePopover, setActivePopover] = useState<ActivePopover | null>(
+    null,
+  );
   const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(
     null,
   );
@@ -1788,9 +1807,7 @@ function CircularBracketDemo({
     : null;
   const closePopover = useCallback(() => setActivePopover(null), []);
   const togglePopover = useCallback((id: string, anchor: HTMLElement) => {
-    setActivePopover((current) =>
-      current?.id === id ? null : { anchor, id },
-    );
+    setActivePopover((current) => (current?.id === id ? null : { anchor, id }));
   }, []);
 
   useEffect(() => {
@@ -1978,7 +1995,10 @@ export function CircularBracketPanel({
     () => schedule.filter((match) => match.number >= 73),
     [],
   );
-  const geometry = useMemo(() => buildGeometry(playoffMatches), [playoffMatches]);
+  const geometry = useMemo(
+    () => buildGeometry(playoffMatches),
+    [playoffMatches],
+  );
   const chipPredictions = useMemo(() => {
     const predictions = leaderboard
       .map((profile) => profile.prediction)

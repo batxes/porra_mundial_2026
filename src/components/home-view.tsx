@@ -875,8 +875,9 @@ function bestThirdGroupsFromTables(groupTables: Record<string, GroupTable>) {
       group,
       row: table.positions.find((position) => position.position === 3),
     }))
-    .filter((item): item is { group: string; row: NonNullable<typeof item.row> } =>
-      Boolean(item.row),
+    .filter(
+      (item): item is { group: string; row: NonNullable<typeof item.row> } =>
+        Boolean(item.row),
     )
     .sort(
       (a, b) =>
@@ -1400,10 +1401,7 @@ function groupFromScoreEntry(entry: ScoreEntry) {
   return entry.explanation.match(/grupo ([A-Z])/i)?.[1]?.toUpperCase() || "";
 }
 
-function addGroupPhaseEntry(
-  breakdown: GroupPhaseBreakdown,
-  entry: ScoreEntry,
-) {
+function addGroupPhaseEntry(breakdown: GroupPhaseBreakdown, entry: ScoreEntry) {
   if (entry.ruleCode === "group_position_hit") {
     breakdown.exactOrder += entry.points;
   } else if (entry.ruleCode === "group_qualification_hit") {
@@ -1573,7 +1571,6 @@ function GroupPhaseReportCard({
             Ver clasificación
           </Link>
         </div>
-
       </div>
 
       <div className="space-y-4 px-4 py-4 sm:px-5">
@@ -1681,10 +1678,7 @@ function teamFromGroupScoreEntry(entry: ScoreEntry) {
 }
 
 function userGroupTeamPoints(profile: UserProfile, group: string) {
-  const byTeam = new Map<
-    string,
-    GroupPhaseBreakdown & { total: number }
-  >();
+  const byTeam = new Map<string, GroupPhaseBreakdown & { total: number }>();
 
   profile.scorecard.entries.forEach((entry) => {
     if (!entry.ruleCode.startsWith("group_")) return;
@@ -1861,9 +1855,7 @@ function GroupPhaseUserGroupCard({
           <h4 className="text-sm font-bold text-white">
             Grupo {groupReport.group}
           </h4>
-          <p className="mt-0.5 text-xs text-zinc-500">
-            Orden final del grupo
-          </p>
+          <p className="mt-0.5 text-xs text-zinc-500">Orden final del grupo</p>
         </div>
         <span className="shrink-0 rounded-md bg-[#a7f600]/12 px-2 py-0.5 text-xs font-bold text-[#a7f600]">
           {formatSignedPoints(points.points)}
@@ -1894,7 +1886,9 @@ function GroupPhaseUserGroupCard({
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className={`w-4 shrink-0 text-xs font-bold ${numberTone}`}>
+                  <span
+                    className={`w-4 shrink-0 text-xs font-bold ${numberTone}`}
+                  >
                     {row.position}
                   </span>
                   <TeamFlag
@@ -2047,7 +2041,9 @@ function HomeFeedSection({
     jornadas[0]?.date ||
     "";
   const hasContent =
-    upcomingMatches.length > 0 || Boolean(groupPhaseReport) || jornadas.length > 0;
+    upcomingMatches.length > 0 ||
+    Boolean(groupPhaseReport) ||
+    jornadas.length > 0;
   const matchesHref = upcomingMatches.some(isTrainerChipMatch)
     ? "/porra?section=playoffResults&goto=next"
     : "/porra?section=results&goto=next";
@@ -3339,12 +3335,12 @@ function JornadaMatchRow({
         <span className="flex shrink-0 flex-col items-center gap-0.5">
           <span
             className={`rounded-lg px-3 py-1 text-lg font-bold tabular-nums tracking-wide sm:px-3.5 sm:text-xl ${
-            score
-              ? "bg-white/[0.08] text-white"
-              : "bg-white/[0.04] text-zinc-500"
-          }`}
-        >
-          {score ? `${score.home} - ${score.away}` : "– - –"}
+              score
+                ? "bg-white/[0.08] text-white"
+                : "bg-white/[0.04] text-zinc-500"
+            }`}
+          >
+            {score ? `${score.home} - ${score.away}` : "– - –"}
           </span>
           {hasShootout ? (
             <span className="text-[11px] font-bold tabular-nums text-zinc-400">
@@ -3729,7 +3725,7 @@ function SobresPromoBanner({ userId }: { userId: string }) {
         <button
           type="button"
           onClick={() => setBracketOpen(true)}
-          className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-white transition hover:border-[#a7f600]/45 hover:bg-[#a7f600]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a7f600]"
+          className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-white transition hover:border-[#a7f600]/45 hover:bg-[#a7f600]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a7f600]"
         >
           VER CUADRO MUNDIAL
         </button>

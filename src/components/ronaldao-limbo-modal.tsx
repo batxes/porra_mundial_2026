@@ -385,7 +385,7 @@ function BriefingPanel({
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-emerald-200/18 bg-emerald-950/24 p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-200">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-200">
               Aciertas
             </p>
             <p className="mt-2 font-[family-name:var(--font-display)] text-4xl leading-none text-[#f5c518]">
@@ -397,13 +397,13 @@ function BriefingPanel({
           </div>
 
           <div className="rounded-xl border border-rose-200/22 bg-rose-950/28 p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-200">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-rose-200">
               Explotar
             </p>
             <p className="mt-2 font-[family-name:var(--font-display)] text-4xl leading-none text-[#ff6a2b]">
               Fin
             </p>
-            <p className="mt-2 text-xs font-black uppercase tracking-[0.08em] text-rose-100">
+            <p className="mt-2 text-xs font-bold uppercase tracking-[0.08em] text-rose-100">
               Pierdes esa vida
             </p>
           </div>
@@ -483,7 +483,7 @@ function RonaldaoStage({
         <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-emerald-100/68">
           Volumen
         </p>
-        <p className="mt-0.5 text-sm font-black leading-none text-white">
+        <p className="mt-0.5 text-sm font-bold leading-none text-white">
           x{scale.toFixed(2)}
         </p>
       </div>
@@ -492,7 +492,7 @@ function RonaldaoStage({
           risk,
         )}`}
       >
-        <p className="text-[8px] font-black uppercase tracking-[0.16em] opacity-80">
+        <p className="text-[8px] font-bold uppercase tracking-[0.16em] opacity-80">
           Explota
         </p>
         <p className="mt-0.5 font-[family-name:var(--font-display)] text-3xl leading-none">
@@ -588,7 +588,7 @@ function RonaldaoRoundStatus({
   return (
     <div className="mb-2 flex items-center justify-between gap-3 px-1">
       <div>
-        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#f5c518]">
+        <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#f5c518]">
           Vida {roundIndex + 1}/{maxRounds}
         </p>
         <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-500">
@@ -719,7 +719,7 @@ function RoundBreakPanel({
         </h3>
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div className="rounded-xl border border-sky-200/12 bg-sky-950/18 p-3">
-            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-sky-200">
+            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-sky-200">
               Esta vida
             </p>
             <p className="mt-2 font-[family-name:var(--font-display)] text-5xl leading-none text-white">
@@ -730,7 +730,7 @@ function RoundBreakPanel({
             </p>
           </div>
           <div className="rounded-xl border border-[#f5c518]/18 bg-[#3a2a05]/20 p-3">
-            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#f5c518]">
+            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#f5c518]">
               Mejor
             </p>
             <p className="mt-2 font-[family-name:var(--font-display)] text-5xl leading-none text-[#f5c518]">
@@ -851,7 +851,7 @@ function ResultPanel({
       <div className="relative z-10 mt-3 flex justify-center gap-2">
         {result.roundScores.map((score, index) => (
           <span
-            className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] ${
+            className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] ${
               index + 1 === result.bestRound
                 ? "border-[#f5c518]/55 bg-[#f5c518]/12 text-[#f5c518]"
                 : "border-white/10 bg-white/[0.03] text-zinc-400"

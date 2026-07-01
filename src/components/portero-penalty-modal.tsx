@@ -297,7 +297,7 @@ function ShootoutTrack({
                     : `Penalti ${index + 1}: gol`
                   : `Penalti ${index + 1}: pendiente`
               }
-              className={`grid h-8 w-12 place-items-center rounded-md border text-[12px] font-black transition ${
+              className={`grid h-8 w-12 place-items-center rounded-md border text-[12px] font-bold transition ${
                 shot
                   ? shot.saved
                     ? "border-emerald-300/60 bg-emerald-300/12 text-emerald-100"
@@ -365,7 +365,7 @@ function DirectionButton({
           unoptimized
         />
       </span>
-      <span className="mt-2 text-sm font-black text-white">{meta.label}</span>
+      <span className="mt-2 text-sm font-bold text-white">{meta.label}</span>
       <span className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-emerald-100/42">
         {action}
       </span>
@@ -495,36 +495,36 @@ function PenaltyStage({
             }`}
           />
           <div className="absolute inset-x-4 top-4 z-40 flex justify-center">
-          <div
-            className={`portero-outcome-card ${
-              lastShot.saved
-                ? "portero-outcome-card--save"
-                : "portero-outcome-card--goal"
-            }`}
-          >
-            <span aria-hidden className="portero-outcome-ring" />
-            <span aria-hidden className="portero-outcome-shine" />
-            <span aria-hidden className="portero-outcome-sparks">
-              {OUTCOME_SPARKS.map((spark, index) => (
-                <span
-                  className="portero-outcome-spark"
-                  key={`portero-spark-${index}`}
-                  style={{
-                    animationDelay: spark.delay,
-                    left: spark.left,
-                    top: spark.top,
-                  }}
-                />
-              ))}
-            </span>
-            <p className="relative z-10 flex items-center justify-center gap-2 font-[var(--font-pixel)] text-base leading-none sm:text-lg">
-              <span aria-hidden className="text-lg leading-none sm:text-xl">
-                {lastShot.saved ? "✔️" : "❌"}
+            <div
+              className={`portero-outcome-card ${
+                lastShot.saved
+                  ? "portero-outcome-card--save"
+                  : "portero-outcome-card--goal"
+              }`}
+            >
+              <span aria-hidden className="portero-outcome-ring" />
+              <span aria-hidden className="portero-outcome-shine" />
+              <span aria-hidden className="portero-outcome-sparks">
+                {OUTCOME_SPARKS.map((spark, index) => (
+                  <span
+                    className="portero-outcome-spark"
+                    key={`portero-spark-${index}`}
+                    style={{
+                      animationDelay: spark.delay,
+                      left: spark.left,
+                      top: spark.top,
+                    }}
+                  />
+                ))}
               </span>
-              {lastShot.saved ? "PARADON" : "GOL"}
-            </p>
+              <p className="relative z-10 flex items-center justify-center gap-2 font-[var(--font-pixel)] text-base leading-none sm:text-lg">
+                <span aria-hidden className="text-lg leading-none sm:text-xl">
+                  {lastShot.saved ? "✔️" : "❌"}
+                </span>
+                {lastShot.saved ? "PARADON" : "GOL"}
+              </p>
+            </div>
           </div>
-        </div>
         </>
       ) : null}
     </div>

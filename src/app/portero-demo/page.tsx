@@ -55,7 +55,7 @@ export default function PorteroDemoPage() {
             aria-hidden
             className="absolute inset-x-4 top-4 h-24 rounded-xl border border-white/10 bg-[linear-gradient(180deg,#123e68,#0d3d22)] opacity-60"
           />
-          <p className="relative text-[10px] font-black uppercase tracking-[0.24em] text-[#7dd3fc]">
+          <p className="relative text-[10px] font-bold uppercase tracking-[0.24em] text-[#7dd3fc]">
             Demo / Porteros
           </p>
           {lastResult ? (
@@ -66,15 +66,14 @@ export default function PorteroDemoPage() {
               </span>{" "}
               {"->"}{" "}
               <span className="font-bold text-[#7dd3fc]">
-                {lastResult.packs}{" "}
-                {lastResult.packs === 1 ? "sobre" : "sobres"}
+                {lastResult.packs} {lastResult.packs === 1 ? "sobre" : "sobres"}
               </span>
             </p>
           ) : (
             <p className="relative mt-3 text-sm text-zinc-400">Demo cerrada.</p>
           )}
           <button
-            className="relative mt-5 w-full rounded-lg bg-[#7dd3fc] px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-[#06131f] transition hover:bg-white"
+            className="relative mt-5 w-full rounded-lg bg-[#7dd3fc] px-5 py-3 text-sm font-bold uppercase tracking-[0.14em] text-[#06131f] transition hover:bg-white"
             onClick={() => setOpen(true)}
             type="button"
           >
