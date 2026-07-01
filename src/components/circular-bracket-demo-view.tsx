@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 
 import { PlayerAvatar, SectionHeading, TeamFlag } from "@/components/common";
 import { playersById, schedule, teamsById } from "@/lib/data";
@@ -18,6 +19,7 @@ import { translateSlot } from "@/lib/format";
 import { useAppContext } from "@/lib/app-context";
 import { resultLoserTeamId, resultWinnerTeamId } from "@/lib/match-events";
 import {
+  buildEliminatedPlayoffTeamIds,
   buildResolvedPlayoffTeams,
   confirmedRound32Teams,
   type ResolvedPlayoffTeams,
@@ -37,9 +39,20 @@ const RING = {
 } as const;
 const LEFT = { root: 101, start: 180, end: 360 };
 const RIGHT = { root: 102, start: 0, end: 180 };
+const BRACKET_PATH_ROOTS = [97, 98, 99, 100] as const;
+const BRACKET_PATH_COLORS: Record<(typeof BRACKET_PATH_ROOTS)[number], string> =
+  {
+    97: "#10b981",
+    98: "#facc15",
+    99: "#38bdf8",
+    100: "#a855f7",
+  };
+const DEFAULT_ACTIVE_PATH_COLOR = BRACKET_PATH_COLORS[97];
+const INACTIVE_PATH_COLOR = "rgba(255,255,255,0.16)";
 
 type Side = "home" | "away";
 type RoundKey = keyof typeof RING;
+type BracketPathRoot = (typeof BRACKET_PATH_ROOTS)[number];
 
 type Point = {
   x: number;
@@ -85,8 +98,12 @@ type ResolvedSlot = {
 
 type BracketState = {
   activePaths: Set<string>;
+  activePathColors: Map<string, string>;
   champion: string;
-  flags: Array<FlagPos & ResolvedSlot & { selected: boolean }>;
+  eliminatedTeamIds: Set<string>;
+  flags: Array<
+    FlagPos & ResolvedSlot & { eliminated: boolean; selected: boolean }
+  >;
   nodeWinners: Map<number, string>;
 };
 
@@ -822,9 +839,34 @@ function buildBracketState(
 ): BracketState {
   const matchByNumber = new Map(matches.map((match) => [match.number, match]));
   const activePaths = new Set<string>();
+  const activePathColors = new Map<string, string>();
+  const eliminatedTeamIds = buildEliminatedPlayoffTeamIds(adminResults);
+  const bracketRootByMatch = new Map<number, BracketPathRoot>();
   const teamCache = new Map<number, { away: string; home: string }>();
   const winnerCache = new Map<number, string>();
   const slotCache = new Map<string, string>();
+
+  const assignBracketRoot = (
+    matchNumber: number,
+    root: BracketPathRoot,
+  ) => {
+    bracketRootByMatch.set(matchNumber, root);
+    const match = matchByNumber.get(matchNumber);
+    const kids = match ? childMatches(match) : null;
+    kids?.forEach((childMatch) => assignBracketRoot(childMatch, root));
+  };
+
+  BRACKET_PATH_ROOTS.forEach((root) => assignBracketRoot(root, root));
+
+  const activeColorForMatch = (matchNumber: number): string => {
+    const root = bracketRootByMatch.get(matchNumber);
+    return root ? BRACKET_PATH_COLORS[root] : DEFAULT_ACTIVE_PATH_COLOR;
+  };
+
+  const activatePath = (key: string, color: string) => {
+    activePaths.add(key);
+    activePathColors.set(key, color);
+  };
 
   const resultTeamForSide = (
     result: AdminResults[string] | undefined,
@@ -871,6 +913,22 @@ function buildBracketState(
       (home && away ? predictedScoreWinner(match, home, away, prediction) : "");
     winnerCache.set(matchNumber, winner);
     return winner;
+  };
+
+  const activeColorForWinnerPath = (matchNumber: number): string => {
+    const match = matchByNumber.get(matchNumber);
+    const winner = winnerForMatch(matchNumber);
+    const kids = match ? childMatches(match) : null;
+
+    if (winner && kids) {
+      for (const childMatch of kids) {
+        if (winnerForMatch(childMatch) === winner) {
+          return activeColorForWinnerPath(childMatch);
+        }
+      }
+    }
+
+    return activeColorForMatch(matchNumber);
   };
 
   const resolveCircularSlot = (slot: string, matchNumber: number): string => {
@@ -927,6 +985,7 @@ function buildBracketState(
       fallback: confirmedTeamId
         ? teamsById.get(confirmedTeamId)?.code.toUpperCase() || confirmedTeamId
         : shortSlotLabel(slot),
+      eliminated: Boolean(teamId && eliminatedTeamIds.has(teamId)),
       selected: Boolean(teamId && winner === teamId),
       teamId,
     };
@@ -943,37 +1002,43 @@ function buildBracketState(
     const kids = childMatches(match);
     if (!kids) {
       const { away, home } = resolvedTeamsForMatch(match.number);
-      activePaths.add(`trunk-${match.number}`);
+      const pathColor = activeColorForMatch(match.number);
+      activatePath(`trunk-${match.number}`, pathColor);
       if (winner === home) {
-        activePaths.add(`flag-${match.number}-home`);
-        activePaths.add(`arc-${match.number}-home`);
+        activatePath(`flag-${match.number}-home`, pathColor);
+        activatePath(`arc-${match.number}-home`, pathColor);
       }
       if (winner === away) {
-        activePaths.add(`flag-${match.number}-away`);
-        activePaths.add(`arc-${match.number}-away`);
+        activatePath(`flag-${match.number}-away`, pathColor);
+        activatePath(`arc-${match.number}-away`, pathColor);
       }
       return;
     }
 
     kids.forEach((childMatch) => {
       if (winnerForMatch(childMatch)) {
-        activePaths.add(`inner-${match.number}-${childMatch}`);
-        activePaths.add(`inner-arc-${match.number}-${childMatch}`);
+        const pathColor = activeColorForWinnerPath(childMatch);
+        activatePath(`inner-${match.number}-${childMatch}`, pathColor);
+        activatePath(`inner-arc-${match.number}-${childMatch}`, pathColor);
       }
     });
   });
 
   [LEFT.root, RIGHT.root].forEach((semifinal) => {
-    if (winnerForMatch(semifinal)) activePaths.add(`final-${semifinal}`);
+    if (winnerForMatch(semifinal)) {
+      activatePath(`final-${semifinal}`, activeColorForWinnerPath(semifinal));
+    }
   });
 
   const finalMatch = matchByNumber.get(104);
   return {
     activePaths,
+    activePathColors,
     champion:
       (finalMatch ? winnerForMatch(finalMatch.number) : "") ||
       prediction.extras.worldChampion ||
       "",
+    eliminatedTeamIds,
     flags,
     nodeWinners: winnerCache,
   };
@@ -1074,51 +1139,54 @@ function buildPopoverContent(
   };
 }
 
-function TrophyIcon() {
+function CupNode() {
   return (
-    <svg
+    <span
       aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="h-[55%] w-[55%]"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
+      className="relative flex h-full w-full items-center justify-center overflow-visible rounded-full"
     >
-      <path d="M10 14.66v1.626a2 2 0 0 1-.976 1.696A5 5 0 0 0 7 21.978" />
-      <path d="M14 14.66v1.626a2 2 0 0 0 .976 1.696A5 5 0 0 1 17 21.978" />
-      <path d="M18 9h1.5a1 1 0 0 0 0-5H18" />
-      <path d="M4 22h16" />
-      <path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z" />
-      <path d="M6 9H4.5a1 1 0 0 1 0-5H6" />
-    </svg>
+      <Image
+        src="/cup.webp"
+        alt=""
+        width={96}
+        height={96}
+        draggable={false}
+        className="h-[245%] w-[245%] max-w-none object-contain drop-shadow-[0_0_22px_rgba(250,204,21,0.5)]"
+      />
+    </span>
   );
 }
 
 function FlagNode({
+  eliminated = false,
   fallback,
   selected,
   teamId,
 }: {
+  eliminated?: boolean;
   fallback: string;
   selected: boolean;
   teamId: string;
 }) {
   const team = teamId ? teamsById.get(teamId) : null;
+  const toneClass = eliminated
+    ? selected
+      ? "ring-white/50 grayscale saturate-0 opacity-65"
+      : "ring-white/10 grayscale saturate-0 opacity-45"
+    : selected
+      ? "ring-[#a7f600]"
+      : "ring-white/15 brightness-95 hover:brightness-110";
 
   return (
     <span
-      className={`relative grid place-items-center rounded-full bg-[#171717] ring-1 transition ${
-        selected
-          ? "ring-[#a7f600]"
-          : "ring-white/15 brightness-95 hover:brightness-110"
-      }`}
+      className={`relative grid place-items-center rounded-full bg-[#171717] ring-1 transition ${toneClass}`}
       style={{
         height: "calc(var(--cf) * 0.85)",
         width: "calc(var(--cf) * 0.85)",
       }}
-      title={team?.name || fallback}
+      title={
+        team ? `${team.name}${eliminated ? " (eliminado)" : ""}` : fallback
+      }
     >
       {team ? (
         <TeamFlag teamId={team.id} className="h-full w-full rounded-full" />
@@ -1760,8 +1828,9 @@ function CircularBracketDemo({
               fill="none"
               stroke={
                 arc.active || state.activePaths.has(arc.key)
-                  ? "#10b981"
-                  : "rgba(255,255,255,0.16)"
+                  ? state.activePathColors.get(arc.key) ||
+                    DEFAULT_ACTIVE_PATH_COLOR
+                  : INACTIVE_PATH_COLOR
               }
               strokeWidth="2.5"
             />
@@ -1775,8 +1844,9 @@ function CircularBracketDemo({
               y2={segment.y2}
               stroke={
                 segment.active || state.activePaths.has(segment.key)
-                  ? "#10b981"
-                  : "rgba(255,255,255,0.16)"
+                  ? state.activePathColors.get(segment.key) ||
+                    DEFAULT_ACTIVE_PATH_COLOR
+                  : INACTIVE_PATH_COLOR
               }
               strokeLinecap="round"
               strokeWidth="2.5"
@@ -1787,6 +1857,9 @@ function CircularBracketDemo({
         {geometry.nodes.map((node) => {
           const match = matchByNumber.get(node.match);
           const winner = state.nodeWinners.get(node.match) || "";
+          const winnerEliminated = Boolean(
+            winner && state.eliminatedTeamIds.has(winner),
+          );
           const popoverId = `match-${node.match}`;
           const active = activePopover?.id === popoverId;
           return (
@@ -1805,7 +1878,12 @@ function CircularBracketDemo({
               style={positionStyle(node)}
             >
               {winner ? (
-                <FlagNode fallback="" selected teamId={winner} />
+                <FlagNode
+                  eliminated={winnerEliminated}
+                  fallback=""
+                  selected
+                  teamId={winner}
+                />
               ) : (
                 <QuestionNode selected={active} />
               )}
@@ -1826,6 +1904,7 @@ function CircularBracketDemo({
                 style={positionStyle(flag)}
               >
                 <FlagNode
+                  eliminated={flag.eliminated}
                   fallback={flag.fallback}
                   selected={flag.selected}
                   teamId={flag.teamId}
@@ -1846,6 +1925,7 @@ function CircularBracketDemo({
               style={positionStyle(flag)}
             >
               <FlagNode
+                eliminated={flag.eliminated}
                 fallback={flag.fallback}
                 selected={flag.selected || active}
                 teamId={flag.teamId}
@@ -1860,19 +1940,15 @@ function CircularBracketDemo({
           aria-haspopup="dialog"
           aria-label="Ver opciones de campeonar"
           onClick={(event) => togglePopover("champion", event.currentTarget)}
-          className="absolute z-30 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-emerald-500/50 bg-[#07130f] text-emerald-400"
+          className="absolute z-30 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-yellow-300/45 bg-[#130f07]"
           style={{
-            height: "var(--cf)",
+            height: "calc(var(--cf) * 1.35)",
             left: "50%",
             top: "50%",
-            width: "var(--cf)",
+            width: "calc(var(--cf) * 1.35)",
           }}
         >
-          {state.champion ? (
-            <FlagNode fallback="" selected teamId={state.champion} />
-          ) : (
-            <TrophyIcon />
-          )}
+          <CupNode />
         </button>
       </div>
       <FloatingBracketPopover active={activePopover} onClose={closePopover}>
