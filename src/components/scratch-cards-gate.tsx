@@ -14,9 +14,6 @@ import { useAppContext } from "@/lib/app-context";
 import { notifyCardsChanged } from "@/lib/cofres";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
-export const scratchCardsStatusChangedEventName =
-  "triliporra:scratch-cards-status-changed";
-
 type ScratchCardsStatusRow = {
   active?: boolean;
   card_count?: number;
@@ -216,11 +213,9 @@ export function ScratchCardsGate() {
     }, 30000);
     const onFocus = () => void checkStatus();
     window.addEventListener("focus", onFocus);
-    window.addEventListener(scratchCardsStatusChangedEventName, onFocus);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
-      window.removeEventListener(scratchCardsStatusChangedEventName, onFocus);
     };
   }, [checkStatus, ready, usingSupabase, user]);
 
