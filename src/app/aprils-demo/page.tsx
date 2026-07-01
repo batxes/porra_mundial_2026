@@ -42,7 +42,7 @@ export default function AprilsDemoPage() {
     <main className="mx-auto w-full max-w-6xl px-4 py-8 text-white sm:px-6 lg:px-8">
       <SectionHeading
         eyebrow="Demo"
-        title="Sobre Aprils"
+        title={APRILS_PACK_TITLE}
         description="Prueba el sobre especial y la carta antes de soltarlo desde admin."
       />
 

@@ -3,7 +3,7 @@ import type { Player } from "@/lib/types";
 export const APRILS_PLAYER_ID = "apr-bicho";
 export const APRILS_CARD_POINTS = 99;
 export const APRILS_PACK_POOL = "aprils";
-export const APRILS_PACK_TITLE = "Sobre Aprils";
+export const APRILS_PACK_TITLE = "Sobre Leyendas";
 export const APRILS_PACK_IMAGE = "/sobre-aprils.webp";
 
 export const APRILS_PLAYER: Player = {
