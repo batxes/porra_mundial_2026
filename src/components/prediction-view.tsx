@@ -48,11 +48,12 @@ import {
   TeamBadge,
   TeamFlag,
   TeamPicker,
+  trainerResultChipForMatch,
 } from "@/components/common";
 import { AuthModal } from "@/components/auth-modal";
 import {
   getPlayoffResultsProgress,
-  PlayoffsBalatroResults,
+  PlayoffTrainerChipModal,
 } from "@/components/playoffs-balatro-demo";
 import { WorldCupBracketModal } from "@/components/world-cup-bracket-modal";
 import { PlayerSearchModal } from "@/components/player-search-modal";
@@ -61,6 +62,7 @@ import {
   trainerDemoCards,
   type TrainerDemoCard,
 } from "@/components/trainer-full-art-card";
+import { TrainerTacticPickPill } from "@/components/trainer-tactic-pick-pill";
 import { useAppContext } from "@/lib/app-context";
 import {
   data,
@@ -83,7 +85,10 @@ import {
   xiCounts,
   xiRequirements,
 } from "@/lib/prediction";
-import { calculateGroupTables } from "@/lib/playoff-teams";
+import {
+  buildResolvedPlayoffTeams,
+  calculateGroupTables,
+} from "@/lib/playoff-teams";
 import type {
   AdminResult,
   AdminResults,
@@ -216,6 +221,9 @@ export function PredictionView() {
   const [initialSectionResolved, setInitialSectionResolved] = useState(false);
   const [autoSaveState, setAutoSaveState] = useState<AutoSaveState>("idle");
   const [authOpen, setAuthOpen] = useState(false);
+  const [trainerChipMatchNumber, setTrainerChipMatchNumber] = useState<
+    number | null
+  >(null);
   const [showXiIntroModal, setShowXiIntroModal] = useState(false);
   const [showGroupsIntroModal, setShowGroupsIntroModal] = useState(false);
   const [showResultsIntroModal, setShowResultsIntroModal] = useState(false);
@@ -243,6 +251,26 @@ export function PredictionView() {
   const playoffMatches = useMemo(
     () => schedule.filter((match) => match.number >= 73),
     [],
+  );
+  const resolvedPlayoffTeams = useMemo(
+    () => buildResolvedPlayoffTeams(adminResults),
+    [adminResults],
+  );
+  const playablePlayoffMatches = useMemo(
+    () =>
+      playoffMatches
+        .map((match) => {
+          const resolved = resolvedPlayoffTeams[String(match.number)];
+          return {
+            ...match,
+            home: resolved?.home || match.home,
+            away: resolved?.away || match.away,
+          };
+        })
+        .filter(
+          (match) => teamsById.has(match.home) && teamsById.has(match.away),
+        ),
+    [playoffMatches, resolvedPlayoffTeams],
   );
   const playoffResultsProgress = useMemo<SectionProgress>(() => {
     const progress = getPlayoffResultsProgress(adminResults, prediction);
@@ -467,10 +495,6 @@ export function PredictionView() {
     }
     setShowPlayoffResultsIntroModal(false);
   };
-  const openPlayoffResultsIntroModal = () => {
-    playoffResultsIntroQueuedRef.current = true;
-    setShowPlayoffResultsIntroModal(true);
-  };
   const dismissResultsIntroModal = () => {
     resultsIntroQueuedRef.current = true;
     try {
@@ -548,13 +572,15 @@ export function PredictionView() {
           ) : null}
 
           {section === "playoffResults" ? (
-            <PlayoffsBalatroResults
-              adminResults={adminResults}
+            <ResultsSchedule
+              emptyMessage="Aún no hay cruces de playoffs disponibles."
+              matches={playablePlayoffMatches}
               prediction={prediction}
-              scheduleMatches={playoffMatches}
+              results={adminResults}
+              scorecard={currentScorecard}
+              title="Playoffs"
               onScoreChange={setPredictionScore}
-              onTrainerTacticChange={setPredictionTrainerTactic}
-              onOpenHelp={openPlayoffResultsIntroModal}
+              onTrainerChipOpen={setTrainerChipMatchNumber}
             />
           ) : null}
 
@@ -623,6 +649,18 @@ export function PredictionView() {
         onOpenChange={setAuthOpen}
         predictionToSaveOnRegister={prediction}
       />
+
+      {trainerChipMatchNumber ? (
+        <PlayoffTrainerChipModal
+          key={trainerChipMatchNumber}
+          adminResults={adminResults}
+          matchNumber={trainerChipMatchNumber}
+          onClose={() => setTrainerChipMatchNumber(null)}
+          onTrainerTacticChange={setPredictionTrainerTactic}
+          prediction={prediction}
+          scheduleMatches={playablePlayoffMatches}
+        />
+      ) : null}
     </div>
   );
 }
@@ -3029,19 +3067,27 @@ function PlayerPickerModal({
 }
 
 function ResultsSchedule({
+  emptyMessage = "Completa la fase de grupos para desbloquear más partidos.",
   matches,
   prediction,
   results,
+  scorecard,
+  title = "Resultados",
   onScoreChange,
+  onTrainerChipOpen,
 }: {
+  emptyMessage?: string;
   matches: Match[];
   prediction: Prediction;
   results: AdminResults;
+  scorecard?: Scorecard;
+  title?: string;
   onScoreChange: (
     matchNumber: number,
     side: "homeScore" | "awayScore",
     value: string,
   ) => void;
+  onTrainerChipOpen?: (matchNumber: number) => void;
 }) {
   const matchesByDate = useMemo(() => {
     return matches.reduce<Record<string, Match[]>>((grouped, match) => {
@@ -3120,7 +3166,7 @@ function ResultsSchedule({
       <div className="space-y-2">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <h2 className="text-2xl font-bold tracking-tight text-white">
-            Resultados
+            {title}
           </h2>
           <span className="text-sm font-semibold text-zinc-500 sm:pb-1">
             {completedMatches}/{matches.length}
@@ -3143,18 +3189,22 @@ function ResultsSchedule({
         <ResultsOpenBanner className="mt-4" />
       </div>
 
-      <div className="mx-auto w-full max-w-[620px] space-y-3">
+      <div className="mx-auto w-full max-w-4xl space-y-3">
         {dateKeys.map((dateKey) => {
           const dayMatches = matchesByDate[dateKey] || [];
 
           return (
             <section key={dateKey} className="scroll-mt-28">
-              <h4 className="flex min-h-14 items-center gap-2 pb-3 pt-5 text-xl/6 font-semibold not-first-of-type:mt-4 md:scroll-mt-24">
-                <span className="first-letter:capitalize">
+              <h4 className="flex min-h-[4.75rem] items-center gap-3 pb-4 pt-7 text-xl/6 font-semibold not-first-of-type:mt-5 md:scroll-mt-24">
+                <span className="shrink-0 first-letter:capitalize">
                   {formatResultsDay(dateKey)}
                 </span>
+                <span
+                  aria-hidden="true"
+                  className="h-px flex-1 bg-gradient-to-r from-[#a7f600]/40 via-white/10 to-transparent"
+                />
               </h4>
-              <div className="space-y-3">
+              <div className="mx-auto w-full max-w-[620px] space-y-3">
                 {dayMatches.map((match) => (
                   <div
                     key={match.number}
@@ -3169,7 +3219,9 @@ function ResultsSchedule({
                       match={match}
                       prediction={prediction}
                       result={results[String(match.number)]}
+                      scorecard={scorecard}
                       onScoreChange={onScoreChange}
+                      onTrainerChipOpen={onTrainerChipOpen}
                     />
                   </div>
                 ))}
@@ -3180,7 +3232,7 @@ function ResultsSchedule({
 
         {!dateKeys.length ? (
           <div className="rounded-lg border border-white/10 bg-[#151515] px-4 py-6 text-sm text-zinc-400">
-            Completa la fase de grupos para desbloquear más partidos.
+            {emptyMessage}
           </div>
         ) : null}
       </div>
@@ -3192,16 +3244,20 @@ function ResultMatchCard({
   match,
   prediction,
   result,
+  scorecard,
   onScoreChange,
+  onTrainerChipOpen,
 }: {
   match: Match;
   prediction: Prediction;
   result?: AdminResult;
+  scorecard?: Scorecard;
   onScoreChange: (
     matchNumber: number,
     side: "homeScore" | "awayScore",
     value: string,
   ) => void;
+  onTrainerChipOpen?: (matchNumber: number) => void;
 }) {
   const current = prediction.matchPredictions[String(match.number)] || {
     homeScore: "",
@@ -3211,6 +3267,7 @@ function ResultMatchCard({
   const home = resolveSlot(match.home, match.number, prediction);
   const away = resolveSlot(match.away, match.number, prediction);
   const complete = isMatchPredictionComplete(match, prediction);
+  const showTrainerChip = match.number >= 73;
 
   if (hasFinishedScore(result)) {
     return (
@@ -3222,6 +3279,12 @@ function ResultMatchCard({
         hasPick={complete}
         homeTeamId={home || undefined}
         awayTeamId={away || undefined}
+        showTrainerChipSlot={showTrainerChip}
+        trainerChip={
+          showTrainerChip
+            ? trainerResultChipForMatch(match.number, prediction, scorecard)
+            : null
+        }
       />
     );
   }
@@ -3298,6 +3361,15 @@ function ResultMatchCard({
         <ResultTeamColumn teamId={away} fallback={translateSlot(match.away)} />
       </div>
 
+      {showTrainerChip ? (
+        <ResultTrainerChipRow
+          locked={locked}
+          matchNumber={match.number}
+          prediction={prediction}
+          onOpen={onTrainerChipOpen}
+        />
+      ) : null}
+
       <div className="border-t border-white/10 px-3 py-2 sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="min-w-0 truncate text-xs text-zinc-400">
@@ -3316,6 +3388,45 @@ function ResultMatchCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function ResultTrainerChipRow({
+  locked,
+  matchNumber,
+  prediction,
+  onOpen,
+}: {
+  locked: boolean;
+  matchNumber: number;
+  prediction: Prediction;
+  onOpen?: (matchNumber: number) => void;
+}) {
+  const matchPrediction = prediction.matchPredictions[String(matchNumber)];
+  const pill = (
+    <TrainerTacticPickPill
+      emptyLabel={locked ? "Sin chip" : "Elegir estilo"}
+      tacticId={matchPrediction?.tacticId}
+      teamId={matchPrediction?.trainerTeamId}
+    />
+  );
+
+  return (
+    <div className="mx-3 mb-3 mt-1.5 flex justify-center sm:mx-4">
+      {!locked && onOpen ? (
+        <button
+          type="button"
+          className="flex w-full max-w-[13.6rem] justify-center border-0 bg-transparent p-0 text-inherit"
+          aria-haspopup="dialog"
+          aria-label="Elegir estrategia de entrenador"
+          onClick={() => onOpen(matchNumber)}
+        >
+          {pill}
+        </button>
+      ) : (
+        pill
+      )}
+    </div>
   );
 }
 

@@ -473,7 +473,6 @@ const playoffPhases: PlayoffPhase[] = [
   },
 ];
 
-const initialPlayoffPhase = playoffPhases[0];
 const allPlayoffMatches = playoffPhases.flatMap((phase) => phase.matches);
 export const playoffResultsMatchCount = allPlayoffMatches.length;
 const defaultPlayoffScheduleMatches = schedule.filter(
@@ -1089,14 +1088,6 @@ function playoffMatchRequestFromUrl(
   return { matchId: null, clearGoto: false };
 }
 
-function playoffPhaseForMatchId(matchId: string | null) {
-  if (!matchId) return undefined;
-
-  return playoffPhases.find((phase) =>
-    phase.matches.some((match) => match.id === matchId),
-  );
-}
-
 function formatPlayoffCountdown(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000));
   const days = Math.floor(total / 86400);
@@ -1350,31 +1341,6 @@ function RoundTeamFlag({
       height={size}
       unoptimized
     />
-  );
-}
-
-function PhaseSelector({
-  activePhaseId,
-  onSelect,
-}: {
-  activePhaseId: string;
-  onSelect: (phaseId: string) => void;
-}) {
-  return (
-    <div className="playoff-battle-phase-selector" aria-label="Fases playoff">
-      {playoffPhases.map((phase) => (
-        <button
-          key={phase.id}
-          type="button"
-          aria-label={phase.title}
-          onClick={() => onSelect(phase.id)}
-          className={activePhaseId === phase.id ? "is-active" : ""}
-        >
-          <span>{phase.short}</span>
-          <strong>{phase.title}</strong>
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -2244,7 +2210,6 @@ function PlayoffsBattleSurface({
   prediction,
   scheduleMatches = defaultPlayoffScheduleMatches,
   showResultsHeader = false,
-  showPhaseSelector = true,
 }: {
   adminResults?: AdminResults;
   embedded?: boolean;
@@ -2286,16 +2251,12 @@ function PlayoffsBattleSurface({
     [adminResults, matchIds, querySignature, scheduleByNumber],
   );
   const requestedMatchId = matchRequest.matchId;
-  const requestedPhaseId = playoffPhaseForMatchId(requestedMatchId)?.id;
-  const initialPhase =
-    playoffPhaseForMatchId(requestedMatchId) ?? initialPlayoffPhase;
-  const [activePhaseId, setActivePhaseId] = useState(initialPhase.id);
   const [openHandMatchId, setOpenHandMatchId] = useState<string | null>(() => {
     if (initialOpenMatchId !== undefined) return initialOpenMatchId;
     return (
       requestedMatchId ??
       getNextPlayableMatchId(
-        filterPlayoffMatches(initialPhase.matches, matchIds),
+        filterPlayoffMatches(allPlayoffMatches, matchIds),
         scheduleByNumber,
         adminResults,
       )
@@ -2339,10 +2300,6 @@ function PlayoffsBattleSurface({
       }),
     [isControlled, resolvedPlayoffTeams],
   );
-  const resolvedPlayoffPhaseById = useMemo(
-    () => new Map(resolvedPlayoffPhases.map((phase) => [phase.id, phase])),
-    [resolvedPlayoffPhases],
-  );
   const resolvedPlayoffMatchById = useMemo(
     () =>
       new Map(
@@ -2353,34 +2310,39 @@ function PlayoffsBattleSurface({
     [resolvedPlayoffPhases],
   );
   const availablePlayoffMatches = useMemo(() => {
-    const matches = resolvedPlayoffPhases.flatMap((phase) => phase.matches);
+    const matches = resolvedPlayoffPhases.flatMap((phase) =>
+      filterPlayoffMatches(phase.matches, matchIds),
+    );
     return isControlled ? matches.filter(hasResolvedPlayoffTrainers) : matches;
-  }, [isControlled, resolvedPlayoffPhases]);
+  }, [isControlled, matchIds, resolvedPlayoffPhases]);
   const availablePlayoffMatchCount = availablePlayoffMatches.length;
+  const playoffPhaseBlocks = useMemo(
+    () =>
+      resolvedPlayoffPhases
+        .map((phase) => {
+          const matches = filterPlayoffMatches(phase.matches, matchIds);
+          const visibleMatches = isControlled
+            ? matches.filter(hasResolvedPlayoffTrainers)
+            : matches;
 
-  const effectiveActivePhaseId =
-    matchRequest.clearGoto && requestedPhaseId ? requestedPhaseId : activePhaseId;
-  const activePhase =
-    resolvedPlayoffPhaseById.get(effectiveActivePhaseId) ??
-    resolvedPlayoffPhases[0] ??
-    initialPlayoffPhase;
-  const activePhaseMatches = useMemo(() => {
-    const matches = filterPlayoffMatches(activePhase.matches, matchIds);
-    return isControlled ? matches.filter(hasResolvedPlayoffTrainers) : matches;
-  }, [activePhase, isControlled, matchIds]);
-  const playoffDateGroups = useMemo(
-    () => groupPlayoffMatchesByDate(activePhaseMatches),
-    [activePhaseMatches],
+          return {
+            dateGroups: groupPlayoffMatchesByDate(visibleMatches),
+            matches: visibleMatches,
+            phase,
+          };
+        })
+        .filter((block) => block.matches.length > 0),
+    [isControlled, matchIds, resolvedPlayoffPhases],
   );
   const hasFinishedPlayoffMatches = useMemo(
     () =>
-      activePhaseMatches.some((match) =>
+      availablePlayoffMatches.some((match) =>
         hasFinishedScore(adminResults?.[String(playoffMatchNumber(match))]),
       ),
-    [activePhaseMatches, adminResults],
+    [adminResults, availablePlayoffMatches],
   );
-  const showUnresolvedPhaseMessage =
-    isControlled && playoffDateGroups.length === 0;
+  const showUnresolvedPlayoffMessage =
+    isControlled && playoffPhaseBlocks.length === 0;
   const isPlayoffLocked = useCallback(
     (match: PlayoffMatch) => {
       if (isControlled && !hasResolvedPlayoffTrainers(match)) return true;
@@ -2480,36 +2442,6 @@ function PlayoffsBattleSurface({
     timer = window.setTimeout(tryScroll, 120);
     return () => window.clearTimeout(timer);
   }, [matchRequest.clearGoto, requestedMatchId]);
-
-  const setPhase = useCallback(
-    (phaseId: string) => {
-      const nextPhase =
-        resolvedPlayoffPhaseById.get(phaseId) ??
-        resolvedPlayoffPhases[0] ??
-        initialPlayoffPhase;
-      setActivePhaseId(phaseId);
-      setActiveDrag(null);
-      setHoveredTrainerId(null);
-      setMobileChipMatchId(null);
-      setOpenHandMatchId(
-        initialOpenMatchId !== undefined
-          ? initialOpenMatchId
-          : getNextPlayableMatchId(
-              filterPlayoffMatches(nextPhase.matches, matchIds),
-              scheduleByNumber,
-              adminResults,
-            ),
-      );
-    },
-    [
-      initialOpenMatchId,
-      matchIds,
-      adminResults,
-      resolvedPlayoffPhaseById,
-      resolvedPlayoffPhases,
-      scheduleByNumber,
-    ],
-  );
 
   const assignPick = useCallback(
     (matchId: string, trainerId: string, tacticId: string) => {
@@ -2945,6 +2877,7 @@ function PlayoffsBattleSurface({
     activeDrag && (mobileModalOnly || isCompactLayout === true)
       ? (tacticById.get(activeDrag.tacticId) ?? null)
       : null;
+  const showPhaseHeadings = !mobileModalOnly && playoffPhaseBlocks.length > 1;
 
   const content = (
     <>
@@ -2954,15 +2887,6 @@ function PlayoffsBattleSurface({
           onOpenHelp={onOpenHelp}
           total={availablePlayoffMatchCount}
         />
-      ) : null}
-
-      {!embedded && showPhaseSelector && !mobileModalOnly ? (
-        <PhaseSelector activePhaseId={activePhase.id} onSelect={setPhase} />
-      ) : null}
-      {embedded && showPhaseSelector && !mobileModalOnly ? (
-        <div className="playoff-battle-embedded-selectors">
-          <PhaseSelector activePhaseId={activePhase.id} onSelect={setPhase} />
-        </div>
       ) : null}
 
       <DndContext
@@ -2976,36 +2900,53 @@ function PlayoffsBattleSurface({
       >
         {renderDesktopMatches ? (
           <div className="playoff-battle-desktop-stack">
-            {playoffDateGroups.map((group) => (
-              <section key={group.date} className="playoff-battle-date-group">
-                <h3 className="playoff-battle-date-heading">
-                  {formatPlayoffDay(group.date)}
-                </h3>
-                <div className="playoff-battle-date-matches">
-                  {group.matches.map((match) => {
-                    const pick = pickForMatch(match);
-                    const matchActiveDrag =
-                      activeDrag?.matchId === match.id ? activeDrag : null;
-                    const rawActiveTrainerId = activeTrainerByMatch[match.id];
-                    const activeTrainerId =
-                      (trainerBelongsToMatch(match, rawActiveTrainerId)
-                        ? rawActiveTrainerId
-                        : undefined) ??
-                      pick?.trainerId ??
-                      defaultTrainerIdForMatch(match);
+            {playoffPhaseBlocks.map(({ dateGroups, phase }) => (
+              <section
+                key={phase.id}
+                className="playoff-battle-phase-block"
+              >
+                {showPhaseHeadings ? (
+                  <h3 className="playoff-battle-phase-heading">
+                    <span>{phase.short}</span>
+                    <strong>{phase.title}</strong>
+                  </h3>
+                ) : null}
+                {dateGroups.map((group) => (
+                  <section
+                    key={`${phase.id}-${group.date}`}
+                    className="playoff-battle-date-group"
+                  >
+                    <h4 className="playoff-battle-date-heading">
+                      {formatPlayoffDay(group.date)}
+                    </h4>
+                    <div className="playoff-battle-date-matches">
+                      {group.matches.map((match) => {
+                        const pick = pickForMatch(match);
+                        const matchActiveDrag =
+                          activeDrag?.matchId === match.id ? activeDrag : null;
+                        const rawActiveTrainerId =
+                          activeTrainerByMatch[match.id];
+                        const activeTrainerId =
+                          (trainerBelongsToMatch(match, rawActiveTrainerId)
+                            ? rawActiveTrainerId
+                            : undefined) ??
+                          pick?.trainerId ??
+                          defaultTrainerIdForMatch(match);
 
-                    return renderPlayoffMatchCard(
-                      match,
-                      "desktop",
-                      activeTrainerId,
-                      matchActiveDrag,
-                    );
-                  })}
-                </div>
+                        return renderPlayoffMatchCard(
+                          match,
+                          "desktop",
+                          activeTrainerId,
+                          matchActiveDrag,
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
               </section>
             ))}
-            {showUnresolvedPhaseMessage ? (
-              <PlayoffPhaseUnavailable phaseTitle={activePhase.title} />
+            {showUnresolvedPlayoffMessage ? (
+              <PlayoffPhaseUnavailable phaseTitle="Playoffs" />
             ) : null}
           </div>
         ) : null}
@@ -3013,32 +2954,37 @@ function PlayoffsBattleSurface({
         {renderMobileMatches ? (
           <div className="playoff-battle-mobile-list">
             <div className="playoff-battle-list">
-              <section className="playoff-battle-phase-block">
-                {!showPhaseSelector ? (
-                  <h3 className="playoff-battle-phase-heading">
-                    <span>{activePhase.short}</span>
-                    <strong>{activePhase.title}</strong>
-                  </h3>
-                ) : null}
-                {showUnresolvedPhaseMessage ? (
-                  <PlayoffPhaseUnavailable phaseTitle={activePhase.title} />
-                ) : null}
-                {playoffDateGroups.map((group) => (
-                  <section
-                    key={group.date}
-                    className="playoff-battle-date-group"
-                  >
-                    <h4 className="playoff-battle-date-heading">
-                      {formatPlayoffDay(group.date)}
-                    </h4>
-                    <div className="playoff-battle-match-stack">
-                      {group.matches.map((match) =>
-                        renderPlayoffMatchCard(match, "mobile"),
-                      )}
-                    </div>
-                  </section>
-                ))}
-              </section>
+              {playoffPhaseBlocks.map(({ dateGroups, phase }) => (
+                <section
+                  key={phase.id}
+                  className="playoff-battle-phase-block"
+                >
+                  {showPhaseHeadings ? (
+                    <h3 className="playoff-battle-phase-heading">
+                      <span>{phase.short}</span>
+                      <strong>{phase.title}</strong>
+                    </h3>
+                  ) : null}
+                  {dateGroups.map((group) => (
+                    <section
+                      key={`${phase.id}-${group.date}`}
+                      className="playoff-battle-date-group"
+                    >
+                      <h4 className="playoff-battle-date-heading">
+                        {formatPlayoffDay(group.date)}
+                      </h4>
+                      <div className="playoff-battle-match-stack">
+                        {group.matches.map((match) =>
+                          renderPlayoffMatchCard(match, "mobile"),
+                        )}
+                      </div>
+                    </section>
+                  ))}
+                </section>
+              ))}
+              {showUnresolvedPlayoffMessage ? (
+                <PlayoffPhaseUnavailable phaseTitle="Playoffs" />
+              ) : null}
             </div>
           </div>
         ) : null}

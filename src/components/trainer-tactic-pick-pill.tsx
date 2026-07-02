@@ -18,12 +18,14 @@ const trainerChipColors: Record<string, string> = {
 
 export function TrainerTacticPickPill({
   className = "",
+  emptyLabel = "Elegir estilo",
   href,
   showEmpty = true,
   tacticId,
   teamId,
 }: {
   className?: string;
+  emptyLabel?: string;
   href?: string;
   showEmpty?: boolean;
   tacticId?: string;
@@ -56,7 +58,7 @@ export function TrainerTacticPickPill({
     ) : (
       <>
         <span>+</span>
-        <span>Elegir estilo</span>
+        <span>{emptyLabel}</span>
       </>
     );
 
