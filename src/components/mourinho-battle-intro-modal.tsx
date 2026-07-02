@@ -184,6 +184,14 @@ const PRELOAD_IMAGE_SOURCES = Array.from(
   ]),
 );
 
+type PreloadImageState = {
+  loaded: number;
+  ready: boolean;
+  total: number;
+};
+
+const preloadedImageCache = new Map<string, Promise<void>>();
+
 const SHARED_BATTLE_STATS: BattleStats = {
   attack: 42,
   defense: 30,
@@ -191,27 +199,81 @@ const SHARED_BATTLE_STATS: BattleStats = {
   speed: 45,
 };
 
-function usePreloadImages(sources: readonly string[]) {
+function preloadImageSource(src: string) {
+  const cached = preloadedImageCache.get(src);
+  if (cached) return cached;
+
+  const promise = new Promise<void>((resolve) => {
+    const image = new window.Image();
+    let settled = false;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+
+      if (typeof image.decode === "function") {
+        image.decode().catch(() => undefined).finally(resolve);
+        return;
+      }
+
+      resolve();
+    };
+
+    image.decoding = "async";
+    image.onload = finish;
+    image.onerror = finish;
+    image.src = src;
+
+    if (image.complete) finish();
+  });
+
+  preloadedImageCache.set(src, promise);
+  return promise;
+}
+
+function usePreloadImages(sources: readonly string[]): PreloadImageState {
+  const [state, setState] = useState<PreloadImageState>(() => {
+    const total = new Set(sources).size;
+
+    return {
+      loaded: 0,
+      ready: total === 0,
+      total,
+    };
+  });
+
   useEffect(() => {
-    const preloadedImages = sources.map((src) => {
-      const image = new window.Image();
-      image.decoding = "async";
-      image.src = src;
-      return image;
+    let cancelled = false;
+    const uniqueSources = Array.from(new Set(sources));
+
+    uniqueSources.forEach((src) => {
+      preloadImageSource(src).finally(() => {
+        if (cancelled) return;
+
+        setState((current) => {
+          const loaded = Math.min(current.loaded + 1, current.total);
+
+          return {
+            loaded,
+            ready: loaded >= current.total,
+            total: current.total,
+          };
+        });
+      });
     });
 
     return () => {
-      preloadedImages.forEach((image) => {
-        image.src = "";
-      });
+      cancelled = true;
     };
   }, [sources]);
+
+  return state;
 }
 
 export function MourinhoBattleIntroModal({
   startAtSelection = false,
 }: MourinhoBattleIntroModalProps) {
-  usePreloadImages(PRELOAD_IMAGE_SOURCES);
+  const preloadState = usePreloadImages(PRELOAD_IMAGE_SOURCES);
 
   const [accepted, setAccepted] = useState(startAtSelection);
 
@@ -264,6 +326,7 @@ export function MourinhoBattleIntroModal({
                     width={1024}
                     height={1536}
                     priority
+                    unoptimized
                     className="absolute left-1/2 top-1 h-auto w-[320px] max-w-[108%] -translate-x-1/2 drop-shadow-[0_24px_30px_rgba(0,0,0,0.62)] sm:top-0 sm:w-[382px]"
                     style={{ imageRendering: "pixelated" }}
                   />
@@ -277,7 +340,12 @@ export function MourinhoBattleIntroModal({
               </section>
 
               <section className="flex flex-col justify-start p-4 sm:p-5">
-               <IntroCopy onAccept={() => setAccepted(true)} />
+                <IntroCopy
+                  onAccept={() => setAccepted(true)}
+                  preloadLoaded={preloadState.loaded}
+                  preloadReady={preloadState.ready}
+                  preloadTotal={preloadState.total}
+                />
               </section>
             </>
           )}
@@ -289,8 +357,14 @@ export function MourinhoBattleIntroModal({
 
 function IntroCopy({
   onAccept,
+  preloadLoaded,
+  preloadReady,
+  preloadTotal,
 }: {
   onAccept: () => void;
+  preloadLoaded: number;
+  preloadReady: boolean;
+  preloadTotal: number;
 }) {
   return (
     <div>
@@ -311,10 +385,15 @@ function IntroCopy({
       <RewardTrack />
 
       <div className="mt-4 flex justify-center">
-        <BattleActionButton onClick={onAccept}>
-          Aceptar reto
+        <BattleActionButton disabled={!preloadReady} onClick={onAccept}>
+          {preloadReady ? "Aceptar reto" : "Cargando..."}
         </BattleActionButton>
       </div>
+      {!preloadReady ? (
+        <p className="mt-2 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+          Preparando {preloadLoaded}/{preloadTotal}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -617,6 +696,7 @@ function MourinhoBattleFinal({ rewards }: { rewards: BattleReward[] }) {
                   src={reward.image}
                   alt={reward.title}
                   fill
+                  unoptimized
                   sizes="48px"
                   className="object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.5)]"
                 />
@@ -926,6 +1006,7 @@ function FieldReward({ reward }: { reward: BattleReward }) {
         alt={reward.title}
         width={818}
         height={1206}
+        unoptimized
         className="relative z-10 h-auto w-full drop-shadow-[0_10px_18px_rgba(0,0,0,0.65)]"
       />
     </div>
@@ -1101,6 +1182,7 @@ function BattleBackground({ pokemon }: { pokemon?: BattlePokemon }) {
         src={backgroundSrc}
         alt=""
         fill
+        unoptimized
         sizes="560px"
         className="object-cover"
         style={{ imageRendering: "pixelated", objectPosition: "center bottom" }}
@@ -1298,6 +1380,7 @@ function PokemonSlot({
               alt={reward.title}
               width={818}
               height={1206}
+              unoptimized
               className="relative z-10 h-auto w-full drop-shadow-[0_5px_10px_rgba(0,0,0,0.75)]"
             />
           </div>
@@ -1381,6 +1464,7 @@ function RewardTrack() {
               src={reward.image}
               alt=""
               fill
+              unoptimized
               sizes="48px"
               className="object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.4)]"
             />
