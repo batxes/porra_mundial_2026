@@ -155,7 +155,7 @@ export function MourinhoBattleGate() {
   }, [user?.id]);
 
   const checkStatus = useCallback(async () => {
-    if (!ready || !usingSupabase || !user || user.isAdmin) {
+    if (!ready || !usingSupabase || !user) {
       setOpen(false);
       return;
     }
@@ -201,7 +201,7 @@ export function MourinhoBattleGate() {
   }, [checkStatus]);
 
   useEffect(() => {
-    if (!ready || !usingSupabase || !user || user.isAdmin) return;
+    if (!ready || !usingSupabase || !user) return;
     const interval = window.setInterval(() => {
       void checkStatus();
     }, 30000);
