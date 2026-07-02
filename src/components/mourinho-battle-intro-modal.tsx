@@ -13,7 +13,6 @@ import {
 
 type MourinhoBattleIntroModalProps = {
   config?: MourinhoBattleConfig;
-  onClose?: () => void;
   onCompleted?: (result: MourinhoBattleResult) => void;
   onOpenPacks?: () => void;
   startAtSelection?: boolean;
@@ -308,7 +307,6 @@ function usePreloadImages(sources: readonly string[]): PreloadImageState {
 
 export function MourinhoBattleIntroModal({
   config,
-  onClose,
   onCompleted,
   onOpenPacks,
   startAtSelection = false,
@@ -350,16 +348,6 @@ export function MourinhoBattleIntroModal({
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f5c518]/90 to-transparent"
         />
-        {onClose ? (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar reto"
-            className="absolute right-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/45 text-lg font-black leading-none text-white/80 transition hover:bg-white/10 hover:text-white"
-          >
-            ×
-          </button>
-        ) : null}
 
         <div className="relative z-10 grid max-h-[calc(100dvh-32px)] overflow-y-auto">
           {accepted ? (

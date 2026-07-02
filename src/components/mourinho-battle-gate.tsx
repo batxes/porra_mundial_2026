@@ -147,11 +147,9 @@ export function MourinhoBattleGate() {
   const [open, setOpen] = useState(false);
   const [battle, setBattle] = useState<MourinhoBattleConfig | null>(null);
   const completedRef = useRef<string | null>(null);
-  const dismissedRef = useRef<string | null>(null);
 
   useEffect(() => {
     completedRef.current = null;
-    dismissedRef.current = null;
   }, [user?.id]);
 
   const checkStatus = useCallback(async () => {
@@ -174,14 +172,11 @@ export function MourinhoBattleGate() {
     const next = configFromStatus(status);
     const alreadyCompletedHere =
       Boolean(next?.id) && completedRef.current === next?.id;
-    const dismissedHere =
-      Boolean(next?.id) && dismissedRef.current === next?.id;
     const shouldOpen = Boolean(
       status?.active &&
         !status.completed &&
         next &&
-        !alreadyCompletedHere &&
-        !dismissedHere,
+        !alreadyCompletedHere,
     );
     setBattle((current) =>
       sameMourinhoBattleConfig(current, next) ? current : next,
@@ -243,11 +238,6 @@ export function MourinhoBattleGate() {
     }
   }, []);
 
-  const closeModal = useCallback(() => {
-    if (battle?.id) dismissedRef.current = battle.id;
-    setOpen(false);
-  }, [battle]);
-
   const goToPacks = useCallback(() => {
     setOpen(false);
     router.push("/cofres");
@@ -257,7 +247,6 @@ export function MourinhoBattleGate() {
   return (
     <MourinhoBattleIntroModal
       config={battle}
-      onClose={closeModal}
       onCompleted={handleCompleted}
       onOpenPacks={goToPacks}
     />
