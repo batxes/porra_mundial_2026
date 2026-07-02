@@ -279,7 +279,7 @@ export function MourinhoBattleIntroModal({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-black/84 px-3 py-4 text-white backdrop-blur-sm sm:px-6"
+      className="fixed inset-0 z-[120] flex select-none items-center justify-center overflow-y-auto bg-black/84 px-3 py-4 text-white backdrop-blur-sm sm:px-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="mourinho-battle-title"
