@@ -22,6 +22,7 @@ import {
 import { AdminDropTab } from "@/components/admin-drop-tab";
 import { AdminHogueraTab } from "@/components/admin-hoguera-tab";
 import { AdminMaintenanceTab } from "@/components/admin-maintenance-tab";
+import { AdminMourinhoBattleTab } from "@/components/admin-mourinho-battle-tab";
 import { AdminOakTab } from "@/components/admin-oak-tab";
 import { AdminPorteroPenaltyTab } from "@/components/admin-portero-penalty-tab";
 import { AdminRonaldaoLimboTab } from "@/components/admin-ronaldao-limbo-tab";
@@ -54,6 +55,7 @@ type AdminTab =
   | "oak"
   | "hoguera"
   | "portero"
+  | "mourinho"
   | "ronaldao"
   | "rasca"
   | "suarez"
@@ -69,6 +71,7 @@ const adminTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "hoguera", label: "Hoguera" },
   { id: "portero", label: "Portero" },
   { id: "suarez", label: "Suarez" },
+  { id: "mourinho", label: "Mourinho" },
   { id: "ronaldao", label: "Ronaldo" },
   { id: "rasca", label: "Rasca" },
   { id: "ruleta", label: "Ruleta" },
@@ -590,6 +593,12 @@ export function AdminView() {
       {activeTab === "ronaldao" ? (
         <Card className="space-y-4">
           <AdminRonaldaoLimboTab />
+        </Card>
+      ) : null}
+
+      {activeTab === "mourinho" ? (
+        <Card className="space-y-4">
+          <AdminMourinhoBattleTab />
         </Card>
       ) : null}
 

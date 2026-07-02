@@ -2,41 +2,77 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 type MourinhoBattleIntroModalProps = {
+  config?: MourinhoBattleConfig;
+  onClose?: () => void;
+  onCompleted?: (result: MourinhoBattleResult) => void;
+  onOpenPacks?: () => void;
   startAtSelection?: boolean;
 };
 
-const BATTLE_REWARDS = [
+export type MourinhoBattleReward = {
+  battle: number;
+  image: string;
+  pool?: string;
+  title: string;
+};
+
+export type MourinhoBattleConfig = {
+  id: string;
+  rewards: MourinhoBattleReward[];
+  title: string;
+};
+
+export type MourinhoBattleResult = {
+  configId: string;
+  defeatedCount: number;
+  defeatedPokemonIds: string[];
+  rewards: MourinhoBattleReward[];
+};
+
+export const mourinhoBattleCompletedEventName = "porra26:mourinho-battle-completed";
+
+const DEFAULT_BATTLE_REWARDS: MourinhoBattleReward[] = [
   {
     battle: 1,
-    image: "/sobre.webp",
-    title: "Sobre",
+    image: "/sobre-defensas.webp",
+    pool: "defensas",
+    title: "Defensas",
   },
   {
     battle: 2,
-    image: "/sobre-delanteros.webp",
-    title: "Delanteros",
+    image: "/sobre-medios.webp",
+    pool: "medios",
+    title: "Mediocentros",
   },
   {
     battle: 3,
-    image: "/sobre-medios.webp",
-    title: "Medios",
+    image: "/sobre-madrid.webp",
+    pool: "madrid",
+    title: "Madrid",
   },
   {
     battle: 4,
-    image: "/sobre-defensas.webp",
-    title: "Defensas",
+    image: "/sobre21.webp",
+    pool: "sub21",
+    title: "Promesas",
   },
   {
     battle: 5,
     image: "/sobre-estrellas.webp",
     title: "Estrellas",
+    pool: "stars",
   },
 ];
-
-type BattleReward = (typeof BATTLE_REWARDS)[number];
 
 type BattlePokemon = {
   id: string;
@@ -178,7 +214,7 @@ const PRELOAD_IMAGE_SOURCES = Array.from(
     "/FX/dead/dead-vfx.webp",
     DEFAULT_BATTLE_BACKGROUND,
     ...Object.values(SPECIAL_BATTLE_BACKGROUNDS),
-    ...BATTLE_REWARDS.map((reward) => reward.image),
+    ...DEFAULT_BATTLE_REWARDS.map((reward) => reward.image),
     ...PLAYER_POKEMON.flatMap((pokemon) => [pokemon.sprite, pokemon.spriteBack]),
     ...MOURINHO_POKEMON.flatMap((pokemon) => [pokemon.sprite, pokemon.spriteBack]),
   ]),
@@ -271,9 +307,30 @@ function usePreloadImages(sources: readonly string[]): PreloadImageState {
 }
 
 export function MourinhoBattleIntroModal({
+  config,
+  onClose,
+  onCompleted,
+  onOpenPacks,
   startAtSelection = false,
 }: MourinhoBattleIntroModalProps) {
-  const preloadState = usePreloadImages(PRELOAD_IMAGE_SOURCES);
+  const rewards = useMemo(
+    () =>
+      normalizeBattleRewards(
+        config?.rewards?.length ? config.rewards : DEFAULT_BATTLE_REWARDS,
+      ),
+    [config?.rewards],
+  );
+  const preloadSources = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...PRELOAD_IMAGE_SOURCES,
+          ...rewards.map((reward) => reward.image),
+        ]),
+      ),
+    [rewards],
+  );
+  const preloadState = usePreloadImages(preloadSources);
 
   const [accepted, setAccepted] = useState(startAtSelection);
 
@@ -293,11 +350,26 @@ export function MourinhoBattleIntroModal({
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f5c518]/90 to-transparent"
         />
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar reto"
+            className="absolute right-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/45 text-lg font-black leading-none text-white/80 transition hover:bg-white/10 hover:text-white"
+          >
+            ×
+          </button>
+        ) : null}
 
         <div className="relative z-10 grid max-h-[calc(100dvh-32px)] overflow-y-auto">
           {accepted ? (
             <section className="p-3 sm:p-4">
-              <PokemonSelectionScreen />
+              <PokemonSelectionScreen
+                configId={config?.id || "demo"}
+                onCompleted={onCompleted}
+                onOpenPacks={onOpenPacks}
+                rewards={rewards}
+              />
             </section>
           ) : (
             <>
@@ -345,6 +417,7 @@ export function MourinhoBattleIntroModal({
                   preloadLoaded={preloadState.loaded}
                   preloadReady={preloadState.ready}
                   preloadTotal={preloadState.total}
+                  rewards={rewards}
                 />
               </section>
             </>
@@ -360,11 +433,13 @@ function IntroCopy({
   preloadLoaded,
   preloadReady,
   preloadTotal,
+  rewards,
 }: {
   onAccept: () => void;
   preloadLoaded: number;
   preloadReady: boolean;
   preloadTotal: number;
+  rewards: MourinhoBattleReward[];
 }) {
   return (
     <div>
@@ -382,7 +457,7 @@ function IntroCopy({
         avanzas al siguiente duelo.
       </p>
 
-      <RewardTrack />
+      <RewardTrack rewards={rewards} />
 
       <div className="mt-4 flex justify-center">
         <BattleActionButton disabled={!preloadReady} onClick={onAccept}>
@@ -398,13 +473,24 @@ function IntroCopy({
   );
 }
 
-function PokemonSelectionScreen() {
+function PokemonSelectionScreen({
+  configId,
+  onCompleted,
+  onOpenPacks,
+  rewards,
+}: {
+  configId: string;
+  onCompleted?: (result: MourinhoBattleResult) => void;
+  onOpenPacks?: () => void;
+  rewards: MourinhoBattleReward[];
+}) {
   const [selectedId, setSelectedId] = useState(PLAYER_POKEMON[0].id);
   const [defeatedPlayerIds, setDefeatedPlayerIds] = useState<string[]>([]);
   const [defeatedOpponentIds, setDefeatedOpponentIds] = useState<string[]>([]);
   const [opponentIndex, setOpponentIndex] = useState(0);
   const [mode, setMode] = useState<BattleMode>("selection");
   const [activeBattle, setActiveBattle] = useState<ActiveBattle | null>(null);
+  const completedRef = useRef(false);
 
   const availablePokemon = PLAYER_POKEMON.filter(
     (pokemon) => !defeatedPlayerIds.includes(pokemon.id),
@@ -422,13 +508,17 @@ function PokemonSelectionScreen() {
     MOURINHO_POKEMON[MOURINHO_POKEMON.length - 1];
   const playerOut = availablePokemon.length === 0;
   const mourinhoOut = availableOpponentPokemon.length === 0;
-  const wonRewards = MOURINHO_POKEMON.reduce<BattleReward[]>((rewards, pokemon) => {
-    if (!defeatedOpponentIds.includes(pokemon.id)) return rewards;
+  const wonRewards = MOURINHO_POKEMON.reduce<MourinhoBattleReward[]>(
+    (won, pokemon) => {
+      if (!defeatedOpponentIds.includes(pokemon.id)) return won;
 
-    const reward = getRewardForOpponent(pokemon);
-    if (reward) rewards.push(reward);
-    return rewards;
-  }, []);
+      const reward = getRewardForOpponent(pokemon, rewards);
+      if (reward) won.push(reward);
+      return won;
+    },
+    [],
+  );
+  const defeatedPokemonIds = defeatedOpponentIds;
   const canFight =
     !playerOut &&
     !mourinhoOut &&
@@ -476,19 +566,41 @@ function PokemonSelectionScreen() {
     [activeBattle, defeatedOpponentIds, defeatedPlayerIds],
   );
 
+  useEffect(() => {
+    if ((!mourinhoOut && !playerOut) || completedRef.current) return;
+    completedRef.current = true;
+    onCompleted?.({
+      configId,
+      defeatedCount: wonRewards.length,
+      defeatedPokemonIds,
+      rewards: wonRewards,
+    });
+  }, [
+    configId,
+    defeatedOpponentIds,
+    defeatedPokemonIds,
+    mourinhoOut,
+    onCompleted,
+    playerOut,
+    wonRewards,
+  ]);
+
   if (mode === "battle" && activeBattle) {
     return (
       <BattleArena
         key={`${activeBattle.player.id}-${activeBattle.opponent.id}-${opponentIndex}`}
         player={activeBattle.player}
         opponent={activeBattle.opponent}
+        rewards={rewards}
         onRoundFinished={finishBattle}
       />
     );
   }
 
   if (mourinhoOut || playerOut) {
-    return <MourinhoBattleFinal rewards={wonRewards} />;
+    return (
+      <MourinhoBattleFinal onOpenPacks={onOpenPacks} rewards={wonRewards} />
+    );
   }
 
   return (
@@ -520,7 +632,9 @@ function PokemonSelectionScreen() {
                 pokemon={pokemon}
                 compact
                 defeated={isDefeated}
-                reward={isDefeated ? getRewardForOpponent(pokemon) : undefined}
+                reward={
+                  isDefeated ? getRewardForOpponent(pokemon, rewards) : undefined
+                }
                 selected={!isDefeated && pokemon.id === opponent.id}
               />
             );
@@ -618,7 +732,13 @@ function PokemonSelectionScreen() {
   );
 }
 
-function MourinhoBattleFinal({ rewards }: { rewards: BattleReward[] }) {
+function MourinhoBattleFinal({
+  onOpenPacks,
+  rewards,
+}: {
+  onOpenPacks?: () => void;
+  rewards: MourinhoBattleReward[];
+}) {
   const rewardCount = rewards.length;
   const hasRewards = rewardCount > 0;
   const packLabel = rewardCount === 1 ? "sobre" : "sobres";
@@ -714,19 +834,36 @@ function MourinhoBattleFinal({ rewards }: { rewards: BattleReward[] }) {
       )}
 
       <div className="mt-5 flex justify-center">
-        <Link
-          href="/cofres"
-          className="relative min-w-[220px] px-12 py-3 text-sm font-black uppercase tracking-widest text-white transition-all duration-200 hover:scale-105"
-          style={{
-            background:
-              "linear-gradient(180deg, #10b981 0%, #059669 50%, #047857 100%)",
-            clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
-            boxShadow:
-              "0 4px 20px rgba(16,185,129,0.4), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -2px 0 rgba(0,0,0,0.2)",
-          }}
-        >
-          Ir a sobres
-        </Link>
+        {onOpenPacks ? (
+          <button
+            type="button"
+            onClick={onOpenPacks}
+            className="relative min-w-[220px] px-12 py-3 text-sm font-black uppercase tracking-widest text-white transition-all duration-200 hover:scale-105"
+            style={{
+              background:
+                "linear-gradient(180deg, #10b981 0%, #059669 50%, #047857 100%)",
+              clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+              boxShadow:
+                "0 4px 20px rgba(16,185,129,0.4), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -2px 0 rgba(0,0,0,0.2)",
+            }}
+          >
+            Ir a sobres
+          </button>
+        ) : (
+          <Link
+            href="/cofres"
+            className="relative min-w-[220px] px-12 py-3 text-sm font-black uppercase tracking-widest text-white transition-all duration-200 hover:scale-105"
+            style={{
+              background:
+                "linear-gradient(180deg, #10b981 0%, #059669 50%, #047857 100%)",
+              clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+              boxShadow:
+                "0 4px 20px rgba(16,185,129,0.4), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -2px 0 rgba(0,0,0,0.2)",
+            }}
+          >
+            Ir a sobres
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -760,10 +897,12 @@ function BattleArena({
   onRoundFinished,
   opponent,
   player,
+  rewards,
 }: {
   onRoundFinished: (winner: BattleSide) => void;
   opponent: BattlePokemon;
   player: BattlePokemon;
+  rewards: MourinhoBattleReward[];
 }) {
   const [playerHp, setPlayerHp] = useState(SHARED_BATTLE_STATS.hp);
   const [opponentHp, setOpponentHp] = useState(SHARED_BATTLE_STATS.hp);
@@ -780,9 +919,10 @@ function BattleArena({
   } | null>(null);
   const [faintedSide, setFaintedSide] = useState<BattleSide | null>(null);
   const [poofSide, setPoofSide] = useState<BattleSide | null>(null);
-  const [fieldReward, setFieldReward] = useState<BattleReward | null>(null);
+  const [fieldReward, setFieldReward] =
+    useState<MourinhoBattleReward | null>(null);
   const [winner, setWinner] = useState<BattleSide | null>(null);
-  const opponentReward = getRewardForOpponent(opponent);
+  const opponentReward = getRewardForOpponent(opponent, rewards);
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -997,7 +1137,7 @@ function VictoryConfetti() {
   );
 }
 
-function FieldReward({ reward }: { reward: BattleReward }) {
+function FieldReward({ reward }: { reward: MourinhoBattleReward }) {
   return (
     <div className="pointer-events-none relative z-40 w-14 motion-safe:animate-[mourinho-reward-pop_1300ms_cubic-bezier(0.22,1,0.36,1)_both] sm:w-16">
       <div className="absolute inset-0 rounded-full bg-[#f5c518]/35 blur-xl" />
@@ -1040,7 +1180,7 @@ function BattleAnimatedSprite({
   large?: boolean;
   pokemon: BattlePokemon;
   poof: boolean;
-  reward?: BattleReward | null;
+  reward?: MourinhoBattleReward | null;
   side: "back" | "front";
 }) {
   const animationSide = side === "back" ? "player" : "opponent";
@@ -1321,9 +1461,12 @@ function calculateSharedDamage(critical: boolean) {
   return Math.max(24, Math.round(raw));
 }
 
-function getRewardForOpponent(pokemon: BattlePokemon) {
+function getRewardForOpponent(
+  pokemon: BattlePokemon,
+  rewards: MourinhoBattleReward[],
+) {
   const index = MOURINHO_POKEMON.findIndex((candidate) => candidate.id === pokemon.id);
-  return index >= 0 ? BATTLE_REWARDS[index] : undefined;
+  return index >= 0 ? rewards[index] : undefined;
 }
 
 function PokemonSlot({
@@ -1336,7 +1479,7 @@ function PokemonSlot({
   compact?: boolean;
   defeated?: boolean;
   pokemon: BattlePokemon;
-  reward?: BattleReward;
+  reward?: MourinhoBattleReward;
   selected?: boolean;
 }) {
   return (
@@ -1451,10 +1594,10 @@ function BattleTag({
   );
 }
 
-function RewardTrack() {
+function RewardTrack({ rewards }: { rewards: MourinhoBattleReward[] }) {
   return (
     <div className="mt-4 grid grid-cols-5 gap-2">
-      {BATTLE_REWARDS.map((reward) => (
+      {rewards.map((reward) => (
         <div
           key={reward.battle}
           className="min-h-[94px] rounded-lg border border-white/10 bg-white/[0.035] px-1.5 py-2 text-center"
@@ -1479,4 +1622,15 @@ function RewardTrack() {
       ))}
     </div>
   );
+}
+
+function normalizeBattleRewards(
+  rewards: readonly MourinhoBattleReward[],
+): MourinhoBattleReward[] {
+  return rewards.slice(0, MOURINHO_POKEMON.length).map((reward, index) => ({
+    battle: index + 1,
+    image: reward.image || DEFAULT_BATTLE_REWARDS[index]?.image || "/sobre.webp",
+    pool: reward.pool,
+    title: reward.title || DEFAULT_BATTLE_REWARDS[index]?.title || "Sobre",
+  }));
 }

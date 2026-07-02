@@ -21,6 +21,7 @@ import {
 } from "@/components/common";
 import { adivinaCompletedEventName } from "@/components/adivina-modal";
 import { hogueraCompletedEventName } from "@/components/hoguera-modal";
+import { mourinhoBattleCompletedEventName } from "@/components/mourinho-battle-intro-modal";
 import { PlayerCard } from "@/components/player-card";
 import { porteroPenaltyCompletedEventName } from "@/components/portero-penalty-modal";
 import { ronaldaoLimboCompletedEventName } from "@/components/ronaldao-limbo-modal";
@@ -76,6 +77,7 @@ const CardUpgradeOverlay = dynamic(
 const packAwardCompletedEvents = [
   adivinaCompletedEventName,
   hogueraCompletedEventName,
+  mourinhoBattleCompletedEventName,
   porteroPenaltyCompletedEventName,
   ronaldaoLimboCompletedEventName,
   ruletaCompletedEventName,
