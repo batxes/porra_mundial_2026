@@ -1237,9 +1237,33 @@ type JornadaUserSummary = {
 
 type JornadaGeneralStanding = { rank: number; move: number | null };
 
+const lastGroupMatchDate =
+  schedule
+    .filter((match) => match.stage === "Grupos")
+    .map((match) => match.date)
+    .sort()
+    .at(-1) || "";
+const lastTournamentMatchDate =
+  schedule
+    .map((match) => match.date)
+    .sort()
+    .at(-1) || "";
+
+function scoreEntryDate(
+  entry: ScoreEntry,
+  dateByMatch: Map<number, string>,
+) {
+  if (entry.matchNumber) return dateByMatch.get(entry.matchNumber) || null;
+  if (entry.ruleCode.startsWith("group_")) return lastGroupMatchDate || null;
+  if (entry.ruleCode.startsWith("tournament_")) {
+    return lastTournamentMatchDate || null;
+  }
+  return null;
+}
+
 // Clasificacion general al cierre de cada jornada (puntos acumulados hasta
 // esa fecha) y el movimiento que provoco frente a la vispera. Solo cuentan
-// entradas fechables (con partido).
+// entradas fechables: partidos y bonus que se liberan al cierre de una fase.
 function jornadaGeneralStandings(
   profiles: UserProfile[],
   jornadaDate: string,
@@ -1253,9 +1277,7 @@ function jornadaGeneralStandings(
     let pointsBefore = 0;
     let pointsAfter = 0;
     profile.scorecard.entries.forEach((entry) => {
-      const date = entry.matchNumber
-        ? dateByMatch.get(entry.matchNumber)
-        : null;
+      const date = scoreEntryDate(entry, dateByMatch);
       if (!date || date > jornadaDate) return;
       pointsAfter += entry.points;
       if (date < jornadaDate) pointsBefore += entry.points;
@@ -1266,13 +1288,22 @@ function jornadaGeneralStandings(
 
   const rankOf = (points: Map<string, number>) => {
     const ranks = new Map<string, number>();
+    let currentRank = 0;
+    let previousPoints: number | null = null;
     [...profiles]
       .sort(
         (a, b) =>
           (points.get(b.id) || 0) - (points.get(a.id) || 0) ||
           a.name.localeCompare(b.name),
       )
-      .forEach((profile, index) => ranks.set(profile.id, index + 1));
+      .forEach((profile, index) => {
+        const profilePoints = points.get(profile.id) || 0;
+        if (previousPoints === null || profilePoints !== previousPoints) {
+          currentRank = index + 1;
+          previousPoints = profilePoints;
+        }
+        ranks.set(profile.id, currentRank);
+      });
     return ranks;
   };
   const ranksAfter = rankOf(after);
