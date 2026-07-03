@@ -31,9 +31,9 @@ import { soberaQuizCompletedEventName } from "@/components/sobera-quiz-modal";
 import { suarezDentistCompletedEventName } from "@/components/suarez-dentist-modal";
 import { useAppContext } from "@/lib/app-context";
 import {
-  APRILS_CARD_POINTS,
   APRILS_PACK_IMAGE,
   APRILS_PACK_TITLE,
+  getAprilsCardPoints,
   isAprilsPlayerId,
 } from "@/lib/aprils";
 import { data, playersById, teamsById } from "@/lib/data";
@@ -908,10 +908,7 @@ export function CofresView() {
   }, [effectiveResults]);
 
   const pointsFor = useCallback(
-    (playerId: string) =>
-      isAprilsPlayerId(playerId)
-        ? APRILS_CARD_POINTS
-        : playerPoints.get(playerId) || 0,
+    (playerId: string) => getAprilsCardPoints(playerId) ?? playerPoints.get(playerId) ?? 0,
     [playerPoints],
   );
 

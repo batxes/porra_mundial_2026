@@ -7,10 +7,10 @@ import { useMemo, useState } from "react";
 import { Card, SectionHeading } from "@/components/common";
 import { PlayerCard } from "@/components/player-card";
 import {
-  APRILS_CARD_POINTS,
   APRILS_PACK_IMAGE,
+  APRILS_PACK_PLAYER_IDS,
   APRILS_PACK_TITLE,
-  APRILS_PLAYER_ID,
+  getAprilsCardPoints,
 } from "@/lib/aprils";
 
 const PackOpeningOverlay = dynamic(
@@ -24,7 +24,7 @@ const PackOpeningOverlay = dynamic(
 const pack = {
   id: "special-admin-aprils-demo",
   kind: "special" as const,
-  playerIds: [APRILS_PLAYER_ID],
+  playerIds: [...APRILS_PACK_PLAYER_IDS],
   subtitle: "Drop especial",
   title: APRILS_PACK_TITLE,
   image: APRILS_PACK_IMAGE,
@@ -35,8 +35,7 @@ export default function AprilsDemoPage() {
   const [opening, setOpening] = useState(false);
   const [opened, setOpened] = useState(false);
   const packs = useMemo(() => [pack], []);
-  const pointsFor = (playerId: string) =>
-    playerId === APRILS_PLAYER_ID ? APRILS_CARD_POINTS : 0;
+  const pointsFor = (playerId: string) => getAprilsCardPoints(playerId) ?? 0;
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 text-white sm:px-6 lg:px-8">
@@ -78,16 +77,19 @@ export default function AprilsDemoPage() {
         </Card>
 
         <Card className="flex min-h-[460px] flex-col justify-center p-5 sm:p-6">
-          <div className="mx-auto w-full max-w-sm">
+          <div className="mx-auto w-full max-w-xl">
             <p className="mb-4 text-center text-xs font-bold uppercase tracking-[0.2em] text-[#a7f600]">
               Carta revelada
             </p>
-            <div className="mx-auto w-[min(72vw,280px)]">
-              <PlayerCard
-                playerId={APRILS_PLAYER_ID}
-                points={APRILS_CARD_POINTS}
-                featured
-              />
+            <div className="grid grid-cols-2 gap-3">
+              {APRILS_PACK_PLAYER_IDS.map((playerId) => (
+                <PlayerCard
+                  key={playerId}
+                  playerId={playerId}
+                  points={pointsFor(playerId)}
+                  featured
+                />
+              ))}
             </div>
           </div>
         </Card>
@@ -103,23 +105,26 @@ export default function AprilsDemoPage() {
               <h2 className="mt-1 text-xl font-bold text-white">Tus cartas</h2>
             </div>
             <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-zinc-300">
-              1 sin usar
+              {APRILS_PACK_PLAYER_IDS.length} sin usar
             </span>
           </div>
           <div
             className="grid max-w-xs grid-cols-2 gap-3 pt-2 sm:grid-cols-3"
             style={{ perspective: "1000px" }}
           >
-            <button
-              type="button"
-              aria-pressed={false}
-              className="cofre-card-reveal relative rounded-lg text-left outline-none transition hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-[#a7f600]/60"
-            >
-              <PlayerCard
-                playerId={APRILS_PLAYER_ID}
-                points={APRILS_CARD_POINTS}
-              />
-            </button>
+            {APRILS_PACK_PLAYER_IDS.map((playerId) => (
+              <button
+                key={playerId}
+                type="button"
+                aria-pressed={false}
+                className="cofre-card-reveal relative rounded-lg text-left outline-none transition hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-[#a7f600]/60"
+              >
+                <PlayerCard
+                  playerId={playerId}
+                  points={pointsFor(playerId)}
+                />
+              </button>
+            ))}
           </div>
         </Card>
       </section>
