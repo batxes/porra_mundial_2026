@@ -3314,15 +3314,15 @@ function PitchPlayer({
             ↔
           </span>
         ) : null}
-      </span>
-      <span className="mt-2 flex max-w-full items-center justify-center gap-1">
-        <TeamFlag
-          teamId={player.team}
-          className="h-2.5 w-3.5 shrink-0 rounded-[2px]"
-        />
-        <span className="truncate text-[10px] font-bold leading-tight text-white drop-shadow sm:text-xs">
-          {player.name}
+        <span className="absolute -left-1.5 -top-1.5 flex h-4 w-4 items-center justify-center overflow-hidden rounded-full border border-white/80 bg-white shadow">
+          <TeamFlag teamId={player.team} className="h-full w-full rounded-full" />
         </span>
+      </span>
+      <span
+        title={player.name}
+        className="mt-2 line-clamp-2 w-full break-words px-0.5 text-[10px] font-bold leading-tight text-white drop-shadow sm:text-xs"
+      >
+        {player.name}
       </span>
       {pills.length ? (
         <span className="mt-1 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5">
@@ -3342,7 +3342,7 @@ function PitchPlayer({
     </>
   );
   const base =
-    "mx-auto flex w-14 flex-col items-center text-center sm:w-[4.75rem]";
+    "mx-auto flex w-full max-w-[5.5rem] flex-col items-center text-center sm:max-w-[6.5rem]";
   if (onSwap) {
     return (
       <button
