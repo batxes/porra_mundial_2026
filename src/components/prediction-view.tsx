@@ -2841,7 +2841,7 @@ function LineupPlayerButton({
       disabled={disabled}
       onClick={onClick}
       style={transitionStyle}
-      className={`lineup-slot-button mx-auto flex w-12 flex-col items-center gap-0.5 text-center transition sm:w-[4.5rem] ${
+      className={`lineup-slot-button mx-auto flex w-full max-w-[5rem] flex-col items-center gap-0.5 text-center transition sm:max-w-[6rem] ${
         disabled ? "cursor-default opacity-80" : "hover:scale-105"
       }`}
     >
@@ -2871,7 +2871,10 @@ function LineupPlayerButton({
           </span>
         ) : null}
       </span>
-      <span className="max-w-full truncate text-[10px] font-bold leading-tight text-white drop-shadow sm:text-xs">
+      <span
+        title={player?.name}
+        className="line-clamp-2 w-full break-words text-[10px] font-bold leading-tight text-white drop-shadow sm:text-xs"
+      >
         {player?.name || positionLabels[slot.position]}
       </span>
     </button>
