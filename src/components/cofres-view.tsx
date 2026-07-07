@@ -2992,6 +2992,21 @@ function SwapPanel({
   const eligibleCount = samePosTitulares.filter(
     (player) => candidateFor(player).eligible,
   ).length;
+  // El motivo de bloqueo (excepto los puntos) no depende del titular contra
+  // el que se compare, así que basta mirar el primero para saber por que
+  // ningun cambio es posible. Si el aviso no cuadra con ninguno de los casos
+  // conocidos, se cae al mensaje de puntos (el caso mas habitual).
+  const blockedReason = samePosTitulares[0]
+    ? candidateFor(samePosTitulares[0]).reason
+    : "";
+  const blockedMessage =
+    blockedReason === "Ya esta en tu once"
+      ? "Ese jugador ya es titular en tu once: no puedes ficharlo otra vez."
+      : blockedReason === "Sus equipos estan en juego" ||
+          blockedReason === "La carta esta en juego" ||
+          blockedReason === "Su equipo esta en juego"
+        ? "No puedes cambiar a un jugador mientras su equipo esta en juego. Disponible cuando se valide el partido."
+        : "Tu carta tiene más puntos que todos los titulares de su puesto.";
   const selectedPhoto = selectedPlayer ? playerPhotoUrl(selectedPlayer) : "";
   const selectedPts = selectedPlayer ? pointsFor(selectedPlayer.id) : 0;
   const selectedBreakdown = selectedPlayer
@@ -3126,9 +3141,7 @@ function SwapPanel({
       ) : !selectedPlayer ? null : samePosTitulares.length === 0 ? (
         <Notice tone="warm">No hay titulares de este puesto en tu once.</Notice>
       ) : eligibleCount === 0 ? (
-        <Notice tone="danger">
-          Tu carta tiene más puntos que todos los titulares de su puesto.
-        </Notice>
+        <Notice tone="danger">{blockedMessage}</Notice>
       ) : (
         <p className="text-xs text-zinc-500">
           Toca un{" "}
