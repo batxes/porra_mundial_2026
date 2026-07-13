@@ -102,6 +102,7 @@ const PRIVATE_AWARD_PACK_PREFIXES = [
   "special-ruleta-",
   "special-oak-",
   "special-hoguera-",
+  "special-sanfermin-",
   "special-portero-",
   "special-suarez-",
   "special-ronaldao-",

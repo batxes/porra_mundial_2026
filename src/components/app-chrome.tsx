@@ -8,6 +8,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { AuthModal } from "@/components/auth-modal";
 import { Avatar } from "@/components/common";
 import { HogueraGate } from "@/components/hoguera-gate";
+import { SanFerminGate } from "@/components/sanfermin-gate";
 import { MourinhoBattleGate } from "@/components/mourinho-battle-gate";
 import { OakQuizGate } from "@/components/oak-quiz-gate";
 import { PackDropWatcher } from "@/components/pack-drop-notice";
@@ -504,6 +505,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       <PackDropWatcher launchReady={ready && Boolean(user)} />
       <OakQuizGate />
       <HogueraGate />
+      <SanFerminGate />
       <PorteroPenaltyGate />
       <SuarezDentistGate />
       <RonaldaoLimboGate />
