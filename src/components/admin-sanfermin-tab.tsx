@@ -60,7 +60,7 @@ export function AdminSanFerminTab() {
 
   const active = Boolean(status?.active);
   return <div className="space-y-4">
-    <div><h3 className="text-xl font-semibold text-white">San Fermín Rush</h3><p className="mt-1 text-sm text-zinc-400">Encierro de 160 m: 15 vallas, tres vidas y sobres privados por hito.</p></div>
+    <div><h3 className="text-xl font-semibold text-white">San Fermín Rush</h3><p className="mt-1 text-sm text-zinc-400">Encierro de 160 m: 15 vallas, cinco vidas y sobres privados por hito.</p></div>
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {["40 m · Defensa", "80 m · Mediocentro", "120 m · Delantero", "160 m · Estrellas"].map((item) => <div key={item} className="rounded-xl border border-white/10 bg-black/18 px-3 py-3 text-sm font-bold text-white">{item}</div>)}
     </div>

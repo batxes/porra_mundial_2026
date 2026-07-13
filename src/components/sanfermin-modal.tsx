@@ -109,7 +109,7 @@ const MOTION_SPEED_MULTIPLIER = 1.3;
 const BASE_SPEED = 4.45 * MOTION_SPEED_MULTIPLIER;
 const MAX_SPEED = 6.35 * MOTION_SPEED_MULTIPLIER;
 const STARTUP_MS = 480;
-const MAX_LIVES = 3;
+const MAX_LIVES = 5;
 const LIFE_RESTART_MS = 850;
 const COUNTDOWN_NUMBER_MS = 620;
 const COUNTDOWN_READY_MS = COUNTDOWN_NUMBER_MS * 3;
@@ -252,12 +252,15 @@ export function SanFerminModal({
   }, [config.id]);
 
   useEffect(() => {
-    const sources = [
+    // Start downloading every image while the intro is visible so the canvas
+    // never has to wait for its sprites, nor the result screen for pack art.
+    const sources = [...new Set([
       JOKER_RUNNER_SRC,
       JOKER_FRONT_SRC,
       BULL_SRC,
       BACKGROUND_SRC,
-    ];
+      ...config.rewards.map((reward) => reward.image),
+    ])];
     const imgs = sources.map((src) => {
       const img = new window.Image();
       img.src = src;
@@ -269,7 +272,7 @@ export function SanFerminModal({
         img.onload = null;
       });
     };
-  }, []);
+  }, [config.rewards]);
 
   useEffect(() => {
     if (phase !== "playing") return;
@@ -717,7 +720,7 @@ function BriefingPanel({
           ))}
         </div>
         <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.24em] text-red-100">
-          3 vidas
+          5 vidas
         </p>
         <h3 className="mt-2 text-2xl font-bold leading-none tracking-tight text-white sm:text-3xl">
           Tu mejor marca cuenta.
@@ -735,7 +738,7 @@ function BriefingPanel({
           onClick={onStart}
           className="mt-5 w-full rounded-xl bg-gradient-to-r from-red-600 via-white to-red-500 px-5 py-3 text-sm font-bold uppercase tracking-[0.14em] text-[#210707] shadow-lg shadow-red-950/30 transition hover:brightness-110 sm:w-max sm:min-w-64"
         >
-          Jugar con 3 vidas
+          Jugar con 5 vidas
         </button>
       </div>
     </div>
