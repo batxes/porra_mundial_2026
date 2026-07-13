@@ -129,7 +129,6 @@ export function SanFerminGate() {
 
   const complete = useCallback(async (result: SanFerminResult) => {
     completedRef.current = result.configId;
-    setOpen(false);
     const supabase = getSupabaseBrowserClient() as unknown as RpcClient | null;
     if (!supabase) return;
     const { error } = await supabase.rpc("complete_sanfermin", {
