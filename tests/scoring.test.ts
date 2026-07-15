@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { data, schedule } from "@/lib/data";
 import {
   buildAlivePlayoffTeamIds,
+  buildCardEligiblePlayoffTeamIds,
   buildEliminatedPlayoffTeamIds,
   buildPredictionPlayoffTeams,
   buildResolvedPlayoffTeams,
@@ -201,6 +202,36 @@ function actualKnockoutGroupResults() {
   });
   assert.ok(eliminatedAfterMatch73.has("tur"));
   assert.ok(eliminatedAfterMatch73.has("can"));
+}
+
+{
+  const adminResults = {
+    ...actualKnockoutGroupResults(),
+    "101": {
+      homeScore: 0,
+      awayScore: 2,
+      homeTeamId: "fra",
+      awayTeamId: "esp",
+      events: [],
+    },
+  };
+
+  // Francia queda fuera de la lucha por el título, pero conserva el partido
+  // por el tercer puesto y, por tanto, debe seguir apareciendo en los sobres.
+  assert.ok(buildEliminatedPlayoffTeamIds(adminResults).has("fra"));
+  assert.ok(buildCardEligiblePlayoffTeamIds(adminResults).has("fra"));
+
+  const afterThirdPlace = {
+    ...adminResults,
+    "103": {
+      homeScore: 1,
+      awayScore: 0,
+      homeTeamId: "fra",
+      awayTeamId: "eng",
+      events: [],
+    },
+  };
+  assert.ok(!buildCardEligiblePlayoffTeamIds(afterThirdPlace).has("eng"));
 }
 
 {

@@ -41,8 +41,7 @@ import { initials, playerPhotoUrl } from "@/lib/format";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { calculatePlayerStandings } from "@/lib/scoring";
 import {
-  buildAlivePlayoffTeamIds,
-  buildEliminatedPlayoffTeamIds,
+  buildCardEligiblePlayoffTeamIds,
   startedUnvalidatedMatchTeamIds,
 } from "@/lib/playoff-teams";
 import { STAR_PLAYER_IDS } from "@/lib/star-players";
@@ -805,11 +804,7 @@ export function CofresView() {
   const openedKey = storageKey(userStorageId, "opened");
   const logKey = storageKey(userStorageId, "log");
   const alivePlayoffTeamIds = useMemo(
-    () => buildAlivePlayoffTeamIds(adminResults || {}),
-    [adminResults],
-  );
-  const eliminatedPlayoffTeamIds = useMemo(
-    () => buildEliminatedPlayoffTeamIds(adminResults || {}),
+    () => buildCardEligiblePlayoffTeamIds(adminResults || {}),
     [adminResults],
   );
   const lockedSwapTeamIds = useMemo(
@@ -819,9 +814,13 @@ export function CofresView() {
   const isPlayerEliminated = useCallback(
     (playerId: string) => {
       const teamId = playersById.get(playerId)?.team;
-      return Boolean(teamId && eliminatedPlayoffTeamIds.has(teamId));
+      return Boolean(
+        teamId &&
+          alivePlayoffTeamIds.size > 0 &&
+          !alivePlayoffTeamIds.has(teamId),
+      );
     },
-    [eliminatedPlayoffTeamIds],
+    [alivePlayoffTeamIds],
   );
 
   // Sobre diario por ciclo (3 cartas con tiering). POR USUARIO: el id incluye el

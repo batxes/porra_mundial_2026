@@ -67,6 +67,17 @@ const eliminationPlayoffStages = new Set([
   "Final",
 ]);
 
+// Para la disponibilidad de los sobres, una selección que pierde una semifinal
+// sigue activa: aún disputa el partido por el tercer puesto. Ese caso no debe
+// confundirse con la eliminación de la carrera por el título de `eliminationPlayoffStages`.
+const cardEliminationPlayoffStages = new Set([
+  "Dieciseisavos",
+  "Octavos",
+  "Cuartos",
+  "Tercer puesto",
+  "Final",
+]);
+
 // FIFA Regulations Annex C, current real row for the 2026 Round of 32:
 // third-place qualifiers from B/D/E/F/I/J/K/L.
 const thirdSlotOverridesByQualifierSet: Record<string, Record<string, string>> =
@@ -441,7 +452,10 @@ export function buildPredictionPlayoffTeams(
   return buildResolvedPlayoffTeams(adminResults);
 }
 
-export function buildEliminatedPlayoffTeamIds(adminResults: AdminResults) {
+function buildEliminatedPlayoffTeamIdsForStages(
+  adminResults: AdminResults,
+  stages: ReadonlySet<string>,
+) {
   const groupTables = calculateGroupTables(adminResults);
   const resolved = buildResolvedPlayoffTeams(adminResults);
   const eliminated = new Set<string>();
@@ -454,7 +468,7 @@ export function buildEliminatedPlayoffTeamIds(adminResults: AdminResults) {
   }
 
   knockoutMatches.forEach((match) => {
-    if (!eliminationPlayoffStages.has(match.stage)) return;
+    if (!stages.has(match.stage)) return;
 
     const result = adminResults[String(match.number)];
     const teams = resolved[String(match.number)];
@@ -467,6 +481,13 @@ export function buildEliminatedPlayoffTeamIds(adminResults: AdminResults) {
   });
 
   return eliminated;
+}
+
+export function buildEliminatedPlayoffTeamIds(adminResults: AdminResults) {
+  return buildEliminatedPlayoffTeamIdsForStages(
+    adminResults,
+    eliminationPlayoffStages,
+  );
 }
 
 export function buildAlivePlayoffTeamIds(adminResults: AdminResults) {
@@ -493,6 +514,38 @@ export function buildAlivePlayoffTeamIds(adminResults: AdminResults) {
 
   const eliminated = buildEliminatedPlayoffTeamIds(adminResults);
   const base = alive.size > 0 ? alive : recordedPlayoffTeams;
+  eliminated.forEach((teamId) => base.delete(teamId));
+  return base;
+}
+
+// Equipos que pueden seguir apareciendo en sobres. A diferencia de los
+// aspirantes al título, aquí conservamos a los dos perdedores de semifinales
+// hasta que se haya jugado el tercer puesto.
+export function buildCardEligiblePlayoffTeamIds(adminResults: AdminResults) {
+  const groupTables = calculateGroupTables(adminResults);
+  const eligible = new Set<string>();
+
+  if (allGroupsComplete(groupTables)) {
+    qualifiedPlayoffTeamIds(groupTables).forEach((teamId) => eligible.add(teamId));
+  }
+
+  const resolved = buildResolvedPlayoffTeams(adminResults);
+  const recordedPlayoffTeams = new Set<string>();
+
+  knockoutMatches.forEach((match) => {
+    const result = adminResults[String(match.number)];
+    const teams = resolved[String(match.number)];
+    const home = validSavedTeam(result, "home") || teams?.home || "";
+    const away = validSavedTeam(result, "away") || teams?.away || "";
+    if (home) recordedPlayoffTeams.add(home);
+    if (away) recordedPlayoffTeams.add(away);
+  });
+
+  const base = eligible.size > 0 ? eligible : recordedPlayoffTeams;
+  const eliminated = buildEliminatedPlayoffTeamIdsForStages(
+    adminResults,
+    cardEliminationPlayoffStages,
+  );
   eliminated.forEach((teamId) => base.delete(teamId));
   return base;
 }
