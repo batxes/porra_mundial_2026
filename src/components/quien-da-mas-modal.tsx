@@ -192,6 +192,21 @@ export function QuienDaMasModal({
     [outcomes],
   );
 
+  // La portada es el momento ideal para calentar las imágenes de los dos
+  // jugadores de cada duelo. Así la transición al primer (y siguientes)
+  // enfrentamientos no depende de la red.
+  useEffect(() => {
+    const imageSources = new Set(
+      duels.flatMap((item) => [item.a.image, item.b.image]).filter(
+        (source): source is string => Boolean(source),
+      ),
+    );
+    imageSources.forEach((source) => {
+      const preload = new window.Image();
+      preload.src = source;
+    });
+  }, [duels]);
+
   const submitCompletion = useCallback(
     async (result: QuienDaMasResult) => {
       if (!onCompleted) {
