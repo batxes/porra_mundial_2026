@@ -8,6 +8,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 type Status = {
   active?: boolean;
+  active_game_id?: string | null;
   active_game_title?: string | null;
   total_attempts?: number;
 };
@@ -92,12 +93,17 @@ export function AdminQuienDaMasTab() {
   };
 
   const loadAttempts = useCallback(async () => {
-    if (!usingSupabase || !user?.isAdmin) return;
+    if (!usingSupabase || !user?.isAdmin || !status?.active_game_id) {
+      setAttempts([]);
+      return;
+    }
     const supabase = getSupabaseBrowserClient() as unknown as RpcClient | null;
     if (!supabase) return;
     setAttemptsLoading(true);
     try {
-      const { data, error: rpcError } = await supabase.rpc("admin_quien_da_mas_attempts", { p_game_id: null });
+      const { data, error: rpcError } = await supabase.rpc("admin_quien_da_mas_attempts", {
+        p_game_id: status.active_game_id,
+      });
       if (rpcError) throw new Error(rpcError.message);
       setAttempts(rows<Attempt>(data));
     } catch (err) {
@@ -106,7 +112,7 @@ export function AdminQuienDaMasTab() {
     } finally {
       setAttemptsLoading(false);
     }
-  }, [usingSupabase, user?.isAdmin]);
+  }, [status, usingSupabase, user?.isAdmin]);
 
   const active = Boolean(status?.active);
   return <div className="space-y-4">
