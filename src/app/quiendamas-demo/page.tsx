@@ -42,96 +42,95 @@ function side(player: BankPlayer, value: number): QuienDaMasSide {
   return { ...player, value };
 }
 
-// Doce duelos cerrados. Las cifras geográficas usan el censo de 2022 o
-// distancias en línea recta para que la regla sea reproducible. Sin empates.
+// Edición del día: doce duelos cerrados, con seis respuestas a cada lado.
+// Los cortes históricos hacen que las cifras no cambien durante el Mundial.
 const DEMO_DUELS: QuienDaMasDuel[] = [
   {
-    id: "altura-courtois-haaland",
-    question: "¿Quién mide más?",
-    metricLabel: "de altura",
-    format: "height",
-    a: side(P.courtois, 199),
-    b: side(P.haaland, 195),
+    id: "edad-messi-cristiano-2024",
+    question: "¿Quién era mayor el 31 de diciembre de 2024?",
+    metricLabel: "a esa fecha",
+    format: "age",
+    a: side(P.messi, 37 + 190 / 365),
+    b: side(P.cristiano, 39 + 330 / 365),
   },
   {
-    id: "paises-clubes-haaland-courtois",
-    question: "¿Quién ha jugado en más países a nivel de clubes?",
-    metricLabel: "países distintos",
-    a: side(P.haaland, 4),
-    b: side(P.courtois, 3),
-  },
-  {
-    id: "traspasos-dembele-ferran",
-    question: "¿Quién ha movido más dinero en traspasos?",
-    metricLabel: "traspasos acumulados",
-    format: "currency",
-    a: side(P.dembele, 220_000_000),
-    b: side(P.ferran, 88_500_000),
-  },
-  {
-    id: "letras-cristiano-messi",
-    question: "¿Quién tiene más letras en su nombre completo?",
-    metricLabel: "letras sin espacios",
-    a: side(P.cristiano, 31),
-    b: side(P.messi, 27),
-  },
-  {
-    id: "poblacion-vinicius-neymar",
-    question: "¿Quién nació en una ciudad con más habitantes?",
-    metricLabel: "habitantes · censo 2022",
-    format: "compact",
-    a: side(P.vinicius, 896_744),
-    b: side(P.neymar, 449_955),
-  },
-  {
-    id: "distancia-capital-haaland-messi",
-    question: "¿Quién nació a más kilómetros de la capital de su selección?",
-    metricLabel: "km en línea recta",
-    a: side(P.haaland, 1_008),
-    b: side(P.messi, 281),
-  },
-  {
-    id: "hermanos-messi-mbappe",
-    question: "¿Quién tiene más hermanos?",
-    metricLabel: "hermanos",
-    a: side(P.messi, 3),
-    b: side(P.mbappe, 2),
-  },
-  {
-    id: "primer-mundial-mbappe-messi",
+    id: "primer-mundial-messi-neymar",
     question: "¿Quién marcó más goles en su primer Mundial?",
     metricLabel: "goles en su debut mundialista",
-    a: side(P.mbappe, 4),
-    b: side(P.messi, 1),
+    a: side(P.messi, 1),
+    b: side(P.neymar, 4),
   },
   {
-    id: "edad-debut-messi-mbappe",
-    question: "¿Quién tenía más edad cuando debutó como profesional?",
-    metricLabel: "al debutar",
-    format: "age",
-    a: side(P.messi, 17 + 114 / 365),
-    b: side(P.mbappe, 16 + 347 / 365),
+    id: "balones-oro-messi-cristiano-2024",
+    question: "¿Quién tenía más Balones de Oro al acabar 2024?",
+    metricLabel: "Balones de Oro",
+    a: side(P.messi, 8),
+    b: side(P.cristiano, 5),
   },
   {
-    id: "ecuador-messi-vinicius",
-    question: "¿Quién nació a más kilómetros del ecuador?",
+    id: "champions-vinicius-neymar-2024",
+    question: "¿Quién había ganado más Champions a junio de 2024?",
+    metricLabel: "Champions League",
+    a: side(P.vinicius, 2),
+    b: side(P.neymar, 1),
+  },
+  {
+    id: "finales-champions-messi-cristiano",
+    question: "¿Quién marcó más goles en finales de Champions?",
+    metricLabel: "goles en finales",
+    a: side(P.messi, 2),
+    b: side(P.cristiano, 4),
+  },
+  {
+    id: "goles-mundial-2014-cristiano-neymar",
+    question: "¿Quién marcó más goles en el Mundial de Brasil 2014?",
+    metricLabel: "goles en Brasil 2014",
+    a: side(P.cristiano, 1),
+    b: side(P.neymar, 4),
+  },
+  {
+    id: "mundiales-francia-brasil-2022",
+    question: "¿La selección de quién tenía más Mundiales al acabar 2022?",
+    metricLabel: "Copas del Mundo",
+    a: side(P.mbappe, 2),
+    b: side(P.neymar, 5),
+  },
+  {
+    id: "poblacion-brasil-portugal-2022",
+    question: "¿La selección de quién tenía más habitantes en 2022?",
+    metricLabel: "habitantes del país",
+    format: "compact",
+    a: side(P.neymar, 203_062_512),
+    b: side(P.cristiano, 10_467_366),
+  },
+  {
+    id: "superficie-noruega-belgica",
+    question: "¿El país de quién tiene más superficie?",
+    metricLabel: "km² de superficie",
+    format: "compact",
+    a: side(P.haaland, 385_207),
+    b: side(P.courtois, 30_689),
+  },
+  {
+    id: "ecuador-mbappe-vinicius",
+    question: "¿Quién nació más lejos del ecuador?",
     metricLabel: "km hasta el ecuador",
-    a: side(P.messi, 3_665),
+    a: side(P.mbappe, 5_437),
     b: side(P.vinicius, 2_538),
   },
   {
-    id: "husos-mbappe-messi",
-    question: "¿El país de quién tiene más husos horarios?",
-    metricLabel: "husos · contando ultramar",
-    a: side(P.mbappe, 12),
-    b: side(P.messi, 1),
+    id: "cantera-messi-mbappe",
+    question: "¿Quién pasó por una cantera fundada hace más tiempo?",
+    metricLabel: "años de historia en 2024",
+    a: side(P.messi, 121),
+    b: side(P.mbappe, 46),
   },
   {
-    id: "finales-mundial-mbappe-messi",
-    question: "¿Quién marcó más goles en finales de un Mundial?",
-    metricLabel: "goles en finales",
-    a: side(P.mbappe, 4),
-    b: side(P.messi, 2),
+    id: "nacimiento-messi-haaland",
+    question: "¿Quién nació más recientemente?",
+    metricLabel: "año de nacimiento",
+    a: side(P.messi, 1987),
+    b: side(P.haaland, 2000),
   },
 ];
 
@@ -143,11 +142,8 @@ function pickRandomDuels(count: number): QuienDaMasDuel[] {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  // Baraja tambien el lado en que sale cada crack para que la "a" no gane
-  // siempre por costumbre.
-  return pool.slice(0, count).map((duel) =>
-    Math.random() < 0.5 ? duel : { ...duel, a: duel.b, b: duel.a },
-  );
+  // Solo se baraja el orden: la edición ya alterna seis respuestas por lado.
+  return pool.slice(0, count);
 }
 
 export default function QuienDaMasDemoPage() {
