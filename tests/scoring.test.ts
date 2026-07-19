@@ -446,12 +446,62 @@ function actualKnockoutGroupResults() {
   const missPrediction = { groups: {}, bracket: { winners: {} }, extras: { mostConcededTeam: "a" }, xi: [], matchPredictions: {} } as any;
 
   assert.equal(
-    miniEngine.calculateScorecard(hitPrediction, results as any).entries.some((entry) => entry.ruleCode === "tournament_most_conceded_team_hit"),
+    miniEngine.calculateScorecard(hitPrediction, results as any, "", {
+      worldChampion: "",
+      highestScoringTeam: "",
+      mostConcededTeam: "b",
+      mostRedsTeam: "",
+      topScorer: "",
+      mvp: "",
+    }).entries.some((entry) => entry.ruleCode === "tournament_most_conceded_team_hit"),
     true,
   );
   assert.equal(
-    miniEngine.calculateScorecard(missPrediction, results as any).entries.some((entry) => entry.ruleCode === "tournament_most_conceded_team_hit"),
+    miniEngine.calculateScorecard(missPrediction, results as any, "", {
+      worldChampion: "",
+      highestScoringTeam: "",
+      mostConcededTeam: "b",
+      mostRedsTeam: "",
+      topScorer: "",
+      mvp: "",
+    }).entries.some((entry) => entry.ruleCode === "tournament_most_conceded_team_hit"),
     false,
+  );
+}
+
+{
+  const firstPlayer = data.players[0]?.id || "";
+  const secondPlayer = data.players[1]?.id || firstPlayer;
+  const prediction = {
+    groups: {},
+    bracket: { winners: {} },
+    extras: {
+      worldChampion: "esp",
+      highestScoringTeam: "fra",
+      mostConcededTeam: "mex",
+      mostRedsTeam: "bra",
+      topScorer: firstPlayer,
+      mvp: secondPlayer,
+    },
+    xi: [],
+    matchPredictions: {},
+  } as any;
+
+  const manualClose = engine.calculateScorecard(prediction, {}, "u1", {
+    ...prediction.extras,
+  });
+
+  assert.equal(manualClose.total, 95);
+  assert.deepEqual(
+    manualClose.entries.map((entry) => entry.ruleCode).sort(),
+    [
+      "tournament_champion_hit",
+      "tournament_highest_scoring_team_hit",
+      "tournament_most_conceded_team_hit",
+      "tournament_most_reds_team_hit",
+      "tournament_mvp_hit",
+      "tournament_top_scorer_hit",
+    ].sort(),
   );
 }
 
@@ -640,7 +690,14 @@ function actualKnockoutGroupResults() {
     101: { homeScore: 1, awayScore: 0, homeTeamId: "mex", awayTeamId: "bra", events: [] },
     104: { homeScore: 1, awayScore: 0, homeTeamId: "mex", awayTeamId: "arg", events: [] },
   } as any;
-  const card = engine.calculateScorecard(knockoutHits, knockoutResults, "u1");
+  const card = engine.calculateScorecard(knockoutHits, knockoutResults, "u1", {
+    worldChampion: "mex",
+    highestScoringTeam: "",
+    mostConcededTeam: "",
+    mostRedsTeam: "",
+    topScorer: "",
+    mvp: "",
+  });
   // El cuadro ya no puntua: ni entradas team_progression_hit ni categoria "Cuadro".
   assert.deepEqual(
     card.entries.filter((entry) => entry.ruleCode === "team_progression_hit").map((entry) => entry.points),
@@ -651,6 +708,18 @@ function actualKnockoutGroupResults() {
   assert.deepEqual(
     card.entries.filter((entry) => entry.ruleCode === "tournament_champion_hit").map((entry) => entry.points),
     [25],
+  );
+
+  const withoutManualClose = engine.calculateScorecard(
+    knockoutHits,
+    knockoutResults,
+    "u1",
+  );
+  assert.equal(
+    withoutManualClose.entries.some(
+      (entry) => entry.ruleCode === "tournament_champion_hit",
+    ),
+    false,
   );
 }
 

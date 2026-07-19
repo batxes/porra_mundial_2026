@@ -70,6 +70,7 @@ import {
 } from "@/lib/cofres";
 import { data, playersById, schedule, teamsById } from "@/lib/data";
 import { formatDate, translateSlot } from "@/lib/format";
+import { areFinalElectionResultsComplete } from "@/lib/final-election-results";
 import { latestLeaderboardMovements } from "@/lib/leaderboard-movement";
 import { calculateShootoutScore } from "@/lib/match-events";
 import {
@@ -93,6 +94,7 @@ import {
 import type {
   AdminResult,
   AdminResults,
+  FinalElectionResults,
   Match,
   Prediction,
   ScoreEntry,
@@ -136,6 +138,7 @@ export function HomeView() {
   const router = useRouter();
   const {
     adminResults,
+    finalElectionResults,
     leaderboard: fullLeaderboard,
     prediction,
     ready,
@@ -147,6 +150,9 @@ export function HomeView() {
   const leaderboard = useMemo(
     () => fullLeaderboard.filter((profile) => !profile.isHidden),
     [fullLeaderboard],
+  );
+  const finalElectionResultsComplete = areFinalElectionResultsComplete(
+    finalElectionResults,
   );
   const leaderboardMovements = useMemo(
     () => latestLeaderboardMovements(leaderboard, adminResults),
@@ -462,13 +468,14 @@ export function HomeView() {
         <div className="flex flex-col gap-6">
           {user ? (
             <div className="flex flex-col gap-3">
-              <PlayoffsPromoBanner />
+              {!finalElectionResultsComplete ? <PlayoffsPromoBanner /> : null}
               <SobresPromoBanner userId={user.id} />
             </div>
           ) : null}
           <HomeFeedSection
             currentUserId={user?.id || ""}
             currentUserName={user?.name || ""}
+            finalElectionResults={finalElectionResults}
             hasUser={Boolean(user)}
             leaderboard={leaderboard}
             nextMatchdayKey={nextMatchdayKey}
@@ -838,6 +845,146 @@ export function HomeNewsChipsPreview() {
         results={homeNewsPreviewResults}
         saveState={null}
         upcomingMatches={[]}
+      />
+    </main>
+  );
+}
+
+const finalPostPreviewEngine = createEngine({ data, schedule });
+
+function finalPostPreviewScorecard(
+  entries: Array<{ points: number; ruleCode: string }>,
+) {
+  return finalPostPreviewEngine.scorecardFromEntries(entries);
+}
+
+const finalPostPreviewLeaderboard: UserProfile[] = [
+  {
+    id: "preview-final-1",
+    name: "Ane",
+    email: "",
+    avatarUrl: "preset:gold",
+    points: 497,
+    isAdmin: false,
+    isPro: true,
+    isWolf: false,
+    isHidden: false,
+    complete: 100,
+    champion: "esp",
+    prediction: emptyPrediction(),
+    scorecard: finalPostPreviewScorecard([
+      { ruleCode: "tournament_champion_hit", points: 25 },
+      { ruleCode: "tournament_highest_scoring_team_hit", points: 10 },
+      { ruleCode: "tournament_top_scorer_hit", points: 20 },
+    ]),
+  },
+  {
+    id: "preview-final-2",
+    name: "Unai",
+    email: "",
+    avatarUrl: "preset:blue",
+    points: 486,
+    isAdmin: false,
+    isPro: true,
+    isWolf: false,
+    isHidden: false,
+    complete: 100,
+    champion: "arg",
+    prediction: emptyPrediction(),
+    scorecard: finalPostPreviewScorecard([
+      { ruleCode: "tournament_most_reds_team_hit", points: 10 },
+      { ruleCode: "tournament_mvp_hit", points: 20 },
+    ]),
+  },
+  {
+    id: "preview-final-3",
+    name: "Marta",
+    email: "",
+    avatarUrl: "preset:rose",
+    points: 472,
+    isAdmin: false,
+    isPro: false,
+    isWolf: true,
+    isHidden: false,
+    complete: 100,
+    champion: "fra",
+    prediction: emptyPrediction(),
+    scorecard: finalPostPreviewScorecard([
+      { ruleCode: "tournament_highest_scoring_team_hit", points: 10 },
+      { ruleCode: "tournament_most_conceded_team_hit", points: 10 },
+    ]),
+  },
+  {
+    id: "preview-final-4",
+    name: "Iker",
+    email: "",
+    avatarUrl: "preset:emerald",
+    points: 461,
+    isAdmin: false,
+    isPro: false,
+    isWolf: false,
+    isHidden: false,
+    complete: 100,
+    champion: "esp",
+    prediction: emptyPrediction(),
+    scorecard: finalPostPreviewScorecard([
+      { ruleCode: "tournament_champion_hit", points: 25 },
+    ]),
+  },
+  {
+    id: "preview-final-5",
+    name: "Leire",
+    email: "",
+    avatarUrl: "preset:violet",
+    points: 449,
+    isAdmin: false,
+    isPro: true,
+    isWolf: false,
+    isHidden: false,
+    complete: 100,
+    champion: "bra",
+    prediction: emptyPrediction(),
+    scorecard: finalPostPreviewScorecard([
+      { ruleCode: "tournament_top_scorer_hit", points: 20 },
+    ]),
+  },
+  {
+    id: "preview-final-6",
+    name: "Jon",
+    email: "",
+    avatarUrl: "preset:orange",
+    points: 438,
+    isAdmin: false,
+    isPro: false,
+    isWolf: false,
+    isHidden: false,
+    complete: 100,
+    champion: "eng",
+    prediction: emptyPrediction(),
+    scorecard: finalPostPreviewScorecard([]),
+  },
+];
+
+const finalPostPreviewResults: FinalElectionResults = {
+  worldChampion: "esp",
+  highestScoringTeam: "fra",
+  mostConcededTeam: "mex",
+  mostRedsTeam: "bra",
+  topScorer: "esp-19",
+  mvp: "fra-10",
+};
+
+export function HomeFinalTournamentPreview() {
+  return (
+    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-12">
+      <div className="mb-4 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.06] px-4 py-3 text-sm text-cyan-100">
+        <strong>Preview:</strong> nombres, puntos y resultados de ejemplo. En la
+        noticia real se mostrarán los datos definitivos al cerrar desde Admin.
+      </div>
+      <FinalTournamentPost
+        currentUserId="preview-final-2"
+        finalElectionResults={finalPostPreviewResults}
+        leaderboard={finalPostPreviewLeaderboard}
       />
     </main>
   );
@@ -1373,6 +1520,7 @@ const scorerBreakdownLabels: Array<{
 // Cuantos puntuadores se ven antes de "Mostrar más".
 const jornadaScorersCollapsed = 3;
 const groupPhaseScorersCollapsed = 3;
+const finalStandingsCollapsed = 3;
 
 type GroupPhaseBreakdown = {
   exactOrder: number;
@@ -2029,6 +2177,7 @@ function ChevronDownIcon({ className = "" }: { className?: string }) {
 function HomeFeedSection({
   currentUserId,
   currentUserName,
+  finalElectionResults,
   hasUser,
   leaderboard,
   nextMatchdayKey,
@@ -2042,6 +2191,7 @@ function HomeFeedSection({
 }: {
   currentUserId: string;
   currentUserName: string;
+  finalElectionResults?: FinalElectionResults;
   hasUser: boolean;
   leaderboard: UserProfile[];
   nextMatchdayKey: string;
@@ -2058,6 +2208,7 @@ function HomeFeedSection({
   upcomingMatches: Match[];
 }) {
   const jornadas = useMemo(() => buildJornadas(results), [results]);
+  const hasFinalPost = areFinalElectionResultsComplete(finalElectionResults);
   const groupPhaseReport = useMemo(
     () =>
       showHomeGroupPhaseReport
@@ -2072,6 +2223,7 @@ function HomeFeedSection({
     jornadas[0]?.date ||
     "";
   const hasContent =
+    hasFinalPost ||
     upcomingMatches.length > 0 ||
     Boolean(groupPhaseReport) ||
     jornadas.length > 0;
@@ -2109,6 +2261,13 @@ function HomeFeedSection({
         </Card>
       ) : hasContent ? (
         <div className="space-y-4">
+          {hasFinalPost && finalElectionResults ? (
+            <FinalTournamentPost
+              currentUserId={currentUserId}
+              finalElectionResults={finalElectionResults}
+              leaderboard={leaderboard}
+            />
+          ) : null}
           {upcomingMatches.length ? (
             <UpcomingJornadaCard
               dateKey={nextMatchdayKey}
@@ -2168,6 +2327,405 @@ function HomeFeedSection({
         </Card>
       )}
     </section>
+  );
+}
+
+function FinalTournamentPost({
+  currentUserId,
+  finalElectionResults,
+  leaderboard,
+}: {
+  currentUserId: string;
+  finalElectionResults: FinalElectionResults;
+  leaderboard: UserProfile[];
+}) {
+  const [standingsExpanded, setStandingsExpanded] = useState(false);
+  const podium = leaderboard.slice(0, 3);
+  const currentUserIndex = leaderboard.findIndex(
+    (profile) => profile.id === currentUserId,
+  );
+  const currentUser =
+    currentUserIndex >= 0 ? leaderboard[currentUserIndex] : null;
+  const visibleStandings = standingsExpanded
+    ? leaderboard
+    : leaderboard.slice(0, finalStandingsCollapsed);
+
+  return (
+    <article className="overflow-hidden rounded-2xl border border-amber-300/25 bg-[radial-gradient(circle_at_80%_0%,rgba(250,204,21,0.16),transparent_38%),linear-gradient(145deg,rgba(28,24,15,0.98),rgba(12,14,13,0.98))] shadow-[0_20px_70px_rgba(0,0,0,0.24)]">
+      <div className="relative overflow-hidden border-b border-amber-200/15 px-4 py-5 sm:px-6 sm:py-6">
+        <div
+          aria-hidden="true"
+          className="absolute -right-8 -top-12 text-[150px] font-black leading-none text-amber-200/[0.035]"
+        >
+          26
+        </div>
+        <div className="relative flex items-start gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-amber-200/30 bg-amber-300/10 text-amber-200 shadow-[0_0_30px_rgba(250,204,21,0.12)]">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="size-5"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="1.8"
+            >
+              <path d="M8 3h8v3a4 4 0 0 1-8 0V3Z" />
+              <path d="M8 5H4v1a4 4 0 0 0 4 4M16 5h4v1a4 4 0 0 1-4 4M12 10v5M8 21h8M9 15h6v6H9z" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/70">
+              Edición especial · Final del Mundial
+            </p>
+            <h3 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl">
+              La porra ya tiene campeón
+            </h3>
+            <p className="mt-1 max-w-xl text-sm leading-6 text-zinc-400">
+              Clasificación definitiva y resultados oficiales de las elecciones.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6 p-4 sm:p-6">
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+              Podio final
+            </p>
+            <Link
+              href="/clasificacion"
+              className="text-xs font-bold text-amber-200 transition hover:text-amber-100"
+            >
+              Ver clasificación
+            </Link>
+          </div>
+
+          {podium.length ? (
+            <div className="grid gap-2 sm:grid-cols-3">
+              {podium.map((profile, index) => {
+                const position = index + 1;
+                const winner = position === 1;
+                return (
+                  <Link
+                    key={profile.id}
+                    href={`/perfil/${encodeURIComponent(profile.id)}`}
+                    className={`group relative flex min-w-0 items-center gap-3 rounded-xl border px-3 py-3 transition hover:-translate-y-0.5 sm:flex-col sm:justify-center sm:px-2 sm:py-4 sm:text-center ${
+                      winner
+                        ? "border-amber-300/35 bg-amber-300/[0.09]"
+                        : "border-white/10 bg-white/[0.035] hover:bg-white/[0.06]"
+                    }`}
+                  >
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/20 text-sm font-black">
+                      <RankNumber position={position} />
+                    </span>
+                    <Avatar
+                      name={profile.name}
+                      avatarUrl={profile.avatarUrl}
+                      className={winner ? "size-12 sm:size-14" : "size-11 sm:size-12"}
+                    />
+                    <span className="min-w-0 flex-1 sm:w-full sm:flex-none">
+                      <span className="flex min-w-0 items-center gap-1.5 sm:justify-center">
+                        <span className="truncate text-sm font-bold text-white">
+                          {profile.name}
+                        </span>
+                        {profile.isPro ? <ProBadge /> : null}
+                        {profile.isWolf ? <WolfBadge /> : null}
+                      </span>
+                      <span className="mt-0.5 block text-xs font-bold tabular-nums text-[#a7f600]">
+                        {profile.points} puntos
+                      </span>
+                    </span>
+                    {profile.id === currentUserId ? (
+                      <span className="absolute right-2 top-2 rounded bg-white/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-zinc-300">
+                        Tú
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-5 text-center text-sm text-zinc-500">
+              Sin participantes en la clasificación.
+            </p>
+          )}
+        </section>
+
+        <section className="border-t border-white/10 pt-5">
+          <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+            Resultados de elecciones
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <FinalTeamElection
+              label="Campeón del Mundial"
+              points={25}
+              teamId={finalElectionResults.worldChampion}
+              featured
+            />
+            <FinalTeamElection
+              label="Equipo más goleador"
+              points={10}
+              teamId={finalElectionResults.highestScoringTeam}
+            />
+            <FinalTeamElection
+              label="Equipo más goleado"
+              points={10}
+              teamId={finalElectionResults.mostConcededTeam}
+            />
+            <FinalTeamElection
+              label="Equipo con más rojas"
+              points={10}
+              teamId={finalElectionResults.mostRedsTeam}
+            />
+            <FinalPlayerElection
+              label="Máximo goleador"
+              playerId={finalElectionResults.topScorer}
+              points={20}
+            />
+            <FinalPlayerElection
+              label="MVP del Mundial"
+              playerId={finalElectionResults.mvp}
+              points={20}
+            />
+          </div>
+        </section>
+
+        {leaderboard.length ? (
+          <section className="border-t border-white/10 pt-5">
+            {currentUser ? (
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+                    Tu resultado final
+                  </p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600">
+                    General · pts
+                  </p>
+                </div>
+                <FinalStandingRow
+                  isCurrentUser
+                  position={currentUserIndex + 1}
+                  profile={currentUser}
+                />
+              </div>
+            ) : null}
+
+            <div
+              className={
+                currentUser ? "mt-4 border-t border-white/[0.07] pt-4" : ""
+              }
+            >
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+                  Clasificación final{" "}
+                  <span className="text-zinc-400">· {leaderboard.length}</span>
+                </p>
+                {!currentUser ? (
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600">
+                    General · pts
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-2.5">
+                {visibleStandings.map((profile, index) => (
+                  <FinalStandingRow
+                    key={profile.id}
+                    isCurrentUser={profile.id === currentUserId}
+                    position={index + 1}
+                    profile={profile}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {leaderboard.length > finalStandingsCollapsed ? (
+              <button
+                type="button"
+                onClick={() => setStandingsExpanded((value) => !value)}
+                aria-expanded={standingsExpanded}
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] py-2 text-xs font-bold text-zinc-300 transition hover:bg-white/[0.06] hover:text-white"
+              >
+                {standingsExpanded
+                  ? "Mostrar menos"
+                  : `Ver ${leaderboard.length - finalStandingsCollapsed} más`}
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 16 16"
+                  className={`h-3.5 w-3.5 transition-transform ${
+                    standingsExpanded ? "rotate-180" : ""
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M4 6l4 4 4-4" />
+                </svg>
+              </button>
+            ) : null}
+          </section>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function FinalStandingRow({
+  isCurrentUser,
+  position,
+  profile,
+}: {
+  isCurrentUser: boolean;
+  position: number;
+  profile: UserProfile;
+}) {
+  const electionEntries = profile.scorecard.entries.filter((entry) =>
+    entry.ruleCode.startsWith("tournament_"),
+  );
+  const electionPoints = electionEntries.reduce(
+    (total, entry) => total + entry.points,
+    0,
+  );
+
+  return (
+    <Link
+      href={`/perfil/${encodeURIComponent(profile.id)}`}
+      className="-mx-2 flex w-[calc(100%+1rem)] items-start justify-between gap-3 rounded-lg px-2 py-1.5 transition hover:bg-white/[0.04]"
+    >
+      <span className="flex min-w-0 items-start gap-2.5">
+        <span
+          className="mt-0.5 flex h-8 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-xs font-bold text-zinc-300"
+          aria-label={`Puesto ${position}`}
+        >
+          <RankNumber position={position} />
+        </span>
+        <Avatar
+          name={profile.name}
+          avatarUrl={profile.avatarUrl}
+          className="size-9"
+        />
+        <span className="min-w-0">
+          <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-white">
+            <span className="truncate">{profile.name}</span>
+            {profile.isPro ? <ProBadge /> : null}
+            {profile.isWolf ? <WolfBadge /> : null}
+            {isCurrentUser ? (
+              <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-zinc-200">
+                Tú
+              </span>
+            ) : null}
+          </span>
+          {electionEntries.length ? (
+            <span className="mt-1 flex flex-wrap items-center gap-1">
+              {electionEntries.map((entry) => (
+                <span
+                  key={`${entry.ruleCode}-${entry.sourceRef}`}
+                  className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400"
+                >
+                  {entry.label}
+                  <span className="text-white">+{entry.points}</span>
+                </span>
+              ))}
+            </span>
+          ) : (
+            <span className="mt-1 block text-[11px] font-medium text-zinc-500">
+              Sin aciertos en Tus elecciones.
+            </span>
+          )}
+        </span>
+      </span>
+      <span className="mt-0.5 flex shrink-0 flex-col items-end">
+        <span className="rounded-md bg-[#a7f600]/12 px-2 py-0.5 text-xs font-semibold tabular-nums text-[#a7f600]">
+          {profile.points} pts
+        </span>
+        <span className="mt-1 text-[10px] font-semibold tabular-nums text-zinc-500">
+          +{electionPoints} elecciones
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+function FinalTeamElection({
+  featured = false,
+  label,
+  points,
+  teamId,
+}: {
+  featured?: boolean;
+  label: string;
+  points: number;
+  teamId: string;
+}) {
+  const team = teamsById.get(teamId);
+  return (
+    <div
+      className={`flex min-w-0 items-center gap-3 rounded-xl border px-3 py-3 ${
+        featured
+          ? "border-amber-300/25 bg-amber-300/[0.07]"
+          : "border-white/10 bg-white/[0.03]"
+      }`}
+    >
+      <TeamFlag
+        teamId={teamId}
+        className="h-9 w-11 shrink-0 rounded-md border border-white/10 object-cover"
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+          {label}
+        </span>
+        <span className="mt-0.5 block truncate text-sm font-bold text-white">
+          {team?.name || "Por confirmar"}
+        </span>
+      </span>
+      <span className="shrink-0 rounded-md bg-[#a7f600]/10 px-2 py-1 text-xs font-bold text-[#a7f600]">
+        +{points}
+      </span>
+    </div>
+  );
+}
+
+function FinalPlayerElection({
+  label,
+  playerId,
+  points,
+}: {
+  label: string;
+  playerId: string;
+  points: number;
+}) {
+  const player = playersById.get(playerId);
+  return (
+    <div className="flex min-w-0 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
+      {player ? (
+        <PlayerAvatar
+          player={player}
+          className="size-10 shrink-0 rounded-full bg-white/10 text-[10px]"
+        />
+      ) : (
+        <span className="size-10 shrink-0 rounded-full bg-white/10" />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+          {label}
+        </span>
+        <span className="mt-0.5 block truncate text-sm font-bold text-white">
+          {player?.name || "Por confirmar"}
+        </span>
+        {player ? (
+          <span className="block truncate text-[11px] text-zinc-500">
+            {teamsById.get(player.team)?.name || ""}
+          </span>
+        ) : null}
+      </span>
+      <span className="shrink-0 rounded-md bg-[#a7f600]/10 px-2 py-1 text-xs font-bold text-[#a7f600]">
+        +{points}
+      </span>
+    </div>
   );
 }
 

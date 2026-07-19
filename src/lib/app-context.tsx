@@ -5,6 +5,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { createEngine } from "@/lib/scoring";
 import { data, playersById, schedule, teamsById } from "@/lib/data";
+import {
+  emptyFinalElectionResults,
+  finalElectionResultsFromRow,
+  normalizeFinalElectionResults,
+} from "@/lib/final-election-results";
 import { formatDate } from "@/lib/format";
 import {
   avatarPresets,
@@ -15,6 +20,7 @@ import {
   ensureDemoUsers,
   ensureLocalAdminUser,
   getLocalAdminResults,
+  getLocalFinalElectionResults,
   getLocalPredictions,
   getLocalUsers,
   getPendingPrediction,
@@ -23,6 +29,7 @@ import {
   saveLocalPrediction,
   setCurrentLocalEmail,
   setLocalAdminResults,
+  setLocalFinalElectionResults,
   setLocalJson,
   setLocalUsers,
   setPendingPrediction,
@@ -49,7 +56,7 @@ import {
   teamHasStartedUnvalidatedKnownMatch,
 } from "@/lib/playoff-teams";
 import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
-import type { AdminResults, AuthMode, Prediction, Scorecard, UserProfile } from "@/lib/types";
+import type { AdminResults, AuthMode, FinalElectionResults, Prediction, Scorecard, UserProfile } from "@/lib/types";
 
 type SessionUser = {
   id: string;
@@ -110,6 +117,7 @@ type AppContextValue = {
   user: SessionUser | null;
   prediction: Prediction;
   adminResults: AdminResults;
+  finalElectionResults: FinalElectionResults;
   leaderboard: UserProfile[];
   completion: number;
   currentScorecard: Scorecard;
@@ -147,6 +155,7 @@ type AppContextValue = {
   addAdminEvent: (matchNumber: string, event: AdminResults[string]["events"][number]) => Promise<void>;
   deleteAdminEvent: (matchNumber: string, eventId: string) => Promise<void>;
   clearAdminResults: () => Promise<void>;
+  saveFinalElectionResults: (results: FinalElectionResults) => Promise<void>;
   refreshData: () => Promise<void>;
   teamName: (teamId: string) => string;
   playerName: (playerId: string) => string;
@@ -206,18 +215,39 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 const scoring = createEngine({ data, schedule });
 
-function scorecardForUser(userId: string, prediction: Prediction, adminResults: AdminResults) {
-  return scoring.calculateScorecard(normalizePrediction(prediction), adminResults, userId);
+function scorecardForUser(
+  userId: string,
+  prediction: Prediction,
+  adminResults: AdminResults,
+  finalElectionResults: FinalElectionResults,
+) {
+  return scoring.calculateScorecard(
+    normalizePrediction(prediction),
+    adminResults,
+    userId,
+    finalElectionResults,
+  );
 }
 
-function buildLeaderboard(localUsers: LocalUser[], currentUserId: string | null, prediction: Prediction, adminResults: AdminResults) {
+function buildLeaderboard(
+  localUsers: LocalUser[],
+  currentUserId: string | null,
+  prediction: Prediction,
+  adminResults: AdminResults,
+  finalElectionResults: FinalElectionResults,
+) {
   const predictions = getLocalPredictions();
 
   return localUsers
     .filter((user) => user.email !== defaultAdminEmail || user.id === currentUserId)
     .map((user) => {
       const userPrediction = normalizePrediction(user.id === currentUserId ? prediction : predictions[user.id]);
-      const scorecard = scorecardForUser(user.id, userPrediction, adminResults);
+      const scorecard = scorecardForUser(
+        user.id,
+        userPrediction,
+        adminResults,
+        finalElectionResults,
+      );
       return {
         id: user.id,
         name: user.name,
@@ -260,6 +290,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [prediction, setPrediction] = useState<Prediction>(emptyPrediction());
   const [adminResults, setAdminResults] = useState<AdminResults>({});
+  const [finalElectionResults, setFinalElectionResults] =
+    useState<FinalElectionResults>(emptyFinalElectionResults());
   const [leaderboard, setLeaderboard] = useState<UserProfile[]>([]);
 
   const usingSupabase = hasSupabaseConfig();
@@ -271,6 +303,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         nextPrediction || (sessionUser ? getLocalPredictions()[sessionUser.id] : getPendingPrediction()),
       );
       const currentResults = getLocalAdminResults();
+      const currentFinalElectionResults = getLocalFinalElectionResults();
 
       setUser(
         sessionUser
@@ -279,7 +312,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               name: sessionUser.name,
               email: sessionUser.email,
               avatarUrl: sessionUser.avatarUrl || "",
-              points: scorecardForUser(sessionUser.id, currentPrediction, currentResults).total,
+              points: scorecardForUser(
+                sessionUser.id,
+                currentPrediction,
+                currentResults,
+                currentFinalElectionResults,
+              ).total,
               isAdmin: Boolean(sessionUser.isAdmin),
               isPro: Boolean(sessionUser.isPro),
               isWolf: Boolean(sessionUser.isWolf),
@@ -289,7 +327,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       );
       setPrediction(currentPrediction);
       setAdminResults(currentResults);
-      setLeaderboard(buildLeaderboard(getLocalUsers(), nextUserId ?? sessionUser?.id ?? null, currentPrediction, currentResults));
+      setFinalElectionResults(currentFinalElectionResults);
+      setLeaderboard(
+        buildLeaderboard(
+          getLocalUsers(),
+          nextUserId ?? sessionUser?.id ?? null,
+          currentPrediction,
+          currentResults,
+          currentFinalElectionResults,
+        ),
+      );
     },
     [],
   );
@@ -359,15 +406,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const tournamentResponse = await supabase.from("tournaments").select("id, slug").eq("slug", "world-cup-2026").maybeSingle();
       const tournamentId = tournamentResponse.data?.id;
 
-      const [{ data: profiles }, { data: predictions }, { data: matches }, { data: events }, tacticRows] = await Promise.all([
+      const [
+        { data: profiles },
+        { data: predictions },
+        { data: matches },
+        { data: events },
+        { data: finalResultsRow },
+        tacticRows,
+      ] = await Promise.all([
         supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
         tournamentId
           ? supabase.from("predictions").select("user_id, selections, completion_percent, is_definitive").eq("tournament_id", tournamentId)
           : Promise.resolve({ data: [] as any[], error: null }),
         supabase.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, status, stage").eq("status", "validated"),
         supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute, details"),
+        tournamentId
+          ? supabase
+              .from("tournament_final_results")
+              .select(
+                "world_champion_team_id, highest_scoring_team_id, most_conceded_team_id, most_reds_team_id, top_scorer_player_id, mvp_player_id",
+              )
+              .eq("tournament_id", tournamentId)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
         fetchMatchTacticResults(supabase),
       ]);
+
+      const currentFinalElectionResults = finalElectionResultsFromRow(
+        finalResultsRow as Record<string, unknown> | null,
+      );
 
       const results: AdminResults = {};
       ((matches || []) as any[]).forEach((match: any) => {
@@ -421,7 +488,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         sessionUserId ? predictionByUser.get(sessionUserId) || null : pendingPrediction,
       );
       const currentScorecard = sessionUserId
-        ? scorecardForUser(sessionUserId, currentPrediction, results)
+        ? scorecardForUser(
+            sessionUserId,
+            currentPrediction,
+            results,
+            currentFinalElectionResults,
+          )
         : scoring.scorecardFromEntries([]);
       // El total visible sale del scorecard calculado en cliente para que
       // cuadre siempre con el desglose, aunque profiles.total_points tarde en
@@ -445,12 +517,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       );
       setPrediction(currentPrediction);
       setAdminResults(results);
+      setFinalElectionResults(currentFinalElectionResults);
       setLeaderboard(
         ((profiles || []) as any[])
           .map((profile: any) => {
             const profilePrediction = predictionByUser.get(profile.id) || null;
             const calculatedScorecard = profilePrediction
-              ? scorecardForUser(profile.id, profilePrediction, results)
+              ? scorecardForUser(
+                  profile.id,
+                  profilePrediction,
+                  results,
+                  currentFinalElectionResults,
+                )
               : scoring.scorecardFromEntries([]);
             const points = calculatedScorecard.total;
             const scorecard = calculatedScorecard;
@@ -503,8 +581,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       if (!usingSupabase) {
         const currentResults = getLocalAdminResults();
-        const nextLeaderboard = buildLeaderboard(getLocalUsers(), user?.id || null, prediction, currentResults);
+        const currentFinalElectionResults = getLocalFinalElectionResults();
+        const nextLeaderboard = buildLeaderboard(
+          getLocalUsers(),
+          user?.id || null,
+          prediction,
+          currentResults,
+          currentFinalElectionResults,
+        );
         setAdminResults(currentResults);
+        setFinalElectionResults(currentFinalElectionResults);
         setLeaderboard(nextLeaderboard);
         setUser((current) => {
           if (!current) return current;
@@ -517,12 +603,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const supabase = getSupabaseBrowserClient() as any;
       if (!supabase) return;
 
-      const [{ data: profiles }, { data: matches }, { data: events }, tacticRows] = await Promise.all([
+      const [
+        { data: profiles },
+        { data: matches },
+        { data: events },
+        { data: finalResultsRow },
+        tacticRows,
+      ] = await Promise.all([
         supabase.from("profiles").select("id, display_name, avatar_url, total_points, is_admin, is_pro, is_wolf, is_hidden, late_edit"),
         supabase.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, status, stage").eq("status", "validated"),
         supabase.from("match_events").select("id, match_id, player_id, team_id, event_type, minute, details"),
+        supabase
+          .from("tournament_final_results")
+          .select(
+            "world_champion_team_id, highest_scoring_team_id, most_conceded_team_id, most_reds_team_id, top_scorer_player_id, mvp_player_id",
+          )
+          .limit(1)
+          .maybeSingle(),
         fetchMatchTacticResults(supabase),
       ]);
+
+      const currentFinalElectionResults = finalElectionResultsFromRow(
+        finalResultsRow as Record<string, unknown> | null,
+      );
 
       const results: AdminResults = {};
       ((matches || []) as any[]).forEach((match: any) => {
@@ -563,7 +666,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .map((profile: any) => {
           const profilePrediction = predictionByUser.get(profile.id) || null;
           const calculatedScorecard = profilePrediction
-            ? scorecardForUser(profile.id, profilePrediction, results)
+            ? scorecardForUser(
+                profile.id,
+                profilePrediction,
+                results,
+                currentFinalElectionResults,
+              )
             : scoring.scorecardFromEntries([]);
           const points = calculatedScorecard.total;
           const scorecard = calculatedScorecard;
@@ -587,6 +695,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
 
       setAdminResults(results);
+      setFinalElectionResults(currentFinalElectionResults);
       setLeaderboard(nextLeaderboard);
       setUser((current) => {
         if (!current) return current;
@@ -843,7 +952,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!usingSupabase) {
         setLocalAdminResults(next);
         setAdminResults(next);
-        setLeaderboard(buildLeaderboard(getLocalUsers(), user?.id || null, prediction, next));
+        setLeaderboard(
+          buildLeaderboard(
+            getLocalUsers(),
+            user?.id || null,
+            prediction,
+            next,
+            finalElectionResults,
+          ),
+        );
         return;
       }
 
@@ -899,7 +1016,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       await refreshData();
     },
-    [adminResults, prediction, refreshData, user?.id, usingSupabase],
+    [adminResults, finalElectionResults, prediction, refreshData, user?.id, usingSupabase],
   );
 
   const addAdminEvent = useCallback(
@@ -912,7 +1029,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!usingSupabase) {
         setLocalAdminResults(next);
         setAdminResults(next);
-        setLeaderboard(buildLeaderboard(getLocalUsers(), user?.id || null, prediction, next));
+        setLeaderboard(
+          buildLeaderboard(
+            getLocalUsers(),
+            user?.id || null,
+            prediction,
+            next,
+            finalElectionResults,
+          ),
+        );
         return;
       }
 
@@ -933,7 +1058,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       await refreshData();
     },
-    [adminResults, prediction, refreshData, user?.id, usingSupabase],
+    [adminResults, finalElectionResults, prediction, refreshData, user?.id, usingSupabase],
   );
 
   const deleteAdminEvent = useCallback(
@@ -945,7 +1070,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!usingSupabase) {
         setLocalAdminResults(next);
         setAdminResults(next);
-        setLeaderboard(buildLeaderboard(getLocalUsers(), user?.id || null, prediction, next));
+        setLeaderboard(
+          buildLeaderboard(
+            getLocalUsers(),
+            user?.id || null,
+            prediction,
+            next,
+            finalElectionResults,
+          ),
+        );
         return;
       }
 
@@ -957,14 +1090,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       await refreshData();
     },
-    [adminResults, prediction, refreshData, user?.id, usingSupabase],
+    [adminResults, finalElectionResults, prediction, refreshData, user?.id, usingSupabase],
   );
 
   const clearAdminResults = useCallback(async () => {
     if (!usingSupabase) {
       setLocalJson(localKeys.adminMatches, {});
       setAdminResults({});
-      setLeaderboard(buildLeaderboard(getLocalUsers(), user?.id || null, prediction, {}));
+      setLeaderboard(
+        buildLeaderboard(
+          getLocalUsers(),
+          user?.id || null,
+          prediction,
+          {},
+          finalElectionResults,
+        ),
+      );
       return;
     }
     const supabase = getSupabaseBrowserClient();
@@ -973,7 +1114,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await supabase.from("match_events").delete().neq("id", "");
     await supabase.from("matches").delete().like("id", "wc26-%");
     await refreshData();
-  }, [prediction, refreshData, user?.id, usingSupabase]);
+  }, [finalElectionResults, prediction, refreshData, user?.id, usingSupabase]);
+
+  const saveFinalElectionResults = useCallback(
+    async (values: FinalElectionResults) => {
+      if (!user?.isAdmin) {
+        throw new Error("Solo el administrador puede guardar los resultados finales.");
+      }
+
+      const normalized = normalizeFinalElectionResults(values);
+
+      if (!usingSupabase) {
+        setLocalFinalElectionResults(normalized);
+        setFinalElectionResults(normalized);
+        setLeaderboard(
+          buildLeaderboard(
+            getLocalUsers(),
+            user.id,
+            prediction,
+            adminResults,
+            normalized,
+          ),
+        );
+        return;
+      }
+
+      const supabase = getSupabaseBrowserClient() as any;
+      if (!supabase) {
+        throw new Error("No se ha podido conectar con Supabase.");
+      }
+
+      const { error } = await supabase.rpc(
+        "admin_set_tournament_final_results",
+        {
+          p_world_champion_team_id: normalized.worldChampion || null,
+          p_highest_scoring_team_id: normalized.highestScoringTeam || null,
+          p_most_conceded_team_id: normalized.mostConcededTeam || null,
+          p_most_reds_team_id: normalized.mostRedsTeam || null,
+          p_top_scorer_player_id: normalized.topScorer || null,
+          p_mvp_player_id: normalized.mvp || null,
+        },
+      );
+      if (error) throw new Error(error.message);
+
+      await refreshData();
+    },
+    [adminResults, prediction, refreshData, user, usingSupabase],
+  );
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -1094,7 +1281,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setCurrentLocalEmail("");
       setUser(null);
       setPrediction(emptyPrediction());
-      setLeaderboard(buildLeaderboard(getLocalUsers(), null, emptyPrediction(), getLocalAdminResults()));
+      setLeaderboard(
+        buildLeaderboard(
+          getLocalUsers(),
+          null,
+          emptyPrediction(),
+          getLocalAdminResults(),
+          getLocalFinalElectionResults(),
+        ),
+      );
       return;
     }
     const supabase = getSupabaseBrowserClient() as any;
@@ -1133,9 +1328,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const currentScorecard = useMemo(
     () => {
       if (!user) return scoring.scorecardFromEntries([]);
-      return scorecardForUser(user.id, prediction, adminResults);
+      return scorecardForUser(
+        user.id,
+        prediction,
+        adminResults,
+        finalElectionResults,
+      );
     },
-    [adminResults, prediction, user],
+    [adminResults, finalElectionResults, prediction, user],
   );
 
   const value = useMemo<AppContextValue>(
@@ -1148,6 +1348,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       user,
       prediction,
       adminResults,
+      finalElectionResults,
       leaderboard,
       completion: calculateCompletion(prediction),
       currentScorecard,
@@ -1211,6 +1412,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addAdminEvent,
       deleteAdminEvent,
       clearAdminResults,
+      saveFinalElectionResults,
       refreshData,
       teamName: (teamId) => teamsById.get(teamId)?.name || "Por confirmar",
       playerName: (playerId) => playersById.get(playerId)?.name || "Jugador",
@@ -1226,12 +1428,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       authError,
       authMode,
       currentScorecard,
+      finalElectionResults,
       leaderboard,
       prediction,
       ready,
       refreshData,
       replacePrediction,
       saveAdminResult,
+      saveFinalElectionResults,
       savePrediction,
       setUserPro,
       setUserWolf,

@@ -1,4 +1,4 @@
-import type { AdminResults, Match, Player, PorraData, Prediction, Scorecard, ScoreEntry, Team } from "@/lib/types";
+import type { AdminResults, FinalElectionResults, Match, Player, PorraData, Prediction, Scorecard, ScoreEntry, Team } from "@/lib/types";
 import { resultLoserTeamId, resultWinnerTeamId } from "@/lib/match-events";
 import { trainerTacticById } from "@/lib/trainer-tactics";
 
@@ -175,59 +175,12 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
     );
   }
 
-  function calculateFinalExtras(adminResults: AdminResults) {
-    const completed = schedule.every((match) => isScored(adminResults[String(match.number)]));
-    if (!completed) return null;
-
-    const teamStats = new Map(data.teams.map((team) => [team.id, { goals: 0, conceded: 0, reds: 0 }]));
-    const playerGoals = new Map<string, number>();
-    const playerMvps = new Map<string, number>();
-
-    schedule.forEach((match) => {
-      const result = adminResults[String(match.number)];
-      const home = actualTeamId(match, result, "home");
-      const away = actualTeamId(match, result, "away");
-
-      if (home) {
-        teamStats.get(home)!.goals += parseScore(result?.homeScore) ?? 0;
-        teamStats.get(home)!.conceded += parseScore(result?.awayScore) ?? 0;
-      }
-
-      if (away) {
-        teamStats.get(away)!.goals += parseScore(result?.awayScore) ?? 0;
-        teamStats.get(away)!.conceded += parseScore(result?.homeScore) ?? 0;
-      }
-
-      (result?.events || []).forEach((event) => {
-        const type = String(event.type || "");
-        if ((type === "goal" || type === "gol" || type === "penalty_goal" || type === "penalti marcado") && event.playerId) {
-          playerGoals.set(event.playerId, (playerGoals.get(event.playerId) || 0) + 1);
-        }
-        if ((type === "mvp" || type === "MVP") && event.playerId) {
-          playerMvps.set(event.playerId, (playerMvps.get(event.playerId) || 0) + 1);
-        }
-        if ((type === "red_card" || type === "roja") && event.teamId) {
-          teamStats.get(event.teamId)!.reds += 1;
-        }
-      });
-    });
-
-    const leaders = <T,>(map: Map<string, T>, selector: (value: T) => number) => {
-      const rows = Array.from(map.entries()).map(([id, value]) => ({ id, value: selector(value) }));
-      const best = Math.max(...rows.map((row) => row.value));
-      return new Set(rows.filter((row) => row.value === best).map((row) => row.id));
-    };
-
-    return {
-      highestScoringTeams: leaders(teamStats, (row) => row.goals),
-      mostConcededTeams: leaders(teamStats, (row) => row.conceded - row.goals),
-      mostRedsTeams: leaders(teamStats, (row) => row.reds),
-      topScorers: leaders(playerGoals.size ? playerGoals : new Map([["", 0]]), (value) => value),
-      mvps: leaders(playerMvps.size ? playerMvps : new Map([["", 0]]), (value) => value),
-    };
-  }
-
-  function calculateScorecard(prediction: Prediction, adminResults: AdminResults, userId = ""): Scorecard {
+  function calculateScorecard(
+    prediction: Prediction,
+    adminResults: AdminResults,
+    userId = "",
+    finalElectionResults?: FinalElectionResults | null,
+  ): Scorecard {
     const entries: ScoreEntry[] = [];
     const matchPredictions = prediction.matchPredictions || {};
 
@@ -287,27 +240,8 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
         });
       }
 
-      if (match.number >= 73) {
-        const actualWinner = resultWinnerTeamId(
-          result,
-          actualTeamId(match, result, "home"),
-          actualTeamId(match, result, "away"),
-        );
-        // El cuadro (acertar quien pasa de ronda, "team_progression_hit") ya no
-        // puntua: feature retirada. Se mantiene solo el bonus de campeon.
-        const predictedChampion = prediction.extras?.worldChampion || prediction.bracket?.winners?.["104"];
-        if (match.number === 104 && actualWinner && predictedChampion === actualWinner) {
-          addEntry(entries, {
-            userId,
-            matchId: `wc26-${match.number}`,
-            matchNumber: match.number,
-            ruleCode: "tournament_champion_hit",
-            points: 25,
-            explanation: `${teamName(actualWinner)} campeón del Mundial`,
-            sourceRef: "champion",
-          });
-        }
-      }
+      // El cuadro ya no puntua. Los resultados de "Tus elecciones" se
+      // adjudican desde los valores finales confirmados manualmente en Admin.
     });
 
     const groupTables = calculateGroupPositions(adminResults);
@@ -376,39 +310,43 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
       });
     });
 
-    const extras = calculateFinalExtras(adminResults);
-    if (extras) {
+    if (finalElectionResults) {
       const teamChecks = [
-        ["highestScoringTeam", "highestScoringTeams", "tournament_highest_scoring_team_hit", 10, "Equipo más goleador"],
-        ["mostConcededTeam", "mostConcededTeams", "tournament_most_conceded_team_hit", 10, "Equipo más goleado"],
-        ["mostRedsTeam", "mostRedsTeams", "tournament_most_reds_team_hit", 10, "Equipo con más rojas"],
+        ["worldChampion", "tournament_champion_hit", 25, "Campeón del Mundial"],
+        ["highestScoringTeam", "tournament_highest_scoring_team_hit", 10, "Equipo más goleador"],
+        ["mostConcededTeam", "tournament_most_conceded_team_hit", 10, "Equipo más goleado"],
+        ["mostRedsTeam", "tournament_most_reds_team_hit", 10, "Equipo con más rojas"],
       ] as const;
 
-      teamChecks.forEach(([predictionKey, leadersKey, ruleCode, points, label]) => {
-        const id = prediction.extras?.[predictionKey];
-        if (!id || !extras[leadersKey].has(id)) return;
+      teamChecks.forEach(([predictionKey, ruleCode, points, label]) => {
+        const actualId = finalElectionResults[predictionKey];
+        const predictedId =
+          predictionKey === "worldChampion"
+            ? prediction.extras?.worldChampion || prediction.bracket?.winners?.["104"]
+            : prediction.extras?.[predictionKey];
+        if (!actualId || predictedId !== actualId) return;
         addEntry(entries, {
           userId,
           ruleCode,
           points,
-          explanation: `${teamName(id)} - ${label}`,
+          explanation: `${teamName(actualId)} - ${label}`,
           sourceRef: predictionKey,
         });
       });
 
       const specialChecks = [
-        ["topScorer", "topScorers", "tournament_top_scorer_hit", 20, "Máximo goleador del Mundial", playerName],
-        ["mvp", "mvps", "tournament_mvp_hit", 20, "MVP del Mundial", playerName],
+        ["topScorer", "tournament_top_scorer_hit", 20, "Máximo goleador del Mundial"],
+        ["mvp", "tournament_mvp_hit", 20, "MVP del Mundial"],
       ] as const;
 
-      specialChecks.forEach(([predictionKey, leadersKey, ruleCode, points, label, formatter]) => {
-        const id = prediction.extras?.[predictionKey];
-        if (!id || !extras[leadersKey].has(id)) return;
+      specialChecks.forEach(([predictionKey, ruleCode, points, label]) => {
+        const actualId = finalElectionResults[predictionKey];
+        if (!actualId || prediction.extras?.[predictionKey] !== actualId) return;
         addEntry(entries, {
           userId,
           ruleCode,
           points,
-          explanation: `${formatter(id)} · ${label}`,
+          explanation: `${playerName(actualId)} · ${label}`,
           sourceRef: predictionKey,
         });
       });

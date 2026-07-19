@@ -67,8 +67,24 @@ const users = [
   { id: "u2", name: "Test Fallos", prediction: prediction({ exactScores: false, homeWinners: false }) },
 ];
 const results = simulatedResults();
+const finalElectionResults = {
+  worldChampion: actualTeams(schedule.find((match) => match.number === 104)!).home,
+  highestScoringTeam: "",
+  mostConcededTeam: "",
+  mostRedsTeam: "",
+  topScorer: "esp-19",
+  mvp: "esp-19",
+};
 const table = users
-  .map((user) => ({ ...user, scorecard: engine.calculateScorecard(user.prediction, results as any, user.id) }))
+  .map((user) => ({
+    ...user,
+    scorecard: engine.calculateScorecard(
+      user.prediction,
+      results as any,
+      user.id,
+      finalElectionResults,
+    ),
+  }))
   .sort((a, b) => b.scorecard.total - a.scorecard.total);
 
 assert.equal(Object.keys(results).length, 104);

@@ -62,6 +62,15 @@ export type PredictionExtras = {
   mvp: string;
 };
 
+export type FinalElectionResults = {
+  worldChampion: string;
+  highestScoringTeam: string;
+  mostConcededTeam: string;
+  mostRedsTeam: string;
+  topScorer: string;
+  mvp: string;
+};
+
 export type Prediction = {
   groups: Record<string, Record<string, string>>;
   bracket: {

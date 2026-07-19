@@ -45,6 +45,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { trainerTactics } from "@/lib/trainer-tactics";
 import type {
   AdminEvent,
+  FinalElectionResults,
   Match,
   ProviderSummary,
   UserProfile,
@@ -52,6 +53,7 @@ import type {
 
 type AdminTab =
   | "partidos"
+  | "elecciones"
   | "usuarios"
   | "sobres"
   | "oak"
@@ -69,6 +71,7 @@ type AdminTab =
 
 const adminTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "partidos", label: "Resultados y eventos" },
+  { id: "elecciones", label: "Tus elecciones" },
   { id: "usuarios", label: "Usuarios" },
   { id: "sobres", label: "Sobres" },
   { id: "oak", label: "Oak" },
@@ -428,6 +431,12 @@ export function AdminView() {
         </>
       ) : null}
 
+      {activeTab === "elecciones" ? (
+        <Card className="space-y-5">
+          <FinalElectionResultsAdmin />
+        </Card>
+      ) : null}
+
       {activeTab === "usuarios" ? (
         <Card className="space-y-4">
           <div>
@@ -740,6 +749,174 @@ export function AdminView() {
         </Card>
       ) : null}
     </div>
+  );
+}
+
+type FinalPlayerField = "topScorer" | "mvp";
+
+function FinalElectionResultsAdmin() {
+  const {
+    finalElectionResults,
+    playerName,
+    saveFinalElectionResults,
+    teamName,
+  } = useAppContext();
+  const [draft, setDraft] = useState<FinalElectionResults>(() => ({
+    ...finalElectionResults,
+  }));
+  const [playerField, setPlayerField] = useState<FinalPlayerField | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const setTeam = (
+    field:
+      | "worldChampion"
+      | "highestScoringTeam"
+      | "mostConcededTeam"
+      | "mostRedsTeam",
+    value: string,
+  ) => setDraft((current) => ({ ...current, [field]: value }));
+
+  const playerButton = (field: FinalPlayerField, label: string) => {
+    const player = playersById.get(draft[field]);
+    return (
+      <div>
+        <span className="text-sm text-zinc-300">{label}</span>
+        <button
+          type="button"
+          onClick={() => setPlayerField(field)}
+          className="flex w-full min-w-0 items-center gap-3 rounded-lg border border-white/10 bg-[#0f0f0f] px-4 py-3 text-left text-white transition hover:border-white/20"
+        >
+          {player ? (
+            <>
+              <PlayerAvatar
+                player={player}
+                className="h-9 w-9 shrink-0 rounded-full bg-white/10 text-[10px]"
+              />
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold">
+                  {player.name}
+                </span>
+                <span className="block truncate text-xs text-zinc-500">
+                  {teamName(player.team)}
+                </span>
+              </span>
+            </>
+          ) : (
+            <span className="text-sm text-zinc-500">Elige un jugador</span>
+          )}
+        </button>
+      </div>
+    );
+  };
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const missing = Object.values(draft).some((value) => !value);
+    if (missing) {
+      toast.error("Faltan resultados finales", {
+        description: "Completa las seis elecciones antes de guardar.",
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await saveFinalElectionResults(draft);
+      toast.success("Resultados finales guardados", {
+        description: "Los puntos de Tus elecciones se han recalculado.",
+      });
+    } catch (error) {
+      toast.error("No se han podido guardar", {
+        description:
+          error instanceof Error ? error.message : "Inténtalo de nuevo.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form className="space-y-5" onSubmit={submit}>
+      <div>
+        <h3 className="text-xl font-semibold text-white">
+          Resultados finales de Tus elecciones
+        </h3>
+        <p className="mt-1 text-sm leading-6 text-slate-400">
+          Introduce los seis ganadores oficiales. Al guardar se adjudican los
+          puntos y se actualiza la clasificación completa.
+        </p>
+      </div>
+
+      <Notice>
+        Estos valores sustituyen al cálculo automático. Si corriges alguno y
+        vuelves a guardar, los puntos se recalculan otra vez.
+      </Notice>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <TeamPicker
+          label="Campeón del Mundial · +25"
+          value={draft.worldChampion}
+          onChange={(value) => setTeam("worldChampion", value)}
+        />
+        <TeamPicker
+          label="Equipo más goleador · +10"
+          value={draft.highestScoringTeam}
+          onChange={(value) => setTeam("highestScoringTeam", value)}
+        />
+        <TeamPicker
+          label="Equipo más goleado · +10"
+          value={draft.mostConcededTeam}
+          onChange={(value) => setTeam("mostConcededTeam", value)}
+        />
+        <TeamPicker
+          label="Equipo con más rojas · +10"
+          value={draft.mostRedsTeam}
+          onChange={(value) => setTeam("mostRedsTeam", value)}
+        />
+        {playerButton("topScorer", "Máximo goleador · +20")}
+        {playerButton("mvp", "MVP del Mundial (Sofascore) · +20")}
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
+        <p className="font-semibold text-white">Resumen que se guardará</p>
+        <p className="mt-1 leading-6">
+          Campeón: {draft.worldChampion ? teamName(draft.worldChampion) : "pendiente"}
+          {" · "}Goleador: {draft.topScorer ? playerName(draft.topScorer) : "pendiente"}
+          {" · "}MVP: {draft.mvp ? playerName(draft.mvp) : "pendiente"}
+        </p>
+      </div>
+
+      <button
+        type="submit"
+        disabled={saving}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-black disabled:opacity-60 sm:w-auto"
+      >
+        {saving ? (
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/25 border-t-black" />
+        ) : null}
+        {saving ? "Guardando…" : "Guardar y recalcular clasificación"}
+      </button>
+
+      {playerField ? (
+        <PlayerSearchModal
+          title={
+            playerField === "topScorer"
+              ? "Máximo goleador del Mundial"
+              : "MVP del Mundial"
+          }
+          currentPlayer={playersById.get(draft[playerField])}
+          onClose={() => setPlayerField(null)}
+          onRemove={() => {
+            setDraft((current) => ({ ...current, [playerField]: "" }));
+            setPlayerField(null);
+          }}
+          onSelect={(playerId) => {
+            setDraft((current) => ({ ...current, [playerField]: playerId }));
+            setPlayerField(null);
+          }}
+        />
+      ) : null}
+    </form>
   );
 }
 

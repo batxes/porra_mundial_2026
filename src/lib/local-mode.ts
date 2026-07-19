@@ -1,8 +1,10 @@
 import { data } from "@/lib/data";
 import { emptyPrediction } from "@/lib/prediction";
+import { emptyFinalElectionResults, normalizeFinalElectionResults } from "@/lib/final-election-results";
 import type {
   AdminEvent,
   AdminResults,
+  FinalElectionResults,
   Position,
   Prediction,
 } from "@/lib/types";
@@ -26,6 +28,7 @@ export const localKeys = {
   currentEmail: "porra26_current_email",
   predictions: "porra26_predictions",
   adminMatches: "porra26_admin_matches",
+  finalElectionResults: "porra26_final_election_results",
   pendingPrediction: "porra26_pending_prediction",
 } as const;
 
@@ -79,6 +82,22 @@ export function getLocalAdminResults() {
 
 export function setLocalAdminResults(results: AdminResults) {
   setLocalJson(localKeys.adminMatches, results);
+}
+
+export function getLocalFinalElectionResults() {
+  return normalizeFinalElectionResults(
+    getLocalJson<FinalElectionResults>(
+      localKeys.finalElectionResults,
+      emptyFinalElectionResults(),
+    ),
+  );
+}
+
+export function setLocalFinalElectionResults(results: FinalElectionResults) {
+  setLocalJson(
+    localKeys.finalElectionResults,
+    normalizeFinalElectionResults(results),
+  );
 }
 
 export function getCurrentLocalEmail() {
