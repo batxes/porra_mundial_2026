@@ -231,6 +231,7 @@ function actualKnockoutGroupResults() {
       events: [],
     },
   };
+  assert.ok(!buildCardEligiblePlayoffTeamIds(afterThirdPlace).has("fra"));
   assert.ok(!buildCardEligiblePlayoffTeamIds(afterThirdPlace).has("eng"));
 }
 

@@ -476,6 +476,12 @@ function buildEliminatedPlayoffTeamIdsForStages(
     const away = validSavedTeam(result, "away") || teams?.away || "";
     if (!isScored(result)) return;
 
+    if (match.stage === "Tercer puesto") {
+      if (home) eliminated.add(home);
+      if (away) eliminated.add(away);
+      return;
+    }
+
     const loser = resultLoserTeamId(result, home, away);
     if (loser) eliminated.add(loser);
   });
@@ -520,7 +526,8 @@ export function buildAlivePlayoffTeamIds(adminResults: AdminResults) {
 
 // Equipos que pueden seguir apareciendo en sobres. A diferencia de los
 // aspirantes al título, aquí conservamos a los dos perdedores de semifinales
-// hasta que se haya jugado el tercer puesto.
+// hasta que se haya jugado el tercer puesto. Cuando termina ese partido, sus
+// dos participantes dejan de ser elegibles porque ninguno vuelve a jugar.
 export function buildCardEligiblePlayoffTeamIds(adminResults: AdminResults) {
   const groupTables = calculateGroupTables(adminResults);
   const eligible = new Set<string>();
