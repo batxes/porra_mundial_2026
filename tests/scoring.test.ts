@@ -2,7 +2,10 @@
 import assert from "node:assert/strict";
 
 import { data, schedule } from "@/lib/data";
-import { normalizeFinalElectionResults } from "@/lib/final-election-results";
+import {
+  finalElectionResultsFromRow,
+  normalizeFinalElectionResults,
+} from "@/lib/final-election-results";
 import {
   buildAlivePlayoffTeamIds,
   buildCardEligiblePlayoffTeamIds,
@@ -26,6 +29,25 @@ assert.deepEqual(
     highestScoringTeam: ["fra"],
     mostConcededTeam: ["mex", "bra"],
     mostRedsTeam: ["arg", "esp"],
+    topScorer: "",
+    mvp: "",
+  },
+);
+
+assert.deepEqual(
+  finalElectionResultsFromRow({
+    highest_scoring_team_id: "fra",
+    highest_scoring_team_ids: ["fra", "eng"],
+    most_conceded_team_id: "mex",
+    most_conceded_team_ids: [],
+    most_reds_team_id: "arg",
+    most_reds_team_ids: ["arg", "bra"],
+  }),
+  {
+    worldChampion: "",
+    highestScoringTeam: ["fra", "eng"],
+    mostConcededTeam: ["mex"],
+    mostRedsTeam: ["arg", "bra"],
     topScorer: "",
     mvp: "",
   },

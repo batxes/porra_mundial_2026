@@ -424,7 +424,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ? supabase
               .from("tournament_final_results")
               .select(
-                "world_champion_team_id, highest_scoring_team_id, most_conceded_team_id, most_reds_team_id, top_scorer_player_id, mvp_player_id",
+                "world_champion_team_id, highest_scoring_team_id, highest_scoring_team_ids, most_conceded_team_id, most_conceded_team_ids, most_reds_team_id, most_reds_team_ids, top_scorer_player_id, mvp_player_id",
               )
               .eq("tournament_id", tournamentId)
               .maybeSingle()
@@ -616,7 +616,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         supabase
           .from("tournament_final_results")
           .select(
-            "world_champion_team_id, highest_scoring_team_id, most_conceded_team_id, most_reds_team_id, top_scorer_player_id, mvp_player_id",
+            "world_champion_team_id, highest_scoring_team_id, highest_scoring_team_ids, most_conceded_team_id, most_conceded_team_ids, most_reds_team_id, most_reds_team_ids, top_scorer_player_id, mvp_player_id",
           )
           .limit(1)
           .maybeSingle(),

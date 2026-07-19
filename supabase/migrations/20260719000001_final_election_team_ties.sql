@@ -1,36 +1,31 @@
 -- Permite varios ganadores oficiales cuando hay empate en las tres
--- categorias estadisticas por equipos. Cada usuario sigue eligiendo un solo
--- equipo y recibe los puntos completos si su eleccion esta entre los empatados.
+-- categorias estadisticas por equipos. Se mantienen las columnas singulares
+-- anteriores para que el cambio sea compatible y no pierda datos guardados.
 
 alter table public.tournament_final_results
-  drop constraint if exists tournament_final_results_highest_scoring_team_id_fkey,
-  drop constraint if exists tournament_final_results_most_conceded_team_id_fkey,
-  drop constraint if exists tournament_final_results_most_reds_team_id_fkey;
+  add column if not exists highest_scoring_team_ids text[] not null default '{}'::text[],
+  add column if not exists most_conceded_team_ids text[] not null default '{}'::text[],
+  add column if not exists most_reds_team_ids text[] not null default '{}'::text[];
 
-alter table public.tournament_final_results
-  alter column highest_scoring_team_id type text[]
-    using case
-      when highest_scoring_team_id is null then '{}'::text[]
-      else array[highest_scoring_team_id]
+update public.tournament_final_results
+set highest_scoring_team_ids = case
+      when cardinality(highest_scoring_team_ids) = 0
+        and highest_scoring_team_id is not null
+        then array[highest_scoring_team_id]
+      else highest_scoring_team_ids
     end,
-  alter column most_conceded_team_id type text[]
-    using case
-      when most_conceded_team_id is null then '{}'::text[]
-      else array[most_conceded_team_id]
+    most_conceded_team_ids = case
+      when cardinality(most_conceded_team_ids) = 0
+        and most_conceded_team_id is not null
+        then array[most_conceded_team_id]
+      else most_conceded_team_ids
     end,
-  alter column most_reds_team_id type text[]
-    using case
-      when most_reds_team_id is null then '{}'::text[]
-      else array[most_reds_team_id]
+    most_reds_team_ids = case
+      when cardinality(most_reds_team_ids) = 0
+        and most_reds_team_id is not null
+        then array[most_reds_team_id]
+      else most_reds_team_ids
     end;
-
-alter table public.tournament_final_results
-  alter column highest_scoring_team_id set default '{}'::text[],
-  alter column highest_scoring_team_id set not null,
-  alter column most_conceded_team_id set default '{}'::text[],
-  alter column most_conceded_team_id set not null,
-  alter column most_reds_team_id set default '{}'::text[],
-  alter column most_reds_team_id set not null;
 
 create or replace function public.recalculate_final_election_scores()
 returns void
@@ -86,7 +81,13 @@ begin
         10,
         'Equipo mas goleador',
         'highestScoringTeam',
-        final.highest_scoring_team_id,
+        case
+          when cardinality(final.highest_scoring_team_ids) > 0
+            then final.highest_scoring_team_ids
+          when final.highest_scoring_team_id is not null
+            then array[final.highest_scoring_team_id]
+          else '{}'::text[]
+        end,
         nullif(prediction.selections #>> array['extras', 'highestScoringTeam'], '')
       ),
       (
@@ -94,7 +95,13 @@ begin
         10,
         'Equipo mas goleado',
         'mostConcededTeam',
-        final.most_conceded_team_id,
+        case
+          when cardinality(final.most_conceded_team_ids) > 0
+            then final.most_conceded_team_ids
+          when final.most_conceded_team_id is not null
+            then array[final.most_conceded_team_id]
+          else '{}'::text[]
+        end,
         nullif(prediction.selections #>> array['extras', 'mostConcededTeam'], '')
       ),
       (
@@ -102,7 +109,13 @@ begin
         10,
         'Equipo con mas rojas',
         'mostRedsTeam',
-        final.most_reds_team_id,
+        case
+          when cardinality(final.most_reds_team_ids) > 0
+            then final.most_reds_team_ids
+          when final.most_reds_team_id is not null
+            then array[final.most_reds_team_id]
+          else '{}'::text[]
+        end,
         nullif(prediction.selections #>> array['extras', 'mostRedsTeam'], '')
       ),
       (
@@ -148,10 +161,6 @@ end;
 $$;
 
 revoke all on function public.recalculate_final_election_scores() from public;
-
-drop function if exists public.admin_set_tournament_final_results(
-  text, text, text, text, text, text
-);
 
 create or replace function public.admin_set_tournament_final_results(
   p_world_champion_team_id text default null,
@@ -231,8 +240,11 @@ begin
     tournament_id,
     world_champion_team_id,
     highest_scoring_team_id,
+    highest_scoring_team_ids,
     most_conceded_team_id,
+    most_conceded_team_ids,
     most_reds_team_id,
+    most_reds_team_ids,
     top_scorer_player_id,
     mvp_player_id,
     updated_by,
@@ -241,8 +253,11 @@ begin
   values (
     v_tournament_id,
     nullif(trim(p_world_champion_team_id), ''),
+    v_highest_scoring_team_ids[1],
     v_highest_scoring_team_ids,
+    v_most_conceded_team_ids[1],
     v_most_conceded_team_ids,
+    v_most_reds_team_ids[1],
     v_most_reds_team_ids,
     nullif(trim(p_top_scorer_player_id), ''),
     nullif(trim(p_mvp_player_id), ''),
@@ -252,8 +267,11 @@ begin
   on conflict (tournament_id) do update
   set world_champion_team_id = excluded.world_champion_team_id,
       highest_scoring_team_id = excluded.highest_scoring_team_id,
+      highest_scoring_team_ids = excluded.highest_scoring_team_ids,
       most_conceded_team_id = excluded.most_conceded_team_id,
+      most_conceded_team_ids = excluded.most_conceded_team_ids,
       most_reds_team_id = excluded.most_reds_team_id,
+      most_reds_team_ids = excluded.most_reds_team_ids,
       top_scorer_player_id = excluded.top_scorer_player_id,
       mvp_player_id = excluded.mvp_player_id,
       updated_by = excluded.updated_by,
@@ -263,11 +281,53 @@ begin
 end;
 $$;
 
+-- Conserva el RPC singular para clientes antiguos durante el despliegue.
+create or replace function public.admin_set_tournament_final_results(
+  p_world_champion_team_id text default null,
+  p_highest_scoring_team_id text default null,
+  p_most_conceded_team_id text default null,
+  p_most_reds_team_id text default null,
+  p_top_scorer_player_id text default null,
+  p_mvp_player_id text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.admin_set_tournament_final_results(
+    p_world_champion_team_id,
+    case
+      when nullif(trim(p_highest_scoring_team_id), '') is null then '{}'::text[]
+      else array[trim(p_highest_scoring_team_id)]
+    end,
+    case
+      when nullif(trim(p_most_conceded_team_id), '') is null then '{}'::text[]
+      else array[trim(p_most_conceded_team_id)]
+    end,
+    case
+      when nullif(trim(p_most_reds_team_id), '') is null then '{}'::text[]
+      else array[trim(p_most_reds_team_id)]
+    end,
+    p_top_scorer_player_id,
+    p_mvp_player_id
+  );
+end;
+$$;
+
 revoke all on function public.admin_set_tournament_final_results(
   text, text[], text[], text[], text, text
 ) from public;
 grant execute on function public.admin_set_tournament_final_results(
   text, text[], text[], text[], text, text
+) to authenticated;
+
+revoke all on function public.admin_set_tournament_final_results(
+  text, text, text, text, text, text
+) from public;
+grant execute on function public.admin_set_tournament_final_results(
+  text, text, text, text, text, text
 ) to authenticated;
 
 select public.recalculate_scores();

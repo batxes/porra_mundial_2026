@@ -34,6 +34,11 @@ function normalizeTeamList(value: unknown) {
   );
 }
 
+function normalizeTeamListWithFallback(primary: unknown, fallback: unknown) {
+  const normalized = normalizeTeamList(primary);
+  return normalized.length ? normalized : normalizeTeamList(fallback);
+}
+
 export function normalizeFinalElectionResults(
   value?: Record<string, unknown> | Partial<FinalElectionResults> | null,
 ): FinalElectionResults {
@@ -68,9 +73,18 @@ export function finalElectionResultsFromRow(
 ): FinalElectionResults {
   return normalizeFinalElectionResults({
     worldChampion: row?.world_champion_team_id,
-    highestScoringTeam: row?.highest_scoring_team_id,
-    mostConcededTeam: row?.most_conceded_team_id,
-    mostRedsTeam: row?.most_reds_team_id,
+    highestScoringTeam: normalizeTeamListWithFallback(
+      row?.highest_scoring_team_ids,
+      row?.highest_scoring_team_id,
+    ),
+    mostConcededTeam: normalizeTeamListWithFallback(
+      row?.most_conceded_team_ids,
+      row?.most_conceded_team_id,
+    ),
+    mostRedsTeam: normalizeTeamListWithFallback(
+      row?.most_reds_team_ids,
+      row?.most_reds_team_id,
+    ),
     topScorer: row?.top_scorer_player_id,
     mvp: row?.mvp_player_id,
   });
