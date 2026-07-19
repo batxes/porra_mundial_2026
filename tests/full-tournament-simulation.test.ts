@@ -69,9 +69,9 @@ const users = [
 const results = simulatedResults();
 const finalElectionResults = {
   worldChampion: actualTeams(schedule.find((match) => match.number === 104)!).home,
-  highestScoringTeam: "",
-  mostConcededTeam: "",
-  mostRedsTeam: "",
+  highestScoringTeam: [],
+  mostConcededTeam: [],
+  mostRedsTeam: [],
   topScorer: "esp-19",
   mvp: "esp-19",
 };

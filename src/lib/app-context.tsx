@@ -1148,9 +1148,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         "admin_set_tournament_final_results",
         {
           p_world_champion_team_id: normalized.worldChampion || null,
-          p_highest_scoring_team_id: normalized.highestScoringTeam || null,
-          p_most_conceded_team_id: normalized.mostConcededTeam || null,
-          p_most_reds_team_id: normalized.mostRedsTeam || null,
+          p_highest_scoring_team_ids: normalized.highestScoringTeam,
+          p_most_conceded_team_ids: normalized.mostConcededTeam,
+          p_most_reds_team_ids: normalized.mostRedsTeam,
           p_top_scorer_player_id: normalized.topScorer || null,
           p_mvp_player_id: normalized.mvp || null,
         },

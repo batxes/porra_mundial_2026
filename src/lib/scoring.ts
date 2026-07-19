@@ -311,25 +311,36 @@ export function createEngine({ data, schedule }: { data: PorraData; schedule: Ma
     });
 
     if (finalElectionResults) {
-      const teamChecks = [
-        ["worldChampion", "tournament_champion_hit", 25, "Campeón del Mundial"],
+      const predictedChampion =
+        prediction.extras?.worldChampion || prediction.bracket?.winners?.["104"];
+      if (
+        finalElectionResults.worldChampion &&
+        predictedChampion === finalElectionResults.worldChampion
+      ) {
+        addEntry(entries, {
+          userId,
+          ruleCode: "tournament_champion_hit",
+          points: 25,
+          explanation: `${teamName(finalElectionResults.worldChampion)} - Campeón del Mundial`,
+          sourceRef: "worldChampion",
+        });
+      }
+
+      const tiedTeamChecks = [
         ["highestScoringTeam", "tournament_highest_scoring_team_hit", 10, "Equipo más goleador"],
         ["mostConcededTeam", "tournament_most_conceded_team_hit", 10, "Equipo más goleado"],
         ["mostRedsTeam", "tournament_most_reds_team_hit", 10, "Equipo con más rojas"],
       ] as const;
 
-      teamChecks.forEach(([predictionKey, ruleCode, points, label]) => {
-        const actualId = finalElectionResults[predictionKey];
-        const predictedId =
-          predictionKey === "worldChampion"
-            ? prediction.extras?.worldChampion || prediction.bracket?.winners?.["104"]
-            : prediction.extras?.[predictionKey];
-        if (!actualId || predictedId !== actualId) return;
+      tiedTeamChecks.forEach(([predictionKey, ruleCode, points, label]) => {
+        const actualIds = finalElectionResults[predictionKey];
+        const predictedId = prediction.extras?.[predictionKey];
+        if (!predictedId || !actualIds.includes(predictedId)) return;
         addEntry(entries, {
           userId,
           ruleCode,
           points,
-          explanation: `${teamName(actualId)} - ${label}`,
+          explanation: `${teamName(predictedId)} - ${label}`,
           sourceRef: predictionKey,
         });
       });

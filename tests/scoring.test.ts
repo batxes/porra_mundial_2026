@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 
 import { data, schedule } from "@/lib/data";
+import { normalizeFinalElectionResults } from "@/lib/final-election-results";
 import {
   buildAlivePlayoffTeamIds,
   buildCardEligiblePlayoffTeamIds,
@@ -13,6 +14,22 @@ import { calculateCompletion, emptyPrediction, groupTeamAt } from "@/lib/predict
 import { calculateTeamStandings, createEngine } from "@/lib/scoring";
 
 const engine = createEngine({ data, schedule });
+
+assert.deepEqual(
+  normalizeFinalElectionResults({
+    highestScoringTeam: "fra",
+    mostConcededTeam: ["mex", "mex", "bra"],
+    mostRedsTeam: "{arg,esp}",
+  }),
+  {
+    worldChampion: "",
+    highestScoringTeam: ["fra"],
+    mostConcededTeam: ["mex", "bra"],
+    mostRedsTeam: ["arg", "esp"],
+    topScorer: "",
+    mvp: "",
+  },
+);
 const playerIdByPosition = (position: string) => data.players.find((player) => player.position === position)?.id || "";
 const playerIdByTeamPosition = (team: string, position: string) =>
   data.players.find((player) => player.team === team && player.position === position)?.id || "";
@@ -443,28 +460,30 @@ function actualKnockoutGroupResults() {
   );
   const miniEngine = createEngine({ data: miniData, schedule: miniSchedule });
   const hitPrediction = { groups: {}, bracket: { winners: {} }, extras: { mostConcededTeam: "b" }, xi: [], matchPredictions: {} } as any;
+  const tiedHitPrediction = { groups: {}, bracket: { winners: {} }, extras: { mostConcededTeam: "c" }, xi: [], matchPredictions: {} } as any;
   const missPrediction = { groups: {}, bracket: { winners: {} }, extras: { mostConcededTeam: "a" }, xi: [], matchPredictions: {} } as any;
+  const tiedFinalResults = {
+    worldChampion: "",
+    highestScoringTeam: [],
+    mostConcededTeam: ["b", "c"],
+    mostRedsTeam: [],
+    topScorer: "",
+    mvp: "",
+  };
 
   assert.equal(
-    miniEngine.calculateScorecard(hitPrediction, results as any, "", {
-      worldChampion: "",
-      highestScoringTeam: "",
-      mostConcededTeam: "b",
-      mostRedsTeam: "",
-      topScorer: "",
-      mvp: "",
-    }).entries.some((entry) => entry.ruleCode === "tournament_most_conceded_team_hit"),
+    miniEngine.calculateScorecard(hitPrediction, results as any, "", tiedFinalResults)
+      .entries.some((entry) => entry.ruleCode === "tournament_most_conceded_team_hit"),
     true,
   );
   assert.equal(
-    miniEngine.calculateScorecard(missPrediction, results as any, "", {
-      worldChampion: "",
-      highestScoringTeam: "",
-      mostConcededTeam: "b",
-      mostRedsTeam: "",
-      topScorer: "",
-      mvp: "",
-    }).entries.some((entry) => entry.ruleCode === "tournament_most_conceded_team_hit"),
+    miniEngine.calculateScorecard(tiedHitPrediction, results as any, "", tiedFinalResults)
+      .entries.some((entry) => entry.ruleCode === "tournament_most_conceded_team_hit"),
+    true,
+  );
+  assert.equal(
+    miniEngine.calculateScorecard(missPrediction, results as any, "", tiedFinalResults)
+      .entries.some((entry) => entry.ruleCode === "tournament_most_conceded_team_hit"),
     false,
   );
 }
@@ -488,7 +507,12 @@ function actualKnockoutGroupResults() {
   } as any;
 
   const manualClose = engine.calculateScorecard(prediction, {}, "u1", {
-    ...prediction.extras,
+    worldChampion: prediction.extras.worldChampion,
+    highestScoringTeam: [prediction.extras.highestScoringTeam, "eng"],
+    mostConcededTeam: [prediction.extras.mostConcededTeam],
+    mostRedsTeam: [prediction.extras.mostRedsTeam, "arg"],
+    topScorer: prediction.extras.topScorer,
+    mvp: prediction.extras.mvp,
   });
 
   assert.equal(manualClose.total, 95);
@@ -692,9 +716,9 @@ function actualKnockoutGroupResults() {
   } as any;
   const card = engine.calculateScorecard(knockoutHits, knockoutResults, "u1", {
     worldChampion: "mex",
-    highestScoringTeam: "",
-    mostConcededTeam: "",
-    mostRedsTeam: "",
+    highestScoringTeam: [],
+    mostConcededTeam: [],
+    mostRedsTeam: [],
     topScorer: "",
     mvp: "",
   });

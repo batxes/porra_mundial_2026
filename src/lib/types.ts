@@ -64,9 +64,9 @@ export type PredictionExtras = {
 
 export type FinalElectionResults = {
   worldChampion: string;
-  highestScoringTeam: string;
-  mostConcededTeam: string;
-  mostRedsTeam: string;
+  highestScoringTeam: string[];
+  mostConcededTeam: string[];
+  mostRedsTeam: string[];
   topScorer: string;
   mvp: string;
 };

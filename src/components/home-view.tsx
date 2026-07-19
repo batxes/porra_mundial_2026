@@ -967,9 +967,9 @@ const finalPostPreviewLeaderboard: UserProfile[] = [
 
 const finalPostPreviewResults: FinalElectionResults = {
   worldChampion: "esp",
-  highestScoringTeam: "fra",
-  mostConcededTeam: "mex",
-  mostRedsTeam: "bra",
+  highestScoringTeam: ["fra", "eng"],
+  mostConcededTeam: ["mex"],
+  mostRedsTeam: ["bra", "arg"],
   topScorer: "esp-19",
   mvp: "fra-10",
 };
@@ -2462,23 +2462,23 @@ function FinalTournamentPost({
             <FinalTeamElection
               label="Campeón del Mundial"
               points={25}
-              teamId={finalElectionResults.worldChampion}
+              teamIds={[finalElectionResults.worldChampion]}
               featured
             />
             <FinalTeamElection
               label="Equipo más goleador"
               points={10}
-              teamId={finalElectionResults.highestScoringTeam}
+              teamIds={finalElectionResults.highestScoringTeam}
             />
             <FinalTeamElection
               label="Equipo más goleado"
               points={10}
-              teamId={finalElectionResults.mostConcededTeam}
+              teamIds={finalElectionResults.mostConcededTeam}
             />
             <FinalTeamElection
               label="Equipo con más rojas"
               points={10}
-              teamId={finalElectionResults.mostRedsTeam}
+              teamIds={finalElectionResults.mostRedsTeam}
             />
             <FinalPlayerElection
               label="Máximo goleador"
@@ -2654,14 +2654,17 @@ function FinalTeamElection({
   featured = false,
   label,
   points,
-  teamId,
+  teamIds,
 }: {
   featured?: boolean;
   label: string;
   points: number;
-  teamId: string;
+  teamIds: string[];
 }) {
-  const team = teamsById.get(teamId);
+  const teams = teamIds.flatMap((teamId) => {
+    const team = teamsById.get(teamId);
+    return team ? [team] : [];
+  });
   return (
     <div
       className={`flex min-w-0 items-center gap-3 rounded-xl border px-3 py-3 ${
@@ -2670,16 +2673,27 @@ function FinalTeamElection({
           : "border-white/10 bg-white/[0.03]"
       }`}
     >
-      <TeamFlag
-        teamId={teamId}
-        className="h-9 w-11 shrink-0 rounded-md border border-white/10 object-cover"
-      />
+      <span className="flex shrink-0 -space-x-3">
+        {teams.length ? (
+          teams.map((team) => (
+            <TeamFlag
+              key={team.id}
+              teamId={team.id}
+              className="h-9 w-11 rounded-md border-2 border-[#171611] object-cover"
+            />
+          ))
+        ) : (
+          <span className="h-9 w-11 rounded-md border border-white/10 bg-white/[0.04]" />
+        )}
+      </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
           {label}
         </span>
-        <span className="mt-0.5 block truncate text-sm font-bold text-white">
-          {team?.name || "Por confirmar"}
+        <span className="mt-0.5 block text-sm font-bold leading-5 text-white">
+          {teams.length
+            ? teams.map((team) => team.name).join(" · ")
+            : "Por confirmar"}
         </span>
       </span>
       <span className="shrink-0 rounded-md bg-[#a7f600]/10 px-2 py-1 text-xs font-bold text-[#a7f600]">

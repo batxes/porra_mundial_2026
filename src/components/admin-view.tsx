@@ -753,6 +753,65 @@ export function AdminView() {
 }
 
 type FinalPlayerField = "topScorer" | "mvp";
+type FinalMultiTeamField =
+  | "highestScoringTeam"
+  | "mostConcededTeam"
+  | "mostRedsTeam";
+
+function FinalMultiTeamPicker({
+  label,
+  onChange,
+  values,
+}: {
+  label: string;
+  onChange: (values: string[]) => void;
+  values: string[];
+}) {
+  return (
+    <div className="space-y-2">
+      <TeamPicker
+        label={label}
+        value=""
+        placeholder={values.length ? "Añadir otro equipo" : "Elige un equipo"}
+        onChange={(teamId) => {
+          if (!teamId || values.includes(teamId)) return;
+          onChange([...values, teamId]);
+        }}
+      />
+      {values.length ? (
+        <div className="flex flex-wrap gap-1.5">
+          {values.map((teamId) => (
+            <span
+              key={teamId}
+              className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-cyan-300/20 bg-cyan-300/[0.07] py-1 pl-1.5 pr-2 text-xs font-semibold text-white"
+            >
+              <TeamFlag
+                teamId={teamId}
+                className="h-4 w-6 shrink-0 rounded-sm object-cover"
+              />
+              <span className="max-w-28 truncate">
+                {teamsById.get(teamId)?.name || teamId}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  onChange(values.filter((current) => current !== teamId))
+                }
+                aria-label={`Quitar ${teamsById.get(teamId)?.name || teamId}`}
+                className="ml-0.5 text-sm leading-none text-zinc-400 transition hover:text-white"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <p className="text-[11px] leading-4 text-zinc-500">
+        Si hay empate, añade todos los equipos implicados.
+      </p>
+    </div>
+  );
+}
 
 function FinalElectionResultsAdmin() {
   const {
@@ -767,14 +826,8 @@ function FinalElectionResultsAdmin() {
   const [playerField, setPlayerField] = useState<FinalPlayerField | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const setTeam = (
-    field:
-      | "worldChampion"
-      | "highestScoringTeam"
-      | "mostConcededTeam"
-      | "mostRedsTeam",
-    value: string,
-  ) => setDraft((current) => ({ ...current, [field]: value }));
+  const setMultipleTeams = (field: FinalMultiTeamField, values: string[]) =>
+    setDraft((current) => ({ ...current, [field]: values }));
 
   const playerButton = (field: FinalPlayerField, label: string) => {
     const player = playersById.get(draft[field]);
@@ -811,7 +864,9 @@ function FinalElectionResultsAdmin() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const missing = Object.values(draft).some((value) => !value);
+    const missing = Object.values(draft).some((value) =>
+      Array.isArray(value) ? value.length === 0 : !value,
+    );
     if (missing) {
       toast.error("Faltan resultados finales", {
         description: "Completa las seis elecciones antes de guardar.",
@@ -849,29 +904,32 @@ function FinalElectionResultsAdmin() {
 
       <Notice>
         Estos valores sustituyen al cálculo automático. Si corriges alguno y
-        vuelves a guardar, los puntos se recalculan otra vez.
+        vuelves a guardar, los puntos se recalculan otra vez. En las tres
+        categorías de equipos puedes añadir varios si terminan empatados.
       </Notice>
 
       <div className="grid gap-4 md:grid-cols-2">
         <TeamPicker
           label="Campeón del Mundial · +25"
           value={draft.worldChampion}
-          onChange={(value) => setTeam("worldChampion", value)}
+          onChange={(value) =>
+            setDraft((current) => ({ ...current, worldChampion: value }))
+          }
         />
-        <TeamPicker
+        <FinalMultiTeamPicker
           label="Equipo más goleador · +10"
-          value={draft.highestScoringTeam}
-          onChange={(value) => setTeam("highestScoringTeam", value)}
+          values={draft.highestScoringTeam}
+          onChange={(values) => setMultipleTeams("highestScoringTeam", values)}
         />
-        <TeamPicker
+        <FinalMultiTeamPicker
           label="Equipo más goleado · +10"
-          value={draft.mostConcededTeam}
-          onChange={(value) => setTeam("mostConcededTeam", value)}
+          values={draft.mostConcededTeam}
+          onChange={(values) => setMultipleTeams("mostConcededTeam", values)}
         />
-        <TeamPicker
+        <FinalMultiTeamPicker
           label="Equipo con más rojas · +10"
-          value={draft.mostRedsTeam}
-          onChange={(value) => setTeam("mostRedsTeam", value)}
+          values={draft.mostRedsTeam}
+          onChange={(values) => setMultipleTeams("mostRedsTeam", values)}
         />
         {playerButton("topScorer", "Máximo goleador · +20")}
         {playerButton("mvp", "MVP del Mundial (Sofascore) · +20")}
@@ -881,6 +939,9 @@ function FinalElectionResultsAdmin() {
         <p className="font-semibold text-white">Resumen que se guardará</p>
         <p className="mt-1 leading-6">
           Campeón: {draft.worldChampion ? teamName(draft.worldChampion) : "pendiente"}
+          {" · "}Más goleador: {draft.highestScoringTeam.length
+            ? draft.highestScoringTeam.map(teamName).join(", ")
+            : "pendiente"}
           {" · "}Goleador: {draft.topScorer ? playerName(draft.topScorer) : "pendiente"}
           {" · "}MVP: {draft.mvp ? playerName(draft.mvp) : "pendiente"}
         </p>
