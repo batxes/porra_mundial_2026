@@ -1,4 +1,4 @@
--- Permite varios ganadores oficiales cuando hay empate en las tres
+-- Admite varios ganadores oficiales cuando hay empate en las tres
 -- categorias estadisticas por equipos. Se mantienen las columnas singulares
 -- anteriores para que el cambio sea compatible y no pierda datos guardados.
 
